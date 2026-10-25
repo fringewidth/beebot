@@ -1,0 +1,4 @@
+{"iteration": 100, "minutes": 1.11, "loss": 1.0862, "success": 0.0, "success_ema": 0.002, "level": 0, "size": 40}
+{"iteration": 200, "minutes": 2.24, "loss": 0.562, "success": 0.0, "success_ema": 0.003, "level": 0, "size": 28}
+{"iteration": 300, "minutes": 3.32, "loss": 0.4196, "success": 0.0, "success_ema": 0.065, "level": 0, "size": 40}
+{"iteration": 400, "minutes": 4.18, "loss": 0.3673, "success": 0.375, "success_ema": 0.262, "level": 0, "size": 28}

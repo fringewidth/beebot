@@ -1,0 +1,21 @@
+{
+  "name": "baseline",
+  "val": {
+    "interp": {
+      "success": 1.0,
+      "time": 0.31913402676582336,
+      "final_surround": 0.9996091723442078
+    },
+    "extrap": {
+      "success": 1.0,
+      "time": 0.3741047978401184,
+      "final_surround": 0.9987217783927917
+    },
+    "damage": {
+      "success": 0.9270833134651184,
+      "time": 0.40214383602142334,
+      "final_surround": 0.9860681891441345
+    },
+    "score": 0.365127553542455
+  }
+}

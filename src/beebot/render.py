@@ -31,6 +31,7 @@ def frame(mass, cheese, ring):
 def render(policy, batch, device, path, n_examples=3):
     batch = batch.to(device)
     n_steps = STEPS_PER_CELL * batch.mass.shape[-1]
+    torch.manual_seed(0)  # same firing pattern for every policy, so videos compare like for like
     with torch.no_grad():
         result = rollout(policy, batch, n_steps, FIRE_PROB, TAU, record=True)
     cheese = batch.cheese.cpu().numpy()
