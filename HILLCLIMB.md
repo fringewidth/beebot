@@ -158,3 +158,5 @@ Every long run collapses, whatever the settings: the teacher run at 90 minutes, 
 Change: global gradient-norm clipping (max norm 1) is now the default (`--grad_mode clip`), and fine-tunes from good checkpoints use lower learning rates.
 
 New population (180 minutes, clipping, cosine, best checkpoint kept): v3z-priv (privileged from v3r1-privileged, lr 3e-4), v3z-explore (blind from v3x-explore's best, w_explore 0.15, lr 3e-4), v3z-explore-slow (same, w_explore 0.1, lr 1e-4).
+
+Bar revised (decided by the user at 04:00): a task is done at above 90% success on every val split (interp, extrap, damage), confirmed once on the test set.

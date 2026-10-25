@@ -75,8 +75,9 @@ descent through the full rollout.
 - Round 2 (running) tries longer training, a bigger batch, and a teacher
   start from the privileged swarm's weights.
 
-**Overnight: chasing 100%.** The bar is now 100% on val before moving on, or
-evidence of why it's out of reach. What the night found:
+**Overnight: chasing the bar.** A task is done at above 90% success on every
+val split, confirmed once on the test set. (It was 100% for most of the night;
+revised at 04:00.) What the night found:
 
 1. **The blind swarm has no search strategy, and the loss explains why.** Its
    success falls steeply with starting distance (74% within 6 squares, 3% at 10
@@ -103,8 +104,7 @@ Round results are in the Terrain tab and the run log.
 
 ## Next
 
-1. Solve gathering with terrain. The bar: 90% on unseen sizes and bigger
-   worlds, 80% under damage.
+1. Solve gathering with terrain: above 90% on every val split.
 1. **Feast:** several cheeses that vanish when eaten.
 1. **Chase:** cheese that flees toward the side with the least mass.
 1. **Rivals:** two swarms under different payoff rules (zero-sum, shared, stag
