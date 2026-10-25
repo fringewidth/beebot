@@ -1,0 +1,78 @@
+{
+  "model": {
+    "val": {
+      "interp": {
+        "success": 1.0,
+        "time": 0.21416246891021729,
+        "final_surround": 1.0
+      },
+      "extrap": {
+        "success": 1.0,
+        "time": 0.2376302182674408,
+        "final_surround": 1.0
+      },
+      "damage": {
+        "success": 1.0,
+        "time": 0.22500787675380707,
+        "final_surround": 0.9999182224273682
+      },
+      "score": 0.22560018797715506
+    },
+    "test": {
+      "interp": {
+        "success": 1.0,
+        "time": 0.2394314557313919,
+        "final_surround": 1.0
+      },
+      "extrap": {
+        "success": 0.90625,
+        "time": 0.3030443787574768,
+        "final_surround": 0.9964234828948975
+      },
+      "damage": {
+        "success": 0.9895833134651184,
+        "time": 0.25800368189811707,
+        "final_surround": 0.9989526867866516
+      },
+      "score": 0.2668265054623286
+    }
+  },
+  "baseline": {
+    "val": {
+      "interp": {
+        "success": 1.0,
+        "time": 0.31913402676582336,
+        "final_surround": 0.9996091723442078
+      },
+      "extrap": {
+        "success": 1.0,
+        "time": 0.3741047978401184,
+        "final_surround": 0.9987217783927917
+      },
+      "damage": {
+        "success": 0.9270833134651184,
+        "time": 0.40214383602142334,
+        "final_surround": 0.9860681891441345
+      },
+      "score": 0.365127553542455
+    },
+    "test": {
+      "interp": {
+        "success": 1.0,
+        "time": 0.3668588697910309,
+        "final_surround": 0.9987927079200745
+      },
+      "extrap": {
+        "success": 0.984375,
+        "time": 0.3641958236694336,
+        "final_surround": 0.9987351298332214
+      },
+      "damage": {
+        "success": 0.9166666865348816,
+        "time": 0.4849144518375397,
+        "final_surround": 0.9836426377296448
+      },
+      "score": 0.40532304843266803
+    }
+  }
+}

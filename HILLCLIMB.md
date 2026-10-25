@@ -20,3 +20,18 @@ Round 2: is the round-1 gap bigger than seed noise? Seed repeat of lr 2e-3, lr 4
 Physical lower bound on val: every ring square needs at least its distance from the nearest starting mass in steps. That gives 0.13 if every square acted every step, and about 0.18 at the eval's 0.75 firing rate. The best run (0.226) is within about 25% of that.
 
 Round 3: 60-minute runs of lr 2e-3: plain, hidden 128, and distance weight decayed by 0.7 per level. Robustness probes added outside the frozen score.
+
+Round 3 (longer, bigger, faster distance decay) was stopped at 18 minutes: the val score was saturated, and the task was too easy to say anything about distributed behavior.
+
+## v1 final test
+
+Run once on the best val run, never used for selection.
+
+| | Val | Test | Test interp | Test extrap | Test damage |
+| --- | --- | --- | --- | --- | --- |
+| r2-lr2e3-seed1 | 0.226 | **0.267** | 1.00 · 0.239 | 0.91 · 0.303 | 0.99 · 0.258 |
+| Baseline | 0.365 | 0.405 | 1.00 · 0.367 | 0.98 · 0.364 | 0.92 · 0.485 |
+
+Test is harder than val for both by about 0.04; the gap holds. Weak spot: 72x72 worlds, where the smell is fainter than anything seen in training.
+
+Why v1 was easy: the smell field hands every square an arrow to the cheese, so no square needs information another square has. Also, empty squares ran the network and wrote notes, so the floor itself could compute. v1 is tagged `v1-smell`.
