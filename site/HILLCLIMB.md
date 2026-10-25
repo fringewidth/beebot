@@ -74,3 +74,13 @@ Random cave-like walls (smoothed noise on the torus, 0 to 30% of the world), rob
 Feasibility check: a hand-written oracle that knows the walking distance solved only 69 to 97% of interp layouts and almost none of the bigger worlds, even with twice the time. The cause was the oracle, not the rule: it piled 10 to 28 robots on single ring squares that jumped back and forth between ring squares every step. Softer oracles did worse. So feasibility is tested with a learned control instead: a privileged swarm that also smells the walking distance, under the same physics and success rule.
 
 v3 round 1 (45 minutes): privileged control, blind defaults, blind with w_crowding 0.3.
+
+| Run | Change | Minutes | Val score | Interp | Extrap | Damage | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v3r1-privileged | control: smells walking distance | 45 | **0.418** | 0.91 | 0.75 | 0.84 | Feasibility control. Reached the last level; 92% gathered, fog 0.19. Videos: a clean, compact gather. The task and time limit are achievable. |
+| v3r1-blind | defaults | 45 | 0.863 | 0.25 | 0.22 | 0.23 | Best blind so far, with terrain (v2's best was 12% without walls). Stuck at level 3. Videos: spreads out laying pheromone, finds the cheese, still gathering when time runs out. |
+| v3r1-crowd03 | w_crowding 0.3 | 45 | 0.996 | 0.02 | 0.00 | 0.01 | Worse. |
+
+The gap between privileged (0.418) and blind (0.863) is the cost of search and communication.
+
+v3 round 2 (90 minutes): blind defaults with seed 1; blind warm-started from the privileged swarm with its scent input removed (inherits gathering, has to learn search; never sees the scent at test time); blind with batch 64.

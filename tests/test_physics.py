@@ -271,3 +271,15 @@ def test_blind_model_can_start_from_privileged_weights(tmp_path):
     keep = [c for c in range(teacher.body[0].weight.shape[1]) if c != 3]
     assert torch.equal(student.body[0].weight, teacher.body[0].weight[:, keep])
     assert torch.equal(student.head.weight, teacher.head.weight)
+
+
+def test_wrapped_privileged_policy_smells_the_current_batch():
+    from beebot.probe import PheromoneBlackout
+
+    rng = np.random.default_rng(11)
+    model = NCA(privileged=True)
+    wrapped = PheromoneBlackout(model)
+    for size in (16, 16, 20):
+        b = sample_batch(rng, size, (1, 3), (2, 6), 2, (0.0, 0.2))
+        rollout(wrapped, b, 1, 0.75, 0.5)
+        assert torch.equal(model.scent, torch.exp(-b.distance.clamp(max=1000) / 8.0))

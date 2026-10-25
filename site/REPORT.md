@@ -58,6 +58,23 @@ descent through the full rollout.
   result tells us whether the task is achievable, and the gap to the blind
   swarm measures what search and communication cost.
 
+**Round 1 result: the task is feasible, and search is the bottleneck.**
+
+| Swarm | Unseen sizes | Bigger worlds | Damaged | Pheromones blocked |
+| --- | --- | --- | --- | --- |
+| Privileged (smells the cheese) | 91% | 75% | 84% | 12% |
+| Blind (touch + pheromones) | 25% | 22% | 23% | 0% |
+| Hand-written wanderer | 0% | 0% | 0% | 0% |
+
+- The blind swarm improved on v2 (25% vs 12%) despite the walls, but stalls
+  at curriculum level 3.
+- Both swarms depend on pheromones, even the one that can smell the cheese:
+  packing into a shell takes coordination.
+- The blind swarm can't reunite separate nests (3%); the privileged one can
+  (92%). Without a shared signal, separated groups never find each other.
+- Round 2 (running) tries longer training, a bigger batch, and a teacher
+  start from the privileged swarm's weights.
+
 Round results are in the Terrain tab and the run log.
 
 ## Next
@@ -68,4 +85,8 @@ Round results are in the Terrain tab and the run log.
 1. **Chase:** cheese that flees toward the side with the least mass.
 1. **Rivals:** two swarms under different payoff rules (zero-sum, shared, stag
    hunt), testing whether cooperation or competition emerges, and whether
-   swarms trained apart can cooperate as strangers.
+   swarms trained apart can cooperate as strangers. Then a variant where both
+   swarms can push the cheese: tug of war, cooperative transport, and a heavy
+   cheese only the two together can move.
+1. **3D:** every task again in voxel space: 3x3x3 neighborhoods, cave-like 3D
+   terrain, a shell instead of a ring, and an interactive 3D viewer on this page.

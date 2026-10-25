@@ -58,6 +58,23 @@ descent through the full rollout.
   result tells us whether the task is achievable, and the gap to the blind
   swarm measures what search and communication cost.
 
+**Round 1 result: the task is feasible, and search is the bottleneck.**
+
+| Swarm | Unseen sizes | Bigger worlds | Damaged | Pheromones blocked |
+| --- | --- | --- | --- | --- |
+| Privileged (smells the cheese) | 91% | 75% | 84% | 12% |
+| Blind (touch + pheromones) | 25% | 22% | 23% | 0% |
+| Hand-written wanderer | 0% | 0% | 0% | 0% |
+
+- The blind swarm improved on v2 (25% vs 12%) despite the walls, but stalls
+  at curriculum level 3.
+- Both swarms depend on pheromones, even the one that can smell the cheese:
+  packing into a shell takes coordination.
+- The blind swarm can't reunite separate nests (3%); the privileged one can
+  (92%). Without a shared signal, separated groups never find each other.
+- Round 2 (running) tries longer training, a bigger batch, and a teacher
+  start from the privileged swarm's weights.
+
 Round results are in the Terrain tab and the run log.
 
 ## Next

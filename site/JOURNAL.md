@@ -138,3 +138,87 @@ a row without beating the best by more than seed noise:
    Stages: strangers (trained separately, then paired: zero-shot coordination),
    co-trained partners, then swapped partners after co-training (did they learn
    a general skill or a private handshake?).
+
+   Follow-up, after the regular games: **pushable cheese.** Robots touching the
+   cheese push it away from themselves; every few steps it moves one square in
+   the direction of the net push if that beats friction, blocked by walls and
+   robots. Each swarm has a home nest and payoff depends on where the cheese
+   ends up: zero-sum becomes tug of war, shared becomes cooperative transport to
+   a common target, and the stag hunt uses a heavy cheese no single swarm can
+   move.
+
+### Closing v2: gathering is hard
+
+- Round 2 trained on the gather objective (warm start, fresh, and 128 wide).
+  All three stalled at curriculum level 3 and scored 0.93 to 1.00 on val. The
+  best v2 result under the gather rule stays round 1's 0.909 (12% of unseen
+  layouts). One run's loss spiked to 8.7 from the crowding term: gathering pushes
+  robots into piles, which are penalized quadratically.
+- v2 closed unsolved and is tagged `v2-no-smell`.
+
+### v3: terrain, and making sure the results can be trusted
+
+- **Terrain.** Smoothed noise on the torus thresholded at a random wall share
+  (0 to 30%). The open space is the largest connected region; cut-off pockets
+  become wall. Distances are walking distances (8 neighbors, around walls, never
+  through the cheese), and the gather radius uses them. Layouts are rejected
+  unless every ring square is reachable from the nest without passing through
+  the cheese. Walls enter through the curriculum.
+- **Physics tests.** Before trusting any more results, a test suite now checks
+  that the world behaves as described: neighbor lookups; walking distance
+  against a plain breadth-first search; layout invariants (nest off the ring,
+  ring definition, reachability, swarm size); mass conservation under random
+  policies for 60 steps, with no mass ever entering walls or cheese; mass moving
+  to the chosen neighbor; a quarter-robot moving at a quarter strength; empty
+  floor and resting squares writing nothing; the gather radius against brute
+  force; the eaten rule needing both a full ring and a gathered swarm; finite
+  loss with gradients reaching every layer; and deterministic evaluation. The
+  first version of the eaten test failed because the test itself built an
+  impossible state; once fixed, all tests passed.
+- **Is gathering even achievable?** A hand-written oracle that knows the walking
+  distance to the cheese solved only 69 to 97% of unseen-size layouts and almost
+  none of the bigger worlds, even with twice the time. The time limit wasn't the
+  bottleneck, so it was diagnosed directly: the oracle piled 10 to 28 robots on
+  single ring squares, and those stacks jumped wholesale to the empty ring square
+  next door every step, so the ring never settled. Softer oracles did worse.
+  Hand-writing a good gathering policy for this physics is itself hard, so a
+  failed oracle proves nothing about feasibility.
+- **Privileged control instead.** A swarm that also smells the walking distance
+  (v1's smell, routed around walls) is trained under the same physics and the
+  same success rule. If it succeeds, the task is feasible and the gap to the
+  blind swarm is the cost of search and communication. If it fails, the rule or
+  time limit is too strict, and that's evidence for changing it rather than
+  changing it by feel.
+
+### Terrain round 1: the task is feasible; the blind swarm is the bottleneck
+
+- The privileged control (smells walking distance) reached the last curriculum
+  level and solved 91% of unseen-size layouts, 75% of bigger worlds, and 84%
+  under damage, with 92% of the swarm gathered and little fog. Videos show a
+  clean, compact gather. So the gather rule and time limit are achievable, with
+  terrain.
+- The blind swarm reached 25%, up from v2's 12% without walls, but stalled at
+  level 3. Its videos show honest search: it spreads out laying pheromone, finds
+  the cheese, and is still gathering when time runs out. Lowering the crowding
+  penalty made it worse.
+- **Stress tests.**
+  - Pheromone blackout: blind 25% to 0%, and privileged 95% to 12%. Even a
+    swarm that knows where the cheese is depends on pheromones, presumably to
+    pack into a shell without collisions.
+  - Split nests: the blind swarm almost never succeeds from 2 or 3 separate
+    nests (3% and 0%), while the privileged one does (92%). The blind strategy
+    depends on starting as one body; separated groups have no way to find each
+    other.
+  - 128x128 worlds break both (blind 6%, privileged 22%), the latter for v1's
+    reason: the scent is too faint far away.
+  - Denser walls than training (40 to 45%) didn't hurt; both did better, likely
+    because less open space means shorter searches and a smaller swarm.
+- **A bug the stress tests caught.** The pheromone-blackout wrapper didn't pass
+  each new batch to the model inside it, so a wrapped privileged swarm would
+  smell the previous batch's scent. It crashed when the grid size changed;
+  with equal sizes it would have silently used the wrong scent. Fixed, with a
+  test.
+- Round 2 tries longer training, a bigger batch, and a teacher start: the blind
+  swarm initialized from the privileged swarm's weights with the scent input
+  removed, so it inherits gathering and only has to learn search. It never
+  sees the scent at test time.

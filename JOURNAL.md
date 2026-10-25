@@ -189,3 +189,36 @@ a row without beating the best by more than seed noise:
   blind swarm is the cost of search and communication. If it fails, the rule or
   time limit is too strict, and that's evidence for changing it rather than
   changing it by feel.
+
+### Terrain round 1: the task is feasible; the blind swarm is the bottleneck
+
+- The privileged control (smells walking distance) reached the last curriculum
+  level and solved 91% of unseen-size layouts, 75% of bigger worlds, and 84%
+  under damage, with 92% of the swarm gathered and little fog. Videos show a
+  clean, compact gather. So the gather rule and time limit are achievable, with
+  terrain.
+- The blind swarm reached 25%, up from v2's 12% without walls, but stalled at
+  level 3. Its videos show honest search: it spreads out laying pheromone, finds
+  the cheese, and is still gathering when time runs out. Lowering the crowding
+  penalty made it worse.
+- **Stress tests.**
+  - Pheromone blackout: blind 25% to 0%, and privileged 95% to 12%. Even a
+    swarm that knows where the cheese is depends on pheromones, presumably to
+    pack into a shell without collisions.
+  - Split nests: the blind swarm almost never succeeds from 2 or 3 separate
+    nests (3% and 0%), while the privileged one does (92%). The blind strategy
+    depends on starting as one body; separated groups have no way to find each
+    other.
+  - 128x128 worlds break both (blind 6%, privileged 22%), the latter for v1's
+    reason: the scent is too faint far away.
+  - Denser walls than training (40 to 45%) didn't hurt; both did better, likely
+    because less open space means shorter searches and a smaller swarm.
+- **A bug the stress tests caught.** The pheromone-blackout wrapper didn't pass
+  each new batch to the model inside it, so a wrapped privileged swarm would
+  smell the previous batch's scent. It crashed when the grid size changed;
+  with equal sizes it would have silently used the wrong scent. Fixed, with a
+  test.
+- Round 2 tries longer training, a bigger batch, and a teacher start: the blind
+  swarm initialized from the privileged swarm's weights with the scent input
+  removed, so it inherits gathering and only has to learn search. It never
+  sees the scent at test time.

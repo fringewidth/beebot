@@ -1,0 +1,46 @@
+{
+  "reference": {
+    "success": 0.953125,
+    "time": 0.3064236044883728
+  },
+  "pheromone blackout": {
+    "success": 0.125,
+    "time": 0.9327256679534912
+  },
+  "firing 0.5": {
+    "success": 0.890625,
+    "time": 0.399034321308136
+  },
+  "firing 1.0": {
+    "success": 0.953125,
+    "time": 0.2671983540058136
+  },
+  "wipe 50%": {
+    "success": 0.6875,
+    "time": 0.4597981870174408
+  },
+  "chunk cut": {
+    "success": 0.796875,
+    "time": 0.3868815004825592
+  },
+  "2 separate nests": {
+    "success": 0.921875,
+    "time": 0.4118381142616272
+  },
+  "3 separate nests": {
+    "success": 0.921875,
+    "time": 0.40673828125
+  },
+  "128x128 world": {
+    "success": 0.21875,
+    "time": 0.7928873896598816
+  },
+  "no walls": {
+    "success": 1.0,
+    "time": 0.27001953125
+  },
+  "walls 40-45% (beyond training)": {
+    "success": 0.953125,
+    "time": 0.2902018427848816
+  }
+}

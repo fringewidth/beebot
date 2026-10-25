@@ -35,6 +35,11 @@ class PheromoneBlackout:
     def __init__(self, policy):
         self.policy = policy
 
+    def bind(self, batch):
+        # Pass each new batch on, or a privileged policy would smell the previous batch's scent.
+        if hasattr(self.policy, "bind"):
+            self.policy.bind(batch)
+
     def __call__(self, mass, cheese, walls, notes):
         return self.policy(mass, cheese, walls, torch.zeros_like(notes))
 
