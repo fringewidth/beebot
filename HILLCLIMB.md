@@ -46,7 +46,7 @@ Baseline val: 1.000 (0% solved anywhere; random wandering spreads the swarm too 
 
 | Run | Change | Minutes | Val score | Interp | Extrap | Damage | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| v2-sanity (first physics) | defaults, lr 2e-3 | 6 | 0.279 | 0.99 | 0.95 | 0.81 | **Hack.** Dissolved into a thin fog over the world, then condensed onto the cheese. Fractional robots aren't physical. Fixed: a square moves and writes in proportion to its mass (whole robot = 1). Under the fixed physics this model drops to about 30% solved. |
+| v2-sanity (first physics) | defaults, lr 2e-3 | 6 | 0.279 | 0.99 | 0.95 | 0.81 | Not a hack: a valid strategy under the rules as written. It spread into a thin fog over the world, then used pheromones to condense onto the cheese, much like a slime mold. The rules were the problem: fog puts some mass on nearly every square, so every square has a neighbor to relay through, a connected network that sparse physical robots don't get. Rule change, aiming at robots: a square moves and writes in proportion to its mass (a whole robot is 1). Under the new rule this model drops to about 30% solved. |
 | v2-sanity | defaults, lr 2e-3 | 8 | 0.998 | 0.01 | 0.00 | 0.00 | Honest physics. Reaches level 5, then destabilizes: training success 97% to 0%, loss rising. |
 
 v2 round 1: lr 1e-3, lr 5e-4, lr 1e-3 with hidden 128. 30 minutes each.

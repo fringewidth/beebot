@@ -145,7 +145,7 @@ select { font: 13px var(--mono); padding: 6px 8px; border-radius: 6px; border: 1
       <li>Val uses grid sizes never trained on, grids and cheeses bigger than any in training, and a test that wipes a quarter of the mass mid-run.</li>
       <li>Rollout length, firing rate and the occupancy threshold are fixed in the evaluator, so no training setting can make the test easier.</li>
       <li>A separate test set with other sizes and seeds is run once on the finalists, after the hill-climb.</li>
-      <li>A fraction of a robot can't drive itself: a square moves and writes pheromone in proportion to the mass it holds. Without this, the first v2 swarm won by dissolving into a thin fog over the whole world. Fog is still measured on every run.</li>
+      <li>A fraction of a robot can't drive itself: a square moves and writes pheromone in proportion to the mass it holds. The first v2 swarm found a valid strategy under the old rules: spread into a thin fog over the whole world, then condense onto the cheese, like a slime mold. Physical robots can't do that, because the fog gave every square a neighbor to relay signals through. Fog is still measured on every run.</li>
       <li>Empty floor can't think. Only squares holding robots write pheromones, and pheromones fade 5% per step.</li>
     </ul>
   </section>
