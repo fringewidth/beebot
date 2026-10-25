@@ -257,3 +257,25 @@ by a variant of the best).
   off so gathering takes over. It doesn't touch evaluation. The tension the
   swarm now has to resolve is the slime mold's: spread wide enough to find food
   while staying connected enough to relay the news back.
+
+### Exploration helps, then everything collapses
+
+- With w_explore 0.5, the blind swarm reached 0.745 on val at 30 minutes: 41%
+  of unseen sizes, 34% of bigger worlds, 39% damaged, its best result so far.
+  Then exploration took over: by 45 minutes it had learned to spread out and
+  never regroup, and training success fell to about 2%. Best-checkpoint keeping
+  saved the 30-minute model. Lower weights (0.15, 0.05) started from that
+  checkpoint also degraded within 30 to 45 minutes.
+- The privileged control collapsed too, after more than three healthy hours.
+  Its good weights were lost, because it started before best-checkpoint keeping
+  existed.
+- **Every long run had collapsed**, whatever its settings, so the cause had to
+  be shared: the training loop. The suspect is the per-parameter gradient
+  normalization taken from Growing NCA. It rescales each parameter's gradient to
+  unit norm before Adam, so on a plateau, where the true gradient is near zero,
+  noise becomes full-size steps; the weights random-walk until they drift into a
+  saturated regime (one-hot moves, piled mass, vanishing gradient) with no way
+  back. Adam already scales steps per weight, so the normalization is
+  redundant. Training now clips the global gradient norm instead, and fine-tunes
+  from good checkpoints use lower learning rates. Whether this was the cause is
+  the next result.
