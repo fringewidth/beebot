@@ -172,3 +172,5 @@ Check-in at 60 minutes (clipping held; no collapses):
 The privileged control holds at 89% damaged on both checks, one point under the bar: even a swarm that can smell the cheese barely clears 90% after a quarter of it is wiped mid-run. Stopped; it has shown the task is solvable to about 90% when search is free. v3z-explore stopped (bigger worlds fell from 38% to 25%). v3z-explore-slow continues.
 
 New: blind networks 192 wide (from 96), from scratch, w_explore 0.15, clipping, cosine: v3w-big-levels (level curriculum) and v3w-big-adaptive (adaptive curriculum). Tests whether capacity limits blind coordination.
+
+Paused at the user's request to free the machine. v3z-explore-slow, v3w-big-levels and v3w-big-adaptive were stopped mid-run; their latest checkpoints (`model.pt`, `checkpoint.json`) and best val checkpoints (`model_best.pt`, where one exists) are in their run folders. Resume with `--init runs/<name>/model.pt` and the same flags.
