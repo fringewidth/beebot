@@ -101,3 +101,40 @@ rather than hand-designed.
   smallest radius whose squares could hold the whole swarm at 0.8 per square),
   with a matching loss term. The best model drops from 45% to 12% under it.
   Old ring-only scores are kept as `val_ring_only` in each summary.
+
+### Planned tasks (written before any results)
+
+After Hunt (the current task) is solved, meaning val success of at least 90%
+on unseen sizes and bigger worlds and at least 80% on damage, or two rounds in
+a row without beating the best by more than seed noise:
+
+1. **Feast:** several cheeses; an eaten cheese vanishes and the swarm has to
+   find the next. Score is time to eat all. Tests forgetting stale trails and
+   splitting up without a leader.
+1. **Chase:** the cheese moves one square toward the side with the least mass
+   every few steps, slower than the swarm (curriculum on its speed). A fully
+   surrounded cheese can't move, so eaten means trapped. Tests pursuit and
+   cutting off rather than chasing.
+1. **Rivals, as a test of collaboration vs competition.** Two swarms with their
+   own mass, colour and pheromones, sharing square capacity, each able to read
+   the other's pheromones. The physics stays fixed and the payoff rules vary:
+   - Zero-sum: one cheese, the swarm owning most of the ring takes all.
+     Competitive control.
+   - Shared: both get the full reward whenever it's eaten. Cooperative control.
+   - Stag hunt: small cheeses either swarm can eat alone for a small reward,
+     and one big cheese whose ring needs more mass than either swarm has, for a
+     big reward split by contribution. The central social dilemma.
+   - Commons (optional): cheese regrows only if not eaten too fast.
+
+   Each swarm optimizes only its own payoff, and each swarm's update only
+   touches its own parameters, so neither trains the other through the shared
+   differentiable world.
+
+   Evidence for real cooperation, beyond outcomes: payoffs, welfare and
+   equality; partner swaps (paired with a non-adapting partner, does it do as
+   well?); cross-species pheromone blackout; mixed-colour rings in the stag
+   hunt.
+
+   Stages: strangers (trained separately, then paired: zero-shot coordination),
+   co-trained partners, then swapped partners after co-training (did they learn
+   a general skill or a private handshake?).
