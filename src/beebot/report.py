@@ -23,6 +23,8 @@ RUNS = Path("runs")
 SITE = Path("site")
 # Run settings that don't change what the model learns; left out of the "change" column.
 NOT_A_CHANGE = {"name", "device", "log_every", "init"}
+# Only the best runs get videos on the page, to keep the site small.
+RUNS_WITH_VIDEOS = 4
 
 
 def finite(value):
@@ -96,10 +98,15 @@ def main():
                 "final_level": summary["final_level"],
                 "val": summary["val"],
                 "curve": curve(run_dir),
-                "videos": copy_videos(run_dir, run_dir.name),
+                "run_dir": run_dir,
                 "probes": read_probes(run_dir),
             }
         )
+
+    runs.sort(key=lambda r: r["val"]["score"])
+    for rank, run in enumerate(runs):
+        run_dir = run.pop("run_dir")
+        run["videos"] = copy_videos(run_dir, run["name"]) if rank < RUNS_WITH_VIDEOS else []
 
     baseline = json.loads((RUNS / "baseline" / "summary.json").read_text())
     data = {

@@ -5,3 +5,4 @@
 {"iteration": 337, "minutes": 7.34, "loss": 0.5198, "success": 1.0, "success_ema": 0.0, "level": 2, "size": 40}
 {"iteration": 400, "minutes": 8.62, "loss": 0.5287, "success": 0.656, "success_ema": 0.7, "level": 2, "size": 20}
 {"iteration": 434, "minutes": 9.64, "loss": 0.4632, "success": 1.0, "success_ema": 0.0, "level": 3, "size": 32}
+{"iteration": 500, "minutes": 11.14, "loss": 0.7535, "success": 0.031, "success_ema": 0.528, "level": 3, "size": 16}
