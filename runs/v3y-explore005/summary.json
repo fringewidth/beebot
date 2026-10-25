@@ -1,0 +1,32 @@
+{
+  "name": "v3y-explore005",
+  "iterations": 2535,
+  "final_level": 0,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 4.142096170315944e-06,
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.04582459107041359,
+      "fog": 0.16012819111347198,
+      "final_gathered": 0.09583579748868942
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.0651518926024437,
+      "fog": 0.13082973659038544,
+      "final_gathered": 0.12103492021560669
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.04317058250308037,
+      "fog": 0.19881121814250946,
+      "final_gathered": 0.10224566608667374
+    },
+    "score": 1.0
+  }
+}

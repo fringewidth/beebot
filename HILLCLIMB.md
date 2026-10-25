@@ -144,3 +144,17 @@ Check-in, 45 minutes into the exploration runs:
 | v3p-adaptive (final) | 0.804 | | | | Stopped earlier; best checkpoint. |
 
 Both stopped. New runs from v3x-explore's 30-minute best checkpoint, adaptive, cosine: v3y-explore015 (w_explore 0.15) and v3y-explore005 (w_explore 0.05).
+
+Check-in: collapses everywhere.
+
+| Run | Val (best checkpoint) | Notes |
+| --- | --- | --- |
+| v3y-explore015 | 0.773 at 30 min | Training success fell to about 5% by 45 minutes. |
+| v3y-explore005 | 1.000 | Collapsed within 30 minutes. |
+| v3p-privileged | 1.000 at 190 min | **Collapsed** after more than 3 healthy hours (0.314 at 40 min, 0.322 at 90 min). It started before best-checkpoint keeping, so only the scores survived, not the weights. |
+
+Every long run collapses, whatever the settings: the teacher run at 90 minutes, the explore runs within 30 to 45, the privileged control at about 190. A cause common to all of them is in the training loop. The prime suspect is per-parameter gradient normalization (from Growing NCA): it rescales every parameter's gradient to unit norm before Adam, so near-zero gradients on a plateau become full-size steps of noise, the weights random-walk, and eventually they drift into a saturated regime (one-hot moves, piled mass, vanishing gradient) with no way back. Adam already scales steps per weight, so the normalization is redundant.
+
+Change: global gradient-norm clipping (max norm 1) is now the default (`--grad_mode clip`), and fine-tunes from good checkpoints use lower learning rates.
+
+New population (180 minutes, clipping, cosine, best checkpoint kept): v3z-priv (privileged from v3r1-privileged, lr 3e-4), v3z-explore (blind from v3x-explore's best, w_explore 0.15, lr 3e-4), v3z-explore-slow (same, w_explore 0.1, lr 1e-4).

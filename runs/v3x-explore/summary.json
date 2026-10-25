@@ -1,0 +1,32 @@
+{
+  "name": "v3x-explore",
+  "iterations": 2585,
+  "final_level": 0,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 7.457746151343791e-05,
+  "val": {
+    "interp": {
+      "success": 0.40625,
+      "time": 0.7317795753479004,
+      "final_surround": 0.8156538009643555,
+      "fog": 0.4116189181804657,
+      "final_gathered": 0.6019501090049744
+    },
+    "extrap": {
+      "success": 0.34375,
+      "time": 0.7613118290901184,
+      "final_surround": 0.44952988624572754,
+      "fog": 0.2294822633266449,
+      "final_gathered": 0.35602205991744995
+    },
+    "damage": {
+      "success": 0.3854166567325592,
+      "time": 0.7421875,
+      "final_surround": 0.7212335467338562,
+      "fog": 0.4565293788909912,
+      "final_gathered": 0.5599889159202576
+    },
+    "score": 0.7450929681460062
+  }
+}

@@ -78,6 +78,12 @@ class Config:
     privileged: bool = False  # control: also smell the walking distance to the cheese
 
     lr: float = 1e-3
+    # "clip": clip the global gradient norm to max_grad_norm (default). "normalize": scale
+    # every parameter's gradient to unit norm, as in Growing NCA. Normalizing inflates
+    # near-zero gradients to full-size steps, so on a plateau the weights random-walk,
+    # and every long run trained that way eventually collapsed.
+    grad_mode: str = "clip"
+    max_grad_norm: float = 1.0
     batch_size: int = 32
     train_sizes: str = "16,20,24,28,32,40"
     steps_per_cell: float = 3.0  # rollout length = steps_per_cell * grid size
@@ -217,7 +223,10 @@ def train(cfg):
                 group["lr"] = cfg.lr * scale
         optimizer.zero_grad()
         value.backward()
-        normalize_gradients(model)
+        if cfg.grad_mode == "normalize":
+            normalize_gradients(model)
+        else:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
         optimizer.step()
 
         success = result.eaten.any(dim=0).float().mean().item()

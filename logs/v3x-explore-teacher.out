@@ -48,3 +48,35 @@
 {"iteration": 2400, "minutes": 43.11, "loss": 3.0467, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 24, "replayed": false, "distance": 11, "success_by_distance": {"2": 0.0, "3": 0.0, "4": 0.0, "5": 0.0, "6": 0.0, "7": 0.0, "8": 0.0, "9": 0.0, "10": 0.0, "11": 0.0, "12": 0.0, "13": 0.0, "14": 0.0, "15": 0.0, "16": 0.0, "17": 0.01, "18": 0.02, "19": 0.01, "20": 0.01}}
 {"iteration": 2450, "minutes": 44.15, "loss": 2.6931, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 20, "replayed": false, "distance": 7, "success_by_distance": {"2": 0.0, "3": 0.0, "4": 0.0, "5": 0.0, "6": 0.0, "7": 0.0, "8": 0.0, "9": 0.0, "10": 0.0, "11": 0.0, "12": 0.0, "13": 0.0, "14": 0.0, "15": 0.0, "16": 0.0, "17": 0.01, "18": 0.02, "19": 0.01, "20": 0.01}}
 {"iteration": 2500, "minutes": 45.03, "loss": 4.9196, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 40, "replayed": false, "distance": 20, "success_by_distance": {"2": 0.0, "3": 0.0, "4": 0.0, "5": 0.0, "6": 0.0, "7": 0.0, "8": 0.0, "9": 0.0, "10": 0.0, "11": 0.0, "12": 0.0, "13": 0.0, "14": 0.0, "15": 0.0, "16": 0.0, "17": 0.01, "18": 0.02, "19": 0.01, "20": 0.01}}
+{
+  "name": "v3x-explore-teacher",
+  "iterations": 2548,
+  "final_level": 0,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 1.3224542084133925e-06,
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.0382002629339695,
+      "fog": 0.18410265445709229,
+      "final_gathered": 0.10712406039237976
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.04456106573343277,
+      "fog": 0.12295068800449371,
+      "final_gathered": 0.1097748652100563
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.036486562341451645,
+      "fog": 0.20626331865787506,
+      "final_gathered": 0.0969846174120903
+    },
+    "score": 1.0
+  }
+}
