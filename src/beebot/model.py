@@ -5,8 +5,11 @@ from torch import nn
 
 from beebot.ca import N_NOTES, OFFSETS, look
 
-# mass, cheese, and the pheromones
-N_CHANNELS = 2 + N_NOTES
+# mass, cheese, walls, and the pheromones
+N_CHANNELS = 3 + N_NOTES
+# A privileged swarm also smells the walking distance to the cheese. It is a
+# control, not a contender: it shows what the task costs without any search.
+SCENT_LENGTH = 8.0
 
 
 class NCA(nn.Module):
@@ -18,9 +21,12 @@ class NCA(nn.Module):
     Circular padding makes the window wrap around the torus edges.
     """
 
-    def __init__(self, hidden=96, n_hidden_layers=2, stay_bias=4.0):
+    def __init__(self, hidden=96, n_hidden_layers=2, stay_bias=4.0, privileged=False):
         super().__init__()
-        layers = [nn.Conv2d(N_CHANNELS, hidden, kernel_size=3, padding=1, padding_mode="circular"), nn.ReLU()]
+        self.privileged = privileged
+        self.scent = None
+        channels = N_CHANNELS + (1 if privileged else 0)
+        layers = [nn.Conv2d(channels, hidden, kernel_size=3, padding=1, padding_mode="circular"), nn.ReLU()]
         for _ in range(n_hidden_layers - 1):
             layers += [nn.Conv2d(hidden, hidden, kernel_size=1), nn.ReLU()]
         self.body = nn.Sequential(*layers)
@@ -33,8 +39,16 @@ class NCA(nn.Module):
         with torch.no_grad():
             self.head.bias[0] = stay_bias
 
-    def forward(self, mass, cheese, notes):
-        x = torch.cat([mass[:, None], cheese[:, None], notes], dim=1)
+    def bind(self, batch):
+        """Called by rollout with each new batch. Only a privileged swarm uses it."""
+        if self.privileged:
+            self.scent = torch.exp(-batch.distance.clamp(max=1000) / SCENT_LENGTH)
+
+    def forward(self, mass, cheese, walls, notes):
+        inputs = [mass[:, None], cheese[:, None], walls[:, None], notes]
+        if self.privileged:
+            inputs.insert(3, self.scent[:, None])
+        x = torch.cat(inputs, dim=1)
         out = self.head(self.body(x))
         return out[:, : len(OFFSETS)], out[:, len(OFFSETS) :]
 
@@ -51,7 +65,7 @@ class StickyBaseline:
         self.stick = stick
         self.wander_stay = wander_stay
 
-    def __call__(self, mass, cheese, notes):
+    def __call__(self, mass, cheese, walls, notes):
         touching = torch.stack([look(cheese, dy, dx) for dy, dx in OFFSETS[1:]]).amax(dim=0)
         logits = torch.zeros(mass.shape[0], len(OFFSETS), *mass.shape[1:], device=mass.device)
         logits[:, 0] = self.wander_stay + self.stick * touching

@@ -1,0 +1,51 @@
+{"iteration": 100, "minutes": 3.26, "loss": 0.8828, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 32}
+{"iteration": 200, "minutes": 5.61, "loss": 0.7531, "success": 0.0, "success_ema": 0.001, "level": 0, "size": 20}
+{"iteration": 300, "minutes": 8.19, "loss": 0.8606, "success": 0.0, "success_ema": 0.098, "level": 0, "size": 16}
+{"iteration": 400, "minutes": 11.11, "loss": 0.5937, "success": 0.906, "success_ema": 0.602, "level": 0, "size": 32}
+{"iteration": 500, "minutes": 14.02, "loss": 0.5836, "success": 0.781, "success_ema": 0.691, "level": 0, "size": 20}
+{"iteration": 569, "minutes": 15.62, "loss": 0.524, "success": 1.0, "success_ema": 0.0, "level": 1, "size": 32}
+{"iteration": 600, "minutes": 16.35, "loss": 0.5828, "success": 0.781, "success_ema": 0.434, "level": 1, "size": 32}
+{"iteration": 700, "minutes": 19.04, "loss": 0.551, "success": 0.938, "success_ema": 0.708, "level": 1, "size": 40}
+{"iteration": 800, "minutes": 21.61, "loss": 0.7065, "success": 0.469, "success_ema": 0.568, "level": 1, "size": 24}
+{"iteration": 858, "minutes": 23.28, "loss": 0.5678, "success": 0.938, "success_ema": 0.0, "level": 2, "size": 28}
+{"iteration": 900, "minutes": 24.4, "loss": 0.6284, "success": 0.781, "success_ema": 0.701, "level": 2, "size": 28}
+{"iteration": 934, "minutes": 25.5, "loss": 0.4631, "success": 1.0, "success_ema": 0.0, "level": 3, "size": 40}
+{"iteration": 1000, "minutes": 27.27, "loss": 0.9163, "success": 0.406, "success_ema": 0.467, "level": 3, "size": 20}
+{"iteration": 1100, "minutes": 30.49, "loss": 0.9161, "success": 0.312, "success_ema": 0.179, "level": 3, "size": 32}
+{"iteration": 1200, "minutes": 33.0, "loss": 0.8366, "success": 0.469, "success_ema": 0.361, "level": 3, "size": 20}
+{"iteration": 1300, "minutes": 35.51, "loss": 0.8385, "success": 0.219, "success_ema": 0.435, "level": 3, "size": 20}
+{"iteration": 1400, "minutes": 38.23, "loss": 1.157, "success": 0.0, "success_ema": 0.162, "level": 3, "size": 20}
+{"iteration": 1500, "minutes": 40.93, "loss": 0.9138, "success": 0.344, "success_ema": 0.344, "level": 3, "size": 20}
+{"iteration": 1600, "minutes": 43.09, "loss": 0.9669, "success": 0.125, "success_ema": 0.449, "level": 3, "size": 16}
+{
+  "name": "v2r2-h128",
+  "iterations": 1696,
+  "final_level": 3,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.09853510462525136,
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.07663502544164658,
+      "fog": 0.599635660648346,
+      "final_gathered": 0.09506180137395859
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.10357104241847992,
+      "fog": 0.39850303530693054,
+      "final_gathered": 0.11100029945373535
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.08301255851984024,
+      "fog": 0.6773025393486023,
+      "final_gathered": 0.10217713564634323
+    },
+    "score": 1.0
+  }
+}

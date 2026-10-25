@@ -1,0 +1,32 @@
+{
+  "name": "v2r2-h128",
+  "iterations": 1696,
+  "final_level": 3,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.09853510462525136,
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.07663502544164658,
+      "fog": 0.599635660648346,
+      "final_gathered": 0.09506180137395859
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.10357104241847992,
+      "fog": 0.39850303530693054,
+      "final_gathered": 0.11100029945373535
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.08301255851984024,
+      "fog": 0.6773025393486023,
+      "final_gathered": 0.10217713564634323
+    },
+    "score": 1.0
+  }
+}

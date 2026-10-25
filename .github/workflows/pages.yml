@@ -28,7 +28,7 @@ jobs:
       - name: Build
         run: |
           mkdir _site
-          cp -r site/data.json site/media _site/
+          cp -r site/data.json site/media site/*.md _site/
           {
             echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
             echo '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'

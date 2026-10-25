@@ -20,7 +20,11 @@ def main():
     run_dir = Path(sys.argv[1])
     device = torch.device(sys.argv[2] if len(sys.argv) > 2 else "mps")
     config = json.loads((run_dir / "config.json").read_text())
-    model = NCA(hidden=config["hidden"], n_hidden_layers=config["n_hidden_layers"]).to(device)
+    model = NCA(
+        hidden=config["hidden"],
+        n_hidden_layers=config["n_hidden_layers"],
+        privileged=config.get("privileged", False),
+    ).to(device)
     model.load_state_dict(torch.load(run_dir / "model.pt", map_location=device))
     model.eval()
     baseline = StickyBaseline()

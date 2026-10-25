@@ -61,3 +61,16 @@ v2 round 2 (45 minutes): warm start from v2r1-lr1e3, fresh lr 1e-3, fresh hidden
 Rule change: success now also needs the swarm to gather (ring full and at least 80% of the mass within the gather radius), with a matching loss term (w_gather 0.5). Round 1 re-scored: v2r1-lr1e3 0.723 to **0.909**, v2r1-lr5e4 0.865 to 0.950, v2r1-lr1e3-h128 0.877 to 0.932, baseline still 1.000.
 
 v2 round 2 restarted on the gather objective (45 minutes): warm start from v2r1-lr1e3, fresh lr 1e-3, fresh hidden 128.
+| v2r2-warm | warm start from v2r1-lr1e3 | 45 | 0.979 | 0.06 | 0.00 | 0.06 | Gather objective. Stuck at level 3. |
+| v2r2-lr1e3 | lr 1e-3 | 45 | 0.928 | 0.12 | 0.06 | 0.14 | Gather objective. Stuck at level 3; loss spikes to 8.7 from the crowding term. |
+| v2r2-h128 | hidden 128 | 45 | 1.000 | 0.00 | 0.00 | 0.00 | Gather objective. Stuck at level 3. |
+
+v2 closed without solving the gather task (best 0.909, v2r1-lr1e3 re-scored). Runs archived in `runs_v2/`, tagged `v2-no-smell`.
+
+# v3: terrain
+
+Random cave-like walls (smoothed noise on the torus, 0 to 30% of the world), robots can't enter them. Distances are walking distances around walls; the gather radius uses them too. Every layout is checked so every ring square is reachable from the nest. Walls enter through the curriculum (none at the first levels, up to 30% at the last). New val and test sets include terrain. A physics test suite (`uv run pytest`) now runs before each round.
+
+Feasibility check: a hand-written oracle that knows the walking distance solved only 69 to 97% of interp layouts and almost none of the bigger worlds, even with twice the time. The cause was the oracle, not the rule: it piled 10 to 28 robots on single ring squares that jumped back and forth between ring squares every step. Softer oracles did worse. So feasibility is tested with a learned control instead: a privileged swarm that also smells the walking distance, under the same physics and success rule.
+
+v3 round 1 (45 minutes): privileged control, blind defaults, blind with w_crowding 0.3.

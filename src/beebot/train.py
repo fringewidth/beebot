@@ -21,9 +21,20 @@ from beebot.layout import sample_batch
 from beebot.model import NCA
 from beebot.render import render_examples
 
-# Curriculum levels: (largest start distance, largest cheese). Training moves up
-# a level once the hard success rate on training batches stays above LEVEL_UP_SUCCESS.
-LEVELS = [(3, 1), (5, 1), (5, 3), (8, 3), (8, 5), (12, 5), (12, 9), (16, 9), (20, 9)]
+# Curriculum levels: (largest start distance, largest cheese, largest wall share).
+# Training moves up a level once the hard success rate on training batches stays
+# above LEVEL_UP_SUCCESS. Wall share is sampled uniformly from 0 up to the level's largest.
+LEVELS = [
+    (3, 1, 0.0),
+    (5, 1, 0.0),
+    (5, 3, 0.05),
+    (8, 3, 0.1),
+    (8, 5, 0.15),
+    (12, 5, 0.2),
+    (12, 9, 0.25),
+    (16, 9, 0.3),
+    (20, 9, 0.3),
+]
 LEVEL_UP_SUCCESS = 0.8
 MIN_ITERATIONS_PER_LEVEL = 50
 
@@ -39,6 +50,7 @@ class Config:
     hidden: int = 96
     n_hidden_layers: int = 2
     stay_bias: float = 4.0
+    privileged: bool = False  # control: also smell the walking distance to the cheese
 
     lr: float = 1e-3
     batch_size: int = 32
@@ -84,7 +96,12 @@ def train(cfg):
     device = torch.device(cfg.device)
     sizes = [int(s) for s in cfg.train_sizes.split(",")]
 
-    model = NCA(hidden=cfg.hidden, n_hidden_layers=cfg.n_hidden_layers, stay_bias=cfg.stay_bias).to(device)
+    model = NCA(
+        hidden=cfg.hidden,
+        n_hidden_layers=cfg.n_hidden_layers,
+        stay_bias=cfg.stay_bias,
+        privileged=cfg.privileged,
+    ).to(device)
     if cfg.init:
         model.load_state_dict(torch.load(cfg.init, map_location=device))
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
@@ -100,8 +117,8 @@ def train(cfg):
 
     while time.time() - start < cfg.minutes * 60:
         size = int(rng.choice(sizes))
-        max_distance, max_cheese = LEVELS[level]
-        batch = sample_batch(rng, size, (1, max_cheese), (2, max_distance), cfg.batch_size).to(device)
+        max_distance, max_cheese, max_walls = LEVELS[level]
+        batch = sample_batch(rng, size, (1, max_cheese), (2, max_distance), cfg.batch_size, (0.0, max_walls)).to(device)
         n_steps = round(cfg.steps_per_cell * size)
 
         result = rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)

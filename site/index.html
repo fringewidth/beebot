@@ -1,9 +1,9 @@
 <title>Beebot Hill-climb</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: one column lab notebook; score strip, then videos side by side, then curves and the full table. */
+/* Layout: lab notebook; a progress report up front, one tab per stage of the project, then the written logs. */
 :root {
   --bg: #f3f4f7;
   --panel: #ffffff;
@@ -34,24 +34,36 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); font-
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 40px 64px;
-  display: grid; gap: 48px;
+  display: grid; gap: 32px;
 }
-h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
 h1 { font-size: clamp(34px, 6vw, 52px); font-weight: 700; letter-spacing: -0.02em; }
 h2 { font-size: 22px; font-weight: 700; }
-p { margin: 0; max-width: 65ch; }
+p { margin: 0; max-width: 70ch; }
+code { font-family: var(--mono); font-size: 0.9em; }
 .label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 section { display: grid; gap: 16px; min-width: 0; }
 header { display: grid; gap: 12px; }
 .lede { color: var(--muted); }
+.panel-stack { display: grid; gap: 40px; }
 
-.scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-.score { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 4px; }
-.score .big { font-family: var(--mono); font-size: 32px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+.tabs button {
+  font: 600 14px var(--body); padding: 10px 14px; cursor: pointer; background: none; color: var(--muted);
+  border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--honey); }
+.tabs button:focus-visible, .picker button:focus-visible, select:focus-visible { outline: 2px solid var(--mass); outline-offset: 2px; }
+
+.scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.score { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 4px; align-content: start; }
+.score .big { font-family: var(--mono); font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .score .sub { color: var(--muted); font-size: 13px; }
 .better { color: var(--good); }
 .worse { color: var(--bad); }
+.pill { font: 500 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); width: fit-content; }
+.pill.current { color: var(--honey); border-color: var(--honey); }
 
 .chart { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; overflow-x: auto; }
 .chart svg { display: block; width: 100%; min-width: 520px; height: auto; }
@@ -64,7 +76,6 @@ header { display: grid; gap: 12px; }
   border: 1px solid var(--line); background: var(--panel); color: var(--ink);
 }
 .picker button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.picker button:focus-visible, select:focus-visible { outline: 2px solid var(--mass); outline-offset: 2px; }
 .duel { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 figure { margin: 0; display: grid; gap: 8px; }
 figure img { width: 100%; image-rendering: pixelated; border-radius: 4px; background: #121218; }
@@ -74,87 +85,46 @@ figcaption { display: flex; justify-content: space-between; gap: 8px; flex-wrap:
 .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
 
 .table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
-table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 13px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.table-wrap table { min-width: 760px; }
 th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
 td.r, th.r { text-align: right; }
 tr:last-child td { border-bottom: 0; }
 .chip { font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; margin: 0 4px 4px 0; display: inline-block; }
 .best td:first-child { box-shadow: inset 3px 0 0 var(--honey); }
-.rules { display: grid; gap: 8px; padding-left: 20px; margin: 0; color: var(--muted); max-width: 75ch; }
 select { font: 13px var(--mono); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
 .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.empty { color: var(--muted); font-style: italic; }
+
+.doc { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 24px clamp(16px, 4vw, 40px); min-width: 0; }
+.doc > * { max-width: 75ch; }
+.doc h1 { font-size: 30px; margin-block: 0 16px; }
+.doc h2 { font-size: 22px; margin-block: 32px 12px; }
+.doc h3 { font-size: 17px; margin-block: 24px 8px; }
+.doc p, .doc li { line-height: 1.65; }
+.doc p { margin-block: 0 12px; }
+.doc ul, .doc ol { padding-left: 22px; margin-block: 0 12px; }
+.doc table { display: block; overflow-x: auto; max-width: 100%; margin-block: 8px 16px; }
+.doc table th, .doc table td { white-space: normal; min-width: 60px; }
+.doc code { background: var(--bg); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
 </style>
 
 <div class="wrap">
   <header>
-    <div class="label">Neural cellular automata · hill-climb</div>
+    <div class="label" id="generated">Neural cellular automata · hill-climb</div>
     <h1>Beebot</h1>
-    <p class="lede">Every square of the grid runs the same tiny network and sees only its 3x3 neighborhood. It can only pass mass to its neighbors; mass is never created. There is no smell: a robot only knows the cheese is there when it touches it. The swarm has to search, then pull itself together around the cheese using pheromones it lays on the floor, with no leader and no map.</p>
-    <p class="lede">v1 had a smell that pointed every square at the cheese. It reached 0.267 on its test set against a hand-written baseline's 0.405, then saturated. That version is tagged <code>v1-smell</code> in the repo.</p>
+    <p class="lede">Every square of the grid runs the same tiny network and sees only its 3x3 neighborhood. It can only pass mass to its neighbors; mass is never created. The swarm has to find a block of cheese and gather around it, with no leader and no map. Each stage below removes a crutch the previous one leaned on.</p>
   </header>
 
-  <section>
-    <h2>Where it stands</h2>
-    <div class="scores" id="scores"></div>
-    <p class="lede">Val score is the share of the rollout spent before the cheese is fully surrounded, averaged over unseen grid sizes, oversized grids and cheeses, and a damaged-swarm test. A failure counts as 1. Lower is better.</p>
-  </section>
-
-  <section>
-    <div class="row">
-      <h2>Watch it</h2>
-      <select id="run-select" aria-label="Run to compare against the baseline"></select>
-    </div>
-    <div class="picker" id="picker"></div>
-    <div class="duel" id="duel"></div>
-    <div class="legend">
-      <span><i class="swatch" style="background:#f9c828"></i>cheese</span>
-      <span><i class="swatch" style="background:#5aaaff"></i>mass</span>
-      <span><i class="swatch" style="background:#ffffff;border:1px solid var(--line)"></i>over 1 unit on a square</span>
-      <span><i class="swatch" style="background:#3c2d14"></i>ring to fill</span>
-      <span><i class="swatch" style="background:#3cc878"></i>pheromone</span>
-      <span><i class="swatch" style="background:#dc4646"></i>bar turns red after the time limit; videos run to twice the limit</span>
-    </div>
-  </section>
-
-  <section>
-    <h2>Val score by run</h2>
-    <div class="chart" id="bars"></div>
-  </section>
-
-  <section>
-    <h2>Stress tests</h2>
-    <p class="lede">Conditions the creature never trained on, scored the same way but kept outside the val score. Each cell shows how often it fully surrounds the cheese, then the time used.</p>
-    <div class="table-wrap"><table id="probes"></table></div>
-  </section>
-
-  <section>
-    <h2>Curriculum progress</h2>
-    <p class="lede">Training starts with small cheese close by and unlocks harder layouts once the success rate holds above 80%. The final level is cheese of up to 9 squares, up to 20 squares away.</p>
-    <div class="chart" id="curves"></div>
-  </section>
-
-  <section>
-    <h2>All runs</h2>
-    <div class="table-wrap"><table id="table"></table></div>
-  </section>
-
-  <section>
-    <h2>Rules against fooling ourselves</h2>
-    <ul class="rules">
-      <li>Runs are ranked on the hard metric, never on the loss.</li>
-      <li>Val uses grid sizes never trained on, grids and cheeses bigger than any in training, and a test that wipes a quarter of the mass mid-run.</li>
-      <li>Rollout length, firing rate and the occupancy threshold are fixed in the evaluator, so no training setting can make the test easier.</li>
-      <li>A separate test set with other sizes and seeds is run once on the finalists, after the hill-climb.</li>
-      <li>A fraction of a robot can't drive itself: a square moves and writes pheromone in proportion to the mass it holds. The first v2 swarm found a valid strategy under the old rules: spread into a thin fog over the whole world, then condense onto the cheese, like a slime mold. Physical robots can't do that, because the fog gave every square a neighbor to relay signals through. Fog is still measured on every run.</li>
-      <li>Empty floor can't think. Only squares holding robots write pheromones, and pheromones fade 5% per step.</li>
-    </ul>
-  </section>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+  <div id="panels"></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script>
-const fmt = (x, d = 3) => x.toFixed(d);
-const pct = x => Math.round(x * 100) + "%";
+const fmt = (x, d = 3) => (x === null || x === undefined ? "–" : x.toFixed(d));
+const pct = x => (x === null || x === undefined ? "–" : Math.round(x * 100) + "%");
 const SPLITS = ["interp", "extrap", "damage"];
 const SPLIT_NAMES = { interp: "Unseen sizes", extrap: "Bigger world", damage: "Damaged" };
 const COLORS = ["#2f7fd6", "#c98a0c", "#23874f", "#9a4fd1", "#d1504f", "#178a8a", "#7a6f2a", "#c2508f"];
@@ -171,17 +141,28 @@ function svg(tag, attrs = {}, text) {
   if (text !== undefined) node.textContent = text;
   return node;
 }
+function section(title, lede) {
+  const s = el("section");
+  s.append(el("h2", {}, title));
+  if (lede) s.append(el("p", { class: "lede" }, lede));
+  return s;
+}
+const bestOf = stage => (stage.runs.length ? stage.runs[0] : null);
 
-function renderScores(data, best) {
-  const box = document.getElementById("scores");
-  const base = data.baseline.val;
+function scoreTiles(stage) {
+  const box = el("div", { class: "scores" });
+  const base = stage.baseline.val;
+  const best = bestOf(stage);
   const tiles = [
-    ["Best run", best ? fmt(best.val.score) : "none yet", best ? best.name : "", best && best.val.score < base.score],
-    ["Hand-written baseline", fmt(base.score), "wander, stick when touching", null],
+    ["Best run · val score", best ? fmt(best.val.score) : "none yet", best ? best.name : "", best && base ? best.val.score < base.score : null],
+    ["Hand-written baseline", base ? fmt(base.score) : "–", "lower is better; 1 = never", null],
   ];
   for (const split of SPLITS) {
-    const b = best ? best.val[split].success : 0;
-    tiles.push([SPLIT_NAMES[split] + " · solved", best ? pct(b) : "–", "baseline " + pct(base[split].success), best ? b >= base[split].success : null]);
+    const b = best ? best.val[split].success : null;
+    tiles.push([SPLIT_NAMES[split] + " · solved", pct(b), base ? "baseline " + pct(base[split].success) : "", b === null ? null : base ? b >= base[split].success : null]);
+  }
+  if (best && best.final_test) {
+    tiles.push(["Final test (run once)", fmt(best.final_test.model.test.score), "baseline " + fmt(best.final_test.baseline.test.score), best.final_test.model.test.score < best.final_test.baseline.test.score]);
   }
   for (const [label, big, sub, good] of tiles) {
     const tile = el("div", { class: "score" });
@@ -190,24 +171,31 @@ function renderScores(data, best) {
     tile.append(el("div", { class: "sub" }, sub));
     box.append(tile);
   }
+  return box;
 }
 
-function renderVideos(data, runs) {
-  const select = document.getElementById("run-select");
+function videos(stage) {
+  const s = section("Watch it", "The learned swarm next to the hand-written baseline on the same held-out layout. Videos run to twice the time limit; the bar along the bottom turns red once the limit passes.");
+  const runs = stage.runs.filter(r => r.videos.length);
+  const clips = (stage.baseline.videos.length ? stage.baseline.videos : runs.length ? runs[0].videos : []).map(v => v.split("/").pop());
+  if (!clips.length) { s.append(el("p", { class: "empty" }, "No videos yet.")); return s; }
+  const row = el("div", { class: "row" });
+  const select = el("select", { "aria-label": "Run to compare against the baseline", id: "run-" + stage.id });
   for (const run of runs) select.append(el("option", { value: run.name }, run.name + " · " + fmt(run.val.score)));
-  const picker = document.getElementById("picker");
-  const clips = data.baseline.videos.map(v => v.split("/").pop());
+  const picker = el("div", { class: "picker" });
+  row.append(picker, select);
+  const duel = el("div", { class: "duel" });
   let clip = clips[0];
   const draw = () => {
-    const run = runs.find(r => r.name === select.value);
-    const duel = document.getElementById("duel");
     duel.replaceChildren();
-    const sides = [["Baseline", "baseline", data.baseline.videos]];
-    if (run) sides.unshift([run.name, run.name, run.videos]);
-    for (const [title, , videos] of sides) {
-      const src = videos.find(v => v.endsWith("/" + clip));
+    const run = runs.find(r => r.name === select.value);
+    const sides = [];
+    if (run) sides.push([run.name, run.videos]);
+    sides.push(["Baseline", stage.baseline.videos]);
+    for (const [title, list] of sides) {
+      const src = list.find(v => v.endsWith("/" + clip));
       const fig = el("figure");
-      if (src) fig.append(el("img", { src, alt: title + " on layout " + clip }));
+      if (src) fig.append(el("img", { src, alt: title + " on layout " + clip, loading: "lazy" }));
       const cap = el("figcaption");
       cap.append(el("strong", {}, title));
       cap.append(el("span", { class: "label" }, clip.replace(".gif", "").replace("_", " #")));
@@ -222,88 +210,54 @@ function renderVideos(data, runs) {
     picker.append(b);
   }
   select.addEventListener("change", draw);
+  const legend = el("div", { class: "legend" });
+  for (const [color, text] of [["#f9c828", "cheese"], ["#5aaaff", "mass"], ["#ffffff", "over 1 unit on a square"], ["#5f5c68", "wall"], ["#3c2d14", "ring to fill"], ["#3cc878", "pheromone"], ["#dc4646", "time limit passed"]]) {
+    const span = el("span");
+    span.append(el("i", { class: "swatch", style: `background:${color};border:1px solid var(--line)` }));
+    span.append(document.createTextNode(text));
+    legend.append(span);
+  }
+  s.append(row, duel, legend);
   draw();
+  return s;
 }
 
-function renderBars(data, runs) {
-  const rows = [...runs].sort((a, b) => a.val.score - b.val.score);
-  const W = 720, rowH = 28, left = 150, right = 60, top = 24;
+function bars(stage) {
+  const s = section("Val score by run", "Share of the time limit used before success, averaged over the three held-out splits. A failure counts as 1. Lower is better.");
+  const rows = stage.runs;
+  if (!rows.length) { s.append(el("p", { class: "empty" }, "No runs yet.")); return s; }
+  const W = 720, rowH = 26, left = 170, right = 60, top = 24;
   const H = top + rows.length * rowH + 28;
   const x = v => left + v * (W - left - right);
-  const s = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Val score per run, lower is better" });
+  const g = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Val score per run, lower is better" });
   for (const t of [0, 0.25, 0.5, 0.75, 1]) {
-    s.append(svg("line", { x1: x(t), x2: x(t), y1: top - 6, y2: H - 24, stroke: "var(--line)" }));
-    s.append(svg("text", { x: x(t), y: H - 8, "text-anchor": "middle" }, String(t)));
+    g.append(svg("line", { x1: x(t), x2: x(t), y1: top - 6, y2: H - 24, stroke: "var(--line)" }));
+    g.append(svg("text", { x: x(t), y: H - 8, "text-anchor": "middle" }, String(t)));
   }
   rows.forEach((run, i) => {
     const y = top + i * rowH;
-    s.append(svg("text", { x: left - 10, y: y + 15, "text-anchor": "end", class: "name" }, run.name));
-    s.append(svg("rect", { x: x(0), y: y + 4, width: Math.max(1, x(run.val.score) - x(0)), height: rowH - 10, rx: 2, fill: i === 0 ? "var(--honey)" : "var(--mass)", opacity: i === 0 ? 1 : 0.75 }));
-    s.append(svg("text", { x: x(run.val.score) + 6, y: y + 15 }, fmt(run.val.score)));
+    const v = run.val.score ?? 1;
+    g.append(svg("text", { x: left - 10, y: y + 14, "text-anchor": "end", class: "name" }, run.name));
+    g.append(svg("rect", { x: x(0), y: y + 4, width: Math.max(1, x(v) - x(0)), height: rowH - 10, rx: 2, fill: i === 0 ? "var(--honey)" : "var(--mass)", opacity: i === 0 ? 1 : 0.75 }));
+    g.append(svg("text", { x: x(v) + 6, y: y + 14 }, fmt(run.val.score) + (run.diverged ? " diverged" : "")));
   });
-  const bx = x(data.baseline.val.score);
-  s.append(svg("line", { x1: bx, x2: bx, y1: top - 10, y2: H - 24, stroke: "var(--bad)", "stroke-dasharray": "4 3", "stroke-width": 1.5 }));
-  s.append(svg("text", { x: bx, y: top - 12, "text-anchor": "middle", fill: "var(--bad)" }, "baseline " + fmt(data.baseline.val.score)));
-  document.getElementById("bars").append(s);
-}
-
-function renderCurves(data, runs) {
-  const W = 720, H = 280, left = 40, right = 150, top = 16, bottom = 32;
-  const maxMin = Math.max(1, ...runs.map(r => r.curve.length ? r.curve[r.curve.length - 1][0] : 0));
-  const maxLevel = data.levels.length - 1;
-  const x = m => left + (m / maxMin) * (W - left - right);
-  const y = l => top + (1 - l / maxLevel) * (H - top - bottom);
-  const s = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Curriculum level over training minutes per run" });
-  for (let l = 0; l <= maxLevel; l += 2) {
-    s.append(svg("line", { x1: left, x2: W - right, y1: y(l), y2: y(l), stroke: "var(--line)" }));
-    s.append(svg("text", { x: left - 8, y: y(l) + 4, "text-anchor": "end" }, String(l)));
+  if (stage.baseline.val) {
+    const bx = x(stage.baseline.val.score);
+    g.append(svg("line", { x1: bx, x2: bx, y1: top - 10, y2: H - 24, stroke: "var(--bad)", "stroke-dasharray": "4 3", "stroke-width": 1.5 }));
+    g.append(svg("text", { x: Math.min(bx, W - 70), y: top - 12, "text-anchor": "middle", fill: "var(--bad)" }, "baseline " + fmt(stage.baseline.val.score)));
   }
-  const step = maxMin > 40 ? 20 : maxMin > 10 ? 5 : 1;
-  for (let m = 0; m <= maxMin; m += step) s.append(svg("text", { x: x(m), y: H - 10, "text-anchor": "middle" }, m + "m"));
-  runs.forEach((run, i) => {
-    if (!run.curve.length) return;
-    const color = COLORS[i % COLORS.length];
-    let d = `M ${x(0)} ${y(0)}`;
-    let prev = 0;
-    for (const [m, level] of run.curve) { d += ` L ${x(m)} ${y(prev)} L ${x(m)} ${y(level)}`; prev = level; }
-    s.append(svg("path", { d, fill: "none", stroke: color, "stroke-width": 2 }));
-    const [lm, ll] = run.curve[run.curve.length - 1];
-    s.append(svg("circle", { cx: x(lm), cy: y(ll), r: 3.5, fill: color }));
-    s.append(svg("text", { x: W - right + 10, y: top + 12 + i * 16, fill: color }, run.name));
-  });
-  document.getElementById("curves").append(s);
+  const box = el("div", { class: "chart" });
+  box.append(g);
+  s.append(box);
+  return s;
 }
 
-function renderTable(data, runs, best) {
-  const t = document.getElementById("table");
-  const head = el("tr");
-  for (const [h, r] of [["Run", 0], ["Changes from defaults", 0], ["Min", 1], ["Iters", 1], ["Level", 1], ["Unseen", 1], ["Bigger", 1], ["Damaged", 1], ["Val score", 1]])
-    head.append(el("th", r ? { class: "r" } : {}, h));
-  t.append(head);
-  const rows = [...runs].sort((a, b) => a.val.score - b.val.score);
-  const base = { name: "baseline", changes: { rule: "hand-written" }, val: data.baseline.val };
-  for (const run of [...rows, base]) {
-    const tr = el("tr", run === best ? { class: "best" } : {});
-    tr.append(el("td", {}, run.name));
-    const changes = el("td");
-    const entries = Object.entries(run.changes);
-    if (!entries.length) changes.append(el("span", { class: "chip" }, "defaults"));
-    for (const [k, v] of entries) changes.append(el("span", { class: "chip" }, `${k}=${v}`));
-    tr.append(changes);
-    tr.append(el("td", { class: "r num" }, run.minutes ?? "–"));
-    tr.append(el("td", { class: "r num" }, run.iterations ?? "–"));
-    tr.append(el("td", { class: "r num" }, run.final_level !== undefined ? `${run.final_level}/${data.levels.length - 1}` : "–"));
-    for (const split of SPLITS) tr.append(el("td", { class: "r num" }, `${pct(run.val[split].success)} · ${fmt(run.val[split].time, 2)}`));
-    tr.append(el("td", { class: "r num" }, fmt(run.val.score)));
-    t.append(tr);
-  }
-}
-
-function renderProbes(data, runs) {
-  const t = document.getElementById("probes");
-  const withProbes = [...runs].filter(r => r.probes).sort((a, b) => a.val.score - b.val.score).slice(0, 4);
-  const cols = [...withProbes.map(r => [r.name, r.probes]), ["baseline", data.baseline.probes]].filter(c => c[1]);
-  if (!cols.length) return;
+function probes(stage) {
+  const s = section("Stress tests", "Conditions the swarm never trained on, kept outside the val score. Each cell: share of layouts solved · time used.");
+  const cols = [...stage.runs.filter(r => r.probes).slice(0, 3).map(r => [r.name, r.probes])];
+  if (stage.baseline.probes) cols.push(["baseline", stage.baseline.probes]);
+  if (!cols.length) { s.append(el("p", { class: "empty" }, "Not run yet for this stage.")); return s; }
+  const t = el("table");
   const head = el("tr");
   head.append(el("th", {}, "Condition"));
   for (const [name] of cols) head.append(el("th", { class: "r" }, name));
@@ -311,23 +265,148 @@ function renderProbes(data, runs) {
   for (const probe of Object.keys(cols[0][1])) {
     const tr = el("tr");
     tr.append(el("td", {}, probe));
-    for (const [, probes] of cols) {
-      const r = probes[probe];
-      const cls = r.success >= 0.95 ? "better" : r.success < 0.7 ? "worse" : "";
+    for (const [, results] of cols) {
+      const r = results[probe];
+      if (!r) { tr.append(el("td", { class: "r" }, "–")); continue; }
+      const cls = r.success >= 0.9 ? "better" : r.success < 0.5 ? "worse" : "";
       tr.append(el("td", { class: "r num " + cls }, `${pct(r.success)} · ${fmt(r.time, 2)}`));
     }
     t.append(tr);
   }
+  const wrap = el("div", { class: "table-wrap" });
+  wrap.append(t);
+  s.append(wrap);
+  return s;
+}
+
+function curves(stage) {
+  const s = section("Curriculum progress", "Training starts with small cheese close by and unlocks harder layouts once the success rate holds above 80%.");
+  const runs = stage.runs.filter(r => r.curve.length);
+  if (!runs.length) { s.append(el("p", { class: "empty" }, "No runs yet.")); return s; }
+  const W = 720, H = 280, left = 40, right = 170, top = 16, bottom = 32;
+  const maxMin = Math.max(1, ...runs.map(r => r.curve[r.curve.length - 1][0]));
+  const maxLevel = stage.levels - 1;
+  const x = m => left + (m / maxMin) * (W - left - right);
+  const y = l => top + (1 - l / maxLevel) * (H - top - bottom);
+  const g = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Curriculum level over training minutes per run" });
+  for (let l = 0; l <= maxLevel; l += 2) {
+    g.append(svg("line", { x1: left, x2: W - right, y1: y(l), y2: y(l), stroke: "var(--line)" }));
+    g.append(svg("text", { x: left - 8, y: y(l) + 4, "text-anchor": "end" }, String(l)));
+  }
+  const step = maxMin > 40 ? 15 : maxMin > 10 ? 5 : 1;
+  for (let m = 0; m <= maxMin; m += step) g.append(svg("text", { x: x(m), y: H - 10, "text-anchor": "middle" }, m + "m"));
+  runs.slice(0, 8).forEach((run, i) => {
+    const color = COLORS[i % COLORS.length];
+    let d = `M ${x(0)} ${y(0)}`;
+    let prev = 0;
+    for (const [m, level] of run.curve) { d += ` L ${x(m)} ${y(prev)} L ${x(m)} ${y(level)}`; prev = level; }
+    g.append(svg("path", { d, fill: "none", stroke: color, "stroke-width": 2 }));
+    const [lm, ll] = run.curve[run.curve.length - 1];
+    g.append(svg("circle", { cx: x(lm), cy: y(ll), r: 3.5, fill: color }));
+    g.append(svg("text", { x: W - right + 10, y: top + 12 + i * 16, fill: color }, run.name));
+  });
+  const box = el("div", { class: "chart" });
+  box.append(g);
+  s.append(box);
+  return s;
+}
+
+function table(stage) {
+  const s = section("All runs");
+  const t = el("table");
+  const head = el("tr");
+  for (const [h, r] of [["Run", 0], ["Changes from the stage's defaults", 0], ["Min", 1], ["Iters", 1], ["Level", 1], ["Unseen", 1], ["Bigger", 1], ["Damaged", 1], ["Val score", 1]])
+    head.append(el("th", r ? { class: "r" } : {}, h));
+  t.append(head);
+  const rows = [...stage.runs];
+  if (stage.baseline.val) rows.push({ name: "baseline", changes: { rule: "hand-written" }, val: stage.baseline.val });
+  rows.forEach((run, i) => {
+    const tr = el("tr", i === 0 && stage.runs.length ? { class: "best" } : {});
+    tr.append(el("td", {}, run.name));
+    const changes = el("td");
+    const entries = Object.entries(run.changes || {});
+    if (!entries.length) changes.append(el("span", { class: "chip" }, "defaults"));
+    for (const [k, v] of entries) changes.append(el("span", { class: "chip" }, `${k}=${v}`));
+    if (run.diverged) changes.append(el("span", { class: "chip worse" }, "diverged"));
+    tr.append(changes);
+    tr.append(el("td", { class: "r num" }, run.minutes ?? "–"));
+    tr.append(el("td", { class: "r num" }, run.iterations ?? "–"));
+    tr.append(el("td", { class: "r num" }, run.final_level !== undefined ? `${run.final_level}/${stage.levels - 1}` : "–"));
+    for (const split of SPLITS) tr.append(el("td", { class: "r num" }, `${pct(run.val[split].success)} · ${fmt(run.val[split].time, 2)}`));
+    tr.append(el("td", { class: "r num" }, fmt(run.val.score)));
+    t.append(tr);
+  });
+  const wrap = el("div", { class: "table-wrap" });
+  wrap.append(t);
+  s.append(wrap);
+  return s;
+}
+
+function stagePanel(stage) {
+  const panel = el("div", { class: "panel-stack" });
+  const intro = el("section");
+  const top = el("div", { class: "row" });
+  top.append(el("h2", {}, stage.title));
+  top.append(el("span", { class: "pill " + stage.status }, stage.status));
+  intro.append(top, el("p", { class: "lede" }, stage.summary), scoreTiles(stage));
+  panel.append(intro, videos(stage), bars(stage), probes(stage), curves(stage), table(stage));
+  return panel;
+}
+
+function statusCards(data) {
+  const box = el("div", { class: "scores" });
+  for (const stage of data.stages) {
+    const best = bestOf(stage);
+    const tile = el("div", { class: "score" });
+    tile.append(el("div", { class: "label" }, stage.title));
+    tile.append(el("span", { class: "pill " + stage.status }, stage.status));
+    tile.append(el("div", { class: "big" }, best ? fmt(best.val.score) : "–"));
+    const parts = [];
+    if (best) parts.push(`best val, ${stage.runs.length} runs`);
+    if (stage.baseline.val) parts.push(`baseline ${fmt(stage.baseline.val.score)}`);
+    if (best && best.final_test) parts.push(`test ${fmt(best.final_test.model.test.score)}`);
+    tile.append(el("div", { class: "sub" }, parts.join(" · ")));
+    box.append(tile);
+  }
+  return box;
+}
+
+function docPanel(file, before) {
+  const panel = el("div", { class: "panel-stack" });
+  if (before) panel.append(before);
+  const doc = el("article", { class: "doc" });
+  doc.append(el("p", { class: "empty" }, "Loading " + file + "…"));
+  panel.append(doc);
+  fetch(file).then(r => (r.ok ? r.text() : Promise.reject())).then(text => {
+    doc.innerHTML = window.marked ? marked.parse(text) : "";
+    if (!window.marked) doc.append(el("pre", {}, text));
+  }).catch(() => doc.replaceChildren(el("p", { class: "empty" }, file + " isn't published yet.")));
+  return panel;
 }
 
 fetch("data.json").then(r => r.json()).then(data => {
-  const runs = data.runs;
-  const best = runs.length ? runs.reduce((a, b) => (b.val.score < a.val.score ? b : a)) : null;
-  renderScores(data, best);
-  renderVideos(data, best ? [best, ...runs.filter(r => r !== best)] : []);
-  renderBars(data, runs);
-  renderProbes(data, runs);
-  renderCurves(data, runs);
-  renderTable(data, runs, best);
+  document.getElementById("generated").textContent = "Neural cellular automata · updated " + data.generated;
+  const tabs = document.getElementById("tabs");
+  const panels = document.getElementById("panels");
+  const views = [["report", "Progress report", () => docPanel("REPORT.md", statusCards(data))]];
+  for (const stage of data.stages) views.push([stage.id, stage.title, () => stagePanel(stage)]);
+  views.push(["journal", "Lab journal", () => docPanel("JOURNAL.md")]);
+  views.push(["runs", "Run log", () => docPanel("HILLCLIMB.md")]);
+
+  const built = {};
+  const show = id => {
+    for (const b of tabs.children) b.setAttribute("aria-selected", String(b.dataset.id === id));
+    for (const [vid, , make] of views) {
+      if (vid === id && !built[vid]) { built[vid] = make(); panels.append(built[vid]); }
+      if (built[vid]) built[vid].hidden = vid !== id;
+    }
+  };
+  for (const [id, title] of views) {
+    const b = el("button", { type: "button", role: "tab", "data-id": id }, title);
+    b.addEventListener("click", () => { show(id); history.replaceState(null, "", "#" + id); });
+    tabs.append(b);
+  }
+  const wanted = location.hash.slice(1);
+  show(views.some(v => v[0] === wanted) ? wanted : "report");
 });
 </script>

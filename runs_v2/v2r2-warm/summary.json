@@ -1,0 +1,32 @@
+{
+  "name": "v2r2-warm",
+  "iterations": 2180,
+  "final_level": 3,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.051039393617977324,
+  "val": {
+    "interp": {
+      "success": 0.0625,
+      "time": 0.9670454859733582,
+      "final_surround": 0.7029797434806824,
+      "fog": 0.6038508415222168,
+      "final_gathered": 0.4715236723423004
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.7387732863426208,
+      "fog": 0.5233153104782104,
+      "final_gathered": 0.38148313760757446
+    },
+    "damage": {
+      "success": 0.0625,
+      "time": 0.9688867926597595,
+      "final_surround": 0.6350643634796143,
+      "fog": 0.6583518981933594,
+      "final_gathered": 0.44030871987342834
+    },
+    "score": 0.9786440928777059
+  }
+}

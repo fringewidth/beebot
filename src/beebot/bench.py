@@ -24,7 +24,7 @@ def time_iterations(device, use_checkpoint):
     rng = np.random.default_rng(0)
     model = NCA().to(device)
     optimizer = torch.optim.Adam(model.parameters())
-    batch = sample_batch(rng, SIZE, (1, 9), (2, 12), BATCH_SIZE).to(device)
+    batch = sample_batch(rng, SIZE, (1, 9), (2, 12), BATCH_SIZE, (0.0, 0.3)).to(device)
 
     def iteration():
         result = rollout(model, batch, N_STEPS, 0.75, 0.5, use_checkpoint=use_checkpoint)

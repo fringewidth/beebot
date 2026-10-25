@@ -19,8 +19,8 @@ import numpy as np
 import torch
 
 from beebot.ca import first_eaten_step, rollout
-from beebot.evaluate import FIRE_PROB, STEPS_PER_CELL, TAU
-from beebot.layout import Batch, grow_shape, sample_batch, sample_layout, swarm_mass, torus_distance
+from beebot.evaluate import FIRE_PROB, STEPS_PER_CELL, TAU, WALLS
+from beebot.layout import UNREACHABLE, Batch, grow_shape, sample_batch, sample_layout, swarm_mass
 from beebot.model import NCA, StickyBaseline
 
 SEED = 3000
@@ -35,8 +35,8 @@ class PheromoneBlackout:
     def __init__(self, policy):
         self.policy = policy
 
-    def __call__(self, mass, cheese, notes):
-        return self.policy(mass, cheese, torch.zeros_like(notes))
+    def __call__(self, mass, cheese, walls, notes):
+        return self.policy(mass, cheese, walls, torch.zeros_like(notes))
 
 
 def chunk_damage(mass):
@@ -64,14 +64,15 @@ def wipe(fraction):
 
 def split_nest_batch(rng, size, n_nests):
     """Layouts where the swarm starts as n_nests separate nests in different places."""
-    cheeses, masses = [], []
+    cheeses, walls, masses, distances = [], [], [], []
     while len(cheeses) < LAYOUTS:
-        cheese, _, distance = sample_layout(rng, size, CHEESE, (2, size // 2))
-        n_mass = swarm_mass(distance == 1, size)
+        cheese, wall, _, distance = sample_layout(rng, size, CHEESE, (2, size // 2), WALLS)
+        reachable = distance < UNREACHABLE
+        n_mass = swarm_mass(distance == 1, (reachable & ~cheese).sum())
         mass = np.zeros((size, size), dtype=np.float32)
         ok = True
         for k in range(n_nests):
-            allowed = (distance >= 2) & (mass == 0)
+            allowed = reachable & (distance >= 2) & (mass == 0)
             candidates = np.argwhere(allowed & (distance >= 4))
             if len(candidates) == 0:
                 ok = False
@@ -85,15 +86,22 @@ def split_nest_batch(rng, size, n_nests):
             mass[nest] = 1.0
         if ok:
             cheeses.append(cheese)
+            walls.append(wall)
             masses.append(mass)
-    cheese = np.stack(cheeses)
-    distance = torch.tensor(np.stack([torus_distance(c) for c in cheese]), dtype=torch.float32)
-    return Batch(mass=torch.tensor(np.stack(masses)), cheese=torch.tensor(cheese), ring=distance == 1, distance=distance)
+            distances.append(distance)
+    distance = torch.tensor(np.stack(distances), dtype=torch.float32)
+    return Batch(
+        mass=torch.tensor(np.stack(masses)),
+        cheese=torch.tensor(np.stack(cheeses)),
+        walls=torch.tensor(np.stack(walls)),
+        ring=distance == 1,
+        distance=distance,
+    )
 
 
-def standard_batches(seed, sizes, cheese):
+def standard_batches(seed, sizes, cheese, walls=WALLS):
     rng = np.random.default_rng(seed)
-    return [sample_batch(rng, s, cheese, (2, s // 2), LAYOUTS) for s in sizes]
+    return [sample_batch(rng, s, cheese, (2, s // 2), LAYOUTS, walls) for s in sizes]
 
 
 def score(policy, batches, device, fire_prob=FIRE_PROB, damage_fn=None):
@@ -125,6 +133,8 @@ def probes(policy, device):
     two_nests = [split_nest_batch(rng, s, 2) for s in SIZES]
     three_nests = [split_nest_batch(rng, s, 3) for s in SIZES]
     huge = standard_batches(SEED + 2, (128,), CHEESE)
+    open_world = standard_batches(SEED + 3, SIZES, CHEESE, (0.0, 0.0))
+    dense = standard_batches(SEED + 4, SIZES, CHEESE, (0.4, 0.45))
     return {
         "reference": score(policy, plain, device),
         "pheromone blackout": score(PheromoneBlackout(policy), plain, device),
@@ -135,12 +145,18 @@ def probes(policy, device):
         "2 separate nests": score(policy, two_nests, device),
         "3 separate nests": score(policy, three_nests, device),
         "128x128 world": score(policy, huge, device),
+        "no walls": score(policy, open_world, device),
+        "walls 40-45% (beyond training)": score(policy, dense, device),
     }
 
 
 def load(run_dir, device):
     config = json.loads((run_dir / "config.json").read_text())
-    model = NCA(hidden=config["hidden"], n_hidden_layers=config["n_hidden_layers"]).to(device)
+    model = NCA(
+        hidden=config["hidden"],
+        n_hidden_layers=config["n_hidden_layers"],
+        privileged=config.get("privileged", False),
+    ).to(device)
     model.load_state_dict(torch.load(run_dir / "model.pt", map_location=device))
     model.eval()
     return model

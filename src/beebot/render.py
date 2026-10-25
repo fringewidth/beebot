@@ -1,4 +1,4 @@
-"""Render rollouts as GIFs: mass in blue, cheese in yellow, ring squares tinted, pheromone in green."""
+"""Render rollouts as GIFs: mass in blue, cheese in yellow, walls in gray, ring squares tinted, pheromone in green."""
 
 from pathlib import Path
 
@@ -13,6 +13,7 @@ PIXELS_PER_SQUARE = 8
 BACKGROUND = np.array([18, 18, 24])
 RING = np.array([60, 45, 20])
 CHEESE = np.array([250, 200, 40])
+WALL = np.array([95, 92, 104])
 MASS = np.array([90, 170, 255])
 PHEROMONE = np.array([60, 200, 120])
 BAR_IN_TIME = np.array([150, 150, 165])
@@ -24,13 +25,14 @@ BAR_HEIGHT = 4
 OVERRUN = 2
 
 
-def frame(mass, cheese, ring, pheromone, step, limit, total):
+def frame(mass, cheese, walls, ring, pheromone, step, limit, total):
     image = np.where(ring[..., None], RING, BACKGROUND).astype(np.float32)
     trail = np.clip(pheromone / 8, 0, 0.35)[..., None]
     image = image * (1 - trail) + PHEROMONE * trail
     level = np.clip(mass, 0, 1)[..., None]
     image = image * (1 - level) + MASS * level
     image[cheese] = CHEESE
+    image[walls] = WALL
     # Squares holding more than 1 unit of mass turn white, so crowding is visible.
     over = np.clip(mass - 1, 0, 1)[..., None]
     image = image * (1 - over) + 255 * over
@@ -49,12 +51,13 @@ def render(policy, batch, device, path, n_examples=3):
     with torch.no_grad():
         result = rollout(policy, batch, n_steps, FIRE_PROB, TAU, record=True)
     cheese = batch.cheese.cpu().numpy()
+    walls = batch.walls.cpu().numpy()
     ring = batch.ring.cpu().numpy()
     initial = batch.mass.cpu().numpy()
     for i in range(min(n_examples, len(cheese))):
-        frames = [frame(initial[i], cheese[i], ring[i], np.zeros_like(initial[i]), 0, limit, n_steps)]
+        frames = [frame(initial[i], cheese[i], walls[i], ring[i], np.zeros_like(initial[i]), 0, limit, n_steps)]
         for step, (m, p) in enumerate(zip(result.masses, result.pheromones), start=1):
-            frames.append(frame(m[i], cheese[i], ring[i], p[i], step, limit, n_steps))
+            frames.append(frame(m[i], cheese[i], walls[i], ring[i], p[i], step, limit, n_steps))
         frames[0].save(path.with_name(f"{path.stem}_{i}.gif"), save_all=True, append_images=frames[1:], duration=60, loop=0)
 
 

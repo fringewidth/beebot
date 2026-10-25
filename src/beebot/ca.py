@@ -1,9 +1,10 @@
 """The cellular automaton: one step, a full rollout, and the loss.
 
-A policy is anything callable as policy(mass, cheese, notes) -> (logits, note_writes):
+A policy is anything callable as policy(mass, cheese, walls, notes) -> (logits, note_writes):
     mass:   (B, H, W)
     cheese: (B, H, W) float, 1 on cheese squares. A square can only sense it
             through its 3x3 window, so this is touch, not smell.
+    walls:  (B, H, W) float, 1 on wall squares, sensed the same way
     notes:  (B, N_NOTES, H, W), pheromones on the floor
     logits:      (B, 9, H, W), one score per destination in OFFSETS
     note_writes: (B, N_NOTES, H, W), what a robot on that square writes
@@ -43,17 +44,17 @@ def look(field, dy, dx):
     return torch.roll(field, shifts=(-dy, -dx), dims=(-2, -1))
 
 
-def blocked_moves(cheese):
-    """(B, 9, H, W) bool: True where the destination is cheese. Staying is never blocked."""
-    blocked = [torch.zeros_like(cheese)]
+def blocked_moves(obstacles):
+    """(B, 9, H, W) bool: True where the destination is cheese or wall. Staying is never blocked."""
+    blocked = [torch.zeros_like(obstacles)]
     for dy, dx in OFFSETS[1:]:
-        blocked.append(look(cheese, dy, dx))
+        blocked.append(look(obstacles, dy, dx))
     return torch.stack(blocked, dim=1)
 
 
-def step(policy, mass, notes, cheese, blocked, fire):
+def step(policy, mass, notes, cheese, walls, blocked, fire):
     """Advance one step. fire is (B, 1, H, W): 1 where a square acts this step, 0 where it sits out."""
-    logits, note_writes = policy(mass, cheese, notes)
+    logits, note_writes = policy(mass, cheese, walls, notes)
     fractions = torch.softmax(logits.masked_fill(blocked, float("-inf")), dim=1)
 
     # A square acts in proportion to how much robot it holds, and only when it fires.
@@ -88,14 +89,11 @@ class Rollout:
     pheromones: list  # (B, H, W) numpy arrays per step, the strongest note per square, only when recorded
 
 
-def gather_radius(distance, cheese, total_mass):
-    """(B,) smallest r such that the non-cheese squares within r can hold total_mass at GATHER_PACKING."""
-    size = distance.shape[-1]
-    radii = torch.arange(1, size, device=distance.device, dtype=distance.dtype)
-    within = (distance[:, None] <= radii[None, :, None, None]) & ~cheese[:, None]
-    capacity = within.flatten(2).sum(dim=2) * GATHER_PACKING  # (B, R)
-    enough = capacity >= total_mass[:, None]
-    return radii[enough.float().argmax(dim=1)]
+def gather_radius(distance, open_squares, total_mass):
+    """(B,) smallest walking distance r such that the open squares within r can hold total_mass at GATHER_PACKING."""
+    needed = torch.ceil(total_mass / GATHER_PACKING).long().clamp(min=1)
+    ordered = distance.masked_fill(~open_squares, float("inf")).flatten(1).sort(dim=1).values
+    return ordered.gather(1, (needed - 1).clamp(max=ordered.shape[1] - 1)[:, None])[:, 0]
 
 
 def damage(mass, fraction):
@@ -117,16 +115,21 @@ def rollout(
     damage_fraction=0.25,
     damage_fn=None,
 ):
+    if hasattr(policy, "bind"):
+        policy.bind(batch)
     mass = batch.mass
     b, h, w = mass.shape
     notes = torch.zeros(b, N_NOTES, h, w, device=mass.device)
-    blocked = blocked_moves(batch.cheese)
+    blocked = blocked_moves(batch.cheese | batch.walls)
     cheese = batch.cheese.float()
+    walls = batch.walls.float()
     ring = batch.ring.float()
     ring_size = ring.sum(dim=(1, 2))
     total_mass = mass.sum(dim=(1, 2))
     initial_mean_distance = (mass * batch.distance).sum(dim=(1, 2)) / total_mass
-    home = (batch.distance <= gather_radius(batch.distance, batch.cheese, total_mass)[:, None, None]).float()
+    open_squares = ~batch.cheese & ~batch.walls
+    radius = gather_radius(batch.distance, open_squares, total_mass)
+    home = ((batch.distance <= radius[:, None, None]) & open_squares).float()
 
     surround, mean_distance, crowding, gathered, eaten, fog, masses, pheromones = [], [], [], [], [], [], [], []
     for t in range(n_steps):
@@ -135,9 +138,9 @@ def rollout(
             total_mass = mass.sum(dim=(1, 2)).clamp_min(1e-6)
         fire =(torch.rand(b, 1, h, w, device=mass.device) < fire_prob).float()
         if use_checkpoint:
-            mass, notes = checkpoint(step, policy, mass, notes, cheese, blocked, fire, use_reentrant=False)
+            mass, notes = checkpoint(step, policy, mass, notes, cheese, walls, blocked, fire, use_reentrant=False)
         else:
-            mass, notes = step(policy, mass, notes, cheese, blocked, fire)
+            mass, notes = step(policy, mass, notes, cheese, walls, blocked, fire)
 
         occupied = (mass / tau).clamp(0, 1)
         surround.append((occupied * ring).sum(dim=(1, 2)) / ring_size)

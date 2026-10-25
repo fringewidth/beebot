@@ -5,7 +5,7 @@ Two held-out sets, built from fixed seeds:
     test: different grid sizes and seeds, run once at the end. Picking the best
           of many runs on val overfits val a little; test catches that.
 
-Each set has three splits:
+Each set has three splits, all with random terrain covering 0 to 30% of the world:
     interp: grid sizes and cheese sizes inside the training range, but sizes never trained on.
     extrap: bigger grids and bigger cheeses than anything in training.
     damage: interp layouts with 25% of the mass squares wiped at a quarter of the way through.
@@ -30,6 +30,7 @@ TAU = 0.5
 FIRE_PROB = 0.75
 STEPS_PER_CELL = 3  # rollout length is STEPS_PER_CELL * grid size
 LAYOUTS_PER_SIZE = 32
+WALLS = (0.0, 0.3)
 DAMAGE_FRACTION = 0.25
 
 SETS = {
@@ -51,7 +52,7 @@ def build_split(seed, sizes, cheese_range):
     rng = np.random.default_rng(seed)
     batches = []
     for size in sizes:
-        batches.append(sample_batch(rng, size, cheese_range, (2, size // 2), LAYOUTS_PER_SIZE))
+        batches.append(sample_batch(rng, size, cheese_range, (2, size // 2), LAYOUTS_PER_SIZE, WALLS))
     return batches
 
 
