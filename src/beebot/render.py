@@ -15,11 +15,18 @@ RING = np.array([60, 45, 20])
 CHEESE = np.array([250, 200, 40])
 MASS = np.array([90, 170, 255])
 PHEROMONE = np.array([60, 200, 120])
+BAR_IN_TIME = np.array([150, 150, 165])
+BAR_OVER_TIME = np.array([220, 70, 70])
+BAR_HEIGHT = 4
+# Videos run this many times past the eval time limit, so a swarm that is slow
+# can be told apart from one that never gathers. The bar along the bottom turns
+# red once the eval limit has passed.
+OVERRUN = 2
 
 
-def frame(mass, cheese, ring, pheromone):
+def frame(mass, cheese, ring, pheromone, step, limit, total):
     image = np.where(ring[..., None], RING, BACKGROUND).astype(np.float32)
-    trail = np.clip(pheromone / 4, 0, 0.6)[..., None]
+    trail = np.clip(pheromone / 8, 0, 0.35)[..., None]
     image = image * (1 - trail) + PHEROMONE * trail
     level = np.clip(mass, 0, 1)[..., None]
     image = image * (1 - level) + MASS * level
@@ -28,12 +35,16 @@ def frame(mass, cheese, ring, pheromone):
     over = np.clip(mass - 1, 0, 1)[..., None]
     image = image * (1 - over) + 255 * over
     image = image.astype(np.uint8).repeat(PIXELS_PER_SQUARE, axis=0).repeat(PIXELS_PER_SQUARE, axis=1)
-    return Image.fromarray(image)
+    bar = np.zeros((BAR_HEIGHT, image.shape[1], 3), dtype=np.uint8)
+    bar[:] = BACKGROUND
+    bar[:, : round(image.shape[1] * step / total)] = BAR_IN_TIME if step <= limit else BAR_OVER_TIME
+    return Image.fromarray(np.concatenate([image, bar]))
 
 
 def render(policy, batch, device, path, n_examples=3):
     batch = batch.to(device)
-    n_steps = STEPS_PER_CELL * batch.mass.shape[-1]
+    limit = STEPS_PER_CELL * batch.mass.shape[-1]
+    n_steps = OVERRUN * limit
     torch.manual_seed(0)  # same firing pattern for every policy, so videos compare like for like
     with torch.no_grad():
         result = rollout(policy, batch, n_steps, FIRE_PROB, TAU, record=True)
@@ -41,8 +52,9 @@ def render(policy, batch, device, path, n_examples=3):
     ring = batch.ring.cpu().numpy()
     initial = batch.mass.cpu().numpy()
     for i in range(min(n_examples, len(cheese))):
-        frames = [frame(initial[i], cheese[i], ring[i], np.zeros_like(initial[i]))]
-        frames += [frame(m[i], cheese[i], ring[i], p[i]) for m, p in zip(result.masses, result.pheromones)]
+        frames = [frame(initial[i], cheese[i], ring[i], np.zeros_like(initial[i]), 0, limit, n_steps)]
+        for step, (m, p) in enumerate(zip(result.masses, result.pheromones), start=1):
+            frames.append(frame(m[i], cheese[i], ring[i], p[i], step, limit, n_steps))
         frames[0].save(path.with_name(f"{path.stem}_{i}.gif"), save_all=True, append_images=frames[1:], duration=60, loop=0)
 
 
