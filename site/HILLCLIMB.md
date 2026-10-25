@@ -84,3 +84,91 @@ v3 round 1 (45 minutes): privileged control, blind defaults, blind with w_crowdi
 The gap between privileged (0.418) and blind (0.863) is the cost of search and communication.
 
 v3 round 2 (90 minutes): blind defaults with seed 1; blind warm-started from the privileged swarm with its scent input removed (inherits gathering, has to learn search; never sees the scent at test time); blind with batch 64.
+
+New standard: every task must reach 100% on val before moving on, or come with evidence of why 100% is out of reach.
+
+Round 2 (90-minute runs) was stopped after 20 minutes to restart on better infrastructure:
+- the next batch of layouts is generated in a worker process while the GPU trains (generation was about 20% of each step);
+- 30% of batches replay earlier curriculum levels, so easy cases aren't forgotten;
+- checkpoints every 10 minutes, `--start_level` to resume a curriculum, and a STOP file for a graceful early end;
+- `uv run score` scores checkpoints on val only, for choosing between runs mid-training.
+
+Population (6-hour runs, managed at each check-in: the worst run is replaced by a copy of the best with a changed setting):
+- v3p-teacher: blind, initialized from v3r1-privileged with the scent input removed.
+- v3p-scratch: blind, from scratch, seed 1.
+- v3p-privileged: the control, continued from v3r1-privileged at the last level, to find the ceiling.
+
+Population check-in at 46 minutes (val scores of the 40-minute checkpoints):
+
+| Run | Level | Val score | Interp | Extrap | Damage |
+| --- | --- | --- | --- | --- | --- |
+| v3p-teacher | 4 | 0.840 | 0.28 | 0.27 | 0.24 |
+| v3p-scratch | 3 | 0.829 | 0.31 | 0.25 | 0.24 |
+| v3p-privileged | 8 | **0.314** | 0.96 | 0.84 | 0.86 |
+
+Diagnosis of the blind failures (v3p-teacher on val interp): success falls with the starting distance, 74% within 6 squares, 17% at 6 to 10, 3% at 10 to 15, 0% beyond. Most failures never fill the ring: the swarm doesn't find the cheese in time. The privileged swarm solves 100% up to 10 squares and 93% at 10 to 15.
+
+Two causes. The level curriculum gates distance, and blind runs stall at level 3 (at most 8 squares), so they never practise far search. And search itself may be physically tight: a swarm moving as one blob sweeps the world in roughly 4 to 5 grid-lengths of steps, against a limit of 3; only a stretched-out sweep fits.
+
+Change: adaptive curriculum. Full cheese and wall ranges from the start; the start distance is chosen in proportion to s(1-s) of its recent success, so training sits at the frontier. Swap: v3p-scratch stopped (stuck at level 3); replaced by v3p-adaptive, started from v3p-teacher's 40-minute checkpoint.
+
+Population check-in at 95 minutes:
+
+| Run | Val score | Interp | Extrap | Damage | Notes |
+| --- | --- | --- | --- | --- | --- |
+| v3p-privileged | 0.322 | 0.95 | 0.84 | 0.92 | Plateaued around 0.31 to 0.32. |
+| v3p-adaptive | 0.893 | 0.27 | 0.06 | 0.24 | Same distance wall: 53% at 6 squares, about 5% beyond 10. |
+| v3p-teacher | 1.000 | 0.00 | 0.00 | 0.00 | **Collapsed** after about 90 minutes (training loss 2.3); latest checkpoint worthless. Stopped. |
+
+Diagnosis, with the time limit raised for diagnosis only (official limit unchanged):
+
+| Blind swarm | 3x grid | 6x grid | 9x grid |
+| --- | --- | --- | --- |
+| v3p-adaptive interp | 0.27 | 0.40 | 0.45 |
+| v3r1-blind interp | 0.25 | 0.29 | 0.30 |
+
+More time barely helps: the blind swarm has no real search strategy. Of its failures, 44% never touch the cheese and 56% touch it but can't recruit the rest. Why gradient descent doesn't find search: the distance term is the only signal before contact, and on a torus with the cheese placed uniformly at random every square has the same expected distance to it, so the term carries no information about how to search.
+
+Changes:
+- `w_explore`: rewards the share of open floor visited, only until a robot first touches the cheese.
+- Cosine learning-rate decay, and each run scores itself on val every 30 minutes and keeps its best checkpoint (`model_best.pt`), so a collapse no longer loses the run. Mid-run evaluation restores training's random state afterwards.
+
+New population: v3p-adaptive stopped; v3x-explore (from v3p-adaptive's checkpoint) and v3x-explore-teacher (from v3r1-privileged's weights, scent input removed), both adaptive, w_explore 0.5, cosine. v3p-privileged continues.
+
+Check-in, 45 minutes into the exploration runs:
+
+| Run | Val (best checkpoint) | Interp | Extrap | Damage | Notes |
+| --- | --- | --- | --- | --- | --- |
+| v3x-explore | **0.745** (at 30 min) | 0.41 | 0.34 | 0.39 | Best blind result so far. By 45 minutes training success fell to about 2% at every distance: with w_explore 0.5, the swarm learned to spread out and never regroup. |
+| v3x-explore-teacher | 1.000 | 0.00 | 0.00 | 0.00 | Never recovered under w_explore 0.5. |
+| v3p-adaptive (final) | 0.804 | | | | Stopped earlier; best checkpoint. |
+
+Both stopped. New runs from v3x-explore's 30-minute best checkpoint, adaptive, cosine: v3y-explore015 (w_explore 0.15) and v3y-explore005 (w_explore 0.05).
+
+Check-in: collapses everywhere.
+
+| Run | Val (best checkpoint) | Notes |
+| --- | --- | --- |
+| v3y-explore015 | 0.773 at 30 min | Training success fell to about 5% by 45 minutes. |
+| v3y-explore005 | 1.000 | Collapsed within 30 minutes. |
+| v3p-privileged | 1.000 at 190 min | **Collapsed** after more than 3 healthy hours (0.314 at 40 min, 0.322 at 90 min). It started before best-checkpoint keeping, so only the scores survived, not the weights. |
+
+Every long run collapses, whatever the settings: the teacher run at 90 minutes, the explore runs within 30 to 45, the privileged control at about 190. A cause common to all of them is in the training loop. The prime suspect is per-parameter gradient normalization (from Growing NCA): it rescales every parameter's gradient to unit norm before Adam, so near-zero gradients on a plateau become full-size steps of noise, the weights random-walk, and eventually they drift into a saturated regime (one-hot moves, piled mass, vanishing gradient) with no way back. Adam already scales steps per weight, so the normalization is redundant.
+
+Change: global gradient-norm clipping (max norm 1) is now the default (`--grad_mode clip`), and fine-tunes from good checkpoints use lower learning rates.
+
+New population (180 minutes, clipping, cosine, best checkpoint kept): v3z-priv (privileged from v3r1-privileged, lr 3e-4), v3z-explore (blind from v3x-explore's best, w_explore 0.15, lr 3e-4), v3z-explore-slow (same, w_explore 0.1, lr 1e-4).
+
+Bar revised (decided by the user at 04:00): a task is done at above 90% success on every val split (interp, extrap, damage), confirmed once on the test set.
+
+Check-in at 60 minutes (clipping held; no collapses):
+
+| Run | Val at 30 min | Val at 60 min | Interp | Extrap | Damage |
+| --- | --- | --- | --- | --- | --- |
+| v3z-priv | 0.326 | **0.291** | 0.96 | 0.95 | 0.89 |
+| v3z-explore | 0.754 | 0.778 | 0.44 | 0.25 | 0.39 |
+| v3z-explore-slow | 0.745 | **0.738** | 0.43 | 0.33 | 0.43 |
+
+The privileged control holds at 89% damaged on both checks, one point under the bar: even a swarm that can smell the cheese barely clears 90% after a quarter of it is wiped mid-run. Stopped; it has shown the task is solvable to about 90% when search is free. v3z-explore stopped (bigger worlds fell from 38% to 25%). v3z-explore-slow continues.
+
+New: blind networks 192 wide (from 96), from scratch, w_explore 0.15, clipping, cosine: v3w-big-levels (level curriculum) and v3w-big-adaptive (adaptive curriculum). Tests whether capacity limits blind coordination.

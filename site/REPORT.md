@@ -75,12 +75,36 @@ descent through the full rollout.
 - Round 2 (running) tries longer training, a bigger batch, and a teacher
   start from the privileged swarm's weights.
 
+**Overnight: chasing the bar.** A task is done at above 90% success on every
+val split, confirmed once on the test set. (It was 100% for most of the night;
+revised at 04:00.) What the night found:
+
+1. **The blind swarm has no search strategy, and the loss explains why.** Its
+   success falls steeply with starting distance (74% within 6 squares, 3% at 10
+   to 15), and tripling the time limit barely helps. Before it touches the
+   cheese, the only training signal is distance to the cheese, and on a
+   wrap-around world with randomly placed cheese every square has the same
+   expected distance to it. So the loss says nothing about where to search.
+1. **An exploration signal fixes part of it.** Rewarding floor coverage until
+   first contact gave the best blind result so far: 0.745 on val (41% of
+   unseen sizes, 34% of bigger worlds, 39% damaged). Too strong, and the swarm
+   learns to spread out and never regroup: the slime mold's dilemma between
+   searching wide and staying connected enough to relay the news.
+1. **Every long run eventually collapsed**, including the scent-following
+   control after three good hours. The likely cause is a gradient
+   normalization trick from the Growing NCA paper that turns near-zero
+   gradients into full-size random steps. Training now uses standard gradient
+   clipping and keeps each run's best checkpoint by val score.
+
+The scent-following control topped out at 95 to 96% of unseen sizes, 84% of
+bigger worlds and 86 to 92% damaged before collapsing, so **no run has reached
+100% yet, blind or not.**
+
 Round results are in the Terrain tab and the run log.
 
 ## Next
 
-1. Solve gathering with terrain. The bar: 90% on unseen sizes and bigger
-   worlds, 80% under damage.
+1. Solve gathering with terrain: above 90% on every val split.
 1. **Feast:** several cheeses that vanish when eaten.
 1. **Chase:** cheese that flees toward the side with the least mass.
 1. **Rivals:** two swarms under different payoff rules (zero-sum, shared, stag
