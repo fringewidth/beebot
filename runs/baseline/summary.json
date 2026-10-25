@@ -1,0 +1,27 @@
+{
+  "name": "baseline",
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.18824665248394012,
+      "fog": 0.8140947818756104,
+      "final_gathered": 0.14078843593597412
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.17539387941360474,
+      "fog": 0.6676541566848755,
+      "final_gathered": 0.1359032690525055
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.16127467155456543,
+      "fog": 0.8436188697814941,
+      "final_gathered": 0.13694949448108673
+    },
+    "score": 1.0
+  }
+}

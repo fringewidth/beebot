@@ -27,7 +27,7 @@ DOCUMENTS = ["REPORT.md", "JOURNAL.md", "HILLCLIMB.md"]
 # Run settings that don't change what the model learns; left out of the "change" column.
 NOT_A_CHANGE = {"name", "device", "log_every", "init", "use_checkpoint"}
 # Only each stage's best runs get videos on the page, to keep the site small.
-RUNS_WITH_VIDEOS = 4
+RUNS_WITH_VIDEOS = {"current": 2, "closed": 1}
 
 # Newest first. "reference" is the run whose config counts as that stage's
 # defaults; None means the current Config defaults.
@@ -141,7 +141,8 @@ def collect_stage(stage):
     runs.sort(key=lambda r: r["val"]["score"])
     for rank, run in enumerate(runs):
         run_dir = run.pop("run_dir")
-        run["videos"] = copy_videos(run_dir, stage["id"], run["name"]) if rank < RUNS_WITH_VIDEOS else []
+        keep = rank < RUNS_WITH_VIDEOS[stage["status"]]
+        run["videos"] = copy_videos(run_dir, stage["id"], run["name"]) if keep else []
 
     baseline_dir = folder / "baseline"
     baseline = read_json(baseline_dir / "summary.json")
