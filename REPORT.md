@@ -69,3 +69,5 @@ Round results are in the Terrain tab and the run log.
 1. **Rivals:** two swarms under different payoff rules (zero-sum, shared, stag
    hunt), testing whether cooperation or competition emerges, and whether
    swarms trained apart can cooperate as strangers.
+1. **3D:** every task again in voxel space: 3x3x3 neighborhoods, cave-like 3D
+   terrain, a shell instead of a ring, and an interactive 3D viewer on this page.
