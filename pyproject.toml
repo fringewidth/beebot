@@ -1,0 +1,23 @@
+[project]
+name = "beebot"
+version = "0.1.0"
+description = "Neural cellular automata that learn to surround cheese with conserved mass"
+readme = "README.md"
+authors = [
+    { name = "Hrishik Sai Bojnal", email = "116365046+fringewidth@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.5.4",
+    "pillow>=13.0.0",
+    "torch>=2.14.1",
+]
+
+[project.scripts]
+train = "beebot.train:main"
+bench = "beebot.bench:main"
+final-test = "beebot.final_test:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"

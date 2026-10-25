@@ -1,0 +1,25 @@
+{
+  "name": "sanity",
+  "iterations": 889,
+  "final_level": 5,
+  "levels_total": 9,
+  "train_success_ema": 0.47301550527472525,
+  "val": {
+    "interp": {
+      "success": 0.71875,
+      "time": 0.5021280646324158,
+      "final_surround": 0.9798839688301086
+    },
+    "extrap": {
+      "success": 0.109375,
+      "time": 0.9087320566177368,
+      "final_surround": 0.565710186958313
+    },
+    "damage": {
+      "success": 0.4375,
+      "time": 0.6764599680900574,
+      "final_surround": 0.9269506931304932
+    },
+    "score": 0.6957733631134033
+  }
+}
