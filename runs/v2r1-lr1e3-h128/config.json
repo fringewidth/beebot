@@ -1,0 +1,22 @@
+{
+  "name": "v2r1-lr1e3-h128",
+  "seed": 0,
+  "device": "mps",
+  "minutes": 30.0,
+  "init": "",
+  "hidden": 128,
+  "n_hidden_layers": 2,
+  "stay_bias": 4.0,
+  "lr": 0.001,
+  "batch_size": 32,
+  "train_sizes": "16,20,24,28,32,40",
+  "steps_per_cell": 3.0,
+  "fire_prob": 0.75,
+  "tau": 0.5,
+  "use_checkpoint": false,
+  "w_surround": 0.5,
+  "w_distance": 0.5,
+  "w_crowding": 1.0,
+  "distance_decay": 1.0,
+  "log_every": 100
+}
