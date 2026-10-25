@@ -111,3 +111,26 @@ Diagnosis of the blind failures (v3p-teacher on val interp): success falls with 
 Two causes. The level curriculum gates distance, and blind runs stall at level 3 (at most 8 squares), so they never practise far search. And search itself may be physically tight: a swarm moving as one blob sweeps the world in roughly 4 to 5 grid-lengths of steps, against a limit of 3; only a stretched-out sweep fits.
 
 Change: adaptive curriculum. Full cheese and wall ranges from the start; the start distance is chosen in proportion to s(1-s) of its recent success, so training sits at the frontier. Swap: v3p-scratch stopped (stuck at level 3); replaced by v3p-adaptive, started from v3p-teacher's 40-minute checkpoint.
+
+Population check-in at 95 minutes:
+
+| Run | Val score | Interp | Extrap | Damage | Notes |
+| --- | --- | --- | --- | --- | --- |
+| v3p-privileged | 0.322 | 0.95 | 0.84 | 0.92 | Plateaued around 0.31 to 0.32. |
+| v3p-adaptive | 0.893 | 0.27 | 0.06 | 0.24 | Same distance wall: 53% at 6 squares, about 5% beyond 10. |
+| v3p-teacher | 1.000 | 0.00 | 0.00 | 0.00 | **Collapsed** after about 90 minutes (training loss 2.3); latest checkpoint worthless. Stopped. |
+
+Diagnosis, with the time limit raised for diagnosis only (official limit unchanged):
+
+| Blind swarm | 3x grid | 6x grid | 9x grid |
+| --- | --- | --- | --- |
+| v3p-adaptive interp | 0.27 | 0.40 | 0.45 |
+| v3r1-blind interp | 0.25 | 0.29 | 0.30 |
+
+More time barely helps: the blind swarm has no real search strategy. Of its failures, 44% never touch the cheese and 56% touch it but can't recruit the rest. Why gradient descent doesn't find search: the distance term is the only signal before contact, and on a torus with the cheese placed uniformly at random every square has the same expected distance to it, so the term carries no information about how to search.
+
+Changes:
+- `w_explore`: rewards the share of open floor visited, only until a robot first touches the cheese.
+- Cosine learning-rate decay, and each run scores itself on val every 30 minutes and keeps its best checkpoint (`model_best.pt`), so a collapse no longer loses the run. Mid-run evaluation restores training's random state afterwards.
+
+New population: v3p-adaptive stopped; v3x-explore (from v3p-adaptive's checkpoint) and v3x-explore-teacher (from v3r1-privileged's weights, scent input removed), both adaptive, w_explore 0.5, cosine. v3p-privileged continues.

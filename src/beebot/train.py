@@ -68,6 +68,9 @@ class Config:
     init: str = ""  # path to a model.pt to start from
     start_level: int = 0
     save_every_minutes: float = 10.0
+    eval_every_minutes: float = 30.0  # score on val and keep the best checkpoint
+    lr_schedule: str = "constant"  # or "cosine": decays to lr_floor * lr over the run
+    lr_floor: float = 0.1
 
     hidden: int = 96
     n_hidden_layers: int = 2
@@ -86,6 +89,7 @@ class Config:
     w_distance: float = 0.5
     w_crowding: float = 1.0
     w_gather: float = 0.5
+    w_explore: float = 0.0  # reward covering the floor until first contact with the cheese
     distance_decay: float = 1.0  # w_distance is multiplied by this at every level up
     replay: float = 0.3  # share of batches drawn from an earlier level, so easy cases aren't forgotten
     adaptive: bool = False  # adaptive distance curriculum instead of levels (see ADAPTIVE_DISTANCES)
@@ -116,6 +120,26 @@ def save_checkpoint(run_dir, model, iteration, level, minutes):
     (run_dir / "checkpoint.json").write_text(json.dumps(state))
 
 
+def keep_if_best(run_dir, model, device, best_score, iteration, minutes):
+    """Score the model on val; if it's the best so far, save it as model_best.pt. Returns the best score."""
+    # Evaluation reseeds the random generators for determinism; keep training's own randomness intact.
+    cpu_state = torch.get_rng_state()
+    mps_state = torch.mps.get_rng_state() if device.type == "mps" else None
+    model.eval()
+    with torch.no_grad():
+        scores = evaluate(model, device, "val")
+    model.train()
+    torch.set_rng_state(cpu_state)
+    if mps_state is not None:
+        torch.mps.set_rng_state(mps_state)
+    with open(run_dir / "val_history.jsonl", "a") as f:
+        f.write(json.dumps({"iteration": iteration, "minutes": round(minutes, 2), "val": scores}) + "\n")
+    if scores["score"] < best_score:
+        torch.save(model.state_dict(), run_dir / "model_best.pt")
+        return scores["score"]
+    return best_score
+
+
 def train(cfg):
     run_dir = Path("runs") / cfg.name
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -142,6 +166,8 @@ def train(cfg):
     w_distance = cfg.w_distance * cfg.distance_decay**level
     start = time.time()
     last_save = start
+    last_eval = start
+    best_score = float("inf")
     iteration = 0
     diverged = False
     log = open(run_dir / "log.jsonl", "w")
@@ -179,11 +205,16 @@ def train(cfg):
         n_steps = round(cfg.steps_per_cell * size)
 
         result = rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
-        value = loss(result, cfg.w_surround, w_distance, cfg.w_crowding, cfg.w_gather)
+        value = loss(result, cfg.w_surround, w_distance, cfg.w_crowding, cfg.w_gather, cfg.w_explore)
         if not torch.isfinite(value):
             diverged = True
             print(json.dumps({"iteration": iteration, "diverged": True}), flush=True)
             break
+        if cfg.lr_schedule == "cosine":
+            progress = min(1.0, (time.time() - start) / (cfg.minutes * 60))
+            scale = cfg.lr_floor + (1 - cfg.lr_floor) * 0.5 * (1 + np.cos(np.pi * progress))
+            for group in optimizer.param_groups:
+                group["lr"] = cfg.lr * scale
         optimizer.zero_grad()
         value.backward()
         normalize_gradients(model)
@@ -227,10 +258,18 @@ def train(cfg):
             save_checkpoint(run_dir, model, iteration, level, (time.time() - start) / 60)
             last_save = time.time()
 
+        if time.time() - last_eval > cfg.eval_every_minutes * 60:
+            best_score = keep_if_best(run_dir, model, device, best_score, iteration, (time.time() - start) / 60)
+            last_eval = time.time()
+
     workers.shutdown(cancel_futures=True)
     log.close()
     save_checkpoint(run_dir, model, iteration, level, (time.time() - start) / 60)
 
+    # The run's result is its best val checkpoint, final model included.
+    best_score = keep_if_best(run_dir, model, device, best_score, iteration, (time.time() - start) / 60)
+    model.load_state_dict(torch.load(run_dir / "model_best.pt", map_location=device))
+    torch.save(model.state_dict(), run_dir / "model.pt")
     model.eval()
     scores = evaluate(model, device, "val")
     summary = {

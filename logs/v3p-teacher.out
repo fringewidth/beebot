@@ -60,3 +60,89 @@
 {"iteration": 2750, "minutes": 48.93, "loss": 0.4397, "success": 1.0, "success_ema": 0.506, "level": 5, "size": 32, "replayed": true}
 {"iteration": 2800, "minutes": 49.84, "loss": 0.8585, "success": 0.406, "success_ema": 0.48, "level": 5, "size": 20, "replayed": false}
 {"iteration": 2850, "minutes": 50.52, "loss": 0.6153, "success": 0.844, "success_ema": 0.493, "level": 5, "size": 28, "replayed": true}
+{"iteration": 2900, "minutes": 51.22, "loss": 0.6919, "success": 0.656, "success_ema": 0.515, "level": 5, "size": 20, "replayed": true}
+{"iteration": 2950, "minutes": 52.23, "loss": 0.7026, "success": 0.719, "success_ema": 0.58, "level": 5, "size": 32, "replayed": false}
+{"iteration": 3000, "minutes": 53.12, "loss": 0.9963, "success": 0.125, "success_ema": 0.247, "level": 5, "size": 20, "replayed": true}
+{"iteration": 3050, "minutes": 54.02, "loss": 0.7817, "success": 0.594, "success_ema": 0.208, "level": 5, "size": 40, "replayed": false}
+{"iteration": 3100, "minutes": 54.74, "loss": 0.7983, "success": 0.625, "success_ema": 0.455, "level": 5, "size": 24, "replayed": true}
+{"iteration": 3150, "minutes": 55.39, "loss": 0.4973, "success": 1.0, "success_ema": 0.444, "level": 5, "size": 16, "replayed": true}
+{"iteration": 3200, "minutes": 56.22, "loss": 0.4512, "success": 1.0, "success_ema": 0.523, "level": 5, "size": 32, "replayed": true}
+{"iteration": 3250, "minutes": 57.27, "loss": 0.8481, "success": 0.406, "success_ema": 0.538, "level": 5, "size": 16, "replayed": true}
+{"iteration": 3300, "minutes": 58.14, "loss": 0.7956, "success": 0.5, "success_ema": 0.554, "level": 5, "size": 20, "replayed": false}
+{"iteration": 3350, "minutes": 58.92, "loss": 0.8946, "success": 0.562, "success_ema": 0.5, "level": 5, "size": 32, "replayed": false}
+{"iteration": 3400, "minutes": 59.8, "loss": 0.8632, "success": 0.438, "success_ema": 0.576, "level": 5, "size": 20, "replayed": true}
+{"iteration": 3450, "minutes": 60.54, "loss": 1.008, "success": 0.406, "success_ema": 0.508, "level": 5, "size": 24, "replayed": false}
+{"iteration": 3500, "minutes": 61.36, "loss": 0.9854, "success": 0.219, "success_ema": 0.395, "level": 5, "size": 20, "replayed": false}
+{"iteration": 3550, "minutes": 62.25, "loss": 0.4755, "success": 0.969, "success_ema": 0.468, "level": 5, "size": 28, "replayed": true}
+{"iteration": 3600, "minutes": 63.02, "loss": 0.4195, "success": 1.0, "success_ema": 0.534, "level": 5, "size": 32, "replayed": true}
+{"iteration": 3650, "minutes": 63.9, "loss": 0.7914, "success": 0.594, "success_ema": 0.554, "level": 5, "size": 20, "replayed": true}
+{"iteration": 3700, "minutes": 64.83, "loss": 0.7371, "success": 0.688, "success_ema": 0.588, "level": 5, "size": 24, "replayed": true}
+{"iteration": 3750, "minutes": 65.7, "loss": 0.9923, "success": 0.594, "success_ema": 0.538, "level": 5, "size": 32, "replayed": false}
+{"iteration": 3800, "minutes": 66.6, "loss": 0.8802, "success": 0.5, "success_ema": 0.567, "level": 5, "size": 24, "replayed": false}
+{"iteration": 3850, "minutes": 67.45, "loss": 0.6998, "success": 0.688, "success_ema": 0.541, "level": 5, "size": 40, "replayed": false}
+{"iteration": 3900, "minutes": 68.46, "loss": 1.5855, "success": 0.188, "success_ema": 0.324, "level": 5, "size": 24, "replayed": false}
+{"iteration": 3950, "minutes": 69.36, "loss": 2.1446, "success": 0.0, "success_ema": 0.079, "level": 5, "size": 16, "replayed": false}
+{"iteration": 4000, "minutes": 70.17, "loss": 4.987, "success": 0.031, "success_ema": 0.039, "level": 5, "size": 28, "replayed": true}
+{"iteration": 4050, "minutes": 71.02, "loss": 6.5834, "success": 0.0, "success_ema": 0.007, "level": 5, "size": 32, "replayed": false}
+{"iteration": 4100, "minutes": 71.92, "loss": 2.3495, "success": 0.0, "success_ema": 0.002, "level": 5, "size": 16, "replayed": false}
+{"iteration": 4150, "minutes": 72.61, "loss": 3.4885, "success": 0.0, "success_ema": 0.001, "level": 5, "size": 24, "replayed": false}
+{"iteration": 4200, "minutes": 73.43, "loss": 7.3998, "success": 0.0, "success_ema": 0.002, "level": 5, "size": 32, "replayed": false}
+{"iteration": 4250, "minutes": 74.25, "loss": 2.4683, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 16, "replayed": false}
+{"iteration": 4300, "minutes": 75.05, "loss": 2.0615, "success": 0.0, "success_ema": 0.001, "level": 5, "size": 16, "replayed": false}
+{"iteration": 4350, "minutes": 75.95, "loss": 3.4601, "success": 0.0, "success_ema": 0.001, "level": 5, "size": 32, "replayed": false}
+{"iteration": 4400, "minutes": 76.75, "loss": 2.9478, "success": 0.0, "success_ema": 0.001, "level": 5, "size": 16, "replayed": false}
+{"iteration": 4450, "minutes": 77.54, "loss": 2.6006, "success": 0.0, "success_ema": 0.002, "level": 5, "size": 24, "replayed": false}
+{"iteration": 4500, "minutes": 78.36, "loss": 3.7701, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 40, "replayed": true}
+{"iteration": 4550, "minutes": 79.33, "loss": 4.4769, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 32, "replayed": false}
+{"iteration": 4600, "minutes": 80.19, "loss": 2.8364, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 20, "replayed": true}
+{"iteration": 4650, "minutes": 81.03, "loss": 2.3157, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 24, "replayed": false}
+{"iteration": 4700, "minutes": 82.01, "loss": 2.3261, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 20, "replayed": false}
+{"iteration": 4750, "minutes": 82.89, "loss": 5.6365, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 40, "replayed": true}
+{"iteration": 4800, "minutes": 83.62, "loss": 1.8775, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 16, "replayed": false}
+{"iteration": 4850, "minutes": 84.44, "loss": 4.0799, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 40, "replayed": false}
+{"iteration": 4900, "minutes": 85.25, "loss": 4.5027, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 40, "replayed": false}
+{"iteration": 4950, "minutes": 86.06, "loss": 2.1409, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 16, "replayed": false}
+{"iteration": 5000, "minutes": 86.88, "loss": 3.0774, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 28, "replayed": false}
+{"iteration": 5050, "minutes": 87.64, "loss": 2.339, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 16, "replayed": false}
+{"iteration": 5100, "minutes": 88.44, "loss": 3.9948, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 32, "replayed": false}
+{"iteration": 5150, "minutes": 89.27, "loss": 1.9239, "success": 0.0, "success_ema": 0.002, "level": 5, "size": 16, "replayed": true}
+{"iteration": 5200, "minutes": 90.17, "loss": 4.7754, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 40, "replayed": true}
+{"iteration": 5250, "minutes": 90.97, "loss": 2.8377, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 20, "replayed": false}
+{"iteration": 5300, "minutes": 91.92, "loss": 8.3376, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 40, "replayed": false}
+{"iteration": 5350, "minutes": 92.85, "loss": 4.2057, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 28, "replayed": false}
+{"iteration": 5400, "minutes": 93.68, "loss": 2.2753, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 16, "replayed": true}
+{"iteration": 5450, "minutes": 94.47, "loss": 2.4105, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 24, "replayed": false}
+{"iteration": 5500, "minutes": 95.21, "loss": 2.3072, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 20, "replayed": true}
+{"iteration": 5550, "minutes": 96.39, "loss": 5.0109, "success": 0.0, "success_ema": 0.0, "level": 5, "size": 40, "replayed": false}
+{
+  "name": "v3p-teacher",
+  "iterations": 5571,
+  "final_level": 5,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 6.649226677162285e-10,
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.08952772617340088,
+      "fog": 0.24471807479858398,
+      "final_gathered": 0.10747653990983963
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.1338529884815216,
+      "fog": 0.20186078548431396,
+      "final_gathered": 0.10082529485225677
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.08177804201841354,
+      "fog": 0.2705722153186798,
+      "final_gathered": 0.11307528614997864
+    },
+    "score": 1.0
+  }
+}

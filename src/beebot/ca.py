@@ -84,6 +84,7 @@ class Rollout:
     gathered: torch.Tensor  # share of the mass within the gather radius
     eaten: torch.Tensor  # bool, every ring square holds more than tau and the swarm has gathered
     fog: torch.Tensor  # share of the mass on squares holding less than FOG_MASS
+    exploring: torch.Tensor  # share of open floor not yet visited, while no robot has touched the cheese; 0 after
     initial_mean_distance: torch.Tensor  # (B,)
     masses: list  # (B, H, W) numpy arrays per step, only when recorded
     pheromones: list  # (B, H, W) numpy arrays per step, the strongest note per square, only when recorded
@@ -131,7 +132,15 @@ def rollout(
     radius = gather_radius(batch.distance, open_squares, total_mass)
     home = ((batch.distance <= radius[:, None, None]) & open_squares).float()
 
-    surround, mean_distance, crowding, gathered, eaten, fog, masses, pheromones = [], [], [], [], [], [], [], []
+    # Exploration: a square counts as visited once it has held robot mass (soft, by
+    # the same occupancy as the ring). Until a robot first touches the cheese, the
+    # unvisited share is a training signal for searching; after contact it's zero.
+    visited = torch.zeros_like(mass)
+    contacted = torch.zeros(b, dtype=torch.bool, device=mass.device)
+    open_count = open_squares.flatten(1).sum(dim=1)
+
+    surround, mean_distance, crowding, gathered, eaten, fog, exploring = [], [], [], [], [], [], []
+    masses, pheromones = [], []
     for t in range(n_steps):
         if t == damage_step:
             mass = damage_fn(mass) if damage_fn else damage(mass, damage_fraction)
@@ -150,6 +159,10 @@ def rollout(
         ring_full = ((mass > tau) | ~batch.ring).flatten(1).all(dim=1)
         eaten.append(ring_full & (gathered[-1] >= GATHER_SHARE))
         fog.append((mass * (mass < FOG_MASS)).sum(dim=(1, 2)) / total_mass)
+        visited = torch.maximum(visited, occupied * open_squares)
+        unvisited = 1 - visited.sum(dim=(1, 2)) / open_count
+        exploring.append(unvisited * (~contacted).float())
+        contacted = contacted | ((mass > tau) & batch.ring).flatten(1).any(dim=1)
         if record:
             masses.append(mass.detach().cpu().numpy())
             pheromones.append(notes.detach().abs().amax(dim=1).cpu().numpy())
@@ -161,14 +174,20 @@ def rollout(
         gathered=torch.stack(gathered),
         eaten=torch.stack(eaten),
         fog=torch.stack(fog),
+        exploring=torch.stack(exploring),
         initial_mean_distance=initial_mean_distance,
         masses=masses,
         pheromones=pheromones,
     )
 
 
-def loss(result, w_surround, w_distance, w_crowding, w_gather):
-    """Weighted sum of the four terms, averaged over every step, so finishing early scores better.
+def loss(result, w_surround, w_distance, w_crowding, w_gather, w_explore=0.0):
+    """Weighted sum of the terms, averaged over every step, so finishing early scores better.
+
+    w_explore rewards covering the floor until a robot first touches the cheese. A
+    blind swarm needs it: on a torus with the cheese placed uniformly at random,
+    every square has the same expected distance to the cheese, so the distance term
+    carries no signal about how to search.
 
     Distance is divided by its starting value so it begins near 1, like the other terms.
     """
@@ -177,6 +196,7 @@ def loss(result, w_surround, w_distance, w_crowding, w_gather):
         + w_distance * result.mean_distance / result.initial_mean_distance
         + w_crowding * result.crowding
         + w_gather * (1 - result.gathered)
+        + w_explore * result.exploring
     )
     return per_step.mean()
 

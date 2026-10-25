@@ -58,3 +58,35 @@
 {"iteration": 2750, "minutes": 48.29, "loss": 0.482, "success": 1.0, "success_ema": 0.677, "level": 3, "size": 40, "replayed": true}
 {"iteration": 2800, "minutes": 49.14, "loss": 0.7654, "success": 0.781, "success_ema": 0.666, "level": 3, "size": 28, "replayed": false}
 {"iteration": 2850, "minutes": 50.06, "loss": 1.4398, "success": 0.812, "success_ema": 0.64, "level": 3, "size": 32, "replayed": false}
+{
+  "name": "v3p-scratch",
+  "iterations": 2876,
+  "final_level": 3,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.5058616507956388,
+  "val": {
+    "interp": {
+      "success": 0.1979166716337204,
+      "time": 0.8733989596366882,
+      "final_surround": 0.4841228425502777,
+      "fog": 0.5192527174949646,
+      "final_gathered": 0.3993763029575348
+    },
+    "extrap": {
+      "success": 0.125,
+      "time": 0.9097493290901184,
+      "final_surround": 0.3610110878944397,
+      "fog": 0.31207332015037537,
+      "final_gathered": 0.2702731490135193
+    },
+    "damage": {
+      "success": 0.1354166716337204,
+      "time": 0.925868034362793,
+      "final_surround": 0.4216355085372925,
+      "fog": 0.588451087474823,
+      "final_gathered": 0.3773060739040375
+    },
+    "score": 0.9030054410298666
+  }
+}

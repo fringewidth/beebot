@@ -1,0 +1,32 @@
+{
+  "name": "v3p-teacher",
+  "iterations": 5571,
+  "final_level": 5,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 6.649226677162285e-10,
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.08952772617340088,
+      "fog": 0.24471807479858398,
+      "final_gathered": 0.10747653990983963
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.1338529884815216,
+      "fog": 0.20186078548431396,
+      "final_gathered": 0.10082529485225677
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.08177804201841354,
+      "fog": 0.2705722153186798,
+      "final_gathered": 0.11307528614997864
+    },
+    "score": 1.0
+  }
+}

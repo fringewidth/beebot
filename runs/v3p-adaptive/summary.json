@@ -1,0 +1,32 @@
+{
+  "name": "v3p-adaptive",
+  "iterations": 2967,
+  "final_level": 0,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.4413643540911079,
+  "val": {
+    "interp": {
+      "success": 0.34375,
+      "time": 0.7563149333000183,
+      "final_surround": 0.3923693597316742,
+      "fog": 0.2788142263889313,
+      "final_gathered": 0.36936625838279724
+    },
+    "extrap": {
+      "success": 0.171875,
+      "time": 0.8912760019302368,
+      "final_surround": 0.27317455410957336,
+      "fog": 0.1980098932981491,
+      "final_gathered": 0.2093823403120041
+    },
+    "damage": {
+      "success": 0.3333333432674408,
+      "time": 0.7658863067626953,
+      "final_surround": 0.40699824690818787,
+      "fog": 0.3265644907951355,
+      "final_gathered": 0.3714810609817505
+    },
+    "score": 0.8044924139976501
+  }
+}

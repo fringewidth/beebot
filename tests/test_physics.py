@@ -283,3 +283,36 @@ def test_wrapped_privileged_policy_smells_the_current_batch():
         b = sample_batch(rng, size, (1, 3), (2, 6), 2, (0.0, 0.2))
         rollout(wrapped, b, 1, 0.75, 0.5)
         assert torch.equal(model.scent, torch.exp(-b.distance.clamp(max=1000) / 8.0))
+
+
+def test_exploring_signal_shrinks_with_coverage_and_stops_at_contact():
+    batch = sample_batch(np.random.default_rng(5), 20, (1, 1), (8, 9), 1, (0.0, 0.0))
+    east = OFFSETS.index((0, 1))
+    result = rollout(ConstantPolicy(east), batch, 30, 1.0, 0.5)
+    exploring = result.exploring[:, 0]
+    touched = ((result.surround[:, 0]) > 0).nonzero()
+    before = exploring[: touched[0, 0]] if len(touched) else exploring
+    assert (before[1:] <= before[:-1] + 1e-6).all(), "unvisited share never grows before contact"
+    if len(touched):
+        assert (exploring[touched[0, 0] + 1 :] == 0).all(), "no exploration signal after contact"
+
+
+def test_training_randomness_survives_a_mid_run_evaluation(tmp_path):
+    from beebot.train import keep_if_best
+
+    torch.manual_seed(123)
+    expected = torch.rand(3)
+    torch.manual_seed(123)
+    keep_if_best(tmp_path, StickyBaselineModule(), torch.device("cpu"), float("inf"), 0, 0.0)
+    assert torch.equal(torch.rand(3), expected)
+
+
+class StickyBaselineModule(torch.nn.Module):
+    """The sticky baseline as a module, so keep_if_best can save it."""
+
+    def __init__(self):
+        super().__init__()
+        self.rule = StickyBaseline()
+
+    def __call__(self, mass, cheese, walls, notes):
+        return self.rule(mass, cheese, walls, notes)
