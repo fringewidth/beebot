@@ -257,3 +257,17 @@ def test_privileged_swarm_smells_walking_distance(batch):
     blind = NCA()
     rollout(blind, batch, 2, 0.75, 0.5)
     assert blind.scent is None
+
+
+def test_blind_model_can_start_from_privileged_weights(tmp_path):
+    from beebot.model import load_weights
+
+    teacher = NCA(privileged=True)
+    torch.nn.init.normal_(teacher.body[0].weight)
+    path = tmp_path / "teacher.pt"
+    torch.save(teacher.state_dict(), path)
+    student = NCA()
+    load_weights(student, path, "cpu")
+    keep = [c for c in range(teacher.body[0].weight.shape[1]) if c != 3]
+    assert torch.equal(student.body[0].weight, teacher.body[0].weight[:, keep])
+    assert torch.equal(student.head.weight, teacher.head.weight)

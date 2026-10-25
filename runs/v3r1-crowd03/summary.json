@@ -1,0 +1,32 @@
+{
+  "name": "v3r1-crowd03",
+  "iterations": 2292,
+  "final_level": 3,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.21181496196792055,
+  "val": {
+    "interp": {
+      "success": 0.02083333395421505,
+      "time": 0.993651807308197,
+      "final_surround": 0.37612152099609375,
+      "fog": 0.48635613918304443,
+      "final_gathered": 0.31187698245048523
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.43522363901138306,
+      "fog": 0.39882194995880127,
+      "final_gathered": 0.22315198183059692
+    },
+    "damage": {
+      "success": 0.010416666977107525,
+      "time": 0.9951073527336121,
+      "final_surround": 0.3311387598514557,
+      "fog": 0.5370810627937317,
+      "final_gathered": 0.2809807062149048
+    },
+    "score": 0.9962530533472697
+  }
+}

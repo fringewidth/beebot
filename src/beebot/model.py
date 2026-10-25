@@ -53,6 +53,20 @@ class NCA(nn.Module):
         return out[:, : len(OFFSETS)], out[:, len(OFFSETS) :]
 
 
+SCENT_CHANNEL = 3  # where the privileged scent sits among a privileged model's inputs
+
+
+def load_weights(model, path, device):
+    """Load a checkpoint, dropping the scent input when a blind model starts from a privileged one."""
+    state = torch.load(path, map_location=device)
+    first = state["body.0.weight"]
+    expected = model.body[0].weight.shape[1]
+    if first.shape[1] == expected + 1 and not model.privileged:
+        keep = [c for c in range(first.shape[1]) if c != SCENT_CHANNEL]
+        state["body.0.weight"] = first[:, keep]
+    model.load_state_dict(state)
+
+
 class StickyBaseline:
     """Hand-written rule to beat: wander at random, and stay put once touching the cheese.
 

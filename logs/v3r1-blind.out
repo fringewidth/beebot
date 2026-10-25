@@ -1,0 +1,58 @@
+{"iteration": 100, "minutes": 4.02, "loss": 0.9669, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 28}
+{"iteration": 200, "minutes": 5.7, "loss": 0.8626, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 40}
+{"iteration": 300, "minutes": 8.06, "loss": 0.9438, "success": 0.0, "success_ema": 0.005, "level": 0, "size": 16}
+{"iteration": 400, "minutes": 9.77, "loss": 0.6732, "success": 0.438, "success_ema": 0.316, "level": 0, "size": 20}
+{"iteration": 497, "minutes": 11.95, "loss": 0.5966, "success": 1.0, "success_ema": 0.0, "level": 1, "size": 40}
+{"iteration": 500, "minutes": 12.01, "loss": 0.6811, "success": 0.812, "success_ema": 0.114, "level": 1, "size": 28}
+{"iteration": 600, "minutes": 14.3, "loss": 0.5601, "success": 0.906, "success_ema": 0.556, "level": 1, "size": 40}
+{"iteration": 700, "minutes": 16.48, "loss": 0.8335, "success": 0.0, "success_ema": 0.574, "level": 1, "size": 16}
+{"iteration": 800, "minutes": 18.02, "loss": 0.7036, "success": 0.469, "success_ema": 0.555, "level": 1, "size": 32}
+{"iteration": 863, "minutes": 19.31, "loss": 0.5191, "success": 0.938, "success_ema": 0.0, "level": 2, "size": 32}
+{"iteration": 900, "minutes": 20.15, "loss": 0.5286, "success": 0.875, "success_ema": 0.653, "level": 2, "size": 28}
+{"iteration": 1000, "minutes": 22.02, "loss": 0.5151, "success": 0.969, "success_ema": 0.606, "level": 2, "size": 24}
+{"iteration": 1092, "minutes": 23.98, "loss": 0.5382, "success": 0.938, "success_ema": 0.0, "level": 3, "size": 40}
+{"iteration": 1100, "minutes": 24.08, "loss": 1.0147, "success": 0.344, "success_ema": 0.169, "level": 3, "size": 24}
+{"iteration": 1200, "minutes": 25.91, "loss": 0.7151, "success": 0.438, "success_ema": 0.379, "level": 3, "size": 28}
+{"iteration": 1300, "minutes": 27.63, "loss": 0.6753, "success": 0.844, "success_ema": 0.469, "level": 3, "size": 32}
+{"iteration": 1400, "minutes": 29.44, "loss": 0.9749, "success": 0.156, "success_ema": 0.439, "level": 3, "size": 16}
+{"iteration": 1500, "minutes": 30.91, "loss": 1.116, "success": 0.031, "success_ema": 0.462, "level": 3, "size": 16}
+{"iteration": 1600, "minutes": 32.47, "loss": 0.8984, "success": 0.25, "success_ema": 0.415, "level": 3, "size": 16}
+{"iteration": 1700, "minutes": 34.07, "loss": 1.005, "success": 0.156, "success_ema": 0.48, "level": 3, "size": 16}
+{"iteration": 1800, "minutes": 35.72, "loss": 0.993, "success": 0.25, "success_ema": 0.282, "level": 3, "size": 20}
+{"iteration": 1900, "minutes": 37.3, "loss": 1.1004, "success": 0.0, "success_ema": 0.144, "level": 3, "size": 16}
+{"iteration": 2000, "minutes": 38.93, "loss": 0.7498, "success": 0.625, "success_ema": 0.498, "level": 3, "size": 24}
+{"iteration": 2100, "minutes": 40.61, "loss": 0.6977, "success": 0.75, "success_ema": 0.488, "level": 3, "size": 32}
+{"iteration": 2200, "minutes": 42.28, "loss": 0.9476, "success": 0.094, "success_ema": 0.354, "level": 3, "size": 16}
+{"iteration": 2300, "minutes": 43.81, "loss": 0.749, "success": 0.594, "success_ema": 0.598, "level": 3, "size": 40}
+{
+  "name": "v3r1-blind",
+  "iterations": 2375,
+  "final_level": 3,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.5398816411716568,
+  "val": {
+    "interp": {
+      "success": 0.25,
+      "time": 0.8626788258552551,
+      "final_surround": 0.7524120211601257,
+      "fog": 0.5354330539703369,
+      "final_gathered": 0.49878382682800293
+    },
+    "extrap": {
+      "success": 0.21875,
+      "time": 0.8520236611366272,
+      "final_surround": 0.634762167930603,
+      "fog": 0.3317187428474426,
+      "final_gathered": 0.43751388788223267
+    },
+    "damage": {
+      "success": 0.2291666716337204,
+      "time": 0.8744599223136902,
+      "final_surround": 0.6882882118225098,
+      "fog": 0.5774097442626953,
+      "final_gathered": 0.4786187410354614
+    },
+    "score": 0.8630541364351908
+  }
+}

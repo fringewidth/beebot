@@ -18,7 +18,7 @@ import torch
 from beebot.ca import loss, rollout
 from beebot.evaluate import evaluate
 from beebot.layout import sample_batch
-from beebot.model import NCA
+from beebot.model import NCA, load_weights
 from beebot.render import render_examples
 
 # Curriculum levels: (largest start distance, largest cheese, largest wall share).
@@ -103,7 +103,7 @@ def train(cfg):
         privileged=cfg.privileged,
     ).to(device)
     if cfg.init:
-        model.load_state_dict(torch.load(cfg.init, map_location=device))
+        load_weights(model, cfg.init, device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
 
     level = 0

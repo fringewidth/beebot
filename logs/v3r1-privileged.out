@@ -1,0 +1,63 @@
+{"iteration": 100, "minutes": 4.05, "loss": 0.8324, "success": 0.0, "success_ema": 0.001, "level": 0, "size": 28}
+{"iteration": 200, "minutes": 5.76, "loss": 0.7841, "success": 0.531, "success_ema": 0.397, "level": 0, "size": 40}
+{"iteration": 269, "minutes": 7.51, "loss": 0.5059, "success": 1.0, "success_ema": 0.0, "level": 1, "size": 40}
+{"iteration": 300, "minutes": 8.13, "loss": 0.6252, "success": 0.469, "success_ema": 0.606, "level": 1, "size": 16}
+{"iteration": 331, "minutes": 8.65, "loss": 0.4573, "success": 1.0, "success_ema": 0.0, "level": 2, "size": 28}
+{"iteration": 392, "minutes": 9.77, "loss": 0.4564, "success": 1.0, "success_ema": 0.0, "level": 3, "size": 40}
+{"iteration": 400, "minutes": 9.9, "loss": 0.5165, "success": 0.938, "success_ema": 0.234, "level": 3, "size": 24}
+{"iteration": 442, "minutes": 10.76, "loss": 0.5134, "success": 0.844, "success_ema": 0.0, "level": 4, "size": 24}
+{"iteration": 500, "minutes": 11.8, "loss": 0.6831, "success": 0.25, "success_ema": 0.647, "level": 4, "size": 16}
+{"iteration": 529, "minutes": 12.55, "loss": 0.4354, "success": 1.0, "success_ema": 0.0, "level": 5, "size": 40}
+{"iteration": 600, "minutes": 14.21, "loss": 0.5828, "success": 0.438, "success_ema": 0.64, "level": 5, "size": 16}
+{"iteration": 700, "minutes": 16.39, "loss": 0.5937, "success": 0.531, "success_ema": 0.689, "level": 5, "size": 16}
+{"iteration": 800, "minutes": 18.22, "loss": 0.5041, "success": 0.719, "success_ema": 0.774, "level": 5, "size": 20}
+{"iteration": 805, "minutes": 18.33, "loss": 0.4177, "success": 0.969, "success_ema": 0.0, "level": 6, "size": 32}
+{"iteration": 899, "minutes": 20.21, "loss": 0.3885, "success": 0.969, "success_ema": 0.0, "level": 7, "size": 40}
+{"iteration": 900, "minutes": 20.22, "loss": 0.5275, "success": 0.594, "success_ema": 0.03, "level": 7, "size": 20}
+{"iteration": 1000, "minutes": 22.1, "loss": 0.5191, "success": 0.562, "success_ema": 0.706, "level": 7, "size": 20}
+{"iteration": 1100, "minutes": 24.1, "loss": 0.5179, "success": 0.625, "success_ema": 0.738, "level": 7, "size": 20}
+{"iteration": 1195, "minutes": 25.7, "loss": 0.4144, "success": 0.938, "success_ema": 0.0, "level": 8, "size": 32}
+{"iteration": 1200, "minutes": 25.77, "loss": 0.4873, "success": 0.75, "success_ema": 0.169, "level": 8, "size": 24}
+{"iteration": 1300, "minutes": 27.63, "loss": 0.4599, "success": 0.781, "success_ema": 0.776, "level": 8, "size": 16}
+{"iteration": 1400, "minutes": 29.53, "loss": 0.4569, "success": 0.812, "success_ema": 0.818, "level": 8, "size": 28}
+{"iteration": 1500, "minutes": 31.29, "loss": 0.4255, "success": 0.812, "success_ema": 0.874, "level": 8, "size": 20}
+{"iteration": 1600, "minutes": 33.07, "loss": 0.4259, "success": 0.906, "success_ema": 0.788, "level": 8, "size": 40}
+{"iteration": 1700, "minutes": 34.81, "loss": 0.4244, "success": 0.875, "success_ema": 0.865, "level": 8, "size": 40}
+{"iteration": 1800, "minutes": 36.44, "loss": 0.3984, "success": 1.0, "success_ema": 0.895, "level": 8, "size": 40}
+{"iteration": 1900, "minutes": 38.08, "loss": 0.4882, "success": 0.656, "success_ema": 0.849, "level": 8, "size": 20}
+{"iteration": 2000, "minutes": 39.74, "loss": 0.3977, "success": 1.0, "success_ema": 0.885, "level": 8, "size": 40}
+{"iteration": 2100, "minutes": 41.46, "loss": 0.3982, "success": 0.844, "success_ema": 0.905, "level": 8, "size": 24}
+{"iteration": 2200, "minutes": 42.94, "loss": 0.3757, "success": 0.844, "success_ema": 0.895, "level": 8, "size": 20}
+{"iteration": 2300, "minutes": 44.5, "loss": 0.3843, "success": 0.969, "success_ema": 0.907, "level": 8, "size": 40}
+{
+  "name": "v3r1-privileged",
+  "iterations": 2334,
+  "final_level": 8,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.9058933538179479,
+  "val": {
+    "interp": {
+      "success": 0.90625,
+      "time": 0.35454368591308594,
+      "final_surround": 0.9880328178405762,
+      "fog": 0.19030313193798065,
+      "final_gathered": 0.9206252694129944
+    },
+    "extrap": {
+      "success": 0.75,
+      "time": 0.4895833134651184,
+      "final_surround": 0.982754111289978,
+      "fog": 0.16671928763389587,
+      "final_gathered": 0.8272459506988525
+    },
+    "damage": {
+      "success": 0.84375,
+      "time": 0.4109831154346466,
+      "final_surround": 0.9800930023193359,
+      "fog": 0.22129487991333008,
+      "final_gathered": 0.9195286631584167
+    },
+    "score": 0.4183700382709503
+  }
+}
