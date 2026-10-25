@@ -101,6 +101,7 @@ def train(cfg):
     w_distance = cfg.w_distance
     start = time.time()
     iteration = 0
+    diverged = False
     log = open(run_dir / "log.jsonl", "w")
 
     while time.time() - start < cfg.minutes * 60:
@@ -111,6 +112,10 @@ def train(cfg):
 
         result = rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
         value = loss(result, cfg.w_surround, w_distance, cfg.w_crowding)
+        if not torch.isfinite(value):
+            diverged = True
+            print(json.dumps({"iteration": iteration, "diverged": True}), flush=True)
+            break
         optimizer.zero_grad()
         value.backward()
         normalize_gradients(model)
@@ -152,6 +157,7 @@ def train(cfg):
         "name": cfg.name,
         "iterations": iteration,
         "final_level": level,
+        "diverged": diverged,
         "levels_total": len(LEVELS),
         "train_success_ema": success_ema,
         "val": scores,

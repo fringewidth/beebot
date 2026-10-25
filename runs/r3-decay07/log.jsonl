@@ -1,2 +1,16 @@
 {"iteration": 100, "minutes": 1.01, "loss": 0.7403, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 40}
 {"iteration": 200, "minutes": 1.97, "loss": 0.3376, "success": 0.781, "success_ema": 0.515, "level": 0, "size": 28}
+{"iteration": 271, "minutes": 2.64, "loss": 0.2721, "success": 1.0, "success_ema": 0.0, "level": 1, "size": 32}
+{"iteration": 300, "minutes": 2.96, "loss": 0.1915, "success": 0.969, "success_ema": 0.547, "level": 1, "size": 40}
+{"iteration": 353, "minutes": 3.49, "loss": 0.2015, "success": 1.0, "success_ema": 0.0, "level": 2, "size": 24}
+{"iteration": 400, "minutes": 3.99, "loss": 0.1487, "success": 0.938, "success_ema": 0.82, "level": 2, "size": 28}
+{"iteration": 403, "minutes": 4.01, "loss": 0.1443, "success": 0.938, "success_ema": 0.0, "level": 3, "size": 28}
+{"iteration": 453, "minutes": 4.53, "loss": 0.1114, "success": 1.0, "success_ema": 0.0, "level": 4, "size": 32}
+{"iteration": 500, "minutes": 4.99, "loss": 0.1084, "success": 1.0, "success_ema": 0.835, "level": 4, "size": 24}
+{"iteration": 503, "minutes": 5.01, "loss": 0.1192, "success": 0.938, "success_ema": 0.0, "level": 5, "size": 20}
+{"iteration": 553, "minutes": 5.46, "loss": 0.0961, "success": 0.688, "success_ema": 0.0, "level": 6, "size": 32}
+{"iteration": 600, "minutes": 5.99, "loss": 0.0882, "success": 0.969, "success_ema": 0.823, "level": 6, "size": 28}
+{"iteration": 603, "minutes": 6.03, "loss": 0.0844, "success": 0.812, "success_ema": 0.0, "level": 7, "size": 40}
+{"iteration": 653, "minutes": 6.52, "loss": 0.0767, "success": 1.0, "success_ema": 0.0, "level": 8, "size": 28}
+{"iteration": 700, "minutes": 7.08, "loss": 0.0822, "success": 1.0, "success_ema": 0.815, "level": 8, "size": 24}
+{"iteration": 800, "minutes": 8.03, "loss": 0.0788, "success": 1.0, "success_ema": 0.942, "level": 8, "size": 16}

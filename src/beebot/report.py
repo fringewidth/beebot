@@ -8,6 +8,7 @@ Scores the hand-written baseline once and keeps it in runs/baseline/.
 
 import dataclasses
 import json
+import math
 import shutil
 from pathlib import Path
 
@@ -22,6 +23,17 @@ RUNS = Path("runs")
 SITE = Path("site")
 # Run settings that don't change what the model learns; left out of the "change" column.
 NOT_A_CHANGE = {"name", "device", "log_every", "init"}
+
+
+def finite(value):
+    """Replace NaN and infinity with None: they aren't valid JSON, and the page can't load them."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: finite(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [finite(v) for v in value]
+    return value
 
 
 def ensure_baseline(device):
@@ -100,7 +112,7 @@ def main():
         "runs": runs,
     }
     SITE.mkdir(exist_ok=True)
-    (SITE / "data.json").write_text(json.dumps(data))
+    (SITE / "data.json").write_text(json.dumps(finite(data), allow_nan=False))
     print(f"{len(runs)} runs written to {SITE / 'data.json'}")
 
 
