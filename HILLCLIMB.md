@@ -160,3 +160,15 @@ Change: global gradient-norm clipping (max norm 1) is now the default (`--grad_m
 New population (180 minutes, clipping, cosine, best checkpoint kept): v3z-priv (privileged from v3r1-privileged, lr 3e-4), v3z-explore (blind from v3x-explore's best, w_explore 0.15, lr 3e-4), v3z-explore-slow (same, w_explore 0.1, lr 1e-4).
 
 Bar revised (decided by the user at 04:00): a task is done at above 90% success on every val split (interp, extrap, damage), confirmed once on the test set.
+
+Check-in at 60 minutes (clipping held; no collapses):
+
+| Run | Val at 30 min | Val at 60 min | Interp | Extrap | Damage |
+| --- | --- | --- | --- | --- | --- |
+| v3z-priv | 0.326 | **0.291** | 0.96 | 0.95 | 0.89 |
+| v3z-explore | 0.754 | 0.778 | 0.44 | 0.25 | 0.39 |
+| v3z-explore-slow | 0.745 | **0.738** | 0.43 | 0.33 | 0.43 |
+
+The privileged control holds at 89% damaged on both checks, one point under the bar: even a swarm that can smell the cheese barely clears 90% after a quarter of it is wiped mid-run. Stopped; it has shown the task is solvable to about 90% when search is free. v3z-explore stopped (bigger worlds fell from 38% to 25%). v3z-explore-slow continues.
+
+New: blind networks 192 wide (from 96), from scratch, w_explore 0.15, clipping, cosine: v3w-big-levels (level curriculum) and v3w-big-adaptive (adaptive curriculum). Tests whether capacity limits blind coordination.

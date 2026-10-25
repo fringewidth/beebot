@@ -1,0 +1,32 @@
+{
+  "name": "v3z-priv",
+  "iterations": 4127,
+  "final_level": 8,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.97400399378435,
+  "val": {
+    "interp": {
+      "success": 0.9583333134651184,
+      "time": 0.253019779920578,
+      "final_surround": 0.9894211888313293,
+      "fog": 0.1416315734386444,
+      "final_gathered": 0.9509575963020325
+    },
+    "extrap": {
+      "success": 0.953125,
+      "time": 0.3110893964767456,
+      "final_surround": 0.9982762932777405,
+      "fog": 0.13536983728408813,
+      "final_gathered": 0.913210391998291
+    },
+    "damage": {
+      "success": 0.8854166865348816,
+      "time": 0.30744776129722595,
+      "final_surround": 0.9870554804801941,
+      "fog": 0.16606564819812775,
+      "final_gathered": 0.9471248984336853
+    },
+    "score": 0.29051897923151654
+  }
+}
