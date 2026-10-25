@@ -44,6 +44,20 @@ LEVELS = [
 LEVEL_UP_SUCCESS = 0.8
 MIN_ITERATIONS_PER_LEVEL = 50
 
+# Adaptive curriculum: instead of levels, every batch uses the full range of
+# cheese sizes and walls, and one start distance. Distances are picked in
+# proportion to how close their success rate is to 50%, so training spends its
+# time at the frontier of what the swarm can do.
+ADAPTIVE_DISTANCES = list(range(2, 21))
+ADAPTIVE_CHEESE = (1, 9)
+ADAPTIVE_WALLS = (0.0, 0.3)
+ADAPTIVE_FLOOR = 0.05  # every distance keeps at least this much weight
+
+
+def adaptive_weights(success_by_distance):
+    weights = np.array([s * (1 - s) + ADAPTIVE_FLOOR for s in success_by_distance.values()])
+    return weights / weights.sum()
+
 
 @dataclass
 class Config:
@@ -74,6 +88,7 @@ class Config:
     w_gather: float = 0.5
     distance_decay: float = 1.0  # w_distance is multiplied by this at every level up
     replay: float = 0.3  # share of batches drawn from an earlier level, so easy cases aren't forgotten
+    adaptive: bool = False  # adaptive distance curriculum instead of levels (see ADAPTIVE_DISTANCES)
 
     log_every: int = 20
 
@@ -134,8 +149,19 @@ def train(cfg):
     # Batches are generated in a worker process while the GPU trains on the previous one.
     workers = ProcessPoolExecutor(max_workers=1)
 
+    success_by_distance = {d: 0.5 for d in ADAPTIVE_DISTANCES}
+
     def request_batch():
         size = int(rng.choice(sizes))
+        if cfg.adaptive:
+            # A start distance the grid can hold, chosen at the frontier of current success.
+            usable = {d: v for d, v in success_by_distance.items() if d <= size // 2}
+            distance = int(rng.choice(list(usable), p=adaptive_weights(usable)))
+            seed = int(rng.integers(2**31))
+            future = workers.submit(
+                sample_batch_seeded, seed, size, ADAPTIVE_CHEESE, (distance, distance), cfg.batch_size, ADAPTIVE_WALLS
+            )
+            return future, size, False, distance
         replayed = level > 0 and rng.random() < cfg.replay
         batch_level = int(rng.integers(level)) if replayed else level
         max_distance, max_cheese, max_walls = LEVELS[batch_level]
@@ -143,11 +169,11 @@ def train(cfg):
         future = workers.submit(
             sample_batch_seeded, seed, size, (1, max_cheese), (2, max_distance), cfg.batch_size, (0.0, max_walls)
         )
-        return future, size, replayed
+        return future, size, replayed, None
 
     pending = request_batch()
     while time.time() - start < cfg.minutes * 60 and not (run_dir / "STOP").exists():
-        future, size, replayed = pending
+        future, size, replayed, distance = pending
         batch = future.result().to(device)
         pending = request_batch()
         n_steps = round(cfg.steps_per_cell * size)
@@ -165,12 +191,14 @@ def train(cfg):
 
         success = result.eaten.any(dim=0).float().mean().item()
         iteration += 1
+        if cfg.adaptive:
+            success_by_distance[distance] = 0.9 * success_by_distance[distance] + 0.1 * success
         if not replayed:
             success_ema = 0.95 * success_ema + 0.05 * success
             iterations_at_level += 1
 
         leveled_up = False
-        if level < len(LEVELS) - 1 and iterations_at_level >= MIN_ITERATIONS_PER_LEVEL and success_ema > LEVEL_UP_SUCCESS:
+        if not cfg.adaptive and level < len(LEVELS) - 1 and iterations_at_level >= MIN_ITERATIONS_PER_LEVEL and success_ema > LEVEL_UP_SUCCESS:
             level += 1
             iterations_at_level = 0
             success_ema = 0.0
@@ -188,6 +216,9 @@ def train(cfg):
                 "size": size,
                 "replayed": replayed,
             }
+            if cfg.adaptive:
+                entry["distance"] = distance
+                entry["success_by_distance"] = {d: round(v, 2) for d, v in success_by_distance.items()}
             log.write(json.dumps(entry) + "\n")
             log.flush()
             print(json.dumps(entry), flush=True)

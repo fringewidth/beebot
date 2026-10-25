@@ -97,3 +97,17 @@ Population (6-hour runs, managed at each check-in: the worst run is replaced by 
 - v3p-teacher: blind, initialized from v3r1-privileged with the scent input removed.
 - v3p-scratch: blind, from scratch, seed 1.
 - v3p-privileged: the control, continued from v3r1-privileged at the last level, to find the ceiling.
+
+Population check-in at 46 minutes (val scores of the 40-minute checkpoints):
+
+| Run | Level | Val score | Interp | Extrap | Damage |
+| --- | --- | --- | --- | --- | --- |
+| v3p-teacher | 4 | 0.840 | 0.28 | 0.27 | 0.24 |
+| v3p-scratch | 3 | 0.829 | 0.31 | 0.25 | 0.24 |
+| v3p-privileged | 8 | **0.314** | 0.96 | 0.84 | 0.86 |
+
+Diagnosis of the blind failures (v3p-teacher on val interp): success falls with the starting distance, 74% within 6 squares, 17% at 6 to 10, 3% at 10 to 15, 0% beyond. Most failures never fill the ring: the swarm doesn't find the cheese in time. The privileged swarm solves 100% up to 10 squares and 93% at 10 to 15.
+
+Two causes. The level curriculum gates distance, and blind runs stall at level 3 (at most 8 squares), so they never practise far search. And search itself may be physically tight: a swarm moving as one blob sweeps the world in roughly 4 to 5 grid-lengths of steps, against a limit of 3; only a stretched-out sweep fits.
+
+Change: adaptive curriculum. Full cheese and wall ranges from the start; the start distance is chosen in proportion to s(1-s) of its recent success, so training sits at the frontier. Swap: v3p-scratch stopped (stuck at level 3); replaced by v3p-adaptive, started from v3p-teacher's 40-minute checkpoint.
