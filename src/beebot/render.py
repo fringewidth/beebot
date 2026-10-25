@@ -1,4 +1,4 @@
-"""Render rollouts as GIFs: mass in blue, cheese in yellow, ring squares tinted."""
+"""Render rollouts as GIFs: mass in blue, cheese in yellow, ring squares tinted, pheromone in green."""
 
 from pathlib import Path
 
@@ -14,10 +14,13 @@ BACKGROUND = np.array([18, 18, 24])
 RING = np.array([60, 45, 20])
 CHEESE = np.array([250, 200, 40])
 MASS = np.array([90, 170, 255])
+PHEROMONE = np.array([60, 200, 120])
 
 
-def frame(mass, cheese, ring):
+def frame(mass, cheese, ring, pheromone):
     image = np.where(ring[..., None], RING, BACKGROUND).astype(np.float32)
+    trail = np.clip(pheromone / 4, 0, 0.6)[..., None]
+    image = image * (1 - trail) + PHEROMONE * trail
     level = np.clip(mass, 0, 1)[..., None]
     image = image * (1 - level) + MASS * level
     image[cheese] = CHEESE
@@ -38,8 +41,8 @@ def render(policy, batch, device, path, n_examples=3):
     ring = batch.ring.cpu().numpy()
     initial = batch.mass.cpu().numpy()
     for i in range(min(n_examples, len(cheese))):
-        frames = [frame(initial[i], cheese[i], ring[i])]
-        frames += [frame(masses[i], cheese[i], ring[i]) for masses in result.masses]
+        frames = [frame(initial[i], cheese[i], ring[i], np.zeros_like(initial[i]))]
+        frames += [frame(m[i], cheese[i], ring[i], p[i]) for m, p in zip(result.masses, result.pheromones)]
         frames[0].save(path.with_name(f"{path.stem}_{i}.gif"), save_all=True, append_images=frames[1:], duration=60, loop=0)
 
 

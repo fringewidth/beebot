@@ -14,8 +14,8 @@ from pathlib import Path
 
 import torch
 
-from beebot.evaluate import SMELL_LENGTH, evaluate
-from beebot.model import GreedyBaseline
+from beebot.evaluate import evaluate
+from beebot.model import StickyBaseline
 from beebot.render import render_examples
 from beebot.train import LEVELS, Config
 
@@ -41,7 +41,7 @@ def ensure_baseline(device):
     if (run_dir / "summary.json").exists():
         return
     run_dir.mkdir(parents=True, exist_ok=True)
-    baseline = GreedyBaseline(SMELL_LENGTH)
+    baseline = StickyBaseline()
     summary = {"name": "baseline", "val": evaluate(baseline, device, "val")}
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     render_examples(baseline, device, run_dir / "videos")

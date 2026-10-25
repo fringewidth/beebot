@@ -14,7 +14,7 @@ from beebot.model import NCA
 
 SIZE = 32
 BATCH_SIZE = 32
-N_STEPS = 64
+N_STEPS = 96
 WARMUP = 2
 TIMED = 5
 
@@ -24,7 +24,7 @@ def time_iterations(device, use_checkpoint):
     rng = np.random.default_rng(0)
     model = NCA().to(device)
     optimizer = torch.optim.Adam(model.parameters())
-    batch = sample_batch(rng, SIZE, (1, 9), (2, 12), BATCH_SIZE, 8.0).to(device)
+    batch = sample_batch(rng, SIZE, (1, 9), (2, 12), BATCH_SIZE).to(device)
 
     def iteration():
         result = rollout(model, batch, N_STEPS, 0.75, 0.5, use_checkpoint=use_checkpoint)
@@ -43,8 +43,8 @@ def time_iterations(device, use_checkpoint):
 
 
 def main():
-    for device in ("cpu", "mps"):
-        for use_checkpoint in (False, True):
+    for device in ("mps",):
+        for use_checkpoint in (False,):
             seconds = time_iterations(torch.device(device), use_checkpoint)
             print(f"{device:4s} checkpoint={use_checkpoint!s:5s} {seconds:.2f} s/iteration", flush=True)
 

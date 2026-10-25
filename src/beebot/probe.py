@@ -5,10 +5,13 @@
 Each probe changes one thing about the world or the robots and reports the same
 hard metric as the val set. They use their own seeds, so they never touch val or
 test layouts. The baseline is scored alongside for reference.
+
+"pheromone blackout" is the communication check: robots still write pheromones,
+but every robot reads all zeros. If the score barely drops, the swarm isn't
+using its pheromones to coordinate.
 """
 
 import json
-import math
 import sys
 from pathlib import Path
 
@@ -16,9 +19,9 @@ import numpy as np
 import torch
 
 from beebot.ca import first_eaten_step, rollout
-from beebot.evaluate import FIRE_PROB, SMELL_LENGTH, STEPS_PER_CELL, TAU
-from beebot.layout import Batch, MASS_PER_RING_SQUARE, grow_shape, sample_batch, sample_layout, torus_distance
-from beebot.model import NCA, GreedyBaseline
+from beebot.evaluate import FIRE_PROB, STEPS_PER_CELL, TAU
+from beebot.layout import Batch, grow_shape, sample_batch, sample_layout, swarm_mass, torus_distance
+from beebot.model import NCA, StickyBaseline
 
 SEED = 3000
 LAYOUTS = 32
@@ -26,16 +29,14 @@ SIZES = (24, 32)
 CHEESE = (1, 9)
 
 
-class NoisySmell:
-    """Wraps a policy so every square reads the smell with fresh multiplicative noise each step."""
+class PheromoneBlackout:
+    """Wraps a policy so every robot reads its pheromones as zeros."""
 
-    def __init__(self, policy, noise):
+    def __init__(self, policy):
         self.policy = policy
-        self.noise = noise
 
-    def __call__(self, mass, smell, notes):
-        noisy = smell * (1 + self.noise * torch.randn_like(smell))
-        return self.policy(mass, noisy.clamp(0, 1), notes)
+    def __call__(self, mass, cheese, notes):
+        return self.policy(mass, cheese, torch.zeros_like(notes))
 
 
 def chunk_damage(mass):
@@ -61,44 +62,38 @@ def wipe(fraction):
     return damage
 
 
-def split_blob_batch(rng, size, n_blobs):
-    """Layouts where the mass starts as n_blobs separate pieces in different places."""
-    cheeses, masses, distances = [], [], []
+def split_nest_batch(rng, size, n_nests):
+    """Layouts where the swarm starts as n_nests separate nests in different places."""
+    cheeses, masses = [], []
     while len(cheeses) < LAYOUTS:
         cheese, _, distance = sample_layout(rng, size, CHEESE, (2, size // 2))
-        n_mass = math.ceil(MASS_PER_RING_SQUARE * (distance == 1).sum())
+        n_mass = swarm_mass(distance == 1, size)
         mass = np.zeros((size, size), dtype=np.float32)
         ok = True
-        for k in range(n_blobs):
+        for k in range(n_nests):
             allowed = (distance >= 2) & (mass == 0)
             candidates = np.argwhere(allowed & (distance >= 4))
             if len(candidates) == 0:
                 ok = False
                 break
             seed = tuple(int(v) for v in candidates[rng.integers(len(candidates))])
-            piece = n_mass // n_blobs + (1 if k < n_mass % n_blobs else 0)
-            blob = grow_shape(rng, size, piece, seed, allowed)
-            if blob is None:
+            piece = n_mass // n_nests + (1 if k < n_mass % n_nests else 0)
+            nest = grow_shape(rng, size, piece, seed, allowed)
+            if nest is None:
                 ok = False
                 break
-            mass[blob] = 1.0
+            mass[nest] = 1.0
         if ok:
             cheeses.append(cheese)
             masses.append(mass)
-            distances.append(distance)
-    distance = torch.tensor(np.stack(distances), dtype=torch.float32)
-    return Batch(
-        mass=torch.tensor(np.stack(masses)),
-        smell=torch.exp(-distance / SMELL_LENGTH),
-        cheese=torch.tensor(np.stack(cheeses)),
-        ring=distance == 1,
-        distance=distance,
-    )
+    cheese = np.stack(cheeses)
+    distance = torch.tensor(np.stack([torus_distance(c) for c in cheese]), dtype=torch.float32)
+    return Batch(mass=torch.tensor(np.stack(masses)), cheese=torch.tensor(cheese), ring=distance == 1, distance=distance)
 
 
 def standard_batches(seed, sizes, cheese):
     rng = np.random.default_rng(seed)
-    return [sample_batch(rng, s, cheese, (2, s // 2), LAYOUTS, SMELL_LENGTH) for s in sizes]
+    return [sample_batch(rng, s, cheese, (2, s // 2), LAYOUTS) for s in sizes]
 
 
 def score(policy, batches, device, fire_prob=FIRE_PROB, damage_fn=None):
@@ -127,30 +122,25 @@ def score(policy, batches, device, fire_prob=FIRE_PROB, damage_fn=None):
 def probes(policy, device):
     plain = standard_batches(SEED, SIZES, CHEESE)
     rng = np.random.default_rng(SEED + 1)
-    two_blobs = [split_blob_batch(rng, s, 2) for s in SIZES]
-    three_blobs = [split_blob_batch(rng, s, 3) for s in SIZES]
+    two_nests = [split_nest_batch(rng, s, 2) for s in SIZES]
+    three_nests = [split_nest_batch(rng, s, 3) for s in SIZES]
     huge = standard_batches(SEED + 2, (128,), CHEESE)
     return {
         "reference": score(policy, plain, device),
+        "pheromone blackout": score(PheromoneBlackout(policy), plain, device),
         "firing 0.5": score(policy, plain, device, fire_prob=0.5),
         "firing 1.0": score(policy, plain, device, fire_prob=1.0),
         "wipe 50%": score(policy, plain, device, damage_fn=wipe(0.5)),
         "chunk cut": score(policy, plain, device, damage_fn=chunk_damage),
-        "noisy smell 20%": score(NoisySmell(policy, 0.2), plain, device),
-        "noisy smell 50%": score(NoisySmell(policy, 0.5), plain, device),
-        "2 separate blobs": score(policy, two_blobs, device),
-        "3 separate blobs": score(policy, three_blobs, device),
+        "2 separate nests": score(policy, two_nests, device),
+        "3 separate nests": score(policy, three_nests, device),
         "128x128 world": score(policy, huge, device),
     }
 
 
 def load(run_dir, device):
     config = json.loads((run_dir / "config.json").read_text())
-    model = NCA(
-        hidden=config["hidden"],
-        n_hidden_layers=config["n_hidden_layers"],
-        fold_change=config.get("fold_change", False),
-    ).to(device)
+    model = NCA(hidden=config["hidden"], n_hidden_layers=config["n_hidden_layers"]).to(device)
     model.load_state_dict(torch.load(run_dir / "model.pt", map_location=device))
     model.eval()
     return model
@@ -161,14 +151,14 @@ def main():
     baseline_path = Path("runs/baseline/probes.json")
     if not baseline_path.exists():
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
-        baseline_path.write_text(json.dumps(probes(GreedyBaseline(SMELL_LENGTH), device), indent=2))
+        baseline_path.write_text(json.dumps(probes(StickyBaseline(), device), indent=2))
     for arg in sys.argv[1:]:
         run_dir = Path(arg)
         results = probes(load(run_dir, device), device)
         (run_dir / "probes.json").write_text(json.dumps(results, indent=2))
         print(run_dir.name)
         for name, r in results.items():
-            print(f"  {name:18s} success {r['success']:.2f}  time {r['time']:.3f}")
+            print(f"  {name:20s} success {r['success']:.2f}  time {r['time']:.3f}")
 
 
 if __name__ == "__main__":

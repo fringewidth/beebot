@@ -35,3 +35,18 @@ Run once on the best val run, never used for selection.
 Test is harder than val for both by about 0.04; the gap holds. Weak spot: 72x72 worlds, where the smell is fainter than anything seen in training.
 
 Why v1 was easy: the smell field hands every square an arrow to the cheese, so no square needs information another square has. Also, empty squares ran the network and wrote notes, so the floor itself could compute. v1 is tagged `v1-smell`.
+
+# v2: no smell
+
+A robot only senses the cheese by touching it (it's in its 3x3 window). Notes are pheromones on the floor: only robots write them, in proportion to the mass on the square, and they fade 5% per step. The swarm starts as one nest of 6% of the world's area (at least 1.5 per ring square). Rollouts are 3x the grid size. Baseline: wander at random, stay put once touching the cheese.
+
+Val score = same hard metric as v1. Fog = share of mass on squares holding under 0.5, reported but not scored.
+
+Baseline val: 1.000 (0% solved anywhere; random wandering spreads the swarm too thin to fill a ring in time).
+
+| Run | Change | Minutes | Val score | Interp | Extrap | Damage | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v2-sanity (first physics) | defaults, lr 2e-3 | 6 | 0.279 | 0.99 | 0.95 | 0.81 | **Hack.** Dissolved into a thin fog over the world, then condensed onto the cheese. Fractional robots aren't physical. Fixed: a square moves and writes in proportion to its mass (whole robot = 1). Under the fixed physics this model drops to about 30% solved. |
+| v2-sanity | defaults, lr 2e-3 | 8 | 0.998 | 0.01 | 0.00 | 0.00 | Honest physics. Reaches level 5, then destabilizes: training success 97% to 0%, loss rising. |
+
+v2 round 1: lr 1e-3, lr 5e-4, lr 1e-3 with hidden 128. 30 minutes each.

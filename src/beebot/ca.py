@@ -1,11 +1,16 @@
 """The cellular automaton: one step, a full rollout, and the loss.
 
-A policy is anything callable as policy(mass, smell, notes) -> (logits, note_updates):
-    mass:  (B, H, W)
-    smell: (B, H, W)
-    notes: (B, N_NOTES, H, W)
-    logits:       (B, 9, H, W), one score per destination in OFFSETS
-    note_updates: (B, N_NOTES, H, W), added to the notes
+A policy is anything callable as policy(mass, cheese, notes) -> (logits, note_writes):
+    mass:   (B, H, W)
+    cheese: (B, H, W) float, 1 on cheese squares. A square can only sense it
+            through its 3x3 window, so this is touch, not smell.
+    notes:  (B, N_NOTES, H, W), pheromones on the floor
+    logits:      (B, 9, H, W), one score per destination in OFFSETS
+    note_writes: (B, N_NOTES, H, W), what a robot on that square writes
+
+The notes are pheromones. They live on the floor, fade every step, and only
+robots can write them: a square writes in proportion to the robot mass on it,
+so empty floor can't compute or relay anything.
 """
 
 from dataclasses import dataclass
@@ -18,6 +23,12 @@ from torch.utils.checkpoint import checkpoint
 # Rows grow downward, so (-1, 0) is north.
 OFFSETS = [(0, 0), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
 N_NOTES = 8
+PHEROMONE_DECAY = 0.95  # fraction of every pheromone left after one step
+# Mass at which a square holds a whole robot. A square with less is only part
+# of a robot: it moves and writes in proportion, so a thin fog of mass is
+# nearly stranded and nearly mute.
+PRESENCE_MASS = 1.0
+FOG_MASS = 0.5  # mass on squares holding less than this counts as fog in the diagnostics
 
 
 def look(field, dy, dx):
@@ -33,21 +44,26 @@ def blocked_moves(cheese):
     return torch.stack(blocked, dim=1)
 
 
-def step(policy, mass, notes, smell, blocked, fire):
+def step(policy, mass, notes, cheese, blocked, fire):
     """Advance one step. fire is (B, 1, H, W): 1 where a square acts this step, 0 where it sits out."""
-    logits, note_updates = policy(mass, smell, notes)
+    logits, note_writes = policy(mass, cheese, notes)
     fractions = torch.softmax(logits.masked_fill(blocked, float("-inf")), dim=1)
 
-    # A square that sits out keeps all its mass and its notes.
+    # A square acts in proportion to how much robot it holds, and only when it fires.
+    # Whatever doesn't act stays put.
+    presence = (mass / PRESENCE_MASS).clamp(0, 1)[:, None]
+    acting = fire * presence
     stay = torch.zeros_like(fractions)
     stay[:, 0] = 1.0
-    fractions = fire * fractions + (1 - fire) * stay
+    fractions = acting * fractions + (1 - acting) * stay
 
     # Every square splits its mass across destinations, so total mass never changes.
     new_mass = torch.zeros_like(mass)
     for k, (dy, dx) in enumerate(OFFSETS):
         new_mass = new_mass + torch.roll(mass * fractions[:, k], shifts=(dy, dx), dims=(1, 2))
-    return new_mass, notes + fire * note_updates
+    # Only robots write, in the same proportion. Writes are bounded by tanh.
+    new_notes = PHEROMONE_DECAY * notes + acting * torch.tanh(note_writes)
+    return new_mass, new_notes
 
 
 @dataclass
@@ -58,8 +74,10 @@ class Rollout:
     mean_distance: torch.Tensor  # mass-weighted average distance to the cheese
     crowding: torch.Tensor  # how far squares go over 1 unit of mass
     eaten: torch.Tensor  # bool, every ring square holds more than tau
+    fog: torch.Tensor  # share of the mass on squares holding less than FOG_MASS
     initial_mean_distance: torch.Tensor  # (B,)
     masses: list  # (B, H, W) numpy arrays per step, only when recorded
+    pheromones: list  # (B, H, W) numpy arrays per step, the strongest note per square, only when recorded
 
 
 def damage(mass, fraction):
@@ -85,37 +103,42 @@ def rollout(
     b, h, w = mass.shape
     notes = torch.zeros(b, N_NOTES, h, w, device=mass.device)
     blocked = blocked_moves(batch.cheese)
+    cheese = batch.cheese.float()
     ring = batch.ring.float()
     ring_size = ring.sum(dim=(1, 2))
     total_mass = mass.sum(dim=(1, 2))
     initial_mean_distance = (mass * batch.distance).sum(dim=(1, 2)) / total_mass
 
-    surround, mean_distance, crowding, eaten, masses = [], [], [], [], []
+    surround, mean_distance, crowding, eaten, fog, masses, pheromones = [], [], [], [], [], [], []
     for t in range(n_steps):
         if t == damage_step:
             mass = damage_fn(mass) if damage_fn else damage(mass, damage_fraction)
             total_mass = mass.sum(dim=(1, 2)).clamp_min(1e-6)
         fire =(torch.rand(b, 1, h, w, device=mass.device) < fire_prob).float()
         if use_checkpoint:
-            mass, notes = checkpoint(step, policy, mass, notes, batch.smell, blocked, fire, use_reentrant=False)
+            mass, notes = checkpoint(step, policy, mass, notes, cheese, blocked, fire, use_reentrant=False)
         else:
-            mass, notes = step(policy, mass, notes, batch.smell, blocked, fire)
+            mass, notes = step(policy, mass, notes, cheese, blocked, fire)
 
         occupied = (mass / tau).clamp(0, 1)
         surround.append((occupied * ring).sum(dim=(1, 2)) / ring_size)
         mean_distance.append((mass * batch.distance).sum(dim=(1, 2)) / total_mass)
         crowding.append(F.relu(mass - 1).pow(2).sum(dim=(1, 2)) / total_mass)
         eaten.append(((mass > tau) | ~batch.ring).flatten(1).all(dim=1))
+        fog.append((mass * (mass < FOG_MASS)).sum(dim=(1, 2)) / total_mass)
         if record:
             masses.append(mass.detach().cpu().numpy())
+            pheromones.append(notes.detach().abs().amax(dim=1).cpu().numpy())
 
     return Rollout(
         surround=torch.stack(surround),
         mean_distance=torch.stack(mean_distance),
         crowding=torch.stack(crowding),
         eaten=torch.stack(eaten),
+        fog=torch.stack(fog),
         initial_mean_distance=initial_mean_distance,
         masses=masses,
+        pheromones=pheromones,
     )
 
 

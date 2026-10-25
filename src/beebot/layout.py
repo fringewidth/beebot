@@ -13,8 +13,10 @@ import torch
 
 NEIGHBORS_4 = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
-# The robot mass is this many times the number of ring squares, so every cheese
-# can be surrounded with some mass to spare.
+# The swarm is SWARM_DENSITY units of mass per square of the world, so a bigger
+# world gets a proportionally bigger swarm to search it. It always has at least
+# MASS_PER_RING_SQUARE per ring square, so every cheese can be surrounded.
+SWARM_DENSITY = 0.06
 MASS_PER_RING_SQUARE = 1.5
 
 
@@ -22,8 +24,7 @@ MASS_PER_RING_SQUARE = 1.5
 class Batch:
     """A batch of layouts on one grid size. Every tensor is (B, H, W)."""
 
-    mass: torch.Tensor  # starting mass, 1 per blob square
-    smell: torch.Tensor  # exp(-distance / smell_length), 1 on the cheese
+    mass: torch.Tensor  # starting mass, 1 per nest square
     cheese: torch.Tensor  # bool
     ring: torch.Tensor  # bool, the non-cheese squares touching the cheese
     distance: torch.Tensor  # distance to the nearest cheese square
@@ -31,7 +32,6 @@ class Batch:
     def to(self, device):
         return Batch(
             mass=self.mass.to(device),
-            smell=self.smell.to(device),
             cheese=self.cheese.to(device),
             ring=self.ring.to(device),
             distance=self.distance.to(device),
@@ -73,12 +73,16 @@ def grow_shape(rng, size, n_cells, seed, allowed):
     return mask
 
 
+def swarm_mass(ring, size):
+    return max(math.ceil(MASS_PER_RING_SQUARE * ring.sum()), math.ceil(SWARM_DENSITY * size * size))
+
+
 def sample_layout(rng, size, cheese_range, distance_range):
     """One layout as numpy arrays: (cheese mask, starting mass, distance field).
 
     cheese_range: inclusive range for the number of cheese squares.
     distance_range: inclusive range for the distance from the cheese to the
-        square the blob grows from. The blob itself may reach closer, but never
+        square the nest grows from. The nest itself may reach closer, but never
         onto the ring.
     """
     while True:
@@ -98,14 +102,13 @@ def sample_layout(rng, size, cheese_range, distance_range):
         candidates = np.argwhere(distance == target)
         blob_seed = tuple(int(v) for v in candidates[rng.integers(len(candidates))])
 
-        n_mass = math.ceil(MASS_PER_RING_SQUARE * ring.sum())
-        blob = grow_shape(rng, size, n_mass, blob_seed, distance >= 2)
+        blob = grow_shape(rng, size, swarm_mass(ring, size), blob_seed, distance >= 2)
         if blob is None:
             continue
         return cheese, blob.astype(np.float32), distance
 
 
-def sample_batch(rng, size, cheese_range, distance_range, batch_size, smell_length):
+def sample_batch(rng, size, cheese_range, distance_range, batch_size):
     cheeses, masses, distances = [], [], []
     for _ in range(batch_size):
         cheese, mass, distance = sample_layout(rng, size, cheese_range, distance_range)
@@ -116,7 +119,6 @@ def sample_batch(rng, size, cheese_range, distance_range, batch_size, smell_leng
     distance = torch.tensor(np.stack(distances), dtype=torch.float32)
     return Batch(
         mass=torch.tensor(np.stack(masses)),
-        smell=torch.exp(-distance / smell_length),
         cheese=torch.tensor(np.stack(cheeses)),
         ring=distance == 1,
         distance=distance,

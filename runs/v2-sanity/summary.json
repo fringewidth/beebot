@@ -1,0 +1,29 @@
+{
+  "name": "v2-sanity",
+  "iterations": 1403,
+  "final_level": 5,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.060494021157495845,
+  "val": {
+    "interp": {
+      "success": 0.010416666977107525,
+      "time": 0.9946951866149902,
+      "final_surround": 0.40352359414100647,
+      "fog": 0.642831027507782
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.36028072237968445,
+      "fog": 0.4009855389595032
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": 0.3723006248474121,
+      "fog": 0.7000066637992859
+    },
+    "score": 0.9982317288716634
+  }
+}

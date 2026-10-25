@@ -10,6 +10,10 @@ Each set has three splits:
     extrap: bigger grids and bigger cheeses than anything in training.
     damage: interp layouts with 25% of the mass squares wiped at a quarter of the way through.
 
+Each split also reports "fog": the average share of mass sitting on squares
+holding less than half a robot. It isn't part of the score; it flags swarms
+that win by dissolving into a thin film, which no physical robots could do.
+
 The score is the hard metric, never the loss: did all ring squares hold more
 than TAU mass, and how early. Rollout length, firing probability and TAU are
 fixed here so a training config can't make the test easier.
@@ -23,8 +27,7 @@ from beebot.layout import sample_batch
 
 TAU = 0.5
 FIRE_PROB = 0.75
-STEPS_PER_CELL = 2  # rollout length is STEPS_PER_CELL * grid size
-SMELL_LENGTH = 8.0
+STEPS_PER_CELL = 3  # rollout length is STEPS_PER_CELL * grid size
 LAYOUTS_PER_SIZE = 32
 DAMAGE_FRACTION = 0.25
 
@@ -47,13 +50,13 @@ def build_split(seed, sizes, cheese_range):
     rng = np.random.default_rng(seed)
     batches = []
     for size in sizes:
-        batches.append(sample_batch(rng, size, cheese_range, (2, size // 2), LAYOUTS_PER_SIZE, SMELL_LENGTH))
+        batches.append(sample_batch(rng, size, cheese_range, (2, size // 2), LAYOUTS_PER_SIZE))
     return batches
 
 
 def score_batches(policy, batches, device, seed, damage):
     torch.manual_seed(seed)
-    successes, time_scores, final_surrounds = [], [], []
+    successes, time_scores, final_surrounds, fogs = [], [], [], []
     for batch in batches:
         batch = batch.to(device)
         n_steps = STEPS_PER_CELL * batch.mass.shape[-1]
@@ -66,11 +69,13 @@ def score_batches(policy, batches, device, seed, damage):
         # Fraction of the rollout used before eating; a failure counts as the whole rollout.
         time_scores.append(torch.where(success, first / n_steps, torch.ones_like(first)))
         final_surrounds.append(result.surround[-1])
+        fogs.append(result.fog.mean(dim=0))
 
     return {
         "success": torch.cat(successes).mean().item(),
         "time": torch.cat(time_scores).mean().item(),
         "final_surround": torch.cat(final_surrounds).mean().item(),
+        "fog": torch.cat(fogs).mean().item(),
     }
 
 

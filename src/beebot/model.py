@@ -5,7 +5,7 @@ from torch import nn
 
 from beebot.ca import N_NOTES, OFFSETS, look
 
-# mass, smell, and the notes
+# mass, cheese, and the pheromones
 N_CHANNELS = 2 + N_NOTES
 
 
@@ -18,56 +18,41 @@ class NCA(nn.Module):
     Circular padding makes the window wrap around the torus edges.
     """
 
-    def __init__(self, hidden=96, n_hidden_layers=2, stay_bias=4.0, fold_change=False):
+    def __init__(self, hidden=96, n_hidden_layers=2, stay_bias=4.0):
         super().__init__()
-        # Fold-change sensing: each square also reads log(neighbor smell / own smell) for its
-        # 8 neighbors. Those ratios don't depend on how far away the cheese is, so a
-        # far-off square sees the same kind of signal as a nearby one.
-        self.fold_change = nn.Conv2d(len(OFFSETS) - 1, hidden, kernel_size=1) if fold_change else None
         layers = [nn.Conv2d(N_CHANNELS, hidden, kernel_size=3, padding=1, padding_mode="circular"), nn.ReLU()]
         for _ in range(n_hidden_layers - 1):
             layers += [nn.Conv2d(hidden, hidden, kernel_size=1), nn.ReLU()]
         self.body = nn.Sequential(*layers)
         self.head = nn.Conv2d(hidden, len(OFFSETS) + N_NOTES, kernel_size=1)
 
-        # Start close to "do nothing": most mass stays put and notes don't change.
+        # Start close to "do nothing": most mass stays put and nothing is written.
         # stay_bias = 4 keeps about 87% of the mass in place.
         nn.init.zeros_(self.head.weight)
         nn.init.zeros_(self.head.bias)
         with torch.no_grad():
             self.head.bias[0] = stay_bias
 
-    def forward(self, mass, smell, notes):
-        x = torch.cat([mass[:, None], smell[:, None], notes], dim=1)
-        h = self.body[0](x)
-        if self.fold_change is not None:
-            log_smell = torch.log(smell.clamp_min(1e-30))
-            ratios = torch.stack([look(log_smell, dy, dx) - log_smell for dy, dx in OFFSETS[1:]], dim=1)
-            h = h + self.fold_change(ratios)
-        out = self.head(self.body[1:](h))
+    def forward(self, mass, cheese, notes):
+        x = torch.cat([mass[:, None], cheese[:, None], notes], dim=1)
+        out = self.head(self.body(x))
         return out[:, : len(OFFSETS)], out[:, len(OFFSETS) :]
 
 
-class GreedyBaseline:
-    """Hand-written rule to beat: walk toward stronger smell, avoid squares that are already full.
+class StickyBaseline:
+    """Hand-written rule to beat: wander at random, and stay put once touching the cheese.
 
-    It scores each destination by how close it is to the cheese (recovered from
-    the smell as -log(smell), which is distance / smell_length) minus a penalty
-    for the mass already there.
+    Away from the cheese, mass spreads evenly to every neighbor, so the swarm
+    diffuses outward. A square next to the cheese keeps nearly all its mass, so
+    mass that drifts onto the ring sticks there until the ring fills.
     """
 
-    def __init__(self, smell_length, closeness_weight=10.0, crowding_weight=0.5):
-        self.smell_length = smell_length
-        self.closeness_weight = closeness_weight
-        self.crowding_weight = crowding_weight
+    def __init__(self, stick=8.0, wander_stay=0.0):
+        self.stick = stick
+        self.wander_stay = wander_stay
 
-    def __call__(self, mass, smell, notes):
-        distance = -torch.log(smell.clamp_min(1e-30)) * self.smell_length
-        scores = []
-        for dy, dx in OFFSETS:
-            if (dy, dx) == (0, 0):
-                crowd = torch.relu(mass - 1)
-            else:
-                crowd = look(mass, dy, dx)
-            scores.append(-self.closeness_weight * look(distance, dy, dx) - self.crowding_weight * crowd)
-        return torch.stack(scores, dim=1), torch.zeros_like(notes)
+    def __call__(self, mass, cheese, notes):
+        touching = torch.stack([look(cheese, dy, dx) for dy, dx in OFFSETS[1:]]).amax(dim=0)
+        logits = torch.zeros(mass.shape[0], len(OFFSETS), *mass.shape[1:], device=mass.device)
+        logits[:, 0] = self.wander_stay + self.stick * touching
+        return logits, torch.zeros_like(notes)
