@@ -30,6 +30,13 @@ PHEROMONE_DECAY = 0.95  # fraction of every pheromone left after one step
 PRESENCE_MASS = 1.0
 FOG_MASS = 0.5  # mass on squares holding less than this counts as fog in the diagnostics
 
+# The cheese only counts as eaten once the whole swarm has come home: the ring is
+# full and at least GATHER_SHARE of the mass sits within the gather radius, the
+# smallest distance from the cheese whose squares could hold all the mass at
+# GATHER_PACKING robots per square.
+GATHER_SHARE = 0.8
+GATHER_PACKING = 0.8
+
 
 def look(field, dy, dx):
     """field[..., y + dy, x + dx], aligned so the result is indexed by (y, x)."""
@@ -73,11 +80,22 @@ class Rollout:
     surround: torch.Tensor  # fraction of the ring that counts as occupied, soft
     mean_distance: torch.Tensor  # mass-weighted average distance to the cheese
     crowding: torch.Tensor  # how far squares go over 1 unit of mass
-    eaten: torch.Tensor  # bool, every ring square holds more than tau
+    gathered: torch.Tensor  # share of the mass within the gather radius
+    eaten: torch.Tensor  # bool, every ring square holds more than tau and the swarm has gathered
     fog: torch.Tensor  # share of the mass on squares holding less than FOG_MASS
     initial_mean_distance: torch.Tensor  # (B,)
     masses: list  # (B, H, W) numpy arrays per step, only when recorded
     pheromones: list  # (B, H, W) numpy arrays per step, the strongest note per square, only when recorded
+
+
+def gather_radius(distance, cheese, total_mass):
+    """(B,) smallest r such that the non-cheese squares within r can hold total_mass at GATHER_PACKING."""
+    size = distance.shape[-1]
+    radii = torch.arange(1, size, device=distance.device, dtype=distance.dtype)
+    within = (distance[:, None] <= radii[None, :, None, None]) & ~cheese[:, None]
+    capacity = within.flatten(2).sum(dim=2) * GATHER_PACKING  # (B, R)
+    enough = capacity >= total_mass[:, None]
+    return radii[enough.float().argmax(dim=1)]
 
 
 def damage(mass, fraction):
@@ -108,8 +126,9 @@ def rollout(
     ring_size = ring.sum(dim=(1, 2))
     total_mass = mass.sum(dim=(1, 2))
     initial_mean_distance = (mass * batch.distance).sum(dim=(1, 2)) / total_mass
+    home = (batch.distance <= gather_radius(batch.distance, batch.cheese, total_mass)[:, None, None]).float()
 
-    surround, mean_distance, crowding, eaten, fog, masses, pheromones = [], [], [], [], [], [], []
+    surround, mean_distance, crowding, gathered, eaten, fog, masses, pheromones = [], [], [], [], [], [], [], []
     for t in range(n_steps):
         if t == damage_step:
             mass = damage_fn(mass) if damage_fn else damage(mass, damage_fraction)
@@ -124,7 +143,9 @@ def rollout(
         surround.append((occupied * ring).sum(dim=(1, 2)) / ring_size)
         mean_distance.append((mass * batch.distance).sum(dim=(1, 2)) / total_mass)
         crowding.append(F.relu(mass - 1).pow(2).sum(dim=(1, 2)) / total_mass)
-        eaten.append(((mass > tau) | ~batch.ring).flatten(1).all(dim=1))
+        gathered.append((mass * home).sum(dim=(1, 2)) / total_mass)
+        ring_full = ((mass > tau) | ~batch.ring).flatten(1).all(dim=1)
+        eaten.append(ring_full & (gathered[-1] >= GATHER_SHARE))
         fog.append((mass * (mass < FOG_MASS)).sum(dim=(1, 2)) / total_mass)
         if record:
             masses.append(mass.detach().cpu().numpy())
@@ -134,6 +155,7 @@ def rollout(
         surround=torch.stack(surround),
         mean_distance=torch.stack(mean_distance),
         crowding=torch.stack(crowding),
+        gathered=torch.stack(gathered),
         eaten=torch.stack(eaten),
         fog=torch.stack(fog),
         initial_mean_distance=initial_mean_distance,
@@ -142,8 +164,8 @@ def rollout(
     )
 
 
-def loss(result, w_surround, w_distance, w_crowding):
-    """Weighted sum of the three terms, averaged over every step, so finishing early scores better.
+def loss(result, w_surround, w_distance, w_crowding, w_gather):
+    """Weighted sum of the four terms, averaged over every step, so finishing early scores better.
 
     Distance is divided by its starting value so it begins near 1, like the other terms.
     """
@@ -151,6 +173,7 @@ def loss(result, w_surround, w_distance, w_crowding):
         w_surround * (1 - result.surround)
         + w_distance * result.mean_distance / result.initial_mean_distance
         + w_crowding * result.crowding
+        + w_gather * (1 - result.gathered)
     )
     return per_step.mean()
 

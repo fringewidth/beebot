@@ -14,8 +14,9 @@ Each split also reports "fog": the average share of mass sitting on squares
 holding less than half a robot. It isn't part of the score; it flags swarms
 that win by dissolving into a thin film, which no physical robots could do.
 
-The score is the hard metric, never the loss: did all ring squares hold more
-than TAU mass, and how early. Rollout length, firing probability and TAU are
+The score is the hard metric, never the loss: how early the cheese was eaten,
+meaning every ring square holds more than TAU mass and the whole swarm has
+gathered around it (see GATHER_SHARE in ca.py). Rollout length, firing probability and TAU are
 fixed here so a training config can't make the test easier.
 """
 
@@ -56,7 +57,7 @@ def build_split(seed, sizes, cheese_range):
 
 def score_batches(policy, batches, device, seed, damage):
     torch.manual_seed(seed)
-    successes, time_scores, final_surrounds, fogs = [], [], [], []
+    successes, time_scores, final_surrounds, fogs, final_gathered = [], [], [], [], []
     for batch in batches:
         batch = batch.to(device)
         n_steps = STEPS_PER_CELL * batch.mass.shape[-1]
@@ -70,12 +71,14 @@ def score_batches(policy, batches, device, seed, damage):
         time_scores.append(torch.where(success, first / n_steps, torch.ones_like(first)))
         final_surrounds.append(result.surround[-1])
         fogs.append(result.fog.mean(dim=0))
+        final_gathered.append(result.gathered[-1])
 
     return {
         "success": torch.cat(successes).mean().item(),
         "time": torch.cat(time_scores).mean().item(),
         "final_surround": torch.cat(final_surrounds).mean().item(),
         "fog": torch.cat(fogs).mean().item(),
+        "final_gathered": torch.cat(final_gathered).mean().item(),
     }
 
 

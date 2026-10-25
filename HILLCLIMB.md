@@ -57,3 +57,7 @@ v2 round 1: lr 1e-3, lr 5e-4, lr 1e-3 with hidden 128. 30 minutes each.
 Round 1 runs swapped: one run at 40x40 with 120 steps holds 6.7 GB of activations, so three overflowed 24 GB. Gradient checkpointing cuts that to 1.2 GB for 24% more time per iteration. Now on by default; default lr is 1e-3.
 
 v2 round 2 (45 minutes): warm start from v2r1-lr1e3, fresh lr 1e-3, fresh hidden 128.
+
+Rule change: success now also needs the swarm to gather (ring full and at least 80% of the mass within the gather radius), with a matching loss term (w_gather 0.5). Round 1 re-scored: v2r1-lr1e3 0.723 to **0.909**, v2r1-lr5e4 0.865 to 0.950, v2r1-lr1e3-h128 0.877 to 0.932, baseline still 1.000.
+
+v2 round 2 restarted on the gather objective (45 minutes): warm start from v2r1-lr1e3, fresh lr 1e-3, fresh hidden 128.

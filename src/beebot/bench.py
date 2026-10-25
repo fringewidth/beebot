@@ -28,7 +28,7 @@ def time_iterations(device, use_checkpoint):
 
     def iteration():
         result = rollout(model, batch, N_STEPS, 0.75, 0.5, use_checkpoint=use_checkpoint)
-        value = loss(result, 0.5, 0.5, 1.0)
+        value = loss(result, 0.5, 0.5, 1.0, 0.5)
         optimizer.zero_grad()
         value.backward()
         optimizer.step()

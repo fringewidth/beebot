@@ -7,6 +7,30 @@
   "train_success_ema": 0.7451486207395148,
   "val": {
     "interp": {
+      "success": 0.0625,
+      "time": 0.9534336924552917,
+      "final_surround": 0.43580976128578186,
+      "fog": 0.446279913187027,
+      "final_gathered": 0.3525461256504059
+    },
+    "extrap": {
+      "success": 0.078125,
+      "time": 0.9407823085784912,
+      "final_surround": 0.3550942838191986,
+      "fog": 0.2535543739795685,
+      "final_gathered": 0.31316322088241577
+    },
+    "damage": {
+      "success": 0.0625,
+      "time": 0.9558448791503906,
+      "final_surround": 0.3958630859851837,
+      "fog": 0.5207361578941345,
+      "final_gathered": 0.3397103548049927
+    },
+    "score": 0.9500202933947245
+  },
+  "val_ring_only": {
+    "interp": {
       "success": 0.25,
       "time": 0.8310360908508301,
       "final_surround": 0.43580976128578186,

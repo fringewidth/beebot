@@ -51,6 +51,7 @@ class Config:
     w_surround: float = 0.5
     w_distance: float = 0.5
     w_crowding: float = 1.0
+    w_gather: float = 0.5
     distance_decay: float = 1.0  # w_distance is multiplied by this at every level up
 
     log_every: int = 20
@@ -104,7 +105,7 @@ def train(cfg):
         n_steps = round(cfg.steps_per_cell * size)
 
         result = rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
-        value = loss(result, cfg.w_surround, w_distance, cfg.w_crowding)
+        value = loss(result, cfg.w_surround, w_distance, cfg.w_crowding, cfg.w_gather)
         if not torch.isfinite(value):
             diverged = True
             print(json.dumps({"iteration": iteration, "diverged": True}), flush=True)

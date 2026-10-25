@@ -64,4 +64,4 @@ uv run train --name my-run --minutes 30
 uv run final-test runs/my-run
 ```
 
-The hill-climb log is in `HILLCLIMB.md`.
+The hill-climb log is in `HILLCLIMB.md`, and the story behind the decisions is in `JOURNAL.md`.
