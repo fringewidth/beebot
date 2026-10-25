@@ -196,3 +196,8 @@ def sample_batch(rng, size, cheese_range, distance_range, batch_size, wall_range
         ring=distance == 1,
         distance=distance,
     )
+
+
+def sample_batch_seeded(seed, size, cheese_range, distance_range, batch_size, wall_range):
+    """sample_batch with its own generator, so it can run in a worker process."""
+    return sample_batch(np.random.default_rng(seed), size, cheese_range, distance_range, batch_size, wall_range)

@@ -1,9 +1,11 @@
 {
-  "name": "v3r2-teacher",
+  "name": "v3p-teacher",
   "seed": 0,
   "device": "mps",
-  "minutes": 90.0,
+  "minutes": 360.0,
   "init": "runs/v3r1-privileged/model.pt",
+  "start_level": 0,
+  "save_every_minutes": 10.0,
   "hidden": 96,
   "n_hidden_layers": 2,
   "stay_bias": 4.0,
@@ -20,5 +22,6 @@
   "w_crowding": 1.0,
   "w_gather": 0.5,
   "distance_decay": 1.0,
-  "log_every": 100
+  "replay": 0.3,
+  "log_every": 50
 }

@@ -19,6 +19,7 @@ bench = "beebot.bench:main"
 final-test = "beebot.final_test:main"
 report = "beebot.report:main"
 probe = "beebot.probe:main"
+score = "beebot.score:main"
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14.0"]

@@ -3,12 +3,18 @@
     uv run train --name my-run --minutes 30 --lr 2e-3
 
 Every field of Config is a command-line flag. Outputs go to runs/<name>/.
+
+While training, the model and its curriculum level are saved every
+save_every_minutes, so another run can start from them with --init and
+--start_level. Creating runs/<name>/STOP ends the run early but still saves,
+scores and renders it.
 """
 
 import argparse
 import dataclasses
 import json
 import time
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,7 +23,7 @@ import torch
 
 from beebot.ca import loss, rollout
 from beebot.evaluate import evaluate
-from beebot.layout import sample_batch
+from beebot.layout import sample_batch_seeded
 from beebot.model import NCA, load_weights
 from beebot.render import render_examples
 
@@ -46,6 +52,8 @@ class Config:
     device: str = "mps"
     minutes: float = 30.0
     init: str = ""  # path to a model.pt to start from
+    start_level: int = 0
+    save_every_minutes: float = 10.0
 
     hidden: int = 96
     n_hidden_layers: int = 2
@@ -65,6 +73,7 @@ class Config:
     w_crowding: float = 1.0
     w_gather: float = 0.5
     distance_decay: float = 1.0  # w_distance is multiplied by this at every level up
+    replay: float = 0.3  # share of batches drawn from an earlier level, so easy cases aren't forgotten
 
     log_every: int = 20
 
@@ -84,6 +93,12 @@ def normalize_gradients(model):
     for p in model.parameters():
         if p.grad is not None:
             p.grad /= p.grad.norm() + 1e-8
+
+
+def save_checkpoint(run_dir, model, iteration, level, minutes):
+    torch.save(model.state_dict(), run_dir / "model.pt")
+    state = {"iteration": iteration, "level": level, "minutes": round(minutes, 2)}
+    (run_dir / "checkpoint.json").write_text(json.dumps(state))
 
 
 def train(cfg):
@@ -106,19 +121,35 @@ def train(cfg):
         load_weights(model, cfg.init, device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
 
-    level = 0
+    level = cfg.start_level
     iterations_at_level = 0
     success_ema = 0.0
-    w_distance = cfg.w_distance
+    w_distance = cfg.w_distance * cfg.distance_decay**level
     start = time.time()
+    last_save = start
     iteration = 0
     diverged = False
     log = open(run_dir / "log.jsonl", "w")
 
-    while time.time() - start < cfg.minutes * 60:
+    # Batches are generated in a worker process while the GPU trains on the previous one.
+    workers = ProcessPoolExecutor(max_workers=1)
+
+    def request_batch():
         size = int(rng.choice(sizes))
-        max_distance, max_cheese, max_walls = LEVELS[level]
-        batch = sample_batch(rng, size, (1, max_cheese), (2, max_distance), cfg.batch_size, (0.0, max_walls)).to(device)
+        replayed = level > 0 and rng.random() < cfg.replay
+        batch_level = int(rng.integers(level)) if replayed else level
+        max_distance, max_cheese, max_walls = LEVELS[batch_level]
+        seed = int(rng.integers(2**31))
+        future = workers.submit(
+            sample_batch_seeded, seed, size, (1, max_cheese), (2, max_distance), cfg.batch_size, (0.0, max_walls)
+        )
+        return future, size, replayed
+
+    pending = request_batch()
+    while time.time() - start < cfg.minutes * 60 and not (run_dir / "STOP").exists():
+        future, size, replayed = pending
+        batch = future.result().to(device)
+        pending = request_batch()
         n_steps = round(cfg.steps_per_cell * size)
 
         result = rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
@@ -133,9 +164,10 @@ def train(cfg):
         optimizer.step()
 
         success = result.eaten.any(dim=0).float().mean().item()
-        success_ema = 0.95 * success_ema + 0.05 * success
         iteration += 1
-        iterations_at_level += 1
+        if not replayed:
+            success_ema = 0.95 * success_ema + 0.05 * success
+            iterations_at_level += 1
 
         leveled_up = False
         if level < len(LEVELS) - 1 and iterations_at_level >= MIN_ITERATIONS_PER_LEVEL and success_ema > LEVEL_UP_SUCCESS:
@@ -154,13 +186,19 @@ def train(cfg):
                 "success_ema": round(success_ema, 3),
                 "level": level,
                 "size": size,
+                "replayed": replayed,
             }
             log.write(json.dumps(entry) + "\n")
             log.flush()
             print(json.dumps(entry), flush=True)
 
+        if time.time() - last_save > cfg.save_every_minutes * 60:
+            save_checkpoint(run_dir, model, iteration, level, (time.time() - start) / 60)
+            last_save = time.time()
+
+    workers.shutdown(cancel_futures=True)
     log.close()
-    torch.save(model.state_dict(), run_dir / "model.pt")
+    save_checkpoint(run_dir, model, iteration, level, (time.time() - start) / 60)
 
     model.eval()
     scores = evaluate(model, device, "val")

@@ -84,3 +84,16 @@ v3 round 1 (45 minutes): privileged control, blind defaults, blind with w_crowdi
 The gap between privileged (0.418) and blind (0.863) is the cost of search and communication.
 
 v3 round 2 (90 minutes): blind defaults with seed 1; blind warm-started from the privileged swarm with its scent input removed (inherits gathering, has to learn search; never sees the scent at test time); blind with batch 64.
+
+New standard: every task must reach 100% on val before moving on, or come with evidence of why 100% is out of reach.
+
+Round 2 (90-minute runs) was stopped after 20 minutes to restart on better infrastructure:
+- the next batch of layouts is generated in a worker process while the GPU trains (generation was about 20% of each step);
+- 30% of batches replay earlier curriculum levels, so easy cases aren't forgotten;
+- checkpoints every 10 minutes, `--start_level` to resume a curriculum, and a STOP file for a graceful early end;
+- `uv run score` scores checkpoints on val only, for choosing between runs mid-training.
+
+Population (6-hour runs, managed at each check-in: the worst run is replaced by a copy of the best with a changed setting):
+- v3p-teacher: blind, initialized from v3r1-privileged with the scent input removed.
+- v3p-scratch: blind, from scratch, seed 1.
+- v3p-privileged: the control, continued from v3r1-privileged at the last level, to find the ceiling.
