@@ -139,6 +139,14 @@ a row without beating the best by more than seed noise:
    co-trained partners, then swapped partners after co-training (did they learn
    a general skill or a private handshake?).
 
+   Follow-up, after the regular games: **pushable cheese.** Robots touching the
+   cheese push it away from themselves; every few steps it moves one square in
+   the direction of the net push if that beats friction, blocked by walls and
+   robots. Each swarm has a home nest and payoff depends on where the cheese
+   ends up: zero-sum becomes tug of war, shared becomes cooperative transport to
+   a common target, and the stag hunt uses a heavy cheese no single swarm can
+   move.
+
 ### Closing v2: gathering is hard
 
 - Round 2 trained on the gather objective (warm start, fresh, and 128 wide).
