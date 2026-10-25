@@ -50,3 +50,10 @@ Baseline val: 1.000 (0% solved anywhere; random wandering spreads the swarm too 
 | v2-sanity | defaults, lr 2e-3 | 8 | 0.998 | 0.01 | 0.00 | 0.00 | Honest physics. Reaches level 5, then destabilizes: training success 97% to 0%, loss rising. |
 
 v2 round 1: lr 1e-3, lr 5e-4, lr 1e-3 with hidden 128. 30 minutes each.
+| v2r1-lr1e3 | lr 1e-3 | 30 | **0.723** | 0.45 | 0.41 | 0.35 | Honest learning: 45% of unseen layouts. Level 5, still climbing. Only 1,192 iterations. |
+| v2r1-lr5e4 | lr 5e-4 | 30 | 0.865 | 0.25 | 0.11 | 0.20 | Too slow; level 2. |
+| v2r1-lr1e3-h128 | lr 1e-3, hidden 128 | 30 | 0.877 | 0.20 | 0.27 | 0.16 | Only 335 iterations: starved by swapping. |
+
+Round 1 runs swapped: one run at 40x40 with 120 steps holds 6.7 GB of activations, so three overflowed 24 GB. Gradient checkpointing cuts that to 1.2 GB for 24% more time per iteration. Now on by default; default lr is 1e-3.
+
+v2 round 2 (45 minutes): warm start from v2r1-lr1e3, fresh lr 1e-3, fresh hidden 128.

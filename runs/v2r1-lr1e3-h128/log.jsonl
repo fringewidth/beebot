@@ -1,0 +1,5 @@
+{"iteration": 100, "minutes": 18.35, "loss": 0.6607, "success": 0.938, "success_ema": 0.383, "level": 0, "size": 32}
+{"iteration": 200, "minutes": 19.54, "loss": 0.594, "success": 0.688, "success_ema": 0.625, "level": 0, "size": 20}
+{"iteration": 256, "minutes": 22.21, "loss": 0.4904, "success": 0.938, "success_ema": 0.0, "level": 1, "size": 24}
+{"iteration": 300, "minutes": 24.64, "loss": 0.7029, "success": 0.375, "success_ema": 0.655, "level": 1, "size": 16}
+{"iteration": 333, "minutes": 26.53, "loss": 0.475, "success": 0.969, "success_ema": 0.0, "level": 2, "size": 28}

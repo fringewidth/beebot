@@ -3,3 +3,39 @@
 {"iteration": 300, "minutes": 5.91, "loss": 0.8131, "success": 0.0, "success_ema": 0.477, "level": 0, "size": 16}
 {"iteration": 400, "minutes": 7.78, "loss": 0.6534, "success": 1.0, "success_ema": 0.63, "level": 0, "size": 32}
 {"iteration": 500, "minutes": 10.21, "loss": 0.6105, "success": 0.656, "success_ema": 0.711, "level": 0, "size": 20}
+{"iteration": 597, "minutes": 11.79, "loss": 0.5427, "success": 1.0, "success_ema": 0.0, "level": 1, "size": 40}
+{"iteration": 600, "minutes": 11.8, "loss": 0.5453, "success": 0.781, "success_ema": 0.083, "level": 1, "size": 32}
+{"iteration": 700, "minutes": 12.91, "loss": 0.5205, "success": 1.0, "success_ema": 0.713, "level": 1, "size": 40}
+{"iteration": 754, "minutes": 13.53, "loss": 0.5435, "success": 1.0, "success_ema": 0.0, "level": 2, "size": 40}
+{"iteration": 800, "minutes": 14.12, "loss": 0.7519, "success": 0.031, "success_ema": 0.537, "level": 2, "size": 16}
+{"iteration": 900, "minutes": 16.26, "loss": 0.5716, "success": 0.625, "success_ema": 0.695, "level": 2, "size": 32}
+{"iteration": 1000, "minutes": 29.06, "loss": 0.478, "success": 0.938, "success_ema": 0.695, "level": 2, "size": 28}
+{
+  "name": "v2r1-lr5e4",
+  "iterations": 1057,
+  "final_level": 2,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.7451486207395148,
+  "val": {
+    "interp": {
+      "success": 0.25,
+      "time": 0.8310360908508301,
+      "final_surround": 0.43580976128578186,
+      "fog": 0.446279913187027
+    },
+    "extrap": {
+      "success": 0.109375,
+      "time": 0.9131673574447632,
+      "final_surround": 0.3550942838191986,
+      "fog": 0.2535543739795685
+    },
+    "damage": {
+      "success": 0.1979166716337204,
+      "time": 0.8498930335044861,
+      "final_surround": 0.3958630859851837,
+      "fog": 0.5207361578941345
+    },
+    "score": 0.8646988272666931
+  }
+}

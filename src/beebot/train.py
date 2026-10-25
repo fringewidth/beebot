@@ -40,13 +40,13 @@ class Config:
     n_hidden_layers: int = 2
     stay_bias: float = 4.0
 
-    lr: float = 2e-3
+    lr: float = 1e-3
     batch_size: int = 32
     train_sizes: str = "16,20,24,28,32,40"
     steps_per_cell: float = 3.0  # rollout length = steps_per_cell * grid size
     fire_prob: float = 0.75
     tau: float = 0.5
-    use_checkpoint: bool = False
+    use_checkpoint: bool = True
 
     w_surround: float = 0.5
     w_distance: float = 0.5

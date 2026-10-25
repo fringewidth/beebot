@@ -1,0 +1,29 @@
+{
+  "name": "v2r1-lr1e3",
+  "iterations": 1192,
+  "final_level": 5,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.5541798920065207,
+  "val": {
+    "interp": {
+      "success": 0.4479166567325592,
+      "time": 0.7135381698608398,
+      "final_surround": 0.5656712055206299,
+      "fog": 0.5080534815788269
+    },
+    "extrap": {
+      "success": 0.40625,
+      "time": 0.6811251640319824,
+      "final_surround": 0.44666001200675964,
+      "fog": 0.2875730097293854
+    },
+    "damage": {
+      "success": 0.3541666567325592,
+      "time": 0.7745440602302551,
+      "final_surround": 0.4889865219593048,
+      "fog": 0.563469648361206
+    },
+    "score": 0.7230691313743591
+  }
+}
