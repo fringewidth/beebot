@@ -134,3 +134,13 @@ Changes:
 - Cosine learning-rate decay, and each run scores itself on val every 30 minutes and keeps its best checkpoint (`model_best.pt`), so a collapse no longer loses the run. Mid-run evaluation restores training's random state afterwards.
 
 New population: v3p-adaptive stopped; v3x-explore (from v3p-adaptive's checkpoint) and v3x-explore-teacher (from v3r1-privileged's weights, scent input removed), both adaptive, w_explore 0.5, cosine. v3p-privileged continues.
+
+Check-in, 45 minutes into the exploration runs:
+
+| Run | Val (best checkpoint) | Interp | Extrap | Damage | Notes |
+| --- | --- | --- | --- | --- | --- |
+| v3x-explore | **0.745** (at 30 min) | 0.41 | 0.34 | 0.39 | Best blind result so far. By 45 minutes training success fell to about 2% at every distance: with w_explore 0.5, the swarm learned to spread out and never regroup. |
+| v3x-explore-teacher | 1.000 | 0.00 | 0.00 | 0.00 | Never recovered under w_explore 0.5. |
+| v3p-adaptive (final) | 0.804 | | | | Stopped earlier; best checkpoint. |
+
+Both stopped. New runs from v3x-explore's 30-minute best checkpoint, adaptive, cosine: v3y-explore015 (w_explore 0.15) and v3y-explore005 (w_explore 0.05).
