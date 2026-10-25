@@ -279,3 +279,19 @@ by a variant of the best).
   redundant. Training now clips the global gradient norm instead, and fine-tunes
   from good checkpoints use lower learning rates. Whether this was the cause is
   the next result.
+
+### Clipping fixed the collapses; what blind search looks like
+
+- With global gradient clipping, no run collapsed by 45 minutes, the point by
+  which every earlier exploration run had. The privileged control, fine-tuned
+  at a lower learning rate, reached 96% unseen sizes, 94% bigger worlds (up
+  from 84%) and 89% damaged.
+- The bar was revised to above 90% on every val split (from 100%).
+- Watching the blind swarm fail on far layouts: its search is roughly "drift
+  in one direction as a band and follow walls". In one far layout it streamed
+  along a wall, sent a filament to the cheese, filled the ring, and ran out of
+  time with 71% gathered (80% needed). In another it wrapped itself around a
+  wall as an arc and never came near the cheese. A drifting band covers a strip
+  of the world rather than the world, which matches the steep fall-off with
+  distance. Stretching into a long line and sweeping would cover far more, but
+  nothing yet points training there.
