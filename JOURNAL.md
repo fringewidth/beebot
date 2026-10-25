@@ -138,3 +138,46 @@ a row without beating the best by more than seed noise:
    Stages: strangers (trained separately, then paired: zero-shot coordination),
    co-trained partners, then swapped partners after co-training (did they learn
    a general skill or a private handshake?).
+
+### Closing v2: gathering is hard
+
+- Round 2 trained on the gather objective (warm start, fresh, and 128 wide).
+  All three stalled at curriculum level 3 and scored 0.93 to 1.00 on val. The
+  best v2 result under the gather rule stays round 1's 0.909 (12% of unseen
+  layouts). One run's loss spiked to 8.7 from the crowding term: gathering pushes
+  robots into piles, which are penalized quadratically.
+- v2 closed unsolved and is tagged `v2-no-smell`.
+
+### v3: terrain, and making sure the results can be trusted
+
+- **Terrain.** Smoothed noise on the torus thresholded at a random wall share
+  (0 to 30%). The open space is the largest connected region; cut-off pockets
+  become wall. Distances are walking distances (8 neighbors, around walls, never
+  through the cheese), and the gather radius uses them. Layouts are rejected
+  unless every ring square is reachable from the nest without passing through
+  the cheese. Walls enter through the curriculum.
+- **Physics tests.** Before trusting any more results, a test suite now checks
+  that the world behaves as described: neighbor lookups; walking distance
+  against a plain breadth-first search; layout invariants (nest off the ring,
+  ring definition, reachability, swarm size); mass conservation under random
+  policies for 60 steps, with no mass ever entering walls or cheese; mass moving
+  to the chosen neighbor; a quarter-robot moving at a quarter strength; empty
+  floor and resting squares writing nothing; the gather radius against brute
+  force; the eaten rule needing both a full ring and a gathered swarm; finite
+  loss with gradients reaching every layer; and deterministic evaluation. The
+  first version of the eaten test failed because the test itself built an
+  impossible state; once fixed, all tests passed.
+- **Is gathering even achievable?** A hand-written oracle that knows the walking
+  distance to the cheese solved only 69 to 97% of unseen-size layouts and almost
+  none of the bigger worlds, even with twice the time. The time limit wasn't the
+  bottleneck, so it was diagnosed directly: the oracle piled 10 to 28 robots on
+  single ring squares, and those stacks jumped wholesale to the empty ring square
+  next door every step, so the ring never settled. Softer oracles did worse.
+  Hand-writing a good gathering policy for this physics is itself hard, so a
+  failed oracle proves nothing about feasibility.
+- **Privileged control instead.** A swarm that also smells the walking distance
+  (v1's smell, routed around walls) is trained under the same physics and the
+  same success rule. If it succeeds, the task is feasible and the gap to the
+  blind swarm is the cost of search and communication. If it fails, the rule or
+  time limit is too strict, and that's evidence for changing it rather than
+  changing it by feel.
