@@ -222,3 +222,38 @@ a row without beating the best by more than seed noise:
   swarm initialized from the privileged swarm's weights with the scent input
   removed, so it inherits gathering and only has to learn search. It never
   sees the scent at test time.
+
+### Why the blind swarm can't learn to search
+
+New bar from here on: every task has to reach 100% on val before moving on,
+or come with evidence of why 100% is out of reach. Training was scaled up for
+it: batches are generated in a worker process while the GPU trains, 30% of
+batches replay earlier curriculum levels, runs checkpoint every 10 minutes, and
+a population of 6-hour runs is managed at each check-in (the worst run replaced
+by a variant of the best).
+
+- The privileged control climbed to 95 to 96% on unseen sizes, 84% on bigger
+  worlds and 86 to 92% under damage, then plateaued around 0.31 to 0.32.
+- The blind swarm stayed near 30%, across a teacher start from the privileged
+  weights, training from scratch, and an adaptive curriculum that samples the
+  start distance where success is near 50%. The teacher run collapsed after
+  90 minutes (training loss jumped to 2.3), which is why runs now decay their
+  learning rate and keep their best val checkpoint.
+- **Diagnosis.** Success falls steeply with starting distance: 74% within 6
+  squares, 17% at 6 to 10, 3% at 10 to 15, 0% beyond. Giving the blind swarm
+  three times the time limit (as a diagnostic only) barely helps: 27% to 45%
+  for one model, 25% to 30% for another. So it isn't the clock; the swarm has no
+  real search strategy. Of its failures, 44% never touch the cheese and 56%
+  touch it but fail to recruit the rest.
+- **The reason is in the loss.** Before contact, the only signal is the
+  distance term. On a torus with the cheese placed uniformly at random, every
+  square has the same expected distance to the cheese, so for a blind swarm the
+  term carries no information about where to search. Spreading out, staying
+  compact, or heading anywhere in particular all score the same in expectation.
+  The swarm only learns from episodes where it happens to bump into the cheese,
+  which is why it masters short distances and nothing further.
+- **Fix: an exploration signal.** A new loss term rewards the share of open
+  floor visited, only until a robot first touches the cheese, then switches
+  off so gathering takes over. It doesn't touch evaluation. The tension the
+  swarm now has to resolve is the slime mold's: spread wide enough to find food
+  while staying connected enough to relay the news back.
