@@ -15,3 +15,257 @@
 {"iteration": 700, "minutes": 7.74, "loss": 0.2155, "success": 0.812, "success_ema": 0.913, "level": 8, "size": 40}
 {"iteration": 800, "minutes": 8.78, "loss": 0.2601, "success": 1.0, "success_ema": 0.951, "level": 8, "size": 16}
 {"iteration": 900, "minutes": 9.84, "loss": 0.2358, "success": 1.0, "success_ema": 0.984, "level": 8, "size": 24}
+{"iteration": 1000, "minutes": 10.91, "loss": 0.2001, "success": 1.0, "success_ema": 0.975, "level": 8, "size": 40}
+{"iteration": 1100, "minutes": 11.91, "loss": 0.2518, "success": 1.0, "success_ema": 0.993, "level": 8, "size": 16}
+{"iteration": 1200, "minutes": 13.08, "loss": 0.2306, "success": 1.0, "success_ema": 0.996, "level": 8, "size": 24}
+{"iteration": 1300, "minutes": 14.05, "loss": 0.2492, "success": 1.0, "success_ema": 0.997, "level": 8, "size": 16}
+{"iteration": 1400, "minutes": 15.11, "loss": 0.2437, "success": 1.0, "success_ema": 0.997, "level": 8, "size": 16}
+{"iteration": 1500, "minutes": 16.08, "loss": 0.2129, "success": 1.0, "success_ema": 0.996, "level": 8, "size": 28}
+{"iteration": 1600, "minutes": 17.14, "loss": 0.1852, "success": 1.0, "success_ema": 0.999, "level": 8, "size": 40}
+{"iteration": 1700, "minutes": 18.06, "loss": 0.2229, "success": 1.0, "success_ema": 1.0, "level": 8, "size": 24}
+{"iteration": 1800, "minutes": 19.09, "loss": 0.2205, "success": 1.0, "success_ema": 1.0, "level": 8, "size": 24}
+{"iteration": 1900, "minutes": 20.04, "loss": 0.2324, "success": 1.0, "success_ema": 0.998, "level": 8, "size": 20}
+{"iteration": 2000, "minutes": 21.21, "loss": 0.2116, "success": 1.0, "success_ema": 0.999, "level": 8, "size": 28}
+{"iteration": 2100, "minutes": 22.33, "loss": 0.2018, "success": 1.0, "success_ema": 0.998, "level": 8, "size": 32}
+{"iteration": 2200, "minutes": 23.33, "loss": 0.2143, "success": 1.0, "success_ema": 0.998, "level": 8, "size": 28}
+{"iteration": 2300, "minutes": 24.33, "loss": 0.195, "success": 1.0, "success_ema": 0.999, "level": 8, "size": 40}
+{"iteration": 2400, "minutes": 25.37, "loss": 0.2361, "success": 1.0, "success_ema": 1.0, "level": 8, "size": 16}
+{"iteration": 2500, "minutes": 26.47, "loss": 0.2259, "success": 1.0, "success_ema": 0.999, "level": 8, "size": 20}
+{"iteration": 2600, "minutes": 27.52, "loss": 0.1912, "success": 1.0, "success_ema": 1.0, "level": 8, "size": 40}
+{"iteration": 2700, "minutes": 28.52, "loss": 0.2, "success": 1.0, "success_ema": 1.0, "level": 8, "size": 32}
+{"iteration": 2800, "minutes": 29.25, "loss": 0.2123, "success": 1.0, "success_ema": 1.0, "level": 8, "size": 24}
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x1140e6620>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x122318220>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x133b96910>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x116cfb650>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x1359f5d70>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x1140e6620>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x17de6c4a0>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x1444272e0>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x1354a6a90>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x168c85a30>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x122318220>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x1359f4730>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x1444272e0>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x122318220>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+Error: command buffer exited with error status.
+	The Metal Performance Shaders operations encoded on it may not have completed.
+	Error: 
+	(null)
+	Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+	<AGXG16XFamilyCommandBuffer: 0x116cfb650>
+    label = <none> 
+    device = <AGXG16SDevice: 0x1038a3400>
+        name = Apple M4 Pro 
+    commandQueue = <AGXG16XFamilyCommandQueue: 0x1201a4200>
+        label = <none> 
+        device = <AGXG16SDevice: 0x1038a3400>
+            name = Apple M4 Pro 
+    retainedReferences = 1
+{
+  "name": "r1-lr2e3",
+  "iterations": 2811,
+  "final_level": 8,
+  "levels_total": 9,
+  "train_success_ema": 0.9999240381369655,
+  "val": {
+    "interp": {
+      "success": 1.0,
+      "time": 0.21953915059566498,
+      "final_surround": 1.0
+    },
+    "extrap": {
+      "success": 0.984375,
+      "time": 0.250732421875,
+      "final_surround": 0.9990897178649902
+    },
+    "damage": {
+      "success": 0.9895833134651184,
+      "time": 0.23686867952346802,
+      "final_surround": 0.9869057536125183
+    },
+    "score": 0.23571341733137766
+  }
+}

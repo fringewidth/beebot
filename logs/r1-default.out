@@ -19,3 +19,46 @@
 {"iteration": 1151, "minutes": 9.61, "loss": 0.2643, "success": 1.0, "success_ema": 0.0, "level": 8, "size": 24}
 {"iteration": 1200, "minutes": 10.15, "loss": 0.257, "success": 0.938, "success_ema": 0.719, "level": 8, "size": 24}
 {"iteration": 1300, "minutes": 11.33, "loss": 0.2456, "success": 1.0, "success_ema": 0.937, "level": 8, "size": 28}
+{"iteration": 1400, "minutes": 12.51, "loss": 0.2346, "success": 0.719, "success_ema": 0.944, "level": 8, "size": 40}
+{"iteration": 1500, "minutes": 13.42, "loss": 0.2719, "success": 1.0, "success_ema": 0.942, "level": 8, "size": 16}
+{"iteration": 1600, "minutes": 14.46, "loss": 0.2299, "success": 0.969, "success_ema": 0.979, "level": 8, "size": 32}
+{"iteration": 1700, "minutes": 15.46, "loss": 0.2267, "success": 1.0, "success_ema": 0.951, "level": 8, "size": 32}
+{"iteration": 1800, "minutes": 16.53, "loss": 0.2122, "success": 0.969, "success_ema": 0.966, "level": 8, "size": 40}
+{"iteration": 1900, "minutes": 17.45, "loss": 0.2604, "success": 1.0, "success_ema": 0.994, "level": 8, "size": 16}
+{"iteration": 2000, "minutes": 18.47, "loss": 0.2377, "success": 1.0, "success_ema": 0.983, "level": 8, "size": 24}
+{"iteration": 2100, "minutes": 19.49, "loss": 0.1987, "success": 1.0, "success_ema": 0.994, "level": 8, "size": 40}
+{"iteration": 2200, "minutes": 20.57, "loss": 0.2222, "success": 0.969, "success_ema": 0.982, "level": 8, "size": 28}
+{"iteration": 2300, "minutes": 21.53, "loss": 0.215, "success": 1.0, "success_ema": 0.995, "level": 8, "size": 32}
+{"iteration": 2400, "minutes": 22.55, "loss": 0.2493, "success": 1.0, "success_ema": 0.989, "level": 8, "size": 16}
+{"iteration": 2500, "minutes": 23.72, "loss": 0.2152, "success": 1.0, "success_ema": 0.994, "level": 8, "size": 32}
+{"iteration": 2600, "minutes": 24.68, "loss": 0.2486, "success": 1.0, "success_ema": 0.998, "level": 8, "size": 16}
+{"iteration": 2700, "minutes": 25.76, "loss": 0.2035, "success": 1.0, "success_ema": 0.994, "level": 8, "size": 40}
+{"iteration": 2800, "minutes": 26.8, "loss": 0.2459, "success": 1.0, "success_ema": 0.991, "level": 8, "size": 16}
+{"iteration": 2900, "minutes": 27.71, "loss": 0.2348, "success": 0.969, "success_ema": 0.996, "level": 8, "size": 20}
+{"iteration": 3000, "minutes": 28.75, "loss": 0.205, "success": 0.969, "success_ema": 0.992, "level": 8, "size": 40}
+{"iteration": 3100, "minutes": 29.79, "loss": 0.2101, "success": 1.0, "success_ema": 0.997, "level": 8, "size": 32}
+{
+  "name": "r1-default",
+  "iterations": 3119,
+  "final_level": 8,
+  "levels_total": 9,
+  "train_success_ema": 0.9982826919342463,
+  "val": {
+    "interp": {
+      "success": 1.0,
+      "time": 0.22930610179901123,
+      "final_surround": 1.0
+    },
+    "extrap": {
+      "success": 0.90625,
+      "time": 0.330078125,
+      "final_surround": 0.9953324794769287
+    },
+    "damage": {
+      "success": 0.9791666865348816,
+      "time": 0.2636784315109253,
+      "final_surround": 0.9978652596473694
+    },
+    "score": 0.2743542194366455
+  }
+}

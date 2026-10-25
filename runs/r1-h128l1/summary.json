@@ -1,0 +1,25 @@
+{
+  "name": "r1-h128l1",
+  "iterations": 3197,
+  "final_level": 8,
+  "levels_total": 9,
+  "train_success_ema": 0.9942414842337157,
+  "val": {
+    "interp": {
+      "success": 1.0,
+      "time": 0.23537194728851318,
+      "final_surround": 1.0
+    },
+    "extrap": {
+      "success": 0.890625,
+      "time": 0.3389892578125,
+      "final_surround": 0.9950535297393799
+    },
+    "damage": {
+      "success": 0.9895833134651184,
+      "time": 0.2583070397377014,
+      "final_surround": 0.9977359771728516
+    },
+    "score": 0.27755608161290485
+  }
+}
