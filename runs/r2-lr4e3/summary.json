@@ -1,0 +1,25 @@
+{
+  "name": "r2-lr4e3",
+  "iterations": 3143,
+  "final_level": 2,
+  "levels_total": 9,
+  "train_success_ema": 3.845579952399995e-64,
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": NaN
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": NaN
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": NaN
+    },
+    "score": 1.0
+  }
+}

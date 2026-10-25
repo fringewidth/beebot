@@ -1,0 +1,23 @@
+{
+  "name": "r3-decay07",
+  "seed": 0,
+  "device": "mps",
+  "minutes": 60.0,
+  "init": "",
+  "hidden": 96,
+  "n_hidden_layers": 2,
+  "stay_bias": 4.0,
+  "lr": 0.002,
+  "batch_size": 32,
+  "train_sizes": "16,20,24,28,32,40",
+  "steps_per_cell": 2.0,
+  "fire_prob": 0.75,
+  "tau": 0.5,
+  "smell_length": 8.0,
+  "use_checkpoint": false,
+  "w_surround": 0.5,
+  "w_distance": 0.5,
+  "w_crowding": 1.0,
+  "distance_decay": 0.7,
+  "log_every": 100
+}

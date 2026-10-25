@@ -39,6 +39,7 @@ class Config:
     hidden: int = 96
     n_hidden_layers: int = 2
     stay_bias: float = 4.0
+    fold_change: bool = False
 
     lr: float = 1e-3
     batch_size: int = 32
@@ -84,7 +85,12 @@ def train(cfg):
     device = torch.device(cfg.device)
     sizes = [int(s) for s in cfg.train_sizes.split(",")]
 
-    model = NCA(hidden=cfg.hidden, n_hidden_layers=cfg.n_hidden_layers, stay_bias=cfg.stay_bias).to(device)
+    model = NCA(
+        hidden=cfg.hidden,
+        n_hidden_layers=cfg.n_hidden_layers,
+        stay_bias=cfg.stay_bias,
+        fold_change=cfg.fold_change,
+    ).to(device)
     if cfg.init:
         model.load_state_dict(torch.load(cfg.init, map_location=device))
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)

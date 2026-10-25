@@ -1,0 +1,42 @@
+{
+  "reference": {
+    "success": 1.0,
+    "time": 0.229248046875
+  },
+  "firing 0.5": {
+    "success": 1.0,
+    "time": 0.3443196415901184
+  },
+  "firing 1.0": {
+    "success": 1.0,
+    "time": 0.168701171875
+  },
+  "wipe 50%": {
+    "success": 0.859375,
+    "time": 0.3465983271598816
+  },
+  "chunk cut": {
+    "success": 0.96875,
+    "time": 0.2711588442325592
+  },
+  "noisy smell 20%": {
+    "success": 1.0,
+    "time": 0.3028971552848816
+  },
+  "noisy smell 50%": {
+    "success": 0.171875,
+    "time": 0.9498698115348816
+  },
+  "2 separate blobs": {
+    "success": 1.0,
+    "time": 0.2359212338924408
+  },
+  "3 separate blobs": {
+    "success": 1.0,
+    "time": 0.2378743588924408
+  },
+  "128x128 world": {
+    "success": 0.59375,
+    "time": 0.4903564453125
+  }
+}

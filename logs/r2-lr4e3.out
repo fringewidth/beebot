@@ -1,0 +1,60 @@
+{"iteration": 100, "minutes": 0.93, "loss": 0.5047, "success": 0.0, "success_ema": 0.003, "level": 0, "size": 40}
+{"iteration": 200, "minutes": 1.82, "loss": 0.3176, "success": 0.812, "success_ema": 0.701, "level": 0, "size": 28}
+{"iteration": 246, "minutes": 2.19, "loss": 0.286, "success": 0.969, "success_ema": 0.0, "level": 1, "size": 24}
+{"iteration": 296, "minutes": 2.63, "loss": 0.2851, "success": 1.0, "success_ema": 0.0, "level": 2, "size": 20}
+{"iteration": 300, "minutes": 2.67, "loss": 0.2753, "success": 0.688, "success_ema": 0.12, "level": 2, "size": 32}
+{"iteration": 400, "minutes": 3.55, "loss": NaN, "success": 0.0, "success_ema": 0.005, "level": 2, "size": 32}
+{"iteration": 500, "minutes": 4.43, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 32}
+{"iteration": 600, "minutes": 5.2, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 32}
+{"iteration": 700, "minutes": 6.26, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 24}
+{"iteration": 800, "minutes": 7.31, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 32}
+{"iteration": 900, "minutes": 8.27, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 20}
+{"iteration": 1000, "minutes": 9.25, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 20}
+{"iteration": 1100, "minutes": 10.19, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 24}
+{"iteration": 1200, "minutes": 11.14, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 20}
+{"iteration": 1300, "minutes": 12.09, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 28}
+{"iteration": 1400, "minutes": 13.09, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 28}
+{"iteration": 1500, "minutes": 14.08, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 32}
+{"iteration": 1600, "minutes": 15.07, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 28}
+{"iteration": 1700, "minutes": 16.09, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 16}
+{"iteration": 1800, "minutes": 17.1, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 24}
+{"iteration": 1900, "minutes": 18.0, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 32}
+{"iteration": 2000, "minutes": 19.03, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 24}
+{"iteration": 2100, "minutes": 19.84, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 24}
+{"iteration": 2200, "minutes": 20.8, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 20}
+{"iteration": 2300, "minutes": 21.76, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 40}
+{"iteration": 2400, "minutes": 22.73, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 16}
+{"iteration": 2500, "minutes": 23.79, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 16}
+{"iteration": 2600, "minutes": 24.86, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 32}
+{"iteration": 2700, "minutes": 25.75, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 16}
+{"iteration": 2800, "minutes": 26.67, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 20}
+{"iteration": 2900, "minutes": 27.59, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 16}
+{"iteration": 3000, "minutes": 28.63, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 28}
+{"iteration": 3100, "minutes": 29.64, "loss": NaN, "success": 0.0, "success_ema": 0.0, "level": 2, "size": 40}
+/Users/hrishik/beebot/src/beebot/render.py:27: RuntimeWarning: invalid value encountered in cast
+  image = image.astype(np.uint8).repeat(PIXELS_PER_SQUARE, axis=0).repeat(PIXELS_PER_SQUARE, axis=1)
+{
+  "name": "r2-lr4e3",
+  "iterations": 3143,
+  "final_level": 2,
+  "levels_total": 9,
+  "train_success_ema": 3.845579952399995e-64,
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": NaN
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": NaN
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "final_surround": NaN
+    },
+    "score": 1.0
+  }
+}

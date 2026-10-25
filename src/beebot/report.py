@@ -48,6 +48,11 @@ def curve(run_dir):
     return points
 
 
+def read_probes(run_dir):
+    path = run_dir / "probes.json"
+    return json.loads(path.read_text()) if path.exists() else None
+
+
 def copy_videos(run_dir, name):
     videos = []
     for gif in sorted((run_dir / "videos").glob("*.gif")):
@@ -80,13 +85,18 @@ def main():
                 "val": summary["val"],
                 "curve": curve(run_dir),
                 "videos": copy_videos(run_dir, run_dir.name),
+                "probes": read_probes(run_dir),
             }
         )
 
     baseline = json.loads((RUNS / "baseline" / "summary.json").read_text())
     data = {
         "levels": LEVELS,
-        "baseline": {"val": baseline["val"], "videos": copy_videos(RUNS / "baseline", "baseline")},
+        "baseline": {
+            "val": baseline["val"],
+            "videos": copy_videos(RUNS / "baseline", "baseline"),
+            "probes": read_probes(RUNS / "baseline"),
+        },
         "runs": runs,
     }
     SITE.mkdir(exist_ok=True)

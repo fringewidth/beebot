@@ -18,8 +18,12 @@ class NCA(nn.Module):
     Circular padding makes the window wrap around the torus edges.
     """
 
-    def __init__(self, hidden=96, n_hidden_layers=2, stay_bias=4.0):
+    def __init__(self, hidden=96, n_hidden_layers=2, stay_bias=4.0, fold_change=False):
         super().__init__()
+        # Fold-change sensing: each square also reads log(neighbor smell / own smell) for its
+        # 8 neighbors. Those ratios don't depend on how far away the cheese is, so a
+        # far-off square sees the same kind of signal as a nearby one.
+        self.fold_change = nn.Conv2d(len(OFFSETS) - 1, hidden, kernel_size=1) if fold_change else None
         layers = [nn.Conv2d(N_CHANNELS, hidden, kernel_size=3, padding=1, padding_mode="circular"), nn.ReLU()]
         for _ in range(n_hidden_layers - 1):
             layers += [nn.Conv2d(hidden, hidden, kernel_size=1), nn.ReLU()]
@@ -35,7 +39,12 @@ class NCA(nn.Module):
 
     def forward(self, mass, smell, notes):
         x = torch.cat([mass[:, None], smell[:, None], notes], dim=1)
-        out = self.head(self.body(x))
+        h = self.body[0](x)
+        if self.fold_change is not None:
+            log_smell = torch.log(smell.clamp_min(1e-30))
+            ratios = torch.stack([look(log_smell, dy, dx) - log_smell for dy, dx in OFFSETS[1:]], dim=1)
+            h = h + self.fold_change(ratios)
+        out = self.head(self.body[1:](h))
         return out[:, : len(OFFSETS)], out[:, len(OFFSETS) :]
 
 

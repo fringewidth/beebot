@@ -1,0 +1,25 @@
+{
+  "name": "r2-lr2e3-seed1",
+  "iterations": 3237,
+  "final_level": 8,
+  "levels_total": 9,
+  "train_success_ema": 0.9998368737060009,
+  "val": {
+    "interp": {
+      "success": 1.0,
+      "time": 0.21416246891021729,
+      "final_surround": 1.0
+    },
+    "extrap": {
+      "success": 1.0,
+      "time": 0.2376302182674408,
+      "final_surround": 1.0
+    },
+    "damage": {
+      "success": 1.0,
+      "time": 0.22500787675380707,
+      "final_surround": 0.9999182224273682
+    },
+    "score": 0.22560018797715506
+  }
+}

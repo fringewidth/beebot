@@ -79,6 +79,7 @@ def rollout(
     record=False,
     damage_step=None,
     damage_fraction=0.25,
+    damage_fn=None,
 ):
     mass = batch.mass
     b, h, w = mass.shape
@@ -92,7 +93,7 @@ def rollout(
     surround, mean_distance, crowding, eaten, masses = [], [], [], [], []
     for t in range(n_steps):
         if t == damage_step:
-            mass = damage(mass, damage_fraction)
+            mass = damage_fn(mass) if damage_fn else damage(mass, damage_fraction)
             total_mass = mass.sum(dim=(1, 2)).clamp_min(1e-6)
         fire =(torch.rand(b, 1, h, w, device=mass.device) < fire_prob).float()
         if use_checkpoint:

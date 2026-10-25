@@ -120,6 +120,12 @@ select { font: 13px var(--mono); padding: 6px 8px; border-radius: 6px; border: 1
   </section>
 
   <section>
+    <h2>Stress tests</h2>
+    <p class="lede">Conditions the creature never trained on, scored the same way but kept outside the val score. Each cell shows how often it fully surrounds the cheese, then the time used.</p>
+    <div class="table-wrap"><table id="probes"></table></div>
+  </section>
+
+  <section>
     <h2>Curriculum progress</h2>
     <p class="lede">Training starts with small cheese close by and unlocks harder layouts once the success rate holds above 80%. The final level is cheese of up to 9 squares, up to 20 squares away.</p>
     <div class="chart" id="curves"></div>
@@ -146,6 +152,7 @@ const fmt = (x, d = 3) => x.toFixed(d);
 const pct = x => Math.round(x * 100) + "%";
 const SPLITS = ["interp", "extrap", "damage"];
 const SPLIT_NAMES = { interp: "Unseen sizes", extrap: "Bigger world", damage: "Damaged" };
+const LOWER_BOUND = 0.18; // val reach-time bound at the eval's 0.75 firing rate, from HILLCLIMB.md
 const COLORS = ["#2f7fd6", "#c98a0c", "#23874f", "#9a4fd1", "#d1504f", "#178a8a", "#7a6f2a", "#c2508f"];
 
 function el(tag, attrs = {}, text) {
@@ -230,6 +237,10 @@ function renderBars(data, runs) {
     s.append(svg("rect", { x: x(0), y: y + 4, width: Math.max(1, x(run.val.score) - x(0)), height: rowH - 10, rx: 2, fill: i === 0 ? "var(--honey)" : "var(--mass)", opacity: i === 0 ? 1 : 0.75 }));
     s.append(svg("text", { x: x(run.val.score) + 6, y: y + 15 }, fmt(run.val.score)));
   });
+  // Physical limit: no rule can fill the farthest ring square before mass can reach it.
+  const lx = x(LOWER_BOUND);
+  s.append(svg("rect", { x: x(0), y: top - 6, width: lx - x(0), height: H - 24 - (top - 6), fill: "var(--line)", opacity: 0.6 }));
+  s.append(svg("text", { x: lx - 4, y: H - 30, "text-anchor": "end" }, "physical limit ≈ " + LOWER_BOUND));
   const bx = x(data.baseline.val.score);
   s.append(svg("line", { x1: bx, x2: bx, y1: top - 10, y2: H - 24, stroke: "var(--bad)", "stroke-dasharray": "4 3", "stroke-width": 1.5 }));
   s.append(svg("text", { x: bx, y: top - 12, "text-anchor": "middle", fill: "var(--bad)" }, "baseline " + fmt(data.baseline.val.score)));
@@ -288,12 +299,34 @@ function renderTable(data, runs, best) {
   }
 }
 
+function renderProbes(data, runs) {
+  const t = document.getElementById("probes");
+  const withProbes = [...runs].filter(r => r.probes).sort((a, b) => a.val.score - b.val.score).slice(0, 4);
+  const cols = [...withProbes.map(r => [r.name, r.probes]), ["baseline", data.baseline.probes]].filter(c => c[1]);
+  if (!cols.length) return;
+  const head = el("tr");
+  head.append(el("th", {}, "Condition"));
+  for (const [name] of cols) head.append(el("th", { class: "r" }, name));
+  t.append(head);
+  for (const probe of Object.keys(cols[0][1])) {
+    const tr = el("tr");
+    tr.append(el("td", {}, probe));
+    for (const [, probes] of cols) {
+      const r = probes[probe];
+      const cls = r.success >= 0.95 ? "better" : r.success < 0.7 ? "worse" : "";
+      tr.append(el("td", { class: "r num " + cls }, `${pct(r.success)} · ${fmt(r.time, 2)}`));
+    }
+    t.append(tr);
+  }
+}
+
 fetch("data.json").then(r => r.json()).then(data => {
   const runs = data.runs;
   const best = runs.length ? runs.reduce((a, b) => (b.val.score < a.val.score ? b : a)) : null;
   renderScores(data, best);
   renderVideos(data, best ? [best, ...runs.filter(r => r !== best)] : []);
   renderBars(data, runs);
+  renderProbes(data, runs);
   renderCurves(data, runs);
   renderTable(data, runs, best);
 });
