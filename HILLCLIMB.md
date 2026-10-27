@@ -199,3 +199,9 @@ New population (clipping, cosine; resumed runs pick their cosine schedule up at 
 | v3z-explore-slow-r | v3z-explore-slow at 110 min | lr 4e-5 cosine to 1e-5, 70 min, w_explore 0.1, adaptive | Finish the best blind run's schedule |
 | v3w-big-levels-r | v3w-big-levels at 30 min, level 3 | 192 wide, lr 9.5e-4 cosine, 170 min, w_explore 0.15 | Does width help blind coordination? |
 | v3w-base-levels | scratch | 96 wide, otherwise identical to v3w-big-levels | Width control: same recipe, original width |
+
+**Invalidated.** The laptop slept during all three runs. Training budgets were wall-clock time, so the sleep counted against them: the runs "finished" after about 37 minutes of real training each (786, 745 and 913 iterations), with their cosine schedules jumping to the floor across the gap. The folders are moved to `runs_invalid/` and excluded from the page. Fix: the training clock is now `awake_seconds()` (CLOCK_UPTIME_RAW on macOS, CLOCK_MONOTONIC on Linux), which stops while the machine sleeps.
+
+One observation from before the sleep, worth re-checking: v3w-big-levels-r collapsed while the machine was awake, at about 33 minutes (training success EMA 0.76 to 0.06 within 100 iterations, val 0.823 to 1.000), at lr 9.5e-4 with gradient clipping. Clipping alone may not prevent collapse at full learning rate for the 192-wide network.
+
+To resume in the morning: the same three runs, under the same names, with the same flags (see the table above).

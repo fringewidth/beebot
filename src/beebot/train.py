@@ -103,6 +103,14 @@ class Config:
     log_every: int = 20
 
 
+def awake_seconds():
+    """A clock that stops while the machine sleeps, so a laptop's sleep doesn't eat a run's time budget.
+
+    CLOCK_UPTIME_RAW on macOS; on Linux, CLOCK_MONOTONIC already excludes suspend.
+    """
+    return time.clock_gettime(getattr(time, "CLOCK_UPTIME_RAW", time.CLOCK_MONOTONIC))
+
+
 def parse_config():
     parser = argparse.ArgumentParser()
     for field in dataclasses.fields(Config):
@@ -170,7 +178,7 @@ def train(cfg):
     iterations_at_level = 0
     success_ema = 0.0
     w_distance = cfg.w_distance * cfg.distance_decay**level
-    start = time.time()
+    start = awake_seconds()
     last_save = start
     last_eval = start
     best_score = float("inf")
@@ -204,7 +212,7 @@ def train(cfg):
         return future, size, replayed, None
 
     pending = request_batch()
-    while time.time() - start < cfg.minutes * 60 and not (run_dir / "STOP").exists():
+    while awake_seconds() - start < cfg.minutes * 60 and not (run_dir / "STOP").exists():
         future, size, replayed, distance = pending
         batch = future.result().to(device)
         pending = request_batch()
@@ -217,7 +225,7 @@ def train(cfg):
             print(json.dumps({"iteration": iteration, "diverged": True}), flush=True)
             break
         if cfg.lr_schedule == "cosine":
-            progress = min(1.0, (time.time() - start) / (cfg.minutes * 60))
+            progress = min(1.0, (awake_seconds() - start) / (cfg.minutes * 60))
             scale = cfg.lr_floor + (1 - cfg.lr_floor) * 0.5 * (1 + np.cos(np.pi * progress))
             for group in optimizer.param_groups:
                 group["lr"] = cfg.lr * scale
@@ -248,7 +256,7 @@ def train(cfg):
         if iteration % cfg.log_every == 0 or leveled_up:
             entry = {
                 "iteration": iteration,
-                "minutes": round((time.time() - start) / 60, 2),
+                "minutes": round((awake_seconds() - start) / 60, 2),
                 "loss": round(value.item(), 4),
                 "success": round(success, 3),
                 "success_ema": round(success_ema, 3),
@@ -263,20 +271,20 @@ def train(cfg):
             log.flush()
             print(json.dumps(entry), flush=True)
 
-        if time.time() - last_save > cfg.save_every_minutes * 60:
-            save_checkpoint(run_dir, model, iteration, level, (time.time() - start) / 60)
-            last_save = time.time()
+        if awake_seconds() - last_save > cfg.save_every_minutes * 60:
+            save_checkpoint(run_dir, model, iteration, level, (awake_seconds() - start) / 60)
+            last_save = awake_seconds()
 
-        if time.time() - last_eval > cfg.eval_every_minutes * 60:
-            best_score = keep_if_best(run_dir, model, device, best_score, iteration, (time.time() - start) / 60)
-            last_eval = time.time()
+        if awake_seconds() - last_eval > cfg.eval_every_minutes * 60:
+            best_score = keep_if_best(run_dir, model, device, best_score, iteration, (awake_seconds() - start) / 60)
+            last_eval = awake_seconds()
 
     workers.shutdown(cancel_futures=True)
     log.close()
-    save_checkpoint(run_dir, model, iteration, level, (time.time() - start) / 60)
+    save_checkpoint(run_dir, model, iteration, level, (awake_seconds() - start) / 60)
 
     # The run's result is its best val checkpoint, final model included.
-    best_score = keep_if_best(run_dir, model, device, best_score, iteration, (time.time() - start) / 60)
+    best_score = keep_if_best(run_dir, model, device, best_score, iteration, (awake_seconds() - start) / 60)
     model.load_state_dict(torch.load(run_dir / "model_best.pt", map_location=device))
     torch.save(model.state_dict(), run_dir / "model.pt")
     model.eval()
