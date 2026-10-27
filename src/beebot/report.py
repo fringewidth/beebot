@@ -1,9 +1,9 @@
-"""Collect every stage's finished runs into site/ for the progress page.
+"""Collect every stage's finished runs into site/ for the project page.
 
     uv run report
 
 Writes site/data.json, copies the GIFs the page shows into site/media/, and
-copies the written reports (REPORT.md, JOURNAL.md, HILLCLIMB.md) next to it.
+copies the written logs (JOURNAL.md, HILLCLIMB.md) next to it.
 Scores the current stage's hand-written baseline once and keeps it in its
 baseline/ folder.
 """
@@ -23,7 +23,7 @@ from beebot.render import render_examples
 from beebot.train import LEVELS, Config
 
 SITE = Path("site")
-DOCUMENTS = ["REPORT.md", "JOURNAL.md", "HILLCLIMB.md"]
+DOCUMENTS = ["JOURNAL.md", "HILLCLIMB.md"]
 # Run settings that don't change what the model learns; left out of the "change" column.
 NOT_A_CHANGE = {"name", "device", "log_every", "init", "use_checkpoint"}
 # Only each stage's best runs get videos on the page, to keep the site small.
@@ -139,9 +139,11 @@ def collect_stage(stage):
         )
 
     runs.sort(key=lambda r: r["val"]["score"])
+    # A privileged control can outscore every real run, so the best run without it always gets videos too.
+    best_blind = next((r["name"] for r in runs if not r["changes"].get("privileged")), None)
     for rank, run in enumerate(runs):
         run_dir = run.pop("run_dir")
-        keep = rank < RUNS_WITH_VIDEOS[stage["status"]]
+        keep = rank < RUNS_WITH_VIDEOS[stage["status"]] or run["name"] == best_blind
         run["videos"] = copy_videos(run_dir, stage["id"], run["name"]) if keep else []
 
     baseline_dir = folder / "baseline"
