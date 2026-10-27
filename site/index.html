@@ -1,9 +1,9 @@
-<title>Beebot Hill-climb</title>
+<title>Beebot</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: lab notebook; a progress report up front, one tab per stage of the project, then the written logs. */
+/* Layout: lab notebook; one tab per stage of the project, hardest first, then the written logs. */
 :root {
   --bg: #f3f4f7;
   --panel: #ffffff;
@@ -112,9 +112,9 @@ select { font: 13px var(--mono); padding: 6px 8px; border-radius: 6px; border: 1
 
 <div class="wrap">
   <header>
-    <div class="label" id="generated">Neural cellular automata · hill-climb</div>
+    <div class="label">Neural cellular automata</div>
     <h1>Beebot</h1>
-    <p class="lede">Every square of the grid runs the same tiny network and sees only its 3x3 neighborhood. It can only pass mass to its neighbors; mass is never created. The swarm has to find a block of cheese and gather around it, with no leader and no map. Each stage below removes a crutch the previous one leaned on.</p>
+    <p class="lede">Every square of the grid runs the same tiny network and sees only its 3x3 neighborhood. It can only pass mass to its neighbors; mass is never created. The swarm has to find a block of cheese and gather around it, with no leader and no map. Each tab is a version of the task, hardest first: on cave-like terrain, by touch alone, and with the cheese's smell.</p>
   </header>
 
   <nav class="tabs" role="tablist" id="tabs"></nav>
@@ -147,16 +147,22 @@ function section(title, lede) {
   if (lede) s.append(el("p", { class: "lede" }, lede));
   return s;
 }
-const bestOf = stage => (stage.runs.length ? stage.runs[0] : null);
+// A privileged run smells the walking distance to the cheese: a control showing the task is solvable, not the swarm itself.
+const smells = run => Boolean(run.changes && run.changes.privileged);
+const runLabel = run => run.name + (smells(run) ? " (smells the cheese)" : "");
+const shortLabel = run => run.name + (smells(run) ? " (smells)" : "");
+const bestOf = stage => stage.runs.find(r => !smells(r)) || null;
 
 function scoreTiles(stage) {
   const box = el("div", { class: "scores" });
   const base = stage.baseline.val;
   const best = bestOf(stage);
+  const control = stage.runs.find(smells);
   const tiles = [
     ["Best run · val score", best ? fmt(best.val.score) : "none yet", best ? best.name : "", best && base ? best.val.score < base.score : null],
     ["Hand-written baseline", base ? fmt(base.score) : "–", "lower is better; 1 = never", null],
   ];
+  if (control) tiles.push(["Control · smells the cheese", fmt(control.val.score), "shows the task is solvable", null]);
   for (const split of SPLITS) {
     const b = best ? best.val[split].success : null;
     tiles.push([SPLIT_NAMES[split] + " · solved", pct(b), base ? "baseline " + pct(base[split].success) : "", b === null ? null : base ? b >= base[split].success : null]);
@@ -181,7 +187,7 @@ function videos(stage) {
   if (!clips.length) { s.append(el("p", { class: "empty" }, "No videos yet.")); return s; }
   const row = el("div", { class: "row" });
   const select = el("select", { "aria-label": "Run to compare against the baseline", id: "run-" + stage.id });
-  for (const run of runs) select.append(el("option", { value: run.name }, run.name + " · " + fmt(run.val.score)));
+  for (const run of runs) select.append(el("option", { value: run.name }, runLabel(run) + " · " + fmt(run.val.score)));
   const picker = el("div", { class: "picker" });
   row.append(picker, select);
   const duel = el("div", { class: "duel" });
@@ -190,7 +196,7 @@ function videos(stage) {
     duel.replaceChildren();
     const run = runs.find(r => r.name === select.value);
     const sides = [];
-    if (run) sides.push([run.name, run.videos]);
+    if (run) sides.push([runLabel(run), run.videos]);
     sides.push(["Baseline", stage.baseline.videos]);
     for (const [title, list] of sides) {
       const src = list.find(v => v.endsWith("/" + clip));
@@ -226,7 +232,7 @@ function bars(stage) {
   const s = section("Val score by run", "Share of the time limit used before success, averaged over the three held-out splits. A failure counts as 1. Lower is better.");
   const rows = stage.runs;
   if (!rows.length) { s.append(el("p", { class: "empty" }, "No runs yet.")); return s; }
-  const W = 720, rowH = 26, left = 170, right = 60, top = 24;
+  const W = 720, rowH = 26, left = 200, right = 60, top = 24;
   const H = top + rows.length * rowH + 28;
   const x = v => left + v * (W - left - right);
   const g = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Val score per run, lower is better" });
@@ -234,11 +240,12 @@ function bars(stage) {
     g.append(svg("line", { x1: x(t), x2: x(t), y1: top - 6, y2: H - 24, stroke: "var(--line)" }));
     g.append(svg("text", { x: x(t), y: H - 8, "text-anchor": "middle" }, String(t)));
   }
+  const best = bestOf(stage);
   rows.forEach((run, i) => {
     const y = top + i * rowH;
     const v = run.val.score ?? 1;
-    g.append(svg("text", { x: left - 10, y: y + 14, "text-anchor": "end", class: "name" }, run.name));
-    g.append(svg("rect", { x: x(0), y: y + 4, width: Math.max(1, x(v) - x(0)), height: rowH - 10, rx: 2, fill: i === 0 ? "var(--honey)" : "var(--mass)", opacity: i === 0 ? 1 : 0.75 }));
+    g.append(svg("text", { x: left - 10, y: y + 14, "text-anchor": "end", class: "name" }, shortLabel(run)));
+    g.append(svg("rect", { x: x(0), y: y + 4, width: Math.max(1, x(v) - x(0)), height: rowH - 10, rx: 2, fill: run === best ? "var(--honey)" : "var(--mass)", opacity: run === best ? 1 : 0.75 }));
     g.append(svg("text", { x: x(v) + 6, y: y + 14 }, fmt(run.val.score) + (run.diverged ? " diverged" : "")));
   });
   if (stage.baseline.val) {
@@ -254,7 +261,7 @@ function bars(stage) {
 
 function probes(stage) {
   const s = section("Stress tests", "Conditions the swarm never trained on, kept outside the val score. Each cell: share of layouts solved · time used.");
-  const cols = [...stage.runs.filter(r => r.probes).slice(0, 3).map(r => [r.name, r.probes])];
+  const cols = [...stage.runs.filter(r => r.probes).slice(0, 3).map(r => [shortLabel(r), r.probes])];
   if (stage.baseline.probes) cols.push(["baseline", stage.baseline.probes]);
   if (!cols.length) { s.append(el("p", { class: "empty" }, "Not run yet for this stage.")); return s; }
   const t = el("table");
@@ -321,12 +328,12 @@ function table(stage) {
   const rows = [...stage.runs];
   if (stage.baseline.val) rows.push({ name: "baseline", changes: { rule: "hand-written" }, val: stage.baseline.val });
   rows.forEach((run, i) => {
-    const tr = el("tr", i === 0 && stage.runs.length ? { class: "best" } : {});
+    const tr = el("tr", run === bestOf(stage) ? { class: "best" } : {});
     tr.append(el("td", {}, run.name));
     const changes = el("td");
     const entries = Object.entries(run.changes || {});
     if (!entries.length) changes.append(el("span", { class: "chip" }, "defaults"));
-    for (const [k, v] of entries) changes.append(el("span", { class: "chip" }, `${k}=${v}`));
+    for (const [k, v] of entries) changes.append(el("span", { class: "chip" }, k === "privileged" && v ? "smells the cheese" : `${k}=${v}`));
     if (run.diverged) changes.append(el("span", { class: "chip worse" }, "diverged"));
     tr.append(changes);
     tr.append(el("td", { class: "r num" }, run.minutes ?? "–"));
@@ -347,28 +354,10 @@ function stagePanel(stage) {
   const intro = el("section");
   const top = el("div", { class: "row" });
   top.append(el("h2", {}, stage.title));
-  top.append(el("span", { class: "pill " + stage.status }, stage.status));
+  if (stage.status === "current") top.append(el("span", { class: "pill current" }, "in progress"));
   intro.append(top, el("p", { class: "lede" }, stage.summary), scoreTiles(stage));
   panel.append(intro, videos(stage), bars(stage), probes(stage), curves(stage), table(stage));
   return panel;
-}
-
-function statusCards(data) {
-  const box = el("div", { class: "scores" });
-  for (const stage of data.stages) {
-    const best = bestOf(stage);
-    const tile = el("div", { class: "score" });
-    tile.append(el("div", { class: "label" }, stage.title));
-    tile.append(el("span", { class: "pill " + stage.status }, stage.status));
-    tile.append(el("div", { class: "big" }, best ? fmt(best.val.score) : "–"));
-    const parts = [];
-    if (best) parts.push(`best val, ${stage.runs.length} runs`);
-    if (stage.baseline.val) parts.push(`baseline ${fmt(stage.baseline.val.score)}`);
-    if (best && best.final_test) parts.push(`test ${fmt(best.final_test.model.test.score)}`);
-    tile.append(el("div", { class: "sub" }, parts.join(" · ")));
-    box.append(tile);
-  }
-  return box;
 }
 
 function docPanel(file, before) {
@@ -385,11 +374,9 @@ function docPanel(file, before) {
 }
 
 fetch("data.json").then(r => r.json()).then(data => {
-  document.getElementById("generated").textContent = "Neural cellular automata · updated " + data.generated;
   const tabs = document.getElementById("tabs");
   const panels = document.getElementById("panels");
-  const views = [["report", "Progress report", () => docPanel("REPORT.md", statusCards(data))]];
-  for (const stage of data.stages) views.push([stage.id, stage.title, () => stagePanel(stage)]);
+  const views = data.stages.map(stage => [stage.id, stage.title, () => stagePanel(stage)]);
   views.push(["journal", "Lab journal", () => docPanel("JOURNAL.md")]);
   views.push(["runs", "Run log", () => docPanel("HILLCLIMB.md")]);
 
@@ -407,6 +394,6 @@ fetch("data.json").then(r => r.json()).then(data => {
     tabs.append(b);
   }
   const wanted = location.hash.slice(1);
-  show(views.some(v => v[0] === wanted) ? wanted : "report");
+  show(views.some(v => v[0] === wanted) ? wanted : views[0][0]);
 });
 </script>
