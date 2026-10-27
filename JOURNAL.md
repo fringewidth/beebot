@@ -102,7 +102,17 @@ rather than hand-designed.
   with a matching loss term. The best model drops from 45% to 12% under it.
   Old ring-only scores are kept as `val_ring_only` in each summary.
 
-### Planned tasks (written before any results)
+### The queue (updated 2026-10-27)
+
+In order, each task finishing before the next starts:
+
+1. **Terrain without smell.** The blind swarm has to clear 90% on every val split, then the test set is run once and the result tagged. This is the blocker. The scent-following control got 96% on unseen sizes, 95% in bigger worlds and 89% damaged, so the task is solvable once search is free. The blind swarm is at about 40%.
+2. **Feast:** several cheeses that vanish when eaten.
+3. **Chase:** cheese that moves away toward the side with the least mass.
+4. **Rivals:** two swarms under zero-sum, shared and stag-hunt payoffs, to see whether they cooperate or compete. Swarms trained apart are tested together as strangers, against co-trained pairs and swapped partners. Then a variant where both swarms can push the cheese.
+5. **3D voxels:** all of the above again in 3D.
+
+### Planned tasks (written before any results; the queue above supersedes the order)
 
 After Hunt (the current task) is solved, meaning val success of at least 90%
 on unseen sizes and bigger worlds and at least 80% on damage, or two rounds in
