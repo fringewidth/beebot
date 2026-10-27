@@ -174,3 +174,28 @@ The privileged control holds at 89% damaged on both checks, one point under the 
 New: blind networks 192 wide (from 96), from scratch, w_explore 0.15, clipping, cosine: v3w-big-levels (level curriculum) and v3w-big-adaptive (adaptive curriculum). Tests whether capacity limits blind coordination.
 
 Paused at the user's request to free the machine. v3z-explore-slow, v3w-big-levels and v3w-big-adaptive were stopped mid-run; their latest checkpoints (`model.pt`, `checkpoint.json`) and best val checkpoints (`model_best.pt`, where one exists) are in their run folders. Resume with `--init runs/<name>/model.pt` and the same flags.
+
+Resumed on a different machine (RTX 3070, CUDA, torch 2.11.0+cu128). The `.pt` files are gitignored, so the pushed run folders have no weights: v3z-explore-slow could not be resumed (it needs `runs/v3x-explore/model_best_min30.pt`), and v3w-big-levels and v3w-big-adaptive were restarted from scratch with identical flags as `-3070` runs (200 minutes, hidden 192, lr 1e-3, w_explore 0.15, clipping, cosine).
+
+Check-in at 30 minutes:
+
+| Run | Val | Interp | Extrap | Damage | Notes |
+| --- | --- | --- | --- | --- | --- |
+| v3w-big-levels-3070 | 0.779 | 0.35 | 0.30 | 0.30 | Level 3 of the curriculum. |
+| v3w-big-adaptive-3070 | 0.960 | 0.09 | 0.06 | 0.06 | Training success only just started rising (about 47% smoothed at 28 minutes). |
+
+Queue and bar unchanged: above 90% on every val split. Runs continue to 200 minutes.
+
+## Resumed 2026-10-28
+
+While paused, v3z-explore-slow's 90-minute val check had already set a new blind best: **0.724** (interp 0.44, extrap 0.39, damage 0.42), saved as its `model_best.pt`. v3w-big-adaptive was dead at 30 minutes (val 1.000, training success near 0 at every distance): from scratch, every distance sits near 0% success, so the adaptive weights s(1-s) are flat and the curriculum has no frontier to follow. It is not resumed.
+
+Two folders from a CUDA machine also appeared, `v3w-big-levels-3070` and `v3w-big-adaptive-3070`: same configs, metadata only, no weights. In 30 minutes they ran about 2.4 times as many iterations (1743 vs 730). Val at 30 minutes: big-levels 0.779 (35/30/30%), big-adaptive 0.960, confirming that the adaptive curriculum fails from scratch.
+
+New population (clipping, cosine; resumed runs pick their cosine schedule up at the step where the pause cut it, approximately):
+
+| Run | Start | Settings | Question |
+| --- | --- | --- | --- |
+| v3z-explore-slow-r | v3z-explore-slow at 110 min | lr 4e-5 cosine to 1e-5, 70 min, w_explore 0.1, adaptive | Finish the best blind run's schedule |
+| v3w-big-levels-r | v3w-big-levels at 30 min, level 3 | 192 wide, lr 9.5e-4 cosine, 170 min, w_explore 0.15 | Does width help blind coordination? |
+| v3w-base-levels | scratch | 96 wide, otherwise identical to v3w-big-levels | Width control: same recipe, original width |
