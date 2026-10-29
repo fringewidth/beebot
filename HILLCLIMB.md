@@ -270,3 +270,18 @@ Consequences:
 - In v1 to v3a, several reported runs were fine-tunes or teacher starts; their configs (`init`) say which.
 
 Note (user, 2026-10-29): v3b keeps its current setup (shaping terms and curriculum unchanged). From the next stage on, experiments follow the bitter lesson: as little human-engineered help as possible (shaping terms, hand-staged curricula, scripted structure), and more compute instead. Feast, Chase, Rivals and 3D are the groundwork before the language-conditioned control idea (VLA.md).
+
+Width runs finished (200 minutes, from scratch, both stuck at level 5 of 9 at the end):
+
+| Run | Iterations | Final val | Interp | Extrap | Damage |
+| --- | --- | --- | --- | --- | --- |
+| v3b-base-levels (96) | 4768 | **0.691** | 0.47 | 0.42 | 0.41 |
+| v3b-big-levels (192) | 3222 | 0.716 | 0.40 | 0.33 | 0.35 |
+
+At equal iterations they're about even (192: 0.726 at 2904 and 0.716 at 3222; 96: 0.714 at 2833 and 0.702 at 3590), and the 192-wide network runs about 1.5 times slower per iteration. Width isn't the bottleneck at this scale. The 96-wide run was still improving at the end.
+
+v3b-priv-scratch (control, from scratch) at 30 minutes: 0.745 (41/34/38%), already at level 5.
+
+New:
+- v3b-base-levels-cont: v3b-base-levels continued from its own final checkpoint at level 5, fresh cosine from lr 5e-4, 200 minutes. Same run, more compute; its starting score (0.691) is the first best candidate.
+- v3b-base-seed1: v3b-base-levels repeated with seed 1, to check that the climb isn't one lucky seed.
