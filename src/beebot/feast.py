@@ -34,7 +34,7 @@ from beebot.layout import (
     open_region,
     walking_distance,
 )
-from beebot.render import OVERRUN, frame
+from beebot.render import OVERRUN, save_gif
 
 TAU = 0.5
 FIRE_PROB = 0.75
@@ -257,22 +257,32 @@ def evaluate(policy, device, which="val"):
     return results
 
 
-def render(policy, batch, device, path, n_examples=3):
-    batch = batch.to(device)
-    limit = STEPS_PER_CELL * batch.mass.shape[-1]
-    n_steps = OVERRUN * limit
+def record(policy, batch, device, n_steps):
+    """A recorded rollout, with the cheese and ring masks of every frame, the start included."""
     torch.manual_seed(0)  # same firing pattern for every policy, so videos compare like for like
     with torch.no_grad():
-        result = rollout(policy, batch, n_steps, FIRE_PROB, TAU, record=True)
-    walls = batch.walls.cpu().numpy()
-    initial = batch.mass.cpu().numpy()
-    cheese = batch.cheese.any(dim=1).cpu().numpy()
-    rings = batch.rings.any(dim=1).cpu().numpy()
-    for i in range(min(n_examples, len(initial))):
-        frames = [frame(initial[i], cheese[i], walls[i], rings[i], np.zeros_like(initial[i]), 0, limit, n_steps)]
-        for t, (m, p) in enumerate(zip(result.masses, result.pheromones)):
-            frames.append(frame(m[i], result.cheeses[t][i], walls[i], result.rings[t][i], p[i], t + 1, limit, n_steps))
-        frames[0].save(path.with_name(f"{path.stem}_{i}.gif"), save_all=True, append_images=frames[1:], duration=60, loop=0)
+        result = rollout(policy, batch.to(device), n_steps, FIRE_PROB, TAU, record=True)
+    cheeses = [batch.cheese.any(dim=1).numpy()] + result.cheeses
+    rings = [batch.rings.any(dim=1).numpy()] + result.rings
+    return result, cheeses, rings
+
+
+def render(policy, batch, device, path, n_examples=3):
+    limit = STEPS_PER_CELL * batch.mass.shape[-1]
+    n_steps = OVERRUN * limit
+    result, cheeses, rings = record(policy, batch, device, n_steps)
+    for i in range(min(n_examples, batch.mass.shape[0])):
+        save_gif(
+            path.with_name(f"{path.stem}_{i}.gif"),
+            batch.mass[i].numpy(),
+            batch.walls[i].numpy(),
+            [c[i] for c in cheeses],
+            [r[i] for r in rings],
+            [m[i] for m in result.masses],
+            [p[i] for p in result.pheromones],
+            limit,
+            n_steps,
+        )
 
 
 def render_examples(policy, device, out_dir):
@@ -284,3 +294,49 @@ def render_examples(policy, device, out_dir):
     extrap = build_split(spec["seed"] + 1, spec["extrap"]["sizes"][:1], spec["extrap"]["n_cheese"])
     render(policy, interp[0], device, out_dir / "interp")
     render(policy, extrap[0], device, out_dir / "extrap")
+
+
+def render_successes(policy, batch, device, out_dir, prefix, n_examples=3):
+    """The hardest layouts the policy solves within the limit: its successes with the most cheeses.
+
+    Returns what was picked, for the page's caption.
+    """
+    size = batch.mass.shape[-1]
+    limit = STEPS_PER_CELL * size
+    n_steps = OVERRUN * limit
+    result, cheeses, rings = record(policy, batch, device, n_steps)
+    done = (result.left[:limit] == 0).cpu()
+    solved = done.any(dim=0)
+    first = done.float().argmax(dim=0) + 1
+    n_cheese = result.n_cheese.cpu()
+    order = sorted(np.flatnonzero(solved.numpy()), key=lambda i: (-n_cheese[i].item(), first[i].item()))[:n_examples]
+
+    clips = []
+    for k, i in enumerate(order):
+        name = f"{prefix}_{k}.gif"
+        save_gif(
+            out_dir / name,
+            batch.mass[i].numpy(),
+            batch.walls[i].numpy(),
+            [c[i] for c in cheeses],
+            [r[i] for r in rings],
+            [m[i] for m in result.masses],
+            [p[i] for p in result.pheromones],
+            limit,
+            n_steps,
+        )
+        clips.append({"file": name, "cheeses": int(n_cheese[i]), "steps": int(first[i]), "limit": limit})
+    return {"split": prefix, "size": size, "layouts": len(solved), "solved": int(solved.sum()), "clips": clips}
+
+
+def render_demo(policy, device, out_dir):
+    """Demo clips for the page: the hardest val layouts solved, from one interp size and one extrap size."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    spec = SETS["val"]
+    interp = build_split(spec["seed"], spec["interp"]["sizes"][:1], spec["interp"]["n_cheese"])
+    extrap = build_split(spec["seed"] + 1, spec["extrap"]["sizes"][:1], spec["extrap"]["n_cheese"])
+    return [
+        render_successes(policy, interp[0], device, out_dir, "interp"),
+        render_successes(policy, extrap[0], device, out_dir, "extrap"),
+    ]

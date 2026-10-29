@@ -76,7 +76,7 @@ header { display: grid; gap: 12px; }
   border: 1px solid var(--line); background: var(--panel); color: var(--ink);
 }
 .picker button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.duel { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.duel { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; max-width: 560px; }
 figure { margin: 0; display: grid; gap: 8px; }
 figure img { width: 100%; image-rendering: pixelated; border-radius: 4px; background: #121218; }
 figcaption { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -181,41 +181,43 @@ function scoreTiles(stage) {
 }
 
 function videos(stage) {
-  const s = section("Watch it", "The learned swarm next to the hand-written baseline on the same held-out layout. Videos run to twice the time limit; the bar along the bottom turns red once the limit passes.");
-  const runs = stage.runs.filter(r => r.videos.length);
-  const clips = (stage.baseline.videos.length ? stage.baseline.videos : runs.length ? runs[0].videos : []).map(v => v.split("/").pop());
-  if (!clips.length) { s.append(el("p", { class: "empty" }, "No videos yet.")); return s; }
+  const d = stage.demo;
+  const picked = d && d.picks;
+  const s = section("Watch it", picked
+    ? "The stage's best run on held-out val layouts it solved, picked to show the hardest ones: the farthest starts, or the most cheeses. These are picked successes, not typical runs; the success rates are in the tiles above. Videos run to twice the time limit; the bar along the bottom turns red once the limit passes."
+    : "The stage's best run on fixed held-out layouts, rendered when the stage ran. Videos run to twice the time limit; the bar along the bottom turns red once the limit passes.");
+  if (!d || !d.videos.length) { s.append(el("p", { class: "empty" }, d ? "This run solved none of the demo layouts." : "No videos yet.")); return s; }
+  const clipInfo = {};
+  if (picked) for (const split of d.picks) for (const c of split.clips) clipInfo[c.file] = { ...c, split };
+  const splitName = f => f.replace(".gif", "").replace("interp", "unseen size").replace("extrap", "bigger world").replace("_", " #");
   const row = el("div", { class: "row" });
-  const select = el("select", { "aria-label": "Run to compare against the baseline", id: "run-" + stage.id });
-  for (const run of runs) select.append(el("option", { value: run.name }, runLabel(run) + " · " + fmt(run.val.score)));
   const picker = el("div", { class: "picker" });
-  row.append(picker, select);
+  row.append(picker);
   const duel = el("div", { class: "duel" });
-  let clip = clips[0];
+  let clip = d.videos[0];
   const draw = () => {
     duel.replaceChildren();
-    const run = runs.find(r => r.name === select.value);
-    const sides = [];
-    if (run) sides.push([runLabel(run), run.videos]);
-    sides.push(["Baseline", stage.baseline.videos]);
-    for (const [title, list] of sides) {
-      const src = list.find(v => v.endsWith("/" + clip));
-      const fig = el("figure");
-      if (src) fig.append(el("img", { src, alt: title + " on layout " + clip, loading: "lazy" }));
-      const cap = el("figcaption");
-      cap.append(el("strong", {}, title));
-      cap.append(el("span", { class: "label" }, clip.replace(".gif", "").replace("_", " #")));
-      fig.append(cap);
-      duel.append(fig);
+    const file = clip.split("/").pop();
+    const fig = el("figure");
+    fig.append(el("img", { src: clip, alt: d.run + " on " + splitName(file), loading: "lazy" }));
+    const cap = el("figcaption");
+    cap.append(el("strong", {}, d.run));
+    const info = clipInfo[file];
+    let text = splitName(file);
+    if (info) {
+      const what = info.cheeses !== undefined ? `${info.cheeses} cheeses, all eaten` : `start ${info.start} squares from the cheese, eaten`;
+      text += ` · ${info.split.size}x${info.split.size} · ${what} at step ${info.steps} of ${info.limit} · solved ${info.split.solved} of ${info.split.layouts} layouts on this grid`;
     }
+    cap.append(el("span", { class: "label" }, text));
+    fig.append(cap);
+    duel.append(fig);
     for (const b of picker.children) b.setAttribute("aria-pressed", String(b.dataset.clip === clip));
   };
-  for (const c of clips) {
-    const b = el("button", { type: "button", "data-clip": c }, c.replace(".gif", "").replace("interp", "unseen size").replace("extrap", "bigger world").replace("_", " #"));
+  for (const c of d.videos) {
+    const b = el("button", { type: "button", "data-clip": c }, splitName(c.split("/").pop()));
     b.addEventListener("click", () => { clip = c; draw(); });
     picker.append(b);
   }
-  select.addEventListener("change", draw);
   const legend = el("div", { class: "legend" });
   for (const [color, text] of [["#f9c828", "cheese"], ["#5aaaff", "mass"], ["#ffffff", "over 1 unit on a square"], ["#5f5c68", "wall"], ["#3c2d14", "ring to fill"], ["#3cc878", "pheromone"], ["#dc4646", "time limit passed"]]) {
     const span = el("span");
