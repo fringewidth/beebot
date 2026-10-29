@@ -260,3 +260,11 @@ Failure breakdown (val interp + extrap, no damage, 160 layouts, 55% success):
 - Video (extrap): the swarm breaks into a few compact blobs that wander along walls. One blob sits for a long stretch in a concave pocket of wall a few squares from the cheese, on the wrong side of the wall. No systematic sweep.
 
 Next: v3b-explore03, from v3b-explore-slow's best, with w_explore 0.3 (from 0.1), otherwise identical (lr 1e-4 cosine, adaptive, 120 min). At 3x, w_explore 0.5 made the swarm spread and never regroup; with twice the time to regroup, stronger exploration pressure may pay off.
+
+**Rule (set by the user, 2026-10-29): every stage's results come from runs trained from scratch in that stage.** No starting from another run's or another stage's weights. Resuming a run from its own checkpoint (after a pause, or to extend it) is still the same run. Reasons: a stage's result has to be reproducible from scratch, and the evidence agrees. Fine-tunes from the old best plateaued at once (v3b-explore-slow flat at 0.626 for 90 minutes), while the from-scratch runs at 6x keep climbing (v3b-base-levels 0.885, 0.808, 0.795, 0.714, 0.702 at 30 to 150 minutes). The old checkpoint seems to carry habits learned under the 3x limit.
+
+Consequences:
+- v3b-explore-slow and v3b-explore03 (both started from v3a weights) are moved to `runs_finetuned/` and don't count for v3b. v3b-explore03 was stopped at 45 minutes (val 0.627 at 30).
+- The 6x scores of v3a checkpoints (control 98/97/98%, blind 58/45/53%) were measured on fine-tune lineages: v3z-priv descends from v3r1-privileged, v3z-explore-slow from v3x-explore and v3p-adaptive. They motivated the 6x limit but aren't v3b results.
+- So the feasibility control has to be redone from scratch: v3b-priv-scratch, identical to v3b-base-levels except that it smells the walking distance (96 wide, lr 5e-4, w_explore 0.15, level curriculum, 200 min).
+- In v1 to v3a, several reported runs were fine-tunes or teacher starts; their configs (`init`) say which.
