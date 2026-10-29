@@ -1,0 +1,101 @@
+{"iteration": 50, "minutes": 3.74, "loss": 1.1083, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 24, "replayed": false}
+{"iteration": 100, "minutes": 7.53, "loss": 1.0173, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 24, "replayed": false}
+{"iteration": 150, "minutes": 10.82, "loss": 0.7908, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 40, "replayed": false}
+{"iteration": 200, "minutes": 13.92, "loss": 0.7005, "success": 0.0, "success_ema": 0.0, "level": 0, "size": 28, "replayed": false}
+{"iteration": 250, "minutes": 17.58, "loss": 0.6143, "success": 0.438, "success_ema": 0.135, "level": 0, "size": 28, "replayed": false}
+{"iteration": 300, "minutes": 20.5, "loss": 0.6136, "success": 0.125, "success_ema": 0.222, "level": 0, "size": 24, "replayed": false}
+{"iteration": 350, "minutes": 23.33, "loss": 0.5109, "success": 0.75, "success_ema": 0.534, "level": 0, "size": 28, "replayed": false}
+{"iteration": 400, "minutes": 26.9, "loss": 0.6742, "success": 0.938, "success_ema": 0.689, "level": 0, "size": 40, "replayed": false}
+{"iteration": 450, "minutes": 29.96, "loss": 0.503, "success": 0.938, "success_ema": 0.76, "level": 0, "size": 20, "replayed": false}
+{"iteration": 456, "minutes": 30.45, "loss": 0.4839, "success": 1.0, "success_ema": 0.0, "level": 1, "size": 28, "replayed": false}
+{"iteration": 500, "minutes": 32.92, "loss": 0.8261, "success": 0.625, "success_ema": 0.486, "level": 1, "size": 20, "replayed": false}
+{"iteration": 550, "minutes": 36.46, "loss": 0.4774, "success": 0.906, "success_ema": 0.604, "level": 1, "size": 28, "replayed": false}
+{"iteration": 600, "minutes": 40.17, "loss": 0.5912, "success": 0.812, "success_ema": 0.73, "level": 1, "size": 24, "replayed": false}
+{"iteration": 637, "minutes": 42.58, "loss": 0.4841, "success": 0.938, "success_ema": 0.0, "level": 2, "size": 40, "replayed": false}
+{"iteration": 650, "minutes": 42.95, "loss": 0.6485, "success": 0.625, "success_ema": 0.197, "level": 2, "size": 20, "replayed": false}
+{"iteration": 700, "minutes": 46.38, "loss": 0.5444, "success": 0.906, "success_ema": 0.674, "level": 2, "size": 28, "replayed": false}
+{"iteration": 750, "minutes": 49.76, "loss": 0.5158, "success": 0.906, "success_ema": 0.768, "level": 2, "size": 24, "replayed": false}
+{"iteration": 800, "minutes": 52.72, "loss": 0.4393, "success": 1.0, "success_ema": 0.796, "level": 2, "size": 28, "replayed": false}
+{"iteration": 802, "minutes": 52.85, "loss": 0.4354, "success": 0.938, "success_ema": 0.0, "level": 3, "size": 28, "replayed": false}
+{"iteration": 850, "minutes": 55.69, "loss": 0.7118, "success": 0.5, "success_ema": 0.45, "level": 3, "size": 28, "replayed": false}
+{"iteration": 900, "minutes": 58.67, "loss": 0.9494, "success": 0.312, "success_ema": 0.53, "level": 3, "size": 16, "replayed": false}
+{"iteration": 950, "minutes": 62.12, "loss": 0.5972, "success": 0.594, "success_ema": 0.523, "level": 3, "size": 40, "replayed": false}
+{"iteration": 1000, "minutes": 65.19, "loss": 0.7974, "success": 0.656, "success_ema": 0.603, "level": 3, "size": 24, "replayed": false}
+{"iteration": 1050, "minutes": 68.62, "loss": 0.5549, "success": 0.875, "success_ema": 0.623, "level": 3, "size": 32, "replayed": false}
+{"iteration": 1100, "minutes": 71.76, "loss": 0.458, "success": 0.906, "success_ema": 0.616, "level": 3, "size": 24, "replayed": true}
+{"iteration": 1150, "minutes": 74.41, "loss": 0.8329, "success": 0.406, "success_ema": 0.646, "level": 3, "size": 16, "replayed": false}
+{"iteration": 1200, "minutes": 77.49, "loss": 0.6666, "success": 0.562, "success_ema": 0.662, "level": 3, "size": 16, "replayed": true}
+{"iteration": 1250, "minutes": 80.25, "loss": 0.6192, "success": 0.812, "success_ema": 0.641, "level": 3, "size": 28, "replayed": false}
+{"iteration": 1300, "minutes": 82.73, "loss": 0.7444, "success": 0.469, "success_ema": 0.64, "level": 3, "size": 20, "replayed": false}
+{"iteration": 1350, "minutes": 85.88, "loss": 0.4332, "success": 1.0, "success_ema": 0.686, "level": 3, "size": 40, "replayed": true}
+{"iteration": 1400, "minutes": 88.9, "loss": 0.7548, "success": 0.438, "success_ema": 0.668, "level": 3, "size": 16, "replayed": false}
+{"iteration": 1450, "minutes": 92.21, "loss": 0.3946, "success": 1.0, "success_ema": 0.689, "level": 3, "size": 28, "replayed": true}
+{"iteration": 1500, "minutes": 95.67, "loss": 0.6368, "success": 0.719, "success_ema": 0.741, "level": 3, "size": 24, "replayed": false}
+{"iteration": 1550, "minutes": 98.39, "loss": 0.7999, "success": 0.594, "success_ema": 0.694, "level": 3, "size": 20, "replayed": false}
+{"iteration": 1600, "minutes": 101.71, "loss": 0.6851, "success": 0.719, "success_ema": 0.764, "level": 3, "size": 24, "replayed": false}
+{"iteration": 1621, "minutes": 103.18, "loss": 0.5357, "success": 0.906, "success_ema": 0.0, "level": 4, "size": 32, "replayed": false}
+{"iteration": 1650, "minutes": 104.93, "loss": 0.472, "success": 0.875, "success_ema": 0.434, "level": 4, "size": 32, "replayed": false}
+{"iteration": 1700, "minutes": 107.34, "loss": 0.4923, "success": 0.906, "success_ema": 0.629, "level": 4, "size": 32, "replayed": false}
+{"iteration": 1750, "minutes": 110.07, "loss": 0.5414, "success": 0.781, "success_ema": 0.723, "level": 4, "size": 24, "replayed": false}
+{"iteration": 1800, "minutes": 113.31, "loss": 0.5373, "success": 0.875, "success_ema": 0.75, "level": 4, "size": 28, "replayed": false}
+{"iteration": 1850, "minutes": 116.13, "loss": 0.6706, "success": 0.625, "success_ema": 0.759, "level": 4, "size": 20, "replayed": true}
+{"iteration": 1900, "minutes": 119.69, "loss": 0.4004, "success": 1.0, "success_ema": 0.735, "level": 4, "size": 24, "replayed": true}
+{"iteration": 1950, "minutes": 122.7, "loss": 0.3881, "success": 1.0, "success_ema": 0.789, "level": 4, "size": 40, "replayed": false}
+{"iteration": 1956, "minutes": 123.2, "loss": 0.398, "success": 1.0, "success_ema": 0.0, "level": 5, "size": 40, "replayed": false}
+{"iteration": 2000, "minutes": 125.45, "loss": 0.6901, "success": 0.656, "success_ema": 0.447, "level": 5, "size": 28, "replayed": false}
+{"iteration": 2050, "minutes": 128.17, "loss": 0.6196, "success": 0.75, "success_ema": 0.546, "level": 5, "size": 28, "replayed": false}
+{"iteration": 2100, "minutes": 131.35, "loss": 0.8212, "success": 0.25, "success_ema": 0.555, "level": 5, "size": 24, "replayed": false}
+{"iteration": 2150, "minutes": 134.51, "loss": 0.6726, "success": 0.531, "success_ema": 0.587, "level": 5, "size": 16, "replayed": false}
+{"iteration": 2200, "minutes": 137.33, "loss": 0.6547, "success": 0.719, "success_ema": 0.554, "level": 5, "size": 40, "replayed": false}
+{"iteration": 2250, "minutes": 140.45, "loss": 0.7355, "success": 0.594, "success_ema": 0.605, "level": 5, "size": 24, "replayed": false}
+{"iteration": 2300, "minutes": 143.52, "loss": 0.7378, "success": 0.469, "success_ema": 0.589, "level": 5, "size": 16, "replayed": true}
+{"iteration": 2350, "minutes": 146.61, "loss": 0.7011, "success": 0.594, "success_ema": 0.553, "level": 5, "size": 16, "replayed": false}
+{"iteration": 2400, "minutes": 150.32, "loss": 0.392, "success": 1.0, "success_ema": 0.588, "level": 5, "size": 32, "replayed": true}
+{"iteration": 2450, "minutes": 153.38, "loss": 0.7791, "success": 0.594, "success_ema": 0.585, "level": 5, "size": 24, "replayed": false}
+{"iteration": 2500, "minutes": 156.58, "loss": 0.7276, "success": 0.625, "success_ema": 0.597, "level": 5, "size": 28, "replayed": false}
+{"iteration": 2550, "minutes": 160.16, "loss": 0.7351, "success": 0.531, "success_ema": 0.625, "level": 5, "size": 16, "replayed": false}
+{"iteration": 2600, "minutes": 163.11, "loss": 0.784, "success": 0.469, "success_ema": 0.592, "level": 5, "size": 24, "replayed": false}
+{"iteration": 2650, "minutes": 166.29, "loss": 0.4604, "success": 1.0, "success_ema": 0.62, "level": 5, "size": 16, "replayed": true}
+{"iteration": 2700, "minutes": 169.13, "loss": 0.6768, "success": 0.688, "success_ema": 0.588, "level": 5, "size": 32, "replayed": false}
+{"iteration": 2750, "minutes": 172.53, "loss": 0.3783, "success": 1.0, "success_ema": 0.614, "level": 5, "size": 28, "replayed": true}
+{"iteration": 2800, "minutes": 175.42, "loss": 0.7036, "success": 0.469, "success_ema": 0.598, "level": 5, "size": 20, "replayed": false}
+{"iteration": 2850, "minutes": 178.23, "loss": 0.6518, "success": 0.688, "success_ema": 0.598, "level": 5, "size": 32, "replayed": false}
+{"iteration": 2900, "minutes": 181.15, "loss": 0.7425, "success": 0.656, "success_ema": 0.583, "level": 5, "size": 28, "replayed": false}
+{"iteration": 2950, "minutes": 184.49, "loss": 0.4513, "success": 1.0, "success_ema": 0.581, "level": 5, "size": 16, "replayed": true}
+{"iteration": 3000, "minutes": 187.03, "loss": 0.6543, "success": 0.594, "success_ema": 0.584, "level": 5, "size": 20, "replayed": false}
+{"iteration": 3050, "minutes": 189.58, "loss": 0.6907, "success": 0.656, "success_ema": 0.592, "level": 5, "size": 32, "replayed": false}
+{"iteration": 3100, "minutes": 192.24, "loss": 0.3853, "success": 1.0, "success_ema": 0.606, "level": 5, "size": 40, "replayed": true}
+{"iteration": 3150, "minutes": 195.33, "loss": 0.6348, "success": 0.719, "success_ema": 0.621, "level": 5, "size": 24, "replayed": true}
+{"iteration": 3200, "minutes": 198.54, "loss": 0.6701, "success": 0.781, "success_ema": 0.628, "level": 5, "size": 32, "replayed": false}
+{
+  "name": "v3b-big-levels",
+  "iterations": 3222,
+  "final_level": 5,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.602694489589465,
+  "val": {
+    "interp": {
+      "success": 0.3958333432674408,
+      "time": 0.6986093521118164,
+      "final_surround": 0.7820426821708679,
+      "fog": 0.4447171688079834,
+      "final_gathered": 0.6210786700248718
+    },
+    "extrap": {
+      "success": 0.328125,
+      "time": 0.7317301034927368,
+      "final_surround": 0.5041117668151855,
+      "fog": 0.24146677553653717,
+      "final_gathered": 0.409309059381485
+    },
+    "damage": {
+      "success": 0.3541666567325592,
+      "time": 0.7189236283302307,
+      "final_surround": 0.7137070298194885,
+      "fog": 0.5122883915901184,
+      "final_gathered": 0.5928834080696106
+    },
+    "score": 0.7164210279782613
+  }
+}

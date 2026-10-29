@@ -19,8 +19,8 @@ import torch
 
 from beebot import feast
 from beebot.evaluate import evaluate
-from beebot.model import StickyBaseline
-from beebot.render import render_examples
+from beebot.model import NCA, StickyBaseline
+from beebot.render import render_demo, render_examples
 from beebot.train import LEVELS, Config
 from beebot.train_feast import FeastConfig
 
@@ -28,8 +28,10 @@ SITE = Path("site")
 DOCUMENTS = ["JOURNAL.md", "HILLCLIMB.md"]
 # Run settings that don't change what the model learns; left out of the "change" column.
 NOT_A_CHANGE = {"name", "device", "log_every", "init", "use_checkpoint"}
-# Only each stage's best runs get videos on the page, to keep the site small.
-RUNS_WITH_VIDEOS = {"current": 2, "closed": 1}
+# The page's demo is the stage's best run (best val score without the smelling
+# control), on the hardest val layouts it solved. Stages whose physics the
+# current code no longer reproduces ("demo": "fixed") keep the videos rendered
+# when they ran.
 
 # Newest first. "reference" is the run whose config counts as that stage's
 # defaults; None means the current Config defaults.
@@ -56,6 +58,7 @@ STAGES = [
         "title": "Terrain",
         "folder": "runs_v3a",
         "reference": "v3r1-blind",
+        "steps_per_cell": 3,
         "status": "closed",
         "summary": "No smell, pheromones, the whole swarm must gather, and random cave-like walls covering up to 30% of the world. Time limit 3 steps per grid square. Best blind val 0.724 (44/39/42%); the scent-following control reached 96/95/89%.",
     },
@@ -64,6 +67,7 @@ STAGES = [
         "title": "No smell",
         "folder": "runs_v2",
         "reference": "v2r1-lr1e3",
+        "demo": "fixed",
         "status": "closed",
         "summary": "Touch only. Robots lay pheromones, only robots write them, and a scrap of a robot moves in proportion to its mass. Late in the stage, success also required the whole swarm to gather.",
     },
@@ -72,6 +76,7 @@ STAGES = [
         "title": "Smell",
         "folder": "runs_v1",
         "reference": "sanity",
+        "demo": "fixed",
         "status": "closed",
         "summary": "Every square smells the cheese, so the environment hands each robot an arrow. Saturated near the physical limit; final test 0.267 vs baseline 0.405.",
     },
@@ -121,9 +126,9 @@ def read_json(path):
     return json.loads(path.read_text()) if path.exists() else None
 
 
-def copy_videos(run_dir, stage_id, name):
+def copy_videos(source, stage_id, name):
     videos = []
-    for gif in sorted((run_dir / "videos").glob("*.gif")):
+    for gif in sorted(source.glob("*.gif")):
         target = SITE / "media" / stage_id / name / gif.name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(gif, target)
@@ -131,7 +136,25 @@ def copy_videos(run_dir, stage_id, name):
     return videos
 
 
-def collect_stage(stage):
+def demo(stage, run_dir, device):
+    """Videos and captions for the stage's best run, rendered once and kept in its demo/ folder."""
+    if stage.get("demo") == "fixed":
+        return {"run": run_dir.name, "videos": copy_videos(run_dir / "videos", stage["id"], run_dir.name), "picks": None}
+    picks_path = run_dir / "demo" / "picks.json"
+    if not picks_path.exists():
+        config = read_json(run_dir / "config.json")
+        model = NCA(hidden=config["hidden"], n_hidden_layers=config["n_hidden_layers"], privileged=config.get("privileged", False))
+        model.load_state_dict(torch.load(run_dir / "model.pt", map_location=device))
+        model.to(device).eval()
+        if stage.get("task") == "feast":
+            picks = feast.render_demo(model, device, run_dir / "demo")
+        else:
+            picks = render_demo(model, device, run_dir / "demo", stage.get("steps_per_cell", 6))
+        picks_path.write_text(json.dumps(picks, indent=2))
+    return {"run": run_dir.name, "videos": copy_videos(run_dir / "demo", stage["id"], run_dir.name), "picks": read_json(picks_path)}
+
+
+def collect_stage(stage, device):
     folder = Path(stage["folder"])
     if stage["reference"]:
         defaults = read_json(folder / stage["reference"] / "config.json")
@@ -164,12 +187,11 @@ def collect_stage(stage):
         )
 
     runs.sort(key=lambda r: r["val"]["score"])
-    # A privileged control can outscore every real run, so the best run without it always gets videos too.
-    best_blind = next((r["name"] for r in runs if not r["changes"].get("privileged")), None)
-    for rank, run in enumerate(runs):
-        run_dir = run.pop("run_dir")
-        keep = rank < RUNS_WITH_VIDEOS[stage["status"]] or run["name"] == best_blind
-        run["videos"] = copy_videos(run_dir, stage["id"], run["name"]) if keep else []
+    # A privileged control can outscore every real run, so the demo is the best run without it.
+    best = next((r for r in runs if not r["changes"].get("privileged")), None)
+    stage_demo = demo(stage, best["run_dir"], device) if best else None
+    for run in runs:
+        run.pop("run_dir")
 
     baseline_dir = folder / "baseline"
     baseline = read_json(baseline_dir / "summary.json")
@@ -181,9 +203,9 @@ def collect_stage(stage):
         "levels": 0 if stage.get("task") == "feast" else len(LEVELS),
         "baseline": {
             "val": baseline["val"] if baseline else None,
-            "videos": copy_videos(baseline_dir, stage["id"], "baseline") if baseline else [],
             "probes": read_json(baseline_dir / "probes.json"),
         },
+        "demo": stage_demo,
         "runs": runs,
     }
 
@@ -195,7 +217,7 @@ def main():
     if (SITE / "media").exists():
         shutil.rmtree(SITE / "media")
 
-    stages = [collect_stage(stage) for stage in STAGES]
+    stages = [collect_stage(stage, device) for stage in STAGES]
     for document in DOCUMENTS:
         if Path(document).exists():
             shutil.copyfile(document, SITE / document)
