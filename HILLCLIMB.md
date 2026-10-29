@@ -233,3 +233,13 @@ v3b population (clipping, cosine, `caffeinate -i`):
 The learning rate is 5e-4 rather than 1e-3: the 192-wide run collapsed at 9.5e-4 the day before, while the laptop was awake.
 
 Note: the cancelled runs' stdout logs overwrote the stdout logs of the runs the laptop slept through (`runs_invalid/`). Those runs' `log.jsonl` and val histories are intact.
+
+Check-in at 90 minutes:
+
+| Run | Val at 30 / 60 / 90 min | Interp | Extrap | Damage | Notes |
+| --- | --- | --- | --- | --- | --- |
+| v3b-explore-slow | 0.627 / 0.627 / 0.627 | 0.59 | 0.50 | 0.51 | Flat on val. Training success at start distances 10 to 20 keeps rising (25-40% at 50 min, 32-44% at 92 min), but val doesn't follow. Ends at 120 min. |
+| v3b-base-levels (96) | 0.885 / 0.808 / 0.795 | 0.38 | 0.17 | 0.32 | Level 4, still improving. |
+| v3b-big-levels (192) | 0.972 / 0.887 / 0.867 | 0.21 | 0.08 | 0.20 | Level 3. Also behind at equal iterations: 1450 iterations here vs 0.808 for the 96-wide run at about 1350. |
+
+So far, width doesn't help: the 192-wide network is slower per iteration and no better per iteration.
