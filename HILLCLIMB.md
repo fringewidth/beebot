@@ -317,3 +317,17 @@ First stage under the bitter-lesson rule. The loss is the task only, the unfille
 Frozen sets: val seed 3000 (interp sizes 22, 30, 36 with 2 to 4 cheeses; extrap 48, 64 with 5 or 6), test seed 4000 (interp 18, 26, 34; extrap 56, 72), plus the damage split. Score = mean time fraction over the three splits, as before. Code: `src/beebot/feast.py`, `src/beebot/train_feast.py`, tests in `tests/test_feast.py`.
 
 Run: v4-feast, 96 wide, batch 64 (more compute per step, since the task-only loss gives a sparse signal), lr 5e-4 cosine, 240 minutes, alone on the GPU.
+
+**v3b diagnostic: is the finalist weak because it runs out of time?** (Asked by the user. Val only; same rollouts read off at 6x, 12x and 24x the grid size.)
+
+| Split | Success at 6x | 12x | 24x | 6x failures that succeed by 24x |
+| --- | --- | --- | --- | --- |
+| Interp | 0.46 | 0.55 | 0.58 | 23% |
+| Extrap | 0.44 | 0.50 | 0.62 | 33% |
+
+Mostly no. Four times the time recovers a quarter to a third of the failures. Far starts in bigger worlds gain the most (start 15 to 25 squares: 27%, 40%, 53%). Among the layouts still failing at 24x:
+- The swarm usually found the cheese: only 12% (interp) and 22% (extrap) of all 6x failures never touch it even by 24x.
+- 55% (interp) and 38% (extrap) filled the ring at some point, but never with 80% of the swarm gathered at the same time (best gathered share 0.54 and 0.37 on average). By 24x the ring has emptied again: final ring share 0.20 and 0.10, final gathered share 0.24 and 0.12.
+- Even from starts 2 to 6 squares away, about 18% fail at every limit.
+
+So the main weakness is recruiting the whole swarm and holding the formation, not search time. Behavior after 6x is past the training horizon, so the drift away from the cheese may just be untrained behavior; but the failure to gather is there within the limit too.

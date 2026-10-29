@@ -19,7 +19,7 @@ descent through the full rollout.
 | --- | --- | --- |
 | **v1: Smell** | Every square smells the cheese | Solved. Test score 0.267 vs a hand-written rule's 0.405, near the physical limit. Robust to damage, noise, asynchrony, and split starts it never trained on. Failed only in 128x128 worlds, where the smell is fainter than anything it trained on. |
 | **v2: No smell** | Touch only, plus pheromones it learns to use | Learned honestly: 45% of unseen layouts surrounded, against 0% for a hand-written wanderer. Cutting off pheromones drops it to 0%, so it really communicates. When we required the *whole* swarm to gather, not just enough to fill the ring, it dropped to 12%. Not solved. |
-| **v3: Terrain** | v2 plus random cave-like walls, 6x time limit | Proof of concept, closed. Trained from scratch: test 0.695, 52% of unseen sizes, 38% of bigger worlds, 44% damaged, against 0% for a hand-written wanderer. Blocking pheromones drops it to 0%. Weak at long-range search and at reuniting split nests. |
+| **v3: Terrain** | v2 plus random cave-like walls, 6x time limit | Proof of concept, closed. Trained from scratch: test 0.695, 52% of unseen sizes, 38% of bigger worlds, 44% damaged, against 0% for a hand-written wanderer. Blocking pheromones drops it to 0%. Not limited by time: with 4x the time, val success only rises from 46/44% to 58/62%. It usually finds the cheese but fails to bring the whole swarm in and hold it there. Weak at reuniting split nests. |
 
 ## What we learned so far
 
