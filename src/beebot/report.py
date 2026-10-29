@@ -49,7 +49,7 @@ STAGES = [
         "folder": "runs_v3b",
         "reference": None,
         "status": "closed",
-        "summary": "v3a with the time limit doubled to 6 steps per grid square, trained from scratch. Closed as a proof of concept: test 0.695 (52/38/44% of layouts) against 0% for the hand-written baseline; blocking pheromones drops it to 0%. Long-range search (starts more than 15 squares away) and reuniting separate nests remain weak.",
+        "summary": "v3a with the time limit doubled to 6 steps per grid square, trained from scratch. Closed as a proof of concept: test 0.695 (52/38/44% of layouts) against 0% for the hand-written baseline; blocking pheromones drops it to 0%. The main weakness is recruiting the whole swarm and holding the formation, not time: with 4x the time limit, val success rises only from 46/44% to 58/62%. Reuniting separate nests is also weak.",
     },
     {
         "id": "v3a",
