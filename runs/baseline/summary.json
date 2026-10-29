@@ -1,0 +1,21 @@
+{
+  "name": "baseline",
+  "val": {
+    "interp": {
+      "success": 0.0,
+      "time": 1.0,
+      "eaten_share": 0.0
+    },
+    "extrap": {
+      "success": 0.0,
+      "time": 1.0,
+      "eaten_share": 0.02812499925494194
+    },
+    "damage": {
+      "success": 0.0,
+      "time": 1.0,
+      "eaten_share": 0.0
+    },
+    "score": 1.0
+  }
+}
