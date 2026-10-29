@@ -285,3 +285,5 @@ v3b-priv-scratch (control, from scratch) at 30 minutes: 0.745 (41/34/38%), alrea
 New:
 - v3b-base-levels-cont: v3b-base-levels continued from its own final checkpoint at level 5, fresh cosine from lr 5e-4, 200 minutes. Same run, more compute; its starting score (0.691) is the first best candidate.
 - v3b-base-seed1: v3b-base-levels repeated with seed 1, to check that the climb isn't one lucky seed.
+
+Scope (user, 2026-10-29): the point of each stage is an existence proof, that the task is achievable by swarm intelligence. Those proofs make the case for a general model that does all the tasks with the same weights. So no ablations or variants for their own sake: one from-scratch recipe per task, given compute until it clears the bar. v3b-base-seed1 cancelled (`runs_cancelled/`). Running: v3b-base-levels-cont (the main line) and v3b-priv-scratch (control, ends about 18:20; it shows whether the bar is reachable at 6x from scratch).
