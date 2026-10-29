@@ -268,3 +268,5 @@ Consequences:
 - The 6x scores of v3a checkpoints (control 98/97/98%, blind 58/45/53%) were measured on fine-tune lineages: v3z-priv descends from v3r1-privileged, v3z-explore-slow from v3x-explore and v3p-adaptive. They motivated the 6x limit but aren't v3b results.
 - So the feasibility control has to be redone from scratch: v3b-priv-scratch, identical to v3b-base-levels except that it smells the walking distance (96 wide, lr 5e-4, w_explore 0.15, level curriculum, 200 min).
 - In v1 to v3a, several reported runs were fine-tunes or teacher starts; their configs (`init`) say which.
+
+Note (user, 2026-10-29): v3b keeps its current setup (shaping terms and curriculum unchanged). From the next stage on, experiments follow the bitter lesson: as little human-engineered help as possible (shaping terms, hand-staged curricula, scripted structure), and more compute instead. Feast, Chase, Rivals and 3D are the groundwork before the language-conditioned control idea (VLA.md).
