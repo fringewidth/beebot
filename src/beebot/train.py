@@ -211,6 +211,10 @@ def train(cfg):
         )
         return future, size, replayed, None
 
+    # A fine-tune's starting point is a candidate too, so a run never ends worse than it began.
+    if cfg.init:
+        best_score = keep_if_best(run_dir, model, device, best_score, iteration, 0.0)
+
     pending = request_batch()
     while awake_seconds() - start < cfg.minutes * 60 and not (run_dir / "STOP").exists():
         future, size, replayed, distance = pending
