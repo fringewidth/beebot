@@ -349,3 +349,11 @@ Decision (user): fog is not okay. Add ad hoc loss terms for the ideal behavior; 
 - Evaluation now also reports fog (time-averaged share of the mass on squares holding less than half a robot).
 
 v4-feast-ema stopped (`runs_cancelled/`). New run from scratch: v4-feast-shaped, batch 64, averaged weights, lr 3e-4, 480 minutes. The time limit stays at 6 steps per grid square.
+
+v4-feast-shaped at 100 minutes: learning is slow but real. Training batches: eaten share 0 to 0.38, full success 11%. Val at 90 minutes: 0.998 (interp 1% success, 20% eaten). But fog share on training batches rose from 0.35 to 0.54 as eating improved, so at w_fog 0.1 the net is relearning the fog strategy, only more slowly. A second run, from scratch, goes in parallel: v4-feast-fog1, identical except w_fog 1.0. Whichever one clears the bar without fog is the recipe; the other is cancelled. This is not an ablation: at 0.1 the fog weight fails the requirement.
+
+v4-feast-fog1 froze. By 18 minutes the loss sat at exactly 1.5 (deficit 1 + time 0.5): every robot stays put, fog 0, nothing eaten, val 1.0 at 30 minutes. Moving an untrained swarm always makes thin squares, so at a flat weight of 1.0 each move costs more than it can earn, and standing still is a dead local minimum. Cancelled (`runs_cancelled/`).
+
+v4-feast-shaped at 150 minutes: val 0.92 (interp 34% fully eaten, extrap 6%, damage 21%), but fog 0.66 to 0.69, rising with success. It is the fog strategy again.
+
+Recipe change: the fog weight ramps linearly from 0.1 to 1.0 over the first half of training (`--w_fog_final 1.0`, `fog_ramp 0.5`). The swarm learns to move and eat while fog is cheap, then has to compact as fog gets expensive. New run from scratch: v4-feast-fogramp, otherwise identical. v4-feast-shaped keeps running as the flat-0.1 reference until fogramp shows whether the ramp works.

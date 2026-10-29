@@ -55,6 +55,11 @@ class FeastConfig:
     use_checkpoint: bool = True
     w_crowding: float = 1.0  # robots take up space
     w_fog: float = 0.1  # squares holding a thin film of robot (see feast.py)
+    # If set, w_fog ramps linearly to this over the first fog_ramp share of training. At a
+    # flat 1.0 from step 0 every move costs more than it earns and the swarm freezes
+    # (v4-feast-fog1); at a flat 0.1 the swarm learns to eat by fog again (v4-feast-shaped).
+    w_fog_final: float = 0.0
+    fog_ramp: float = 0.5
     w_time: float = 0.5  # every step until the last cheese is eaten
 
     log_every: int = 20
@@ -102,13 +107,16 @@ def train(cfg):
         n_steps = round(cfg.steps_per_cell * size)
 
         result = feast.rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
-        value = feast.loss(result, cfg.w_crowding, cfg.w_fog, cfg.w_time)
+        progress = min(1.0, (awake_seconds() - start) / (cfg.minutes * 60))
+        w_fog = cfg.w_fog
+        if cfg.w_fog_final:
+            w_fog += (cfg.w_fog_final - cfg.w_fog) * min(1.0, progress / cfg.fog_ramp)
+        value = feast.loss(result, cfg.w_crowding, w_fog, cfg.w_time)
         if not torch.isfinite(value):
             diverged = True
             print(json.dumps({"iteration": iteration, "diverged": True}), flush=True)
             break
         if cfg.lr_schedule == "cosine":
-            progress = min(1.0, (awake_seconds() - start) / (cfg.minutes * 60))
             scale = cfg.lr_floor + (1 - cfg.lr_floor) * 0.5 * (1 + np.cos(np.pi * progress))
             for group in optimizer.param_groups:
                 group["lr"] = cfg.lr * scale
@@ -132,6 +140,7 @@ def train(cfg):
                 "eaten_share": round(eaten_share, 3),
                 "fog": round(result.fog_share.mean().item(), 3),
                 "success_ema": round(success_ema, 3),
+                "w_fog": round(w_fog, 3),
                 "size": size,
             }
             log.write(json.dumps(entry) + "\n")
