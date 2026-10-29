@@ -307,3 +307,13 @@ Finalist v3b-base-levels (96 wide, from scratch, 200 minutes, level 5 of 9):
 | 2 / 3 separate nests | 0.25 / 0.06 |
 | 128x128 world | 0.19 |
 | No walls / walls 40-45% | 0.53 / 0.47 |
+
+## v4: Feast
+
+Two to four cheeses (1 to 5 squares each, never touching) on the same terrain (walls up to 30%), no smell. A cheese is eaten once every square of its ring holds more than tau, and then it disappears. Success is eating every cheese within the limit (6 steps per grid square). The whole-swarm gather rule is dropped: with several cheeses the swarm has to split. Swarm mass is 1.5 times the total ring size (or 6% of the open floor, if larger), enough to eat every cheese at once.
+
+First stage under the bitter-lesson rule. The loss is the task only, the unfilled share of the remaining cheeses' rings at every step, plus the crowding penalty, which stands in for robots taking up space. No distance or exploration terms, no curriculum: every batch samples the full range of sizes, cheese counts and walls. Trained from scratch.
+
+Frozen sets: val seed 3000 (interp sizes 22, 30, 36 with 2 to 4 cheeses; extrap 48, 64 with 5 or 6), test seed 4000 (interp 18, 26, 34; extrap 56, 72), plus the damage split. Score = mean time fraction over the three splits, as before. Code: `src/beebot/feast.py`, `src/beebot/train_feast.py`, tests in `tests/test_feast.py`.
+
+Run: v4-feast, 96 wide, batch 64 (more compute per step, since the task-only loss gives a sparse signal), lr 5e-4 cosine, 240 minutes, alone on the GPU.

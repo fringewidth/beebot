@@ -287,18 +287,24 @@ function probes(stage) {
 }
 
 function curves(stage) {
-  const s = section("Curriculum progress", "Training starts with small cheese close by and unlocks harder layouts once the success rate holds above 80%.");
+  // Stages with a curriculum plot the level reached; stages without one plot the training success rate.
+  const byLevel = stage.levels > 0;
+  const s = byLevel
+    ? section("Curriculum progress", "Training starts with small cheese close by and unlocks harder layouts once the success rate holds above 80%.")
+    : section("Training success", "Share of training layouts where every cheese was eaten, smoothed. No curriculum: every batch samples the full range of layouts.");
   const runs = stage.runs.filter(r => r.curve.length);
   if (!runs.length) { s.append(el("p", { class: "empty" }, "No runs yet.")); return s; }
   const W = 720, H = 280, left = 40, right = 170, top = 16, bottom = 32;
   const maxMin = Math.max(1, ...runs.map(r => r.curve[r.curve.length - 1][0]));
-  const maxLevel = stage.levels - 1;
+  const maxLevel = byLevel ? stage.levels - 1 : 1;
+  const at = byLevel ? 1 : 2;
   const x = m => left + (m / maxMin) * (W - left - right);
   const y = l => top + (1 - l / maxLevel) * (H - top - bottom);
-  const g = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Curriculum level over training minutes per run" });
-  for (let l = 0; l <= maxLevel; l += 2) {
+  const g = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": byLevel ? "Curriculum level over training minutes per run" : "Training success over training minutes per run" });
+  const ticks = byLevel ? Array.from({ length: Math.floor(maxLevel / 2) + 1 }, (_, i) => i * 2) : [0, 0.5, 1];
+  for (const l of ticks) {
     g.append(svg("line", { x1: left, x2: W - right, y1: y(l), y2: y(l), stroke: "var(--line)" }));
-    g.append(svg("text", { x: left - 8, y: y(l) + 4, "text-anchor": "end" }, String(l)));
+    g.append(svg("text", { x: left - 8, y: y(l) + 4, "text-anchor": "end" }, byLevel ? String(l) : pct(l)));
   }
   const step = maxMin > 40 ? 15 : maxMin > 10 ? 5 : 1;
   for (let m = 0; m <= maxMin; m += step) g.append(svg("text", { x: x(m), y: H - 10, "text-anchor": "middle" }, m + "m"));
@@ -306,9 +312,10 @@ function curves(stage) {
     const color = COLORS[i % COLORS.length];
     let d = `M ${x(0)} ${y(0)}`;
     let prev = 0;
-    for (const [m, level] of run.curve) { d += ` L ${x(m)} ${y(prev)} L ${x(m)} ${y(level)}`; prev = level; }
+    for (const point of run.curve) { const m = point[0], level = point[at]; d += byLevel ? ` L ${x(m)} ${y(prev)} L ${x(m)} ${y(level)}` : ` L ${x(m)} ${y(level)}`; prev = level; }
     g.append(svg("path", { d, fill: "none", stroke: color, "stroke-width": 2 }));
-    const [lm, ll] = run.curve[run.curve.length - 1];
+    const last = run.curve[run.curve.length - 1];
+    const lm = last[0], ll = last[at];
     g.append(svg("circle", { cx: x(lm), cy: y(ll), r: 3.5, fill: color }));
     g.append(svg("text", { x: W - right + 10, y: top + 12 + i * 16, fill: color }, run.name));
   });
@@ -338,7 +345,7 @@ function table(stage) {
     tr.append(changes);
     tr.append(el("td", { class: "r num" }, run.minutes ?? "–"));
     tr.append(el("td", { class: "r num" }, run.iterations ?? "–"));
-    tr.append(el("td", { class: "r num" }, run.final_level !== undefined ? `${run.final_level}/${stage.levels - 1}` : "–"));
+    tr.append(el("td", { class: "r num" }, run.final_level !== undefined && stage.levels ? `${run.final_level}/${stage.levels - 1}` : "–"));
     for (const split of SPLITS) tr.append(el("td", { class: "r num" }, `${pct(run.val[split].success)} · ${fmt(run.val[split].time, 2)}`));
     tr.append(el("td", { class: "r num" }, fmt(run.val.score)));
     t.append(tr);

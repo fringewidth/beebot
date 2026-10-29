@@ -111,14 +111,14 @@ def awake_seconds():
     return time.clock_gettime(getattr(time, "CLOCK_UPTIME_RAW", time.CLOCK_MONOTONIC))
 
 
-def parse_config():
+def parse_config(config_class=Config):
     parser = argparse.ArgumentParser()
-    for field in dataclasses.fields(Config):
+    for field in dataclasses.fields(config_class):
         if field.type is bool:
             parser.add_argument(f"--{field.name}", type=lambda s: s.lower() in ("1", "true", "yes"), default=field.default)
         else:
             parser.add_argument(f"--{field.name}", type=field.type, default=field.default)
-    return Config(**vars(parser.parse_args()))
+    return config_class(**vars(parser.parse_args()))
 
 
 def normalize_gradients(model):
@@ -134,7 +134,7 @@ def save_checkpoint(run_dir, model, iteration, level, minutes):
     (run_dir / "checkpoint.json").write_text(json.dumps(state))
 
 
-def keep_if_best(run_dir, model, device, best_score, iteration, minutes):
+def keep_if_best(run_dir, model, device, best_score, iteration, minutes, evaluate=evaluate):
     """Score the model on val; if it's the best so far, save it as model_best.pt. Returns the best score."""
     # Evaluation reseeds the random generators for determinism; keep training's own randomness intact.
     cpu_state = torch.get_rng_state()
