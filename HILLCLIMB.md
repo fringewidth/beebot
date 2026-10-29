@@ -244,7 +244,7 @@ Check-in at 90 minutes:
 
 So far, width doesn't help: the 192-wide network is slower per iteration and no better per iteration.
 
-v3b-explore-slow finished: val **0.626** (interp 0.59, extrap 0.48, damage 0.54), flat from 30 minutes on (0.627, 0.627, 0.627, 0.626). New best blind result, but the fine-tune at 6x added almost nothing over the starting checkpoint scored at 6x (0.624 before, with a different val random state; within noise).
+v3b-explore-slow finished: val **0.626** (interp 0.59, extrap 0.48, damage 0.54), flat from 30 minutes on (0.627, 0.627, 0.627, 0.626). The fine-tune didn't help: its starting checkpoint (v3z-explore-slow's best) scores 0.624 at 6x, slightly better, and evaluation is deterministic, so that's not noise. The run never saved its starting point as a candidate, because its first val check is at 30 minutes. The best blind checkpoint at 6x is still `runs_v3a/v3z-explore-slow/model_best.pt` (0.624).
 
 Failure breakdown (val interp + extrap, no damage, 160 layouts, 55% success):
 
