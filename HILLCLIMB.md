@@ -340,3 +340,12 @@ Diagnosis (no code bug): the weights swing between good and bad within 10 to 20 
 - So the val checks landed in dips, and any raw snapshot is a lottery ticket.
 
 Fix: checkpoints, val checks and the final model now use an exponential moving average of the weights (decay 0.995, about a 200-step window), and lr goes from 5e-4 to 3e-4. Both are standard, general-purpose training practice, not task knowledge. v4-feast stopped (`runs_cancelled/`). New run from scratch: v4-feast-ema, batch 64, 240 minutes.
+
+v4-feast-ema at 30 minutes: val 0.808, with 72% of unseen sizes and 69% of bigger worlds fully eaten (damage 30%). The averaged weights closed the train/val gap. But the videos show the fog strategy: the swarm dissolves into a film over the whole world and condenses onto each ring. Measured on val layouts, 73 to 96% of the mass sits on squares holding less than half a robot, and mass covers 85% of the world. On terrain, the whole-swarm gather rule had kept swarms compact. Feast dropped it, and the proportional-mobility rule alone only slows fog down.
+
+Decision (user): fog is not okay. Add ad hoc loss terms for the ideal behavior; splitting the swarm is fine. Train longer.
+- **Fog term** (w_fog 0.1): a soft count of squares holding some mass but less than half a robot, per unit of swarm mass. It's a sine bump on [0, 0.5]: zero for empty squares and at half a robot, peaking at a quarter, so thin squares are pushed to empty or up to half a robot. It measures about 4 to 5 on the fog swarm (so 0.4 to 0.5 after weighting, more than the task loss it earns), 0 on a compact swarm, and 1.2 on an untrained network.
+- **Time term** (w_time 0.5): 1 minus the product, over remaining cheeses, of their ring coverage. A cost at every step until the last cheese is eaten.
+- Evaluation now also reports fog (time-averaged share of the mass on squares holding less than half a robot).
+
+v4-feast-ema stopped (`runs_cancelled/`). New run from scratch: v4-feast-shaped, batch 64, averaged weights, lr 3e-4, 480 minutes. The time limit stays at 6 steps per grid square.

@@ -118,3 +118,53 @@ def test_evaluation_is_deterministic():
     first = evaluate(StickyBaseline(), torch.device("cpu"), "val")
     second = evaluate(StickyBaseline(), torch.device("cpu"), "val")
     assert first == second
+
+
+def test_fog_term_counts_thin_squares_only():
+    size = 12
+    walls = torch.zeros(1, size, size, dtype=torch.bool)
+    cheese = torch.zeros(1, 1, size, size, dtype=torch.bool)
+    cheese[0, 0, 6, 6] = True
+    rings = torch.zeros_like(cheese)
+    rings[0, 0, 5:8, 5:8] = True
+    rings[0, 0, 6, 6] = False
+
+    compact = torch.zeros(1, size, size)
+    compact[0, 0:2, 0:4] = 1.0  # 8 whole robots
+    film = torch.full((1, size, size), 8.0 / (size * size - 1))  # the same 8 robots spread thin
+    film[0, 6, 6] = 0.0
+    results = {}
+    for name, mass in (("compact", compact), ("film", film)):
+        batch = FeastBatch(mass=mass, cheese=cheese, walls=walls, rings=rings)
+        results[name] = rollout(StayPolicy(), batch, 2, 1.0, 0.5)
+    assert results["compact"].fog.abs().max() < 1e-6
+    assert results["compact"].fog_share.abs().max() < 1e-6
+    assert (results["film"].fog > 5).all(), "143 thin squares for 8 robots"
+    assert torch.allclose(results["film"].fog_share, torch.ones(2))
+
+
+def test_unfinished_is_zero_only_when_everything_is_eaten():
+    size = 12
+    walls = torch.zeros(1, size, size, dtype=torch.bool)
+    cheese = torch.zeros(1, 2, size, size, dtype=torch.bool)
+    cheese[0, 0, 3, 3] = True
+    cheese[0, 1, 8, 8] = True
+    rings = torch.zeros_like(cheese)
+    for k, (y, x) in enumerate([(3, 3), (8, 8)]):
+        rings[0, k, y - 1 : y + 2, x - 1 : x + 2] = True
+        rings[0, k, y, x] = False
+    mass = torch.zeros(1, size, size)
+    mass[rings[:, 0]] = 1.0
+    one_left = rollout(StayPolicy(), FeastBatch(mass=mass, cheese=cheese, walls=walls, rings=rings), 2, 1.0, 0.5)
+    assert (one_left.unfinished > 0.99).all(), "the second ring is empty"
+    mass[rings[:, 1]] = 1.0
+    done = rollout(StayPolicy(), FeastBatch(mass=mass, cheese=cheese, walls=walls, rings=rings), 2, 1.0, 0.5)
+    assert done.unfinished.abs().max() < 1e-6
+
+
+def test_shaped_loss_trains_every_layer(batch):
+    model = NCA()
+    value = loss(rollout(model, batch, 12, 0.75, 0.5), 1.0, 0.1, 0.5)
+    assert torch.isfinite(value)
+    value.backward()
+    assert all(p.grad is not None for p in model.parameters())
