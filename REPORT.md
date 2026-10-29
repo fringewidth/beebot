@@ -114,3 +114,7 @@ Round results are in the Terrain tab and the run log.
    cheese only the two together can move.
 1. **3D:** every task again in voxel space: 3x3x3 neighborhoods, cave-like 3D
    terrain, a shell instead of a ring, and an interactive 3D viewer on this page.
+1. **Language-conditioned control (to discuss):** prompt to action. A scene
+   encoder, a small frozen language model and a flow-matching action expert,
+   bootstrapped by imitating scripts, then trained with RL up a ladder of
+   harder tasks. Notes in VLA.md.
