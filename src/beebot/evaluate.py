@@ -28,7 +28,7 @@ from beebot.layout import sample_batch
 
 TAU = 0.5
 FIRE_PROB = 0.75
-STEPS_PER_CELL = 3  # rollout length is STEPS_PER_CELL * grid size
+STEPS_PER_CELL = 6  # rollout length is STEPS_PER_CELL * grid size (3 through stage v3a)
 LAYOUTS_PER_SIZE = 32
 WALLS = (0.0, 0.3)
 DAMAGE_FRACTION = 0.25

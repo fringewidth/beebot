@@ -86,7 +86,7 @@ class Config:
     max_grad_norm: float = 1.0
     batch_size: int = 32
     train_sizes: str = "16,20,24,28,32,40"
-    steps_per_cell: float = 3.0  # rollout length = steps_per_cell * grid size
+    steps_per_cell: float = 6.0  # rollout length = steps_per_cell * grid size
     fire_prob: float = 0.75
     tau: float = 0.5
     use_checkpoint: bool = True

@@ -33,12 +33,20 @@ RUNS_WITH_VIDEOS = {"current": 2, "closed": 1}
 # defaults; None means the current Config defaults.
 STAGES = [
     {
-        "id": "v3",
-        "title": "Terrain",
+        "id": "v3b",
+        "title": "Terrain, 6x time",
         "folder": "runs",
         "reference": None,
         "status": "current",
-        "summary": "No smell, pheromones, the whole swarm must gather, and random cave-like walls covering up to 30% of the world.",
+        "summary": "v3a with the time limit doubled to 6 steps per grid square, in training and evaluation. With no retraining, the doubled limit took the scent-following control to 98/97/98% and the best blind swarm from 44/39/42% to 58/45/53%.",
+    },
+    {
+        "id": "v3a",
+        "title": "Terrain",
+        "folder": "runs_v3a",
+        "reference": "v3r1-blind",
+        "status": "closed",
+        "summary": "No smell, pheromones, the whole swarm must gather, and random cave-like walls covering up to 30% of the world. Time limit 3 steps per grid square. Best blind val 0.724 (44/39/42%); the scent-following control reached 96/95/89%.",
     },
     {
         "id": "v2",
