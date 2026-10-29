@@ -4,7 +4,7 @@
 
 Every field of FeastConfig is a command-line flag. Outputs go to runs/<name>/.
 No curriculum: every batch samples the full range of grid sizes, cheese counts
-and walls. Saving, the STOP file and best-checkpoint keeping work as in train.py.
+and walls. The loss terms are described in feast.py. Saving, the STOP file and best-checkpoint keeping work as in train.py.
 """
 
 import dataclasses
@@ -53,7 +53,9 @@ class FeastConfig:
     fire_prob: float = 0.75
     tau: float = 0.5
     use_checkpoint: bool = True
-    w_crowding: float = 1.0  # robots take up space; not a hint about how to solve the task
+    w_crowding: float = 1.0  # robots take up space
+    w_fog: float = 0.1  # squares holding a thin film of robot (see feast.py)
+    w_time: float = 0.5  # every step until the last cheese is eaten
 
     log_every: int = 20
 
@@ -100,7 +102,7 @@ def train(cfg):
         n_steps = round(cfg.steps_per_cell * size)
 
         result = feast.rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
-        value = feast.loss(result, cfg.w_crowding)
+        value = feast.loss(result, cfg.w_crowding, cfg.w_fog, cfg.w_time)
         if not torch.isfinite(value):
             diverged = True
             print(json.dumps({"iteration": iteration, "diverged": True}), flush=True)
@@ -128,6 +130,7 @@ def train(cfg):
                 "loss": round(value.item(), 4),
                 "success": round(success, 3),
                 "eaten_share": round(eaten_share, 3),
+                "fog": round(result.fog_share.mean().item(), 3),
                 "success_ema": round(success_ema, 3),
                 "size": size,
             }
