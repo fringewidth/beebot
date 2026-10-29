@@ -65,6 +65,10 @@ class FeastConfig:
     # swarm can't stay frozen once fog is under control. Overrides the ramp.
     fog_target: float = 0.0
     dual_lr: float = 0.02
+    # If set, the fog target starts here and tightens linearly to fog_target over the first
+    # fog_ramp share of training. Fog is how an untrained swarm explores (spread-out mass
+    # reaches the rings, so the loss has a gradient); a tight limit from step 0 freezes it.
+    fog_target_start: float = 0.0
     w_time: float = 0.5  # every step until the last cheese is eaten
 
     log_every: int = 20
@@ -93,6 +97,7 @@ def train(cfg):
     iteration = 0
     success_ema = 0.0
     multiplier = cfg.w_fog
+    target = cfg.fog_target
     diverged = False
     log = open(run_dir / "log.jsonl", "a" if cfg.init else "w")
     workers = ProcessPoolExecutor(max_workers=1)
@@ -134,7 +139,10 @@ def train(cfg):
         optimizer.step()
         averaged.update_parameters(model)
         if cfg.fog_target:
-            violation = result.fog_share.mean().item() - cfg.fog_target
+            target = cfg.fog_target
+            if cfg.fog_target_start:
+                target += (cfg.fog_target_start - cfg.fog_target) * max(0.0, 1 - progress / cfg.fog_ramp)
+            violation = result.fog_share.mean().item() - target
             multiplier = max(0.0, multiplier + cfg.dual_lr * violation)
 
         success = (result.left[-1] == 0).float().mean().item()
@@ -152,6 +160,7 @@ def train(cfg):
                 "fog": round(result.fog_share.mean().item(), 3),
                 "success_ema": round(success_ema, 3),
                 "w_fog": round(w_fog, 3),
+                "fog_target": round(target, 3) if cfg.fog_target else None,
                 "size": size,
             }
             log.write(json.dumps(entry) + "\n")
