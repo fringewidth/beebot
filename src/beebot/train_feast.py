@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 
 from beebot import feast
 from beebot.model import NCA, load_weights
@@ -40,7 +41,11 @@ class FeastConfig:
     n_hidden_layers: int = 2
     stay_bias: float = 4.0
 
-    lr: float = 5e-4
+    lr: float = 3e-4
+    # Val checks, checkpoints and the final model use an exponential moving average of the
+    # weights. The raw weights swing between good and bad within 10 to 20 steps, so a raw
+    # snapshot can land in a dip (v4-feast: val 4% while training batches showed 75%).
+    ema_decay: float = 0.995
     max_grad_norm: float = 1.0
     batch_size: int = 32
     train_sizes: str = "16,20,24,28,32,40"
@@ -67,6 +72,7 @@ def train(cfg):
     if cfg.init:
         load_weights(model, cfg.init, device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
+    averaged = AveragedModel(model, multi_avg_fn=get_ema_multi_avg_fn(cfg.ema_decay))
 
     start = awake_seconds()
     last_save = start
@@ -84,7 +90,7 @@ def train(cfg):
         return workers.submit(feast.sample_batch_seeded, seed, size, TRAIN_CHEESE, cfg.batch_size), size
 
     if cfg.init:
-        best_score = keep_if_best(run_dir, model, device, best_score, iteration, 0.0, evaluate=feast.evaluate)
+        best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, 0.0, evaluate=feast.evaluate)
 
     pending = request_batch()
     while awake_seconds() - start < cfg.minutes * 60 and not (run_dir / "STOP").exists():
@@ -108,6 +114,7 @@ def train(cfg):
         value.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
         optimizer.step()
+        averaged.update_parameters(model)
 
         success = (result.left[-1] == 0).float().mean().item()
         eaten_share = (1 - result.left[-1].float() / result.n_cheese.float()).mean().item()
@@ -129,19 +136,19 @@ def train(cfg):
             print(json.dumps(entry), flush=True)
 
         if awake_seconds() - last_save > cfg.save_every_minutes * 60:
-            save_checkpoint(run_dir, model, iteration, 0, (awake_seconds() - start) / 60)
+            save_checkpoint(run_dir, averaged.module, iteration, 0, (awake_seconds() - start) / 60)
             last_save = awake_seconds()
 
         if awake_seconds() - last_eval > cfg.eval_every_minutes * 60:
-            best_score = keep_if_best(run_dir, model, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=feast.evaluate)
+            best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=feast.evaluate)
             last_eval = awake_seconds()
 
     workers.shutdown(cancel_futures=True)
     log.close()
-    save_checkpoint(run_dir, model, iteration, 0, (awake_seconds() - start) / 60)
+    save_checkpoint(run_dir, averaged.module, iteration, 0, (awake_seconds() - start) / 60)
 
-    # The run's result is its best val checkpoint, final model included.
-    best_score = keep_if_best(run_dir, model, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=feast.evaluate)
+    # The run's result is its best val checkpoint, final averaged model included.
+    best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=feast.evaluate)
     model.load_state_dict(torch.load(run_dir / "model_best.pt", map_location=device))
     torch.save(model.state_dict(), run_dir / "model.pt")
     model.eval()
