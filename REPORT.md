@@ -1,6 +1,6 @@
 # Progress report
 
-*Last updated: 2026-10-25, overnight. This page is updated after every training round.*
+*Last updated: 2026-10-29. This page is updated after every training round.*
 
 ## The question
 
@@ -19,7 +19,7 @@ descent through the full rollout.
 | --- | --- | --- |
 | **v1: Smell** | Every square smells the cheese | Solved. Test score 0.267 vs a hand-written rule's 0.405, near the physical limit. Robust to damage, noise, asynchrony, and split starts it never trained on. Failed only in 128x128 worlds, where the smell is fainter than anything it trained on. |
 | **v2: No smell** | Touch only, plus pheromones it learns to use | Learned honestly: 45% of unseen layouts surrounded, against 0% for a hand-written wanderer. Cutting off pheromones drops it to 0%, so it really communicates. When we required the *whole* swarm to gather, not just enough to fill the ring, it dropped to 12%. Not solved. |
-| **v3: Terrain** | v2 plus random cave-like walls | In progress, see below. |
+| **v3: Terrain** | v2 plus random cave-like walls, 6x time limit | Proof of concept, closed. Trained from scratch: test 0.695, 52% of unseen sizes, 38% of bigger worlds, 44% damaged, against 0% for a hand-written wanderer. Blocking pheromones drops it to 0%. Weak at long-range search and at reuniting split nests. |
 
 ## What we learned so far
 
@@ -102,9 +102,38 @@ bigger worlds and 86 to 92% damaged before collapsing, so **no run has reached
 
 Round results are in the Terrain tab and the run log.
 
+## Terrain closed (2026-10-29)
+
+1. **More time.** The best blind swarm's demo was still searching when the
+   clock ran out. Doubling the limit to 6 steps per grid square, with no
+   retraining, took the scent-following control to 98/97/98% and the blind
+   swarm from 44/39/42% to 58/45/53%. The limit is part of the task definition,
+   so this became a new stage (v3b), with the 3x results archived as v3a.
+1. **From scratch only.** Fine-tuning from the previous stage's best weights
+   plateaued at once, while runs trained from scratch at 6x kept improving.
+   Every stage's result now comes from a run trained from scratch in that stage.
+1. **Width doesn't help.** A 192-wide network matched the 96-wide one at equal
+   training steps and ran 1.5 times slower.
+1. **The bar changed to proof of concept.** Each stage shows that a task is
+   achievable by swarm intelligence, making the case for one general model that
+   does every task with the same weights. Once a stage has a proof of concept,
+   we move on.
+
+| Finalist (from scratch) | Unseen sizes | Bigger worlds | Damaged | Score |
+| --- | --- | --- | --- | --- |
+| v3b-base-levels, val | 47% | 42% | 41% | 0.691 |
+| v3b-base-levels, **test** (used once) | **52%** | **38%** | **44%** | **0.695** |
+| Hand-written wanderer, test | 0% | 0% | 0% | 1.000 |
+
+Stress tests (reference 50%): pheromone blackout 0%, half the robots firing
+42%, every robot firing 50%, half the swarm wiped 38%, a chunk cut out 50%, two
+separate nests 25%, three 6%, a 128x128 world 19%, no walls 53%, walls covering
+40 to 45% of the world (more than in training) 47%. The swarm
+depends on its pheromones, shrugs off damage and denser walls, but can't
+reunite separate groups and loses most of its success in much bigger worlds.
+
 ## Next
 
-1. Solve gathering with terrain: above 90% on every val split.
 1. **Feast:** several cheeses that vanish when eaten.
 1. **Chase:** cheese that flees toward the side with the least mass.
 1. **Rivals:** two swarms under different payoff rules (zero-sum, shared, stag

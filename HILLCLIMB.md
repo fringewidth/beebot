@@ -287,3 +287,23 @@ New:
 - v3b-base-seed1: v3b-base-levels repeated with seed 1, to check that the climb isn't one lucky seed.
 
 Scope (user, 2026-10-29): the point of each stage is an existence proof, that the task is achievable by swarm intelligence. Those proofs make the case for a general model that does all the tasks with the same weights. So no ablations or variants for their own sake: one from-scratch recipe per task, given compute until it clears the bar. v3b-base-seed1 cancelled (`runs_cancelled/`). Running: v3b-base-levels-cont (the main line) and v3b-priv-scratch (control, ends about 18:20; it shows whether the bar is reachable at 6x from scratch).
+
+**v3b closed as a proof of concept (user: "if you have a proof of concept, you move on").** v3b-base-levels-cont and v3b-priv-scratch stopped (moved to `runs_cancelled/`; the control had reached 0.745 at 30 minutes). Runs archived to `runs_v3b/`.
+
+Finalist v3b-base-levels (96 wide, from scratch, 200 minutes, level 5 of 9):
+
+| | Score | Interp | Extrap | Damage |
+| --- | --- | --- | --- | --- |
+| Val | 0.691 | 0.47 | 0.42 | 0.41 |
+| **Test** (once) | **0.695** | **0.52** | **0.38** | **0.44** |
+| Baseline, test | 1.000 | 0.00 | 0.00 | 0.00 |
+
+| Probe | Success |
+| --- | --- |
+| Reference | 0.50 |
+| Pheromone blackout | 0.00 |
+| Firing 0.5 / 1.0 | 0.42 / 0.50 |
+| Wipe 50% / chunk cut | 0.38 / 0.50 |
+| 2 / 3 separate nests | 0.25 / 0.06 |
+| 128x128 world | 0.19 |
+| No walls / walls 40-45% | 0.53 / 0.47 |

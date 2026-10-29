@@ -35,10 +35,10 @@ STAGES = [
     {
         "id": "v3b",
         "title": "Terrain, 6x time",
-        "folder": "runs",
+        "folder": "runs_v3b",
         "reference": None,
-        "status": "current",
-        "summary": "v3a with the time limit doubled to 6 steps per grid square, in training and evaluation. With no retraining, the doubled limit took the scent-following control to 98/97/98% and the best blind swarm from 44/39/42% to 58/45/53%.",
+        "status": "closed",
+        "summary": "v3a with the time limit doubled to 6 steps per grid square, trained from scratch. Closed as a proof of concept: test 0.695 (52/38/44% of layouts) against 0% for the hand-written baseline; blocking pheromones drops it to 0%. Long-range search (starts more than 15 squares away) and reuniting separate nests remain weak.",
     },
     {
         "id": "v3a",
