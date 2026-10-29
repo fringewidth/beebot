@@ -60,6 +60,11 @@ class FeastConfig:
     # (v4-feast-fog1); at a flat 0.1 the swarm learns to eat by fog again (v4-feast-shaped).
     w_fog_final: float = 0.0
     fog_ramp: float = 0.5
+    # If set, fog is a constraint instead: w_fog is a Lagrange multiplier that grows while the
+    # batch's fog share is above fog_target and shrinks while it is below (dual ascent), so the
+    # swarm can't stay frozen once fog is under control. Overrides the ramp.
+    fog_target: float = 0.0
+    dual_lr: float = 0.02
     w_time: float = 0.5  # every step until the last cheese is eaten
 
     log_every: int = 20
@@ -87,6 +92,7 @@ def train(cfg):
     best_score = float("inf")
     iteration = 0
     success_ema = 0.0
+    multiplier = cfg.w_fog
     diverged = False
     log = open(run_dir / "log.jsonl", "a" if cfg.init else "w")
     workers = ProcessPoolExecutor(max_workers=1)
@@ -111,6 +117,8 @@ def train(cfg):
         w_fog = cfg.w_fog
         if cfg.w_fog_final:
             w_fog += (cfg.w_fog_final - cfg.w_fog) * min(1.0, progress / cfg.fog_ramp)
+        if cfg.fog_target:
+            w_fog = multiplier
         value = feast.loss(result, cfg.w_crowding, w_fog, cfg.w_time)
         if not torch.isfinite(value):
             diverged = True
@@ -125,6 +133,9 @@ def train(cfg):
         torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
         optimizer.step()
         averaged.update_parameters(model)
+        if cfg.fog_target:
+            violation = result.fog_share.mean().item() - cfg.fog_target
+            multiplier = max(0.0, multiplier + cfg.dual_lr * violation)
 
         success = (result.left[-1] == 0).float().mean().item()
         eaten_share = (1 - result.left[-1].float() / result.n_cheese.float()).mean().item()

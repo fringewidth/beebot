@@ -357,3 +357,9 @@ v4-feast-fog1 froze. By 18 minutes the loss sat at exactly 1.5 (deficit 1 + time
 v4-feast-shaped at 150 minutes: val 0.92 (interp 34% fully eaten, extrap 6%, damage 21%), but fog 0.66 to 0.69, rising with success. It is the fog strategy again.
 
 Recipe change: the fog weight ramps linearly from 0.1 to 1.0 over the first half of training (`--w_fog_final 1.0`, `fog_ramp 0.5`). The swarm learns to move and eat while fog is cheap, then has to compact as fog gets expensive. New run from scratch: v4-feast-fogramp, otherwise identical. v4-feast-shaped keeps running as the flat-0.1 reference until fogramp shows whether the ramp works.
+
+v4-feast-shaped collapsed at 189 minutes. Training success had peaked near 50% (val 0.887 at 181 minutes: interp 48%, extrap 17%, damage 25%, fog 0.6 to 0.7). Then within 20 steps the loss jumped from about 1 to 3 to 5 and eating fell to zero; it never recovered. No NaN, so the divergence check didn't fire. Stopped (`runs_cancelled/`, best checkpoint kept). It ate by fog anyway, so it was never a candidate.
+
+v4-feast-fogramp at 49 minutes: w_fog 0.28, fog 0.12 to 0.18, but nothing eaten yet (the flat-0.1 run had 15% eaten by 60 minutes). The ramp may outrun learning and freeze the swarm like fog1.
+
+Second candidate, from scratch: v4-feast-fogdual. Fog becomes a constraint (fog share at most 0.1), and w_fog is a Lagrange multiplier updated by dual ascent (`--fog_target 0.1 --dual_lr 0.01`, starting at 0.1). It grows while fog is over target and shrinks while it is under, so a frozen swarm gets the penalty lifted and can move again. This is the standard constrained-optimization treatment, and it replaces a hand-picked weight or schedule. A compact swarm can move without fog, since a whole robot moves whole (squares fire as a unit and act in proportion to their mass), so 0.1 is reachable.
