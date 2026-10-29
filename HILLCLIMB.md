@@ -243,3 +243,20 @@ Check-in at 90 minutes:
 | v3b-big-levels (192) | 0.972 / 0.887 / 0.867 | 0.21 | 0.08 | 0.20 | Level 3. Also behind at equal iterations: 1450 iterations here vs 0.808 for the 96-wide run at about 1350. |
 
 So far, width doesn't help: the 192-wide network is slower per iteration and no better per iteration.
+
+v3b-explore-slow finished: val **0.626** (interp 0.59, extrap 0.48, damage 0.54), flat from 30 minutes on (0.627, 0.627, 0.627, 0.626). New best blind result, but the fine-tune at 6x added almost nothing over the starting checkpoint scored at 6x (0.624 before, with a different val random state; within noise).
+
+Failure breakdown (val interp + extrap, no damage, 160 layouts, 55% success):
+
+| Start distance | Layouts | Success | Touched the cheese |
+| --- | --- | --- | --- |
+| 2 to 6 | 69 | 0.88 | 0.99 |
+| 6 to 10 | 53 | 0.32 | 0.74 |
+| 10 to 15 | 22 | 0.41 | 0.68 |
+| 15 to 25 | 15 | 0.07 | 0.20 |
+
+- 49% of failures never touch the cheese.
+- The other 51% touch it late (at 45% of the limit on average; successes touch at 8%), fill the ring (final surround 0.92), but gather only 58% of the swarm against the 80% needed: part of the swarm never gets recruited.
+- Video (extrap): the swarm breaks into a few compact blobs that wander along walls. One blob sits for a long stretch in a concave pocket of wall a few squares from the cheese, on the wrong side of the wall. No systematic sweep.
+
+Next: v3b-explore03, from v3b-explore-slow's best, with w_explore 0.3 (from 0.1), otherwise identical (lr 1e-4 cosine, adaptive, 120 min). At 3x, w_explore 0.5 made the swarm spread and never regroup; with twice the time to regroup, stronger exploration pressure may pay off.
