@@ -331,3 +331,12 @@ Mostly no. Four times the time recovers a quarter to a third of the failures. Fa
 - Even from starts 2 to 6 squares away, about 18% fail at every limit.
 
 So the main weakness is recruiting the whole swarm and holding the formation, not search time. Behavior after 6x is past the training horizon, so the drift away from the cheese may just be untrained behavior; but the failure to gather is there within the limit too.
+
+v4-feast, first 65 minutes: learned fast with the task-only loss. Training success (smoothed) reached 0.84 by 38 minutes, collapsed at about 42 (loss 1.6, above where it started), then recovered to about 0.56 by 65. But val checks were far below training: 0.990 at 30 minutes (4% interp) and 0.970 at 60 (15%).
+
+Diagnosis (no code bug): the weights swing between good and bad within 10 to 20 optimizer steps.
+- With the 30-minute checkpoint frozen, the exact training loop gets the same low success as val.
+- From that checkpoint, 40 to 60 more steps at lr 5e-4 bring frozen success at size 24 to 0.68-0.77, with dips to 0.09 along the way.
+- So the val checks landed in dips, and any raw snapshot is a lottery ticket.
+
+Fix: checkpoints, val checks and the final model now use an exponential moving average of the weights (decay 0.995, about a 200-step window), and lr goes from 5e-4 to 3e-4. Both are standard, general-purpose training practice, not task knowledge. v4-feast stopped (`runs_cancelled/`). New run from scratch: v4-feast-ema, batch 64, 240 minutes.
