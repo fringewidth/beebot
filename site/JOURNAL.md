@@ -102,7 +102,17 @@ rather than hand-designed.
   with a matching loss term. The best model drops from 45% to 12% under it.
   Old ring-only scores are kept as `val_ring_only` in each summary.
 
-### Planned tasks (written before any results)
+### The queue (updated 2026-10-27)
+
+In order, each task finishing before the next starts:
+
+1. **Terrain without smell.** The blind swarm has to clear 90% on every val split, then the test set is run once and the result tagged. This is the blocker. The scent-following control got 96% on unseen sizes, 95% in bigger worlds and 89% damaged, so the task is solvable once search is free. The blind swarm is at about 40%.
+2. **Feast:** several cheeses that vanish when eaten.
+3. **Chase:** cheese that moves away toward the side with the least mass.
+4. **Rivals:** two swarms under zero-sum, shared and stag-hunt payoffs, to see whether they cooperate or compete. Swarms trained apart are tested together as strangers, against co-trained pairs and swapped partners. Then a variant where both swarms can push the cheese.
+5. **3D voxels:** all of the above again in 3D.
+
+### Planned tasks (written before any results; the queue above supersedes the order)
 
 After Hunt (the current task) is solved, meaning val success of at least 90%
 on unseen sizes and bigger worlds and at least 80% on damage, or two rounds in
@@ -295,3 +305,11 @@ by a variant of the best).
   of the world rather than the world, which matches the steep fall-off with
   distance. Stretching into a long line and sweeping would cover far more, but
   nothing yet points training there.
+
+### More time: stage v3b
+
+The demo of the best blind swarm showed it still searching when the clock ran out, even in the videos that run to twice the limit. Doubling the time limit with no retraining took the scent-following control from 96/95/89% to 98/97/98%, clearing the 90% bar on every split, and the blind swarm from 44/39/42% to 58/45/53%. A time limit is part of the task definition, not a loophole, as long as it's fixed in advance and applied the same way to every run. So the limit is now 6 steps per grid square, and the terrain stage restarts as v3b with the 3x results archived. The open question is whether a swarm trained on the longer horizon learns a real search strategy: with backprop through the rollout, a search that pays off after the training horizon can never be credited.
+
+### Terrain closed as a proof of concept
+
+Three things changed how the project runs. Fine-tuning from the previous stage's best weights stalled at once, while runs trained from scratch at the 6x limit kept improving, so every stage now trains from scratch. A 192-wide network was no better per training step than the 96-wide one and ran slower, so width was not the bottleneck. And the goal is now an existence proof per task: show that swarm intelligence can do it, then move on. The finalist, trained from scratch, scored 0.695 on the test set (52% of unseen sizes, 38% of bigger worlds, 44% damaged; val was 0.691, so no overfitting to val), against 0% for the hand-written wanderer. Blocking pheromones drops it to 0%. It handles damage and denser walls than it trained on, but can't reunite separate nests (25% with two, 6% with three) and weakens in a 128x128 world (19%). From the next stage on, experiments follow the bitter lesson: minimal hand-engineered help, more compute.

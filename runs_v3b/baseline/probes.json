@@ -1,0 +1,46 @@
+{
+  "reference": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "pheromone blackout": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "firing 0.5": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "firing 1.0": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "wipe 50%": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "chunk cut": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "2 separate nests": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "3 separate nests": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "128x128 world": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "no walls": {
+    "success": 0.0,
+    "time": 1.0
+  },
+  "walls 40-45% (beyond training)": {
+    "success": 0.0,
+    "time": 1.0
+  }
+}

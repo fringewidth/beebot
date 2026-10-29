@@ -1,0 +1,102 @@
+{
+  "model": {
+    "val": {
+      "interp": {
+        "success": 0.46875,
+        "time": 0.6788676381111145,
+        "final_surround": 0.8356953263282776,
+        "fog": 0.44817614555358887,
+        "final_gathered": 0.6600967049598694
+      },
+      "extrap": {
+        "success": 0.421875,
+        "time": 0.693115234375,
+        "final_surround": 0.6596972942352295,
+        "fog": 0.2920377254486084,
+        "final_gathered": 0.5388345122337341
+      },
+      "damage": {
+        "success": 0.40625,
+        "time": 0.6996800303459167,
+        "final_surround": 0.7965488433837891,
+        "fog": 0.4901496171951294,
+        "final_gathered": 0.6410062909126282
+      },
+      "score": 0.6905543009440104
+    },
+    "test": {
+      "interp": {
+        "success": 0.5208333134651184,
+        "time": 0.6837584972381592,
+        "final_surround": 0.8895645141601562,
+        "fog": 0.43331030011177063,
+        "final_gathered": 0.7257404923439026
+      },
+      "extrap": {
+        "success": 0.375,
+        "time": 0.6894272565841675,
+        "final_surround": 0.5368368625640869,
+        "fog": 0.23698124289512634,
+        "final_gathered": 0.46481651067733765
+      },
+      "damage": {
+        "success": 0.4375,
+        "time": 0.7118553519248962,
+        "final_surround": 0.8466201424598694,
+        "fog": 0.4855548143386841,
+        "final_gathered": 0.7024126052856445
+      },
+      "score": 0.695013701915741
+    }
+  },
+  "baseline": {
+    "val": {
+      "interp": {
+        "success": 0.0,
+        "time": 1.0,
+        "final_surround": 0.2418460100889206,
+        "fog": 0.8654739260673523,
+        "final_gathered": 0.15803442895412445
+      },
+      "extrap": {
+        "success": 0.0,
+        "time": 1.0,
+        "final_surround": 0.2365230917930603,
+        "fog": 0.7875449657440186,
+        "final_gathered": 0.14513784646987915
+      },
+      "damage": {
+        "success": 0.0,
+        "time": 1.0,
+        "final_surround": 0.20089511573314667,
+        "fog": 0.8774330019950867,
+        "final_gathered": 0.1501842886209488
+      },
+      "score": 1.0
+    },
+    "test": {
+      "interp": {
+        "success": 0.0,
+        "time": 1.0,
+        "final_surround": 0.27274081110954285,
+        "fog": 0.8674460053443909,
+        "final_gathered": 0.16904424130916595
+      },
+      "extrap": {
+        "success": 0.0,
+        "time": 1.0,
+        "final_surround": 0.31397467851638794,
+        "fog": 0.7562205791473389,
+        "final_gathered": 0.18033142387866974
+      },
+      "damage": {
+        "success": 0.0,
+        "time": 1.0,
+        "final_surround": 0.227738618850708,
+        "fog": 0.8811809420585632,
+        "final_gathered": 0.1606486290693283
+      },
+      "score": 1.0
+    }
+  }
+}

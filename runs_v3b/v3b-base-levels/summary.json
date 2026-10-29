@@ -1,0 +1,32 @@
+{
+  "name": "v3b-base-levels",
+  "iterations": 4768,
+  "final_level": 5,
+  "diverged": false,
+  "levels_total": 9,
+  "train_success_ema": 0.5872738925213137,
+  "val": {
+    "interp": {
+      "success": 0.46875,
+      "time": 0.6788676381111145,
+      "final_surround": 0.8356953263282776,
+      "fog": 0.44817614555358887,
+      "final_gathered": 0.6600967049598694
+    },
+    "extrap": {
+      "success": 0.421875,
+      "time": 0.693115234375,
+      "final_surround": 0.6596972942352295,
+      "fog": 0.2920377254486084,
+      "final_gathered": 0.5388345122337341
+    },
+    "damage": {
+      "success": 0.40625,
+      "time": 0.6996800303459167,
+      "final_surround": 0.7965488433837891,
+      "fog": 0.4901496171951294,
+      "final_gathered": 0.6410062909126282
+    },
+    "score": 0.6905543009440104
+  }
+}
