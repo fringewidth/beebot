@@ -17,10 +17,12 @@ from pathlib import Path
 
 import torch
 
+from beebot import feast
 from beebot.evaluate import evaluate
 from beebot.model import StickyBaseline
 from beebot.render import render_examples
 from beebot.train import LEVELS, Config
+from beebot.train_feast import FeastConfig
 
 SITE = Path("site")
 DOCUMENTS = ["JOURNAL.md", "HILLCLIMB.md"]
@@ -32,6 +34,15 @@ RUNS_WITH_VIDEOS = {"current": 2, "closed": 1}
 # Newest first. "reference" is the run whose config counts as that stage's
 # defaults; None means the current Config defaults.
 STAGES = [
+    {
+        "id": "v4",
+        "title": "Feast",
+        "task": "feast",
+        "folder": "runs",
+        "reference": None,
+        "status": "current",
+        "summary": "Two to four cheeses on terrain; each vanishes once its ring is full, and the swarm must eat them all. No smell, pheromones only. First stage under the bitter-lesson rule: the loss is only the task (unfilled rings, plus crowding because robots take up space), no curriculum, trained from scratch.",
+    },
     {
         "id": "v3b",
         "title": "Terrain, 6x time",
@@ -78,15 +89,19 @@ def finite(value):
     return value
 
 
-def ensure_baseline(folder, device):
-    run_dir = folder / "baseline"
+def ensure_baseline(stage, device):
+    run_dir = Path(stage["folder"]) / "baseline"
     if (run_dir / "summary.json").exists():
         return
     run_dir.mkdir(parents=True, exist_ok=True)
     baseline = StickyBaseline()
-    summary = {"name": "baseline", "val": evaluate(baseline, device, "val")}
+    if stage.get("task") == "feast":
+        summary = {"name": "baseline", "val": feast.evaluate(baseline, device, "val")}
+        feast.render_examples(baseline, device, run_dir / "videos")
+    else:
+        summary = {"name": "baseline", "val": evaluate(baseline, device, "val")}
+        render_examples(baseline, device, run_dir / "videos")
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
-    render_examples(baseline, device, run_dir / "videos")
 
 
 def config_changes(config, defaults):
@@ -97,8 +112,8 @@ def curve(run_dir):
     points = []
     for line in (run_dir / "log.jsonl").read_text().splitlines():
         entry = json.loads(line)
-        if "level" in entry:
-            points.append([entry["minutes"], entry["level"], entry["success_ema"]])
+        if "success_ema" in entry:
+            points.append([entry["minutes"], entry.get("level", 0), entry["success_ema"]])
     return points
 
 
@@ -120,6 +135,8 @@ def collect_stage(stage):
     folder = Path(stage["folder"])
     if stage["reference"]:
         defaults = read_json(folder / stage["reference"] / "config.json")
+    elif stage.get("task") == "feast":
+        defaults = dataclasses.asdict(FeastConfig())
     else:
         defaults = dataclasses.asdict(Config())
 
@@ -161,7 +178,7 @@ def collect_stage(stage):
         "title": stage["title"],
         "status": stage["status"],
         "summary": stage["summary"],
-        "levels": len(LEVELS),
+        "levels": 0 if stage.get("task") == "feast" else len(LEVELS),
         "baseline": {
             "val": baseline["val"] if baseline else None,
             "videos": copy_videos(baseline_dir, stage["id"], "baseline") if baseline else [],
@@ -173,9 +190,8 @@ def collect_stage(stage):
 
 def main():
     device = torch.device("mps")
-    current = Path(STAGES[0]["folder"])
-    current.mkdir(exist_ok=True)
-    ensure_baseline(current, device)
+    Path(STAGES[0]["folder"]).mkdir(exist_ok=True)
+    ensure_baseline(STAGES[0], device)
     if (SITE / "media").exists():
         shutil.rmtree(SITE / "media")
 

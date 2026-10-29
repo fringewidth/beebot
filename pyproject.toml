@@ -16,6 +16,7 @@ dependencies = [
 [project.scripts]
 train = "beebot.train:main"
 bench = "beebot.bench:main"
+train-feast = "beebot.train_feast:main"
 final-test = "beebot.final_test:main"
 report = "beebot.report:main"
 probe = "beebot.probe:main"
