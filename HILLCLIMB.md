@@ -205,3 +205,31 @@ New population (clipping, cosine; resumed runs pick their cosine schedule up at 
 One observation from before the sleep, worth re-checking: v3w-big-levels-r collapsed while the machine was awake, at about 33 minutes (training success EMA 0.76 to 0.06 within 100 iterations, val 0.823 to 1.000), at lr 9.5e-4 with gradient clipping. Clipping alone may not prevent collapse at full learning rate for the 192-wide network.
 
 To resume in the morning: the same three runs, under the same names, with the same flags (see the table above).
+
+## v3b: terrain with 6x time
+
+Resumed 2026-10-29 with the same three runs under `caffeinate -i`. About 10 minutes in, the user pointed out that the blind swarm didn't reach the cheese in the demo and suggested more steps. Those runs were cancelled (folders in `runs_cancelled/`, not counted).
+
+The existing best checkpoints, scored on val with the time limit doubled and no retraining:
+
+| Checkpoint | 3x grid: score (interp / extrap / damage) | 6x grid: score (interp / extrap / damage) |
+| --- | --- | --- |
+| v3z-priv (scent-following control) | 0.291 (0.96 / 0.95 / 0.89) | **0.158 (0.98 / 0.97 / 0.98)** |
+| v3z-explore-slow (best blind) | 0.724 (0.44 / 0.39 / 0.42) | 0.624 (0.58 / 0.45 / 0.53) |
+| v3w-big-levels (192 wide, 30 min) | 0.846 (0.28 / 0.20 / 0.24) | 0.786 (0.30 / 0.19 / 0.30) |
+
+At 6x, the control clears the 90% bar on every split, so the task is feasible at that limit. The blind swarm gains 6 to 14 points without ever having trained on a horizon that long. The earlier diagnosis still holds (going from 6x to 9x added little for a model trained at 3x), but no model has been trained at a longer horizon yet, and with BPTT the training horizon caps what a search strategy can be credited for.
+
+Change: the time limit is 6 steps per grid square, in both training (`steps_per_cell` default) and evaluation (`STEPS_PER_CELL`). This changes the benchmark, so it is a new stage: the 3x runs are archived in `runs_v3a/` as stage v3a (closed), and stage v3b starts with an empty `runs/`. The val and test layouts are unchanged; the test set is still unused for v3. Videos still run to twice the limit, now 12x.
+
+v3b population (clipping, cosine, `caffeinate -i`):
+
+| Run | Start | Settings | Question |
+| --- | --- | --- | --- |
+| v3b-explore-slow | v3z-explore-slow best (val 0.724 at 3x) | lr 1e-4, 120 min, w_explore 0.1, adaptive | How far does the best blind swarm get when trained on the longer horizon? |
+| v3b-big-levels | scratch | 192 wide, lr 5e-4, 200 min, w_explore 0.15, level curriculum | Width test |
+| v3b-base-levels | scratch | 96 wide, otherwise identical | Width control |
+
+The learning rate is 5e-4 rather than 1e-3: the 192-wide run collapsed at 9.5e-4 the day before, while the laptop was awake.
+
+Note: the cancelled runs' stdout logs overwrote the stdout logs of the runs the laptop slept through (`runs_invalid/`). Those runs' `log.jsonl` and val histories are intact.

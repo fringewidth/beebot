@@ -305,3 +305,7 @@ by a variant of the best).
   of the world rather than the world, which matches the steep fall-off with
   distance. Stretching into a long line and sweeping would cover far more, but
   nothing yet points training there.
+
+### More time: stage v3b
+
+The demo of the best blind swarm showed it still searching when the clock ran out, even in the videos that run to twice the limit. Doubling the time limit with no retraining took the scent-following control from 96/95/89% to 98/97/98%, clearing the 90% bar on every split, and the blind swarm from 44/39/42% to 58/45/53%. A time limit is part of the task definition, not a loophole, as long as it's fixed in advance and applied the same way to every run. So the limit is now 6 steps per grid square, and the terrain stage restarts as v3b with the 3x results archived. The open question is whether a swarm trained on the longer horizon learns a real search strategy: with backprop through the rollout, a search that pays off after the training horizon can never be credited.
