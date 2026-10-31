@@ -77,6 +77,10 @@ class FeastConfig:
     # fog_ramp share of training. Fog is how an untrained swarm explores (spread-out mass
     # reaches the rings, so the loss has a gradient); a tight limit from step 0 freezes it.
     fog_target_start: float = 0.0
+    # If set, the tightening waits until the training success average first reaches fog_gate,
+    # then takes fog_tighten_minutes: learn the task first, whenever that happens, then compact.
+    fog_gate: float = 0.0
+    fog_tighten_minutes: float = 0.0
     w_time: float = 0.5  # every step until the last cheese is eaten
 
     log_every: int = 20
@@ -89,7 +93,9 @@ def train(cfg):
     if cfg.resume:
         resumed = json.loads((run_dir / "checkpoint.json").read_text())
         if (run_dir / "dual.json").exists():
-            cfg.w_fog = json.loads((run_dir / "dual.json").read_text())["w_fog"]
+            dual = json.loads((run_dir / "dual.json").read_text())
+            cfg.w_fog = dual["w_fog"]
+            resumed["gate_minutes"] = dual.get("gate_minutes")
         # Keep a copy of the starting weights: model.pt is overwritten at the next save.
         start_weights = run_dir / f"model_resume_{resumed['iteration']}.pt"
         if not start_weights.exists():
@@ -121,6 +127,11 @@ def train(cfg):
     success_ema = 0.0
     multiplier = cfg.w_fog
     target = cfg.fog_target
+    # When the fog target started tightening, in training minutes; None until the gate opens.
+    gate_minutes = resumed.get("gate_minutes", 0.0 if not cfg.fog_gate else None)
+    if not cfg.fog_gate:
+        gate_minutes = 0.0
+    tighten_minutes = cfg.fog_tighten_minutes or cfg.fog_ramp * cfg.minutes
     diverged = False
     log = open(run_dir / "log.jsonl", "a" if cfg.init else "w")
     workers = ProcessPoolExecutor(max_workers=1)
@@ -164,7 +175,11 @@ def train(cfg):
         if cfg.fog_target:
             target = cfg.fog_target
             if cfg.fog_target_start:
-                target += (cfg.fog_target_start - cfg.fog_target) * max(0.0, 1 - progress / cfg.fog_ramp)
+                minutes = (awake_seconds() - start) / 60
+                if gate_minutes is None and success_ema >= cfg.fog_gate:
+                    gate_minutes = minutes
+                tightened = 0.0 if gate_minutes is None else (minutes - gate_minutes) / tighten_minutes
+                target += (cfg.fog_target_start - cfg.fog_target) * max(0.0, 1 - tightened)
             violation = result.fog_share.mean().item() - target
             multiplier = max(0.0, multiplier + cfg.dual_lr * violation)
 
@@ -192,7 +207,7 @@ def train(cfg):
 
         if awake_seconds() - last_save > cfg.save_every_minutes * 60:
             save_checkpoint(run_dir, averaged.module, iteration, 0, (awake_seconds() - start) / 60)
-            (run_dir / "dual.json").write_text(json.dumps({"w_fog": multiplier}))
+            (run_dir / "dual.json").write_text(json.dumps({"w_fog": multiplier, "gate_minutes": gate_minutes}))
             last_save = awake_seconds()
 
         if awake_seconds() - last_eval > cfg.eval_every_minutes * 60:
