@@ -32,6 +32,10 @@ class FeastConfig:
     device: str = "mps"
     minutes: float = 200.0
     init: str = ""  # only for resuming this same run from its own model.pt
+    # Pick this run up where its last checkpoint left off: weights from model.pt, and the
+    # clock and iteration from checkpoint.json, so the lr and fog schedules continue. The
+    # optimizer state and the fog multiplier aren't saved; pass the last logged w_fog.
+    resume: bool = False
     save_every_minutes: float = 10.0
     eval_every_minutes: float = 30.0
     lr_schedule: str = "cosine"
@@ -77,10 +81,17 @@ class FeastConfig:
 def train(cfg):
     run_dir = Path("runs") / cfg.name
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "config.json").write_text(json.dumps(dataclasses.asdict(cfg), indent=2))
+    resumed = {"minutes": 0.0, "iteration": 0}
+    if cfg.resume:
+        resumed = json.loads((run_dir / "checkpoint.json").read_text())
+        cfg.init = str(run_dir / f"model_resume_{resumed['iteration']}.pt")
+        (run_dir / "model.pt").rename(cfg.init)
+    config_name = f"config_resume_{resumed['iteration']}.json" if cfg.resume else "config.json"
+    (run_dir / config_name).write_text(json.dumps(dataclasses.asdict(cfg), indent=2))
 
-    torch.manual_seed(cfg.seed)
-    rng = np.random.default_rng(cfg.seed)
+    # A resumed run draws fresh batches rather than replaying the ones it started with.
+    torch.manual_seed(cfg.seed + resumed["iteration"])
+    rng = np.random.default_rng([cfg.seed, resumed["iteration"]])
     device = torch.device(cfg.device)
     sizes = [int(s) for s in cfg.train_sizes.split(",")]
 
@@ -90,11 +101,11 @@ def train(cfg):
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
     averaged = AveragedModel(model, multi_avg_fn=get_ema_multi_avg_fn(cfg.ema_decay))
 
-    start = awake_seconds()
-    last_save = start
-    last_eval = start
+    start = awake_seconds() - resumed["minutes"] * 60
+    last_save = awake_seconds()
+    last_eval = awake_seconds()
     best_score = float("inf")
-    iteration = 0
+    iteration = resumed["iteration"]
     success_ema = 0.0
     multiplier = cfg.w_fog
     target = cfg.fog_target
