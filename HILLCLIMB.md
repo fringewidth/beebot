@@ -405,3 +405,11 @@ Recipe change for Chase: the fog target holds at 1.0 until the training success 
 Chase is solvable as specified. `tests/chase_feasible.py`: a scripted swarm that sees the whole map and moves every robot down the walking distance to the cheese catches it in 56% of 22x22 and 81% of 30x30 val-like layouts (16 each) with sharp moves, and 0 to 19% with soft ones. It doesn't plan a cut-off; the torus and the walls do the cornering. So the cheese's speed and sensing aren't the problem; the learned swarm has to find it by touch, then pin it. v5-chase-gated at 49 minutes: nothing caught yet, fog 0.94, loss falling slowly (1.50 to 1.33).
 
 v4-feast-tighten at 220 minutes: as the fog limit tightens, fog falls (training 0.49, val 0.51 to 0.54) and success falls with it (val 210 minutes: interp 62%, extrap 31%, damage 25%; val score 0.803). The limit reaches 0.1 at 360 minutes.
+
+v5-chase-gated at 82 minutes: still nothing caught, loss flat at about 1.33, val 1.0 at 30 and 60 minutes. Frames of the 82-minute checkpoint: the swarm bursts into a thin film and a few piles; nothing heads for the cheese, which barely has to move. Making the cheese sense less far (radius 2 or 1) doesn't help this checkpoint.
+
+Why: backprop through the rollout sees the cheese's path as fixed. Its choice of direction (an argmin) passes no gradient, so the gradient says "put more mass on the ring" without knowing that more mass nearby makes the cheese run. Thickening near the cheese is undone by its flight, and nothing in the gradient explains why. Stopped (`runs_cancelled/`).
+
+Recipe change: a cheese-speed curriculum, the standard way to train against an opponent that is too strong at first. Training levels are a still cheese, then one move every 16, 8, 4 and finally 2 steps (`--cheese_periods 0,16,8,4,2`). Training moves to the next level once the success average reaches 0.5 (`--level_up 0.5`), and the fog gate waits for the last level. Val and test always use the full-speed cheese, so scores are comparable throughout. Run v5-chase-speedup, from scratch, 720 minutes.
+
+v4-feast-tighten at 254 minutes: fog limit 0.39, fog 0.41, w_fog 0.30. Training success 50%; val at 241 minutes 0.830 (interp 57%, extrap 12%, damage 24%), fog 0.44 to 0.47. Squeezing out fog costs most of the bigger-world skill so far.

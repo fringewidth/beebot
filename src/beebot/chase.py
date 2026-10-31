@@ -190,7 +190,8 @@ def move_cheese(mass, cheese, walls, tau):
     return mass, new_cheese
 
 
-def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record=False, damage_step=None, damage_fraction=0.25):
+def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record=False, damage_step=None, damage_fraction=0.25, cheese_period=CHEESE_PERIOD):
+    """cheese_period 0 means the cheese never moves (training's first level); evaluation always uses CHEESE_PERIOD."""
     mass = batch.mass
     b, h, w = mass.shape
     notes = torch.zeros(b, N_NOTES, h, w, device=mass.device)
@@ -204,7 +205,7 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
     for t in range(n_steps):
         if t == damage_step:
             mass = damage(mass, damage_fraction)
-        if t % CHEESE_PERIOD == CHEESE_PERIOD - 1:
+        if cheese_period and t % cheese_period == cheese_period - 1:
             # An eaten cheese is an empty mask, which senses nothing and so never moves.
             mass, moved = move_cheese(mass, cheese & present[:, None, None], batch.walls, tau)
             cheese = torch.where(present[:, None, None], moved, cheese)
