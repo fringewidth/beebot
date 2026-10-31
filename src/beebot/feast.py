@@ -15,6 +15,7 @@ whole world that condenses onto each ring):
     crowding: squares holding more than one robot (robots take up space)
     fog:      squares holding some mass but less than half a robot, per robot
     time:     a cost for every step until the last cheese is eaten
+    explore:  the share of open floor no solid robot has stood on yet, while cheese remains
 No distance or exploration terms, no curriculum. Splitting the swarm is allowed.
 """
 
@@ -158,6 +159,7 @@ class FeastRollout:
     fog: torch.Tensor  # soft count of squares holding less than FOG_MASS, per unit of swarm mass
     fog_share: torch.Tensor  # share of the mass on squares holding less than FOG_MASS (diagnostic)
     unfinished: torch.Tensor  # soft "some cheese is still left": 0 once everything is eaten
+    explore: torch.Tensor  # share of open floor not yet visited by a solid robot, while some cheese is left
     left: torch.Tensor  # number of cheeses not yet eaten
     n_cheese: torch.Tensor  # (B,)
     masses: list  # (B, H, W) numpy arrays per step, only when recorded
@@ -176,8 +178,13 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
     present = batch.cheese.flatten(2).any(dim=2)  # (B, K)
     n_cheese = present.sum(dim=1)
     total_mass = mass.sum(dim=(1, 2))
+    # A square counts as visited once it has held tau or more of robot (softly, as for the
+    # rings), so a thin film visits nothing and only solid robots get credit for covering ground.
+    open_floor = (~batch.walls & ~batch.cheese.any(dim=1)).float()
+    open_count = open_floor.sum(dim=(1, 2))
+    visited = torch.zeros_like(mass)
 
-    deficit, crowding, fog, fog_share, unfinished, left = [], [], [], [], [], []
+    deficit, crowding, fog, fog_share, unfinished, explore, left = [], [], [], [], [], [], []
     masses, pheromones, cheeses, ring_frames = [], [], [], []
     for t in range(n_steps):
         if t == damage_step:
@@ -202,8 +209,10 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
         fog_share.append((mass * thin).sum(dim=(1, 2)) / total_mass)
         # 1 - P(every cheese is done), treating each remaining cheese's ring coverage as its chance.
         unfinished.append(1 - torch.prod(1 - (1 - surround) * present, dim=1))
+        visited = torch.maximum(visited, occupied * open_floor)
         full = ((mass[:, None] > tau) | ~batch.rings).flatten(2).all(dim=2)
         present = present & ~full
+        explore.append((1 - visited.sum(dim=(1, 2)) / open_count) * present.any(dim=1).float())
         left.append(present.sum(dim=1))
         if record:
             masses.append(mass.detach().cpu().numpy())
@@ -217,6 +226,7 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
         fog=torch.stack(fog),
         fog_share=torch.stack(fog_share),
         unfinished=torch.stack(unfinished),
+        explore=torch.stack(explore),
         left=torch.stack(left),
         n_cheese=n_cheese,
         masses=masses,
@@ -226,9 +236,9 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
     )
 
 
-def loss(result, w_crowding, w_fog=0.0, w_time=0.0):
+def loss(result, w_crowding, w_fog=0.0, w_time=0.0, w_explore=0.0):
     """Averaged over every step, so eating sooner scores better."""
-    per_step = result.deficit + w_crowding * result.crowding + w_fog * result.fog + w_time * result.unfinished
+    per_step = result.deficit + w_crowding * result.crowding + w_fog * result.fog + w_time * result.unfinished + w_explore * result.explore
     return per_step.mean()
 
 

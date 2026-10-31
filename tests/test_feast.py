@@ -168,3 +168,38 @@ def test_shaped_loss_trains_every_layer(batch):
     assert torch.isfinite(value)
     value.backward()
     assert all(p.grad is not None for p in model.parameters())
+
+
+def test_explore_counts_only_solid_robots():
+    size = 12
+    walls = torch.zeros(1, size, size, dtype=torch.bool)
+    cheese = torch.zeros(1, 1, size, size, dtype=torch.bool)
+    cheese[0, 0, 6, 6] = True
+    rings = torch.zeros_like(cheese)
+    rings[0, 0, 5:8, 5:8] = True
+    rings[0, 0, 6, 6] = False
+    open_count = size * size - 1
+
+    compact = torch.zeros(1, size, size)
+    compact[0, 0:2, 0:4] = 1.0  # 8 whole robots on 8 squares
+    film = torch.full((1, size, size), 8.0 / open_count)  # the same robots spread thin
+    film[0, 6, 6] = 0.0
+    results = {}
+    for name, mass in (("compact", compact), ("film", film)):
+        results[name] = rollout(StayPolicy(), FeastBatch(mass=mass, cheese=cheese, walls=walls, rings=rings), 2, 1.0, 0.5)
+    assert torch.allclose(results["compact"].explore, torch.full((2, 1), 1 - 8 / open_count))
+    assert (results["film"].explore > 0.85).all(), "a film thinner than tau visits almost nothing"
+
+
+def test_explore_stops_once_everything_is_eaten():
+    size = 12
+    walls = torch.zeros(1, size, size, dtype=torch.bool)
+    cheese = torch.zeros(1, 1, size, size, dtype=torch.bool)
+    cheese[0, 0, 3, 3] = True
+    rings = torch.zeros_like(cheese)
+    rings[0, 0, 2:5, 2:5] = True
+    rings[0, 0, 3, 3] = False
+    mass = torch.zeros(1, size, size)
+    mass[rings[:, 0]] = 1.0
+    result = rollout(StayPolicy(), FeastBatch(mass=mass, cheese=cheese, walls=walls, rings=rings), 2, 1.0, 0.5)
+    assert result.explore.abs().max() == 0
