@@ -395,3 +395,9 @@ One cheese that runs from the swarm (`src/beebot/chase.py`). Rules:
 Splits: val seed 5000 (interp 22, 30, 36; extrap 48, 64; damage on the interp layouts), test seed 6000 (18, 26, 34; 56, 72). Training sizes 16 to 40.
 
 Recipe: Feast's current one, from scratch: the Feast loss (ring deficit, crowding, fog, time; with one cheese the time term equals the deficit), the fog constraint tightening from 1.0 to 0.1 over 75% of training, averaged weights, batch 64, lr 3e-4 cosine, 480 minutes. Run v5-chase, `uv run train-feast --task chase`, in parallel with the Feast run.
+
+Check-in 2026-11-01 00:28:
+- v4-feast-tighten passed the 127-minute mark without trouble, now at 170 minutes. Training success 76 to 83% while fog falls with the target (0.73 to 0.54, target 0.60). Val at 150 minutes: 0.785 (interp 74%, extrap 47%, damage 36%), fog 0.61 to 0.71, down from 0.66 to 0.83 at 120.
+- v5-chase ate nothing in 50 minutes, with fog 0.93: the whole swarm is a film, and a film never fills a ring that runs from it. Feast's time-based schedule then started binding (w_fog 0.12) before anything was learned, which is the fogdual freeze trap. Stopped (`runs_cancelled/`).
+
+Recipe change for Chase: the fog target holds at 1.0 until the training success average first reaches 0.3, then tightens to 0.1 over 360 minutes (`--fog_gate 0.3 --fog_tighten_minutes 360`). Same idea as before, learn the task, then compact, but keyed to when learning happens instead of to the clock. Run v5-chase-gated, from scratch, 720 minutes. Feast keeps its time-based schedule; with no gate set, the code behaves as before.
