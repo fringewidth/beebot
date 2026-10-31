@@ -419,3 +419,12 @@ Check-in 2026-11-01 02:50:
 - v4-feast-tighten failed as the fog limit tightened. Val: 241 minutes 57/12/24% (fog 0.44 to 0.47); 271 minutes 33/2/15%; 301 minutes 24/0/10% (fog 0.29 to 0.37). The swarm didn't find a compact way to search; it lost the one strategy it had. Nothing in the loss rewards a compact swarm for covering ground. Stopped at 312 minutes (`runs_cancelled/`).
 
 Recipe change for Feast: an exploration term, the ad hoc "ideal behavior" kind the user allowed for Feast. It is the share of open floor that no solid robot has stood on yet, charged every step while any cheese is left (`w_explore 0.5`). A square counts as visited once it held tau (half a robot) or more, softly as for the rings, so a film visits almost nothing and compact groups sweeping the map earn the most. The terrain stage had the same kind of term. The fog limit tightens only after the training success average reaches 0.3, then over 300 minutes. Run v4-feast-explore, from scratch, 600 minutes.
+
+Check-in 2026-11-01 05:14:
+- v4-feast-explore: val at 60 minutes 0.899 (interp 51%, extrap 48%, damage 15%) and at 120 minutes 0.897 (50/45/12%), fog still 0.67 to 0.90 (the limit was only down to 0.74). Then from about 128 minutes it collapsed: loss 3 to 5, nothing eaten, fog weight still 0. The same pile-up collapse as v4-feast-shaped (189 minutes, never recovered) and v4-feast-tighten (57 to 82 minutes, recovered). Three of four long Feast runs, so it's the recipe, not bad luck. Stopped (`runs_cancelled/`).
+- v5-chase-speedup has sat at the cheese-moves-every-4-steps level for about 2 hours: training success 14 to 20% (level-up needs 50%), val with the full-speed cheese 5 to 17% per split.
+
+Changes:
+- Rollback on collapse (`--rollback true`): if the training success average falls below a third of its best (once that best is at least 0.3), the raw weights are reset to the averaged weights and Adam restarts. A generic safety net; the averaged weights lag by about 200 steps, so they are still good when a collapse is detected 20 to 40 steps in.
+- Feast restarts from scratch with it: v4-feast-explore2, otherwise identical to v4-feast-explore.
+- Chase resumes from its own checkpoint (196.7 minutes, level 3) with the level-up bar lowered to 20% and rollback on. Val always uses the full-speed cheese, so this only changes what training practices on; the plateau at 4 steps per move wasn't moving.
