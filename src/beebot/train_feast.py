@@ -88,6 +88,13 @@ class FeastConfig:
     # Evaluation always uses the full-speed cheese.
     cheese_periods: str = ""
     level_up: float = 0.5
+    # Roll back a collapse: if the training success average falls below rollback_share of its
+    # best (once that best is at least rollback_from), the raw weights go back to the averaged
+    # weights and Adam restarts. Three Feast runs collapsed into piled-up mass (loss 3 to 5,
+    # nothing eaten) and stayed there for 25 minutes or for good.
+    rollback: bool = False
+    rollback_from: float = 0.3
+    rollback_share: float = 0.33
     w_time: float = 0.5  # every step until the last cheese is eaten
     w_explore: float = 0.0  # open floor no solid robot has visited yet (see feast.py)
 
@@ -142,6 +149,8 @@ def train(cfg):
     tighten_minutes = cfg.fog_tighten_minutes or cfg.fog_ramp * cfg.minutes
     periods = [int(x) for x in cfg.cheese_periods.split(",")] if cfg.cheese_periods else []
     level = resumed.get("level", 0)
+    best_success_ema = 0.0
+    rollbacks = 0
     diverged = False
     log = open(run_dir / "log.jsonl", "a" if cfg.init else "w")
     workers = ProcessPoolExecutor(max_workers=1)
@@ -198,9 +207,17 @@ def train(cfg):
         success = (result.left[-1] == 0).float().mean().item()
         eaten_share = (1 - result.left[-1].float() / result.n_cheese.float()).mean().item()
         success_ema = 0.95 * success_ema + 0.05 * success
+        best_success_ema = max(best_success_ema, success_ema)
+        if cfg.rollback and best_success_ema >= cfg.rollback_from and success_ema < cfg.rollback_share * best_success_ema:
+            model.load_state_dict(averaged.module.state_dict())
+            optimizer = torch.optim.Adam(model.parameters(), lr=optimizer.param_groups[0]["lr"])
+            rollbacks += 1
+            print(json.dumps({"iteration": iteration, "rollback": rollbacks, "success_ema": round(success_ema, 3), "best": round(best_success_ema, 3)}), flush=True)
+            success_ema = best_success_ema
         if periods and level < len(periods) - 1 and success_ema >= cfg.level_up:
             level += 1
             success_ema = 0.0
+            best_success_ema = 0.0
             print(json.dumps({"iteration": iteration, "level_up": level, "cheese_period": periods[level]}), flush=True)
         iteration += 1
 
@@ -216,6 +233,7 @@ def train(cfg):
                 "w_fog": round(w_fog, 3),
                 "fog_target": round(target, 3) if cfg.fog_target else None,
                 "level": level,
+                "rollbacks": rollbacks,
                 "size": size,
             }
             log.write(json.dumps(entry) + "\n")
