@@ -1,6 +1,7 @@
-"""Train the NCA on Feast from scratch, then score it on Feast's frozen val set.
+"""Train the NCA on Feast (or Chase, with --task chase) from scratch, then score it on that task's frozen val set.
 
     uv run train-feast --name my-run --minutes 200
+    uv run train-feast --task chase --name my-run --minutes 200
 
 Every field of FeastConfig is a command-line flag. Outputs go to runs/<name>/.
 No curriculum: every batch samples the full range of grid sizes, cheese counts
@@ -9,6 +10,7 @@ and walls. The loss terms are described in feast.py. Saving, the STOP file and b
 
 import dataclasses
 import json
+import shutil
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,11 +19,13 @@ import numpy as np
 import torch
 from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 
-from beebot import feast
+from beebot import chase, feast
 from beebot.model import NCA, load_weights
 from beebot.train import awake_seconds, keep_if_best, parse_config, save_checkpoint
 
-TRAIN_CHEESE = (2, 4)
+# Each task module provides sample_training_batch, rollout, evaluate and render_examples.
+# The loss is Feast's for both.
+TASKS = {"feast": feast, "chase": chase}
 
 
 @dataclass
@@ -34,9 +38,9 @@ class FeastConfig:
     init: str = ""  # only for resuming this same run from its own model.pt
     # Pick this run up where its last checkpoint left off: weights from model.pt, and the
     # clock and iteration from checkpoint.json, so the lr and fog schedules continue. The
-    # optimizer state and the fog multiplier aren't saved; pass the last logged w_fog.
+    # fog multiplier comes from dual.json; the optimizer state restarts.
     resume: bool = False
-    save_every_minutes: float = 10.0
+    save_every_minutes: float = 5.0
     eval_every_minutes: float = 30.0
     lr_schedule: str = "cosine"
     lr_floor: float = 0.1
@@ -84,8 +88,13 @@ def train(cfg):
     resumed = {"minutes": 0.0, "iteration": 0}
     if cfg.resume:
         resumed = json.loads((run_dir / "checkpoint.json").read_text())
-        cfg.init = str(run_dir / f"model_resume_{resumed['iteration']}.pt")
-        (run_dir / "model.pt").rename(cfg.init)
+        if (run_dir / "dual.json").exists():
+            cfg.w_fog = json.loads((run_dir / "dual.json").read_text())["w_fog"]
+        # Keep a copy of the starting weights: model.pt is overwritten at the next save.
+        start_weights = run_dir / f"model_resume_{resumed['iteration']}.pt"
+        if not start_weights.exists():
+            shutil.copy(run_dir / "model.pt", start_weights)
+        cfg.init = str(start_weights)
     config_name = f"config_resume_{resumed['iteration']}.json" if cfg.resume else "config.json"
     (run_dir / config_name).write_text(json.dumps(dataclasses.asdict(cfg), indent=2))
 
@@ -94,6 +103,7 @@ def train(cfg):
     rng = np.random.default_rng([cfg.seed, resumed["iteration"]])
     device = torch.device(cfg.device)
     sizes = [int(s) for s in cfg.train_sizes.split(",")]
+    env = TASKS[cfg.task]
 
     model = NCA(hidden=cfg.hidden, n_hidden_layers=cfg.n_hidden_layers, stay_bias=cfg.stay_bias).to(device)
     if cfg.init:
@@ -105,6 +115,8 @@ def train(cfg):
     last_save = awake_seconds()
     last_eval = awake_seconds()
     best_score = float("inf")
+    if cfg.resume and (run_dir / "val_history.jsonl").exists():
+        best_score = min(json.loads(line)["val"]["score"] for line in open(run_dir / "val_history.jsonl"))
     iteration = resumed["iteration"]
     success_ema = 0.0
     multiplier = cfg.w_fog
@@ -116,10 +128,10 @@ def train(cfg):
     def request_batch():
         size = int(rng.choice(sizes))
         seed = int(rng.integers(2**31))
-        return workers.submit(feast.sample_batch_seeded, seed, size, TRAIN_CHEESE, cfg.batch_size), size
+        return workers.submit(env.sample_training_batch, seed, size, cfg.batch_size), size
 
-    if cfg.init:
-        best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, 0.0, evaluate=feast.evaluate)
+    if cfg.init and not cfg.resume:
+        best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, 0.0, evaluate=env.evaluate)
 
     pending = request_batch()
     while awake_seconds() - start < cfg.minutes * 60 and not (run_dir / "STOP").exists():
@@ -128,7 +140,7 @@ def train(cfg):
         pending = request_batch()
         n_steps = round(cfg.steps_per_cell * size)
 
-        result = feast.rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
+        result = env.rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
         progress = min(1.0, (awake_seconds() - start) / (cfg.minutes * 60))
         w_fog = cfg.w_fog
         if cfg.w_fog_final:
@@ -180,10 +192,11 @@ def train(cfg):
 
         if awake_seconds() - last_save > cfg.save_every_minutes * 60:
             save_checkpoint(run_dir, averaged.module, iteration, 0, (awake_seconds() - start) / 60)
+            (run_dir / "dual.json").write_text(json.dumps({"w_fog": multiplier}))
             last_save = awake_seconds()
 
         if awake_seconds() - last_eval > cfg.eval_every_minutes * 60:
-            best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=feast.evaluate)
+            best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=env.evaluate)
             last_eval = awake_seconds()
 
     workers.shutdown(cancel_futures=True)
@@ -191,11 +204,11 @@ def train(cfg):
     save_checkpoint(run_dir, averaged.module, iteration, 0, (awake_seconds() - start) / 60)
 
     # The run's result is its best val checkpoint, final averaged model included.
-    best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=feast.evaluate)
+    best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=env.evaluate)
     model.load_state_dict(torch.load(run_dir / "model_best.pt", map_location=device))
     torch.save(model.state_dict(), run_dir / "model.pt")
     model.eval()
-    scores = feast.evaluate(model, device, "val")
+    scores = env.evaluate(model, device, "val")
     summary = {
         "name": cfg.name,
         "iterations": iteration,
@@ -206,7 +219,7 @@ def train(cfg):
     }
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     print(json.dumps(summary, indent=2))
-    feast.render_examples(model, device, run_dir / "videos")
+    env.render_examples(model, device, run_dir / "videos")
 
 
 def main():
