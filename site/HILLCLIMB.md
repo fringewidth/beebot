@@ -331,3 +331,73 @@ Mostly no. Four times the time recovers a quarter to a third of the failures. Fa
 - Even from starts 2 to 6 squares away, about 18% fail at every limit.
 
 So the main weakness is recruiting the whole swarm and holding the formation, not search time. Behavior after 6x is past the training horizon, so the drift away from the cheese may just be untrained behavior; but the failure to gather is there within the limit too.
+
+v4-feast, first 65 minutes: learned fast with the task-only loss. Training success (smoothed) reached 0.84 by 38 minutes, collapsed at about 42 (loss 1.6, above where it started), then recovered to about 0.56 by 65. But val checks were far below training: 0.990 at 30 minutes (4% interp) and 0.970 at 60 (15%).
+
+Diagnosis (no code bug): the weights swing between good and bad within 10 to 20 optimizer steps.
+- With the 30-minute checkpoint frozen, the exact training loop gets the same low success as val.
+- From that checkpoint, 40 to 60 more steps at lr 5e-4 bring frozen success at size 24 to 0.68-0.77, with dips to 0.09 along the way.
+- So the val checks landed in dips, and any raw snapshot is a lottery ticket.
+
+Fix: checkpoints, val checks and the final model now use an exponential moving average of the weights (decay 0.995, about a 200-step window), and lr goes from 5e-4 to 3e-4. Both are standard, general-purpose training practice, not task knowledge. v4-feast stopped (`runs_cancelled/`). New run from scratch: v4-feast-ema, batch 64, 240 minutes.
+
+v4-feast-ema at 30 minutes: val 0.808, with 72% of unseen sizes and 69% of bigger worlds fully eaten (damage 30%). The averaged weights closed the train/val gap. But the videos show the fog strategy: the swarm dissolves into a film over the whole world and condenses onto each ring. Measured on val layouts, 73 to 96% of the mass sits on squares holding less than half a robot, and mass covers 85% of the world. On terrain, the whole-swarm gather rule had kept swarms compact. Feast dropped it, and the proportional-mobility rule alone only slows fog down.
+
+Decision (user): fog is not okay. Add ad hoc loss terms for the ideal behavior; splitting the swarm is fine. Train longer.
+- **Fog term** (w_fog 0.1): a soft count of squares holding some mass but less than half a robot, per unit of swarm mass. It's a sine bump on [0, 0.5]: zero for empty squares and at half a robot, peaking at a quarter, so thin squares are pushed to empty or up to half a robot. It measures about 4 to 5 on the fog swarm (so 0.4 to 0.5 after weighting, more than the task loss it earns), 0 on a compact swarm, and 1.2 on an untrained network.
+- **Time term** (w_time 0.5): 1 minus the product, over remaining cheeses, of their ring coverage. A cost at every step until the last cheese is eaten.
+- Evaluation now also reports fog (time-averaged share of the mass on squares holding less than half a robot).
+
+v4-feast-ema stopped (`runs_cancelled/`). New run from scratch: v4-feast-shaped, batch 64, averaged weights, lr 3e-4, 480 minutes. The time limit stays at 6 steps per grid square.
+
+v4-feast-shaped at 100 minutes: learning is slow but real. Training batches: eaten share 0 to 0.38, full success 11%. Val at 90 minutes: 0.998 (interp 1% success, 20% eaten). But fog share on training batches rose from 0.35 to 0.54 as eating improved, so at w_fog 0.1 the net is relearning the fog strategy, only more slowly. A second run, from scratch, goes in parallel: v4-feast-fog1, identical except w_fog 1.0. Whichever one clears the bar without fog is the recipe; the other is cancelled. This is not an ablation: at 0.1 the fog weight fails the requirement.
+
+v4-feast-fog1 froze. By 18 minutes the loss sat at exactly 1.5 (deficit 1 + time 0.5): every robot stays put, fog 0, nothing eaten, val 1.0 at 30 minutes. Moving an untrained swarm always makes thin squares, so at a flat weight of 1.0 each move costs more than it can earn, and standing still is a dead local minimum. Cancelled (`runs_cancelled/`).
+
+v4-feast-shaped at 150 minutes: val 0.92 (interp 34% fully eaten, extrap 6%, damage 21%), but fog 0.66 to 0.69, rising with success. It is the fog strategy again.
+
+Recipe change: the fog weight ramps linearly from 0.1 to 1.0 over the first half of training (`--w_fog_final 1.0`, `fog_ramp 0.5`). The swarm learns to move and eat while fog is cheap, then has to compact as fog gets expensive. New run from scratch: v4-feast-fogramp, otherwise identical. v4-feast-shaped keeps running as the flat-0.1 reference until fogramp shows whether the ramp works.
+
+v4-feast-shaped collapsed at 189 minutes. Training success had peaked near 50% (val 0.887 at 181 minutes: interp 48%, extrap 17%, damage 25%, fog 0.6 to 0.7). Then within 20 steps the loss jumped from about 1 to 3 to 5 and eating fell to zero; it never recovered. No NaN, so the divergence check didn't fire. Stopped (`runs_cancelled/`, best checkpoint kept). It ate by fog anyway, so it was never a candidate.
+
+v4-feast-fogramp at 49 minutes: w_fog 0.28, fog 0.12 to 0.18, but nothing eaten yet (the flat-0.1 run had 15% eaten by 60 minutes). The ramp may outrun learning and freeze the swarm like fog1.
+
+Second candidate, from scratch: v4-feast-fogdual. Fog becomes a constraint (fog share at most 0.1), and w_fog is a Lagrange multiplier updated by dual ascent (`--fog_target 0.1 --dual_lr 0.01`, starting at 0.1). It grows while fog is over target and shrinks while it is under, so a frozen swarm gets the penalty lifted and can move again. This is the standard constrained-optimization treatment, and it replaces a hand-picked weight or schedule. A compact swarm can move without fog, since a whole robot moves whole (squares fire as a unit and act in proportion to their mass), so 0.1 is reachable.
+
+Check at about 100 awake minutes (fogramp) and 50 (fogdual):
+- fogdual froze within 13 minutes (fog 0, loss exactly 1.5). The multiplier then fell to 0 by 28 minutes as intended, but the swarm stayed frozen for another 20 minutes with no fog penalty at all. Around 46 to 50 minutes it started moving again (fog 0.33, first cheese eaten), and the multiplier is rising again (0.09).
+- fogramp eats a little (2% at 100 minutes, against 36% for flat 0.1) with fog 0.1 to 0.23; val fog fell to 0.02 to 0.29 but nothing is fully eaten. w_fog is 0.48 and still rising.
+- Reading: fog is not just a bad strategy, it is how the untrained swarm explores. Diffused mass reaches the rings, so the loss has a gradient through it. A compact frozen swarm far from the rings gets almost none, which is why the freeze is sticky even at w_fog 0. Any fog penalty strong enough early on removes the learning signal.
+
+At about 150 awake minutes both fog-penalty runs had failed: fogramp ate 2 to 3% with fog 0.12 (w_fog 0.66 and rising), and fogdual cycled between frozen (fog 0, loss 1.5) and moving, with the multiplier going 0 to 0.3 and back. Both stopped (`runs_cancelled/`).
+
+Recipe change, following the exploration reading: let the swarm learn to eat with fog first, then take fog away gradually. Fog is still a constraint with a dual-ascent multiplier, starting at 0, but the target now tightens linearly from 1.0 (no limit) to 0.1 over the first 75% of training (`--w_fog 0 --fog_target 0.1 --fog_target_start 1.0 --fog_ramp 0.75`). At the flat-0.1 run's pace the limit would start to bind around 150 minutes, about when that run had learned to eat. New run from scratch: v4-feast-tighten, 480 minutes, alone on the GPU.
+
+v4-feast-tighten, first 95 minutes: with no fog limit it learned to eat by fog within 25 minutes (training success 50 to 85%, val 0.921 at 60 minutes: interp 50%, extrap 16%, damage 12%, fog 0.67 to 0.83). From about 57 to 82 minutes it collapsed the same way v4-feast-shaped did: loss up to 3 to 5, nothing eaten. The fog weight was still exactly 0, so the fog term didn't cause it. The excess loss can only come from crowding (squared overfill), so the swarm was piling into heaps. This time it recovered on its own by 84 minutes (training success back to 65 to 100%). The averaged weights kept the 60-minute checkpoint as best. The fog limit started to bind at about 90 minutes (target 0.78, w_fog 0.05).
+
+v4-feast-tighten crashed at 127 minutes (2026-10-30 10:52) with an MPS internal error ("command buffer exited with error status"). Not caused by the code; the process died in the Metal driver. Val at 120 minutes: 0.781 (interp 71%, extrap 59%, damage 35%), fog 0.66 to 0.83, fog limit at 0.69. Resumed 2026-10-31 from its own 120.7-minute checkpoint with the new `--resume true`, which continues the clock, the iteration count and so the lr and fog-limit schedules (the multiplier is passed by hand as the last logged w_fog, 0.019; Adam state restarts). Backup of the pre-resume folder in `runs_cancelled/v4-feast-tighten-crash-backup/`.
+
+2026-10-31 23:34: the resumed v4-feast-tighten hit the same MPS error at 127 minutes, and this time the whole machine went down with a kernel panic in the GPU driver ("Mem object in pending hash found in main memory hash" @IOGPUGroupMemory.cpp:439, macOS 15.7.7). Not memory pressure: one size-40 training step uses about 2 GB of the 17 GB recommended limit, and the first crash happened with a single run on the GPU. Treated as a driver bug we have to live with:
+- checkpoints every 5 minutes instead of 10, and the fog multiplier is saved with them (`dual.json`);
+- a resume keeps the run's best val score instead of starting over, and doesn't re-score the start;
+- `supervise.sh <name> [flags]` reruns a run from its last checkpoint whenever the process dies, until `summary.json` exists. A kernel panic still stops everything until the machine reboots and someone logs in.
+v4-feast-tighten resumed again from 120.7 minutes.
+
+# v5 Chase
+
+One cheese that runs from the swarm (`src/beebot/chase.py`). Rules:
+- The cheese is a rigid shape of 1 to 5 squares on the same terrain (walls 0 to 30%).
+- Every 2 steps it moves one square toward the side with the least robot mass, among the four cones (N, S, W, E) around its center within 4 squares. Ties go to the side opposite the most mass. If it senses no robots it stays.
+- It can't enter walls or squares holding at least tau (0.5) of robot. Thinner mass in its way is pushed into the squares it leaves, so mass is conserved.
+- Robots fire 3 steps in 4 and move one square, so the cheese runs at about two thirds of their speed. On a torus a swarm that only follows never catches it; it has to be cut off or pinned against a wall.
+- Eaten once every open square touching it holds more than tau, as in Feast. Success is eating it within 6 steps per grid square.
+
+Splits: val seed 5000 (interp 22, 30, 36; extrap 48, 64; damage on the interp layouts), test seed 6000 (18, 26, 34; 56, 72). Training sizes 16 to 40.
+
+Recipe: Feast's current one, from scratch: the Feast loss (ring deficit, crowding, fog, time; with one cheese the time term equals the deficit), the fog constraint tightening from 1.0 to 0.1 over 75% of training, averaged weights, batch 64, lr 3e-4 cosine, 480 minutes. Run v5-chase, `uv run train-feast --task chase`, in parallel with the Feast run.
+
+Check-in 2026-11-01 00:28:
+- v4-feast-tighten passed the 127-minute mark without trouble, now at 170 minutes. Training success 76 to 83% while fog falls with the target (0.73 to 0.54, target 0.60). Val at 150 minutes: 0.785 (interp 74%, extrap 47%, damage 36%), fog 0.61 to 0.71, down from 0.66 to 0.83 at 120.
+- v5-chase ate nothing in 50 minutes, with fog 0.93: the whole swarm is a film, and a film never fills a ring that runs from it. Feast's time-based schedule then started binding (w_fog 0.12) before anything was learned, which is the fogdual freeze trap. Stopped (`runs_cancelled/`).
+
+Recipe change for Chase: the fog target holds at 1.0 until the training success average first reaches 0.3, then tightens to 0.1 over 360 minutes (`--fog_gate 0.3 --fog_tighten_minutes 360`). Same idea as before, learn the task, then compact, but keyed to when learning happens instead of to the clock. Run v5-chase-gated, from scratch, 720 minutes. Feast keeps its time-based schedule; with no gate set, the code behaves as before.

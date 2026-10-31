@@ -187,6 +187,13 @@ function videos(stage) {
     ? "The stage's best run on held-out val layouts it solved, picked to show the hardest ones: the farthest starts, or the most cheeses. These are picked successes, not typical runs; the success rates are in the tiles above. Videos run to twice the time limit; the bar along the bottom turns red once the limit passes."
     : "The stage's best run on fixed held-out layouts, rendered when the stage ran. Videos run to twice the time limit; the bar along the bottom turns red once the limit passes.");
   if (!d || !d.videos.length) { s.append(el("p", { class: "empty" }, d ? "This run solved none of the demo layouts." : "No videos yet.")); return s; }
+  clipViewer(s, d);
+  return s;
+}
+
+// A picker over one run's clips, with captions from its picks; appended to section s.
+function clipViewer(s, d) {
+  const picked = d.picks;
   const clipInfo = {};
   if (picked) for (const split of d.picks) for (const c of split.clips) clipInfo[c.file] = { ...c, split };
   const splitName = f => f.replace(".gif", "").replace("interp", "unseen size").replace("extrap", "bigger world").replace("_", " #");
@@ -227,6 +234,25 @@ function videos(stage) {
   }
   s.append(row, duel, legend);
   draw();
+}
+
+// A run kept outside the ranking for what it shows (on Feast: the fog hack).
+function aside(stage) {
+  const a = stage.aside;
+  if (!a) return el("div", { hidden: "" });
+  const s = section(a.title, a.text);
+  if (a.val) {
+    const box = el("div", { class: "scores" });
+    for (const split of SPLITS) {
+      const tile = el("div", { class: "score" });
+      tile.append(el("div", { class: "label" }, SPLIT_NAMES[split] + " · solved"));
+      tile.append(el("div", { class: "big" }, pct(a.val[split].success)));
+      tile.append(el("div", { class: "sub" }, "fog " + pct(a.val[split].fog)));
+      box.append(tile);
+    }
+    s.append(box);
+  }
+  if (a.videos.length) clipViewer(s, { run: "fog hack (v4-feast-ema)", videos: a.videos, picks: a.picks });
   return s;
 }
 
@@ -365,7 +391,7 @@ function stagePanel(stage) {
   top.append(el("h2", {}, stage.title));
   if (stage.status === "current") top.append(el("span", { class: "pill current" }, "in progress"));
   intro.append(top, el("p", { class: "lede" }, stage.summary), scoreTiles(stage));
-  panel.append(intro, videos(stage), bars(stage), probes(stage), curves(stage), table(stage));
+  panel.append(intro, videos(stage), aside(stage), bars(stage), probes(stage), curves(stage), table(stage));
   return panel;
 }
 

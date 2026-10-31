@@ -1,0 +1,54 @@
+[
+  {
+    "split": "interp",
+    "size": 22,
+    "layouts": 32,
+    "solved": 30,
+    "clips": [
+      {
+        "file": "interp_0.gif",
+        "cheeses": 4,
+        "steps": 26,
+        "limit": 132
+      },
+      {
+        "file": "interp_1.gif",
+        "cheeses": 4,
+        "steps": 30,
+        "limit": 132
+      },
+      {
+        "file": "interp_2.gif",
+        "cheeses": 4,
+        "steps": 30,
+        "limit": 132
+      }
+    ]
+  },
+  {
+    "split": "extrap",
+    "size": 48,
+    "layouts": 32,
+    "solved": 20,
+    "clips": [
+      {
+        "file": "extrap_0.gif",
+        "cheeses": 6,
+        "steps": 159,
+        "limit": 288
+      },
+      {
+        "file": "extrap_1.gif",
+        "cheeses": 6,
+        "steps": 170,
+        "limit": 288
+      },
+      {
+        "file": "extrap_2.gif",
+        "cheeses": 6,
+        "steps": 195,
+        "limit": 288
+      }
+    ]
+  }
+]

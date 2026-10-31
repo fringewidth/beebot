@@ -43,7 +43,12 @@ STAGES = [
         "folder": "runs",
         "reference": None,
         "status": "current",
-        "summary": "Two to four cheeses on terrain; each vanishes once its ring is full, and the swarm must eat them all. No smell, pheromones only. First stage under the bitter-lesson rule: the loss is only the task (unfilled rings, plus crowding because robots take up space), no curriculum, trained from scratch.",
+        "summary": "Two to four cheeses on terrain; each vanishes once its ring is full, and the swarm must eat them all. No smell, pheromones only. Trained from scratch, no curriculum. The loss is the task (unfilled rings, plus crowding because robots take up space), a cost per step until everything is eaten, and a cap on fog (see below) that starts wide open and shrinks over training.",
+        "aside": {
+            "folder": "fog_hack",
+            "title": "The fog hack",
+            "text": "With the loss being the task alone, the swarm found a shortcut. Robot mass in the simulation is continuous, so a square can hold a few hundredths of a robot. The swarm dissolves into a thin film over the whole world, and the film thickens wherever it touches a cheese's ring until the ring is full. It never searches, because it is already everywhere. No swarm of whole robots could do this: the objective said 'fill every ring' and never said the swarm has to stay made of robots. It also outscores every fog-free swarm trained so far. Run v4-feast-ema at 60 minutes, on the same held-out layouts; fog is the share of the swarm sitting on squares with less than half a robot.",
+        },
     },
     {
         "id": "v3b",
@@ -154,6 +159,21 @@ def demo(stage, run_dir, device):
     return {"run": run_dir.name, "videos": copy_videos(run_dir / "demo", stage["id"], run_dir.name), "picks": read_json(picks_path)}
 
 
+def collect_aside(stage):
+    """A run kept outside the stage's ranking for what it shows, with its clips and val scores."""
+    aside = stage.get("aside")
+    if not aside:
+        return None
+    folder = Path(aside["folder"])
+    return {
+        "title": aside["title"],
+        "text": aside["text"],
+        "videos": copy_videos(folder / "videos", stage["id"], folder.name),
+        "picks": read_json(folder / "picks.json"),
+        "val": read_json(folder / "val.json"),
+    }
+
+
 def collect_stage(stage, device):
     folder = Path(stage["folder"])
     if stage["reference"]:
@@ -206,6 +226,7 @@ def collect_stage(stage, device):
             "probes": read_json(baseline_dir / "probes.json"),
         },
         "demo": stage_demo,
+        "aside": collect_aside(stage),
         "runs": runs,
     }
 
