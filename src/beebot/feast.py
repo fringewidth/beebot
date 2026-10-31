@@ -47,6 +47,7 @@ LAYOUTS_PER_SIZE = 32
 WALLS = (0.0, 0.3)
 CHEESE_SIZE = (1, 5)
 DAMAGE_FRACTION = 0.25
+TRAIN_CHEESE = (2, 4)
 
 SETS = {
     "val": {
@@ -142,6 +143,10 @@ def sample_batch(rng, size, n_cheese_range, batch_size, cheese_size=CHEESE_SIZE,
 def sample_batch_seeded(seed, size, n_cheese_range, batch_size):
     """sample_batch with its own generator, so it can run in a worker process."""
     return sample_batch(np.random.default_rng(seed), size, n_cheese_range, batch_size)
+
+
+def sample_training_batch(seed, size, batch_size):
+    return sample_batch_seeded(seed, size, TRAIN_CHEESE, batch_size)
 
 
 @dataclass

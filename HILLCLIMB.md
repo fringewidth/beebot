@@ -376,3 +376,22 @@ Recipe change, following the exploration reading: let the swarm learn to eat wit
 v4-feast-tighten, first 95 minutes: with no fog limit it learned to eat by fog within 25 minutes (training success 50 to 85%, val 0.921 at 60 minutes: interp 50%, extrap 16%, damage 12%, fog 0.67 to 0.83). From about 57 to 82 minutes it collapsed the same way v4-feast-shaped did: loss up to 3 to 5, nothing eaten. The fog weight was still exactly 0, so the fog term didn't cause it. The excess loss can only come from crowding (squared overfill), so the swarm was piling into heaps. This time it recovered on its own by 84 minutes (training success back to 65 to 100%). The averaged weights kept the 60-minute checkpoint as best. The fog limit started to bind at about 90 minutes (target 0.78, w_fog 0.05).
 
 v4-feast-tighten crashed at 127 minutes (2026-10-30 10:52) with an MPS internal error ("command buffer exited with error status"). Not caused by the code; the process died in the Metal driver. Val at 120 minutes: 0.781 (interp 71%, extrap 59%, damage 35%), fog 0.66 to 0.83, fog limit at 0.69. Resumed 2026-10-31 from its own 120.7-minute checkpoint with the new `--resume true`, which continues the clock, the iteration count and so the lr and fog-limit schedules (the multiplier is passed by hand as the last logged w_fog, 0.019; Adam state restarts). Backup of the pre-resume folder in `runs_cancelled/v4-feast-tighten-crash-backup/`.
+
+2026-10-31 23:34: the resumed v4-feast-tighten hit the same MPS error at 127 minutes, and this time the whole machine went down with a kernel panic in the GPU driver ("Mem object in pending hash found in main memory hash" @IOGPUGroupMemory.cpp:439, macOS 15.7.7). Not memory pressure: one size-40 training step uses about 2 GB of the 17 GB recommended limit, and the first crash happened with a single run on the GPU. Treated as a driver bug we have to live with:
+- checkpoints every 5 minutes instead of 10, and the fog multiplier is saved with them (`dual.json`);
+- a resume keeps the run's best val score instead of starting over, and doesn't re-score the start;
+- `supervise.sh <name> [flags]` reruns a run from its last checkpoint whenever the process dies, until `summary.json` exists. A kernel panic still stops everything until the machine reboots and someone logs in.
+v4-feast-tighten resumed again from 120.7 minutes.
+
+# v5 Chase
+
+One cheese that runs from the swarm (`src/beebot/chase.py`). Rules:
+- The cheese is a rigid shape of 1 to 5 squares on the same terrain (walls 0 to 30%).
+- Every 2 steps it moves one square toward the side with the least robot mass, among the four cones (N, S, W, E) around its center within 4 squares. Ties go to the side opposite the most mass. If it senses no robots it stays.
+- It can't enter walls or squares holding at least tau (0.5) of robot. Thinner mass in its way is pushed into the squares it leaves, so mass is conserved.
+- Robots fire 3 steps in 4 and move one square, so the cheese runs at about two thirds of their speed. On a torus a swarm that only follows never catches it; it has to be cut off or pinned against a wall.
+- Eaten once every open square touching it holds more than tau, as in Feast. Success is eating it within 6 steps per grid square.
+
+Splits: val seed 5000 (interp 22, 30, 36; extrap 48, 64; damage on the interp layouts), test seed 6000 (18, 26, 34; 56, 72). Training sizes 16 to 40.
+
+Recipe: Feast's current one, from scratch: the Feast loss (ring deficit, crowding, fog, time; with one cheese the time term equals the deficit), the fog constraint tightening from 1.0 to 0.1 over 75% of training, averaged weights, batch 64, lr 3e-4 cosine, 480 minutes. Run v5-chase, `uv run train-feast --task chase`, in parallel with the Feast run.
