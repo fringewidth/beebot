@@ -242,6 +242,7 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
         fog=torch.stack(fog),
         fog_share=torch.stack(fog_share),
         unfinished=deficit,  # with one cheese, "some cheese is left" is its own ring deficit
+        explore=torch.zeros_like(deficit),  # not used in Chase
         left=torch.stack(left),
         n_cheese=torch.ones(b, dtype=torch.long, device=mass.device),
         masses=masses,

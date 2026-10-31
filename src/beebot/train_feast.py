@@ -89,6 +89,7 @@ class FeastConfig:
     cheese_periods: str = ""
     level_up: float = 0.5
     w_time: float = 0.5  # every step until the last cheese is eaten
+    w_explore: float = 0.0  # open floor no solid robot has visited yet (see feast.py)
 
     log_every: int = 20
 
@@ -168,7 +169,7 @@ def train(cfg):
             w_fog += (cfg.w_fog_final - cfg.w_fog) * min(1.0, progress / cfg.fog_ramp)
         if cfg.fog_target:
             w_fog = multiplier
-        value = feast.loss(result, cfg.w_crowding, w_fog, cfg.w_time)
+        value = feast.loss(result, cfg.w_crowding, w_fog, cfg.w_time, cfg.w_explore)
         if not torch.isfinite(value):
             diverged = True
             print(json.dumps({"iteration": iteration, "diverged": True}), flush=True)
