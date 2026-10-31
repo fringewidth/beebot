@@ -401,3 +401,7 @@ Check-in 2026-11-01 00:28:
 - v5-chase ate nothing in 50 minutes, with fog 0.93: the whole swarm is a film, and a film never fills a ring that runs from it. Feast's time-based schedule then started binding (w_fog 0.12) before anything was learned, which is the fogdual freeze trap. Stopped (`runs_cancelled/`).
 
 Recipe change for Chase: the fog target holds at 1.0 until the training success average first reaches 0.3, then tightens to 0.1 over 360 minutes (`--fog_gate 0.3 --fog_tighten_minutes 360`). Same idea as before, learn the task, then compact, but keyed to when learning happens instead of to the clock. Run v5-chase-gated, from scratch, 720 minutes. Feast keeps its time-based schedule; with no gate set, the code behaves as before.
+
+Chase is solvable as specified. `tests/chase_feasible.py`: a scripted swarm that sees the whole map and moves every robot down the walking distance to the cheese catches it in 56% of 22x22 and 81% of 30x30 val-like layouts (16 each) with sharp moves, and 0 to 19% with soft ones. It doesn't plan a cut-off; the torus and the walls do the cornering. So the cheese's speed and sensing aren't the problem; the learned swarm has to find it by touch, then pin it. v5-chase-gated at 49 minutes: nothing caught yet, fog 0.94, loss falling slowly (1.50 to 1.33).
+
+v4-feast-tighten at 220 minutes: as the fog limit tightens, fog falls (training 0.49, val 0.51 to 0.54) and success falls with it (val 210 minutes: interp 62%, extrap 31%, damage 25%; val score 0.803). The limit reaches 0.1 at 360 minutes.
