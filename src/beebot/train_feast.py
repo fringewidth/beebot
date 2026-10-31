@@ -81,6 +81,13 @@ class FeastConfig:
     # then takes fog_tighten_minutes: learn the task first, whenever that happens, then compact.
     fog_gate: float = 0.0
     fog_tighten_minutes: float = 0.0
+    # Chase only: the cheese's training speed, as steps per move, one level at a time (0 = it
+    # doesn't move). Training moves to the next level once the success average reaches level_up.
+    # The gradient can't see that crowding the cheese makes it run, so a fast cheese from the
+    # first step leaves nothing to learn from. The fog gate waits for the last level.
+    # Evaluation always uses the full-speed cheese.
+    cheese_periods: str = ""
+    level_up: float = 0.5
     w_time: float = 0.5  # every step until the last cheese is eaten
 
     log_every: int = 20
@@ -89,7 +96,7 @@ class FeastConfig:
 def train(cfg):
     run_dir = Path("runs") / cfg.name
     run_dir.mkdir(parents=True, exist_ok=True)
-    resumed = {"minutes": 0.0, "iteration": 0}
+    resumed = {"minutes": 0.0, "iteration": 0, "level": 0}
     if cfg.resume:
         resumed = json.loads((run_dir / "checkpoint.json").read_text())
         if (run_dir / "dual.json").exists():
@@ -132,6 +139,8 @@ def train(cfg):
     if not cfg.fog_gate:
         gate_minutes = 0.0
     tighten_minutes = cfg.fog_tighten_minutes or cfg.fog_ramp * cfg.minutes
+    periods = [int(x) for x in cfg.cheese_periods.split(",")] if cfg.cheese_periods else []
+    level = resumed.get("level", 0)
     diverged = False
     log = open(run_dir / "log.jsonl", "a" if cfg.init else "w")
     workers = ProcessPoolExecutor(max_workers=1)
@@ -151,7 +160,8 @@ def train(cfg):
         pending = request_batch()
         n_steps = round(cfg.steps_per_cell * size)
 
-        result = env.rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
+        extra = {"cheese_period": periods[level]} if periods else {}
+        result = env.rollout(model, batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint, **extra)
         progress = min(1.0, (awake_seconds() - start) / (cfg.minutes * 60))
         w_fog = cfg.w_fog
         if cfg.w_fog_final:
@@ -176,7 +186,8 @@ def train(cfg):
             target = cfg.fog_target
             if cfg.fog_target_start:
                 minutes = (awake_seconds() - start) / 60
-                if gate_minutes is None and success_ema >= cfg.fog_gate:
+                at_last_level = not periods or level == len(periods) - 1
+                if gate_minutes is None and at_last_level and success_ema >= cfg.fog_gate:
                     gate_minutes = minutes
                 tightened = 0.0 if gate_minutes is None else (minutes - gate_minutes) / tighten_minutes
                 target += (cfg.fog_target_start - cfg.fog_target) * max(0.0, 1 - tightened)
@@ -186,6 +197,10 @@ def train(cfg):
         success = (result.left[-1] == 0).float().mean().item()
         eaten_share = (1 - result.left[-1].float() / result.n_cheese.float()).mean().item()
         success_ema = 0.95 * success_ema + 0.05 * success
+        if periods and level < len(periods) - 1 and success_ema >= cfg.level_up:
+            level += 1
+            success_ema = 0.0
+            print(json.dumps({"iteration": iteration, "level_up": level, "cheese_period": periods[level]}), flush=True)
         iteration += 1
 
         if iteration % cfg.log_every == 0:
@@ -199,6 +214,7 @@ def train(cfg):
                 "success_ema": round(success_ema, 3),
                 "w_fog": round(w_fog, 3),
                 "fog_target": round(target, 3) if cfg.fog_target else None,
+                "level": level,
                 "size": size,
             }
             log.write(json.dumps(entry) + "\n")
@@ -206,7 +222,7 @@ def train(cfg):
             print(json.dumps(entry), flush=True)
 
         if awake_seconds() - last_save > cfg.save_every_minutes * 60:
-            save_checkpoint(run_dir, averaged.module, iteration, 0, (awake_seconds() - start) / 60)
+            save_checkpoint(run_dir, averaged.module, iteration, level, (awake_seconds() - start) / 60)
             (run_dir / "dual.json").write_text(json.dumps({"w_fog": multiplier, "gate_minutes": gate_minutes}))
             last_save = awake_seconds()
 
@@ -216,7 +232,7 @@ def train(cfg):
 
     workers.shutdown(cancel_futures=True)
     log.close()
-    save_checkpoint(run_dir, averaged.module, iteration, 0, (awake_seconds() - start) / 60)
+    save_checkpoint(run_dir, averaged.module, iteration, level, (awake_seconds() - start) / 60)
 
     # The run's result is its best val checkpoint, final averaged model included.
     best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=env.evaluate)
@@ -227,7 +243,7 @@ def train(cfg):
     summary = {
         "name": cfg.name,
         "iterations": iteration,
-        "final_level": 0,
+        "final_level": level,
         "diverged": diverged,
         "train_success_ema": success_ema,
         "val": scores,
