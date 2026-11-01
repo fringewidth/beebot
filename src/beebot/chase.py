@@ -51,6 +51,8 @@ CHEESE_SIZE = (1, 5)
 DAMAGE_FRACTION = 0.25
 CHEESE_PERIOD = 2
 SENSE_RADIUS = 4
+# Temperature of the soft choice used only for gradients (see move_cheese), in units of robot mass.
+CHOICE_TEMPERATURE = 1.0
 DIRECTIONS = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # north, south, west, east
 
 SETS = {
@@ -160,22 +162,33 @@ def cone_masses(mass, cheese):
     return torch.stack([(near * cone).sum(dim=(1, 2)) for cone in cones], dim=1)
 
 
-def move_cheese(mass, cheese, walls, tau):
-    """One flight step for every cheese in the batch. Returns (mass, cheese). Never differentiated through
-    for the choice of direction; the displaced mass keeps its gradient."""
+def move_cheese(mass, cheese, soft, walls, tau):
+    """One flight step for every cheese in the batch. Returns (mass, cheese, soft).
+
+    The move itself is the hard rule. soft is the same cheese mask as a float that carries
+    gradients: a straight-through estimate in which the choice of direction counts as a
+    softmax over the four sides' sensed robot mass. Its forward value equals the hard mask,
+    so the simulation is unchanged; backprop then sees that mass on one side pushes the
+    cheese toward the other, which a hard argmin hides.
+    """
+    sensed = cone_masses(mass, cheese)
+    opposite = sensed[:, [1, 0, 3, 2]]
+    score = sensed - 1e-3 * opposite
     with torch.no_grad():
-        sensed = cone_masses(mass, cheese)
-        opposite = sensed[:, [1, 0, 3, 2]]
-        score = sensed - 1e-3 * opposite
         legal = []
         for dy, dx in DIRECTIONS:
             moved = torch.roll(cheese, (dy, dx), dims=(1, 2))
             entered = moved & ~cheese
             legal.append(~((moved & walls) | (entered & (mass >= tau))).flatten(1).any(dim=1))
         legal = torch.stack(legal, dim=1)
-        score = score.masked_fill(~legal, float("inf"))
-        choice = score.argmin(dim=1)
+        choice = score.masked_fill(~legal, float("inf")).argmin(dim=1)
         moves = legal.any(dim=1) & (sensed.sum(dim=1) > 0)
+
+    # A large finite stand-in for "illegal": an all-illegal row must not produce NaN gradients.
+    chance = torch.softmax(-score.masked_fill(~legal, 1e4) / CHOICE_TEMPERATURE, dim=1)
+    weight = F.one_hot(choice, len(DIRECTIONS)).float() + chance - chance.detach()
+    shifted = torch.stack([torch.roll(soft, (dy, dx), dims=(1, 2)) for dy, dx in DIRECTIONS], dim=1)
+    new_soft = torch.where(moves[:, None, None], (weight[:, :, None, None] * shifted).sum(dim=1), soft)
 
     new_cheese = cheese.clone()
     for k, (dy, dx) in enumerate(DIRECTIONS):
@@ -187,7 +200,13 @@ def move_cheese(mass, cheese, walls, tau):
     pushed = (mass * entered).sum(dim=(1, 2))
     n_left = left.sum(dim=(1, 2)).clamp_min(1)
     mass = mass * (1 - entered) + left * (pushed / n_left)[:, None, None]
-    return mass, new_cheese
+    return mass, new_cheese, new_soft
+
+
+def soft_ring(soft, walls):
+    """ring_of for the float cheese mask: equal to it in value, with gradients to the cheese's position."""
+    near = F.max_pool2d(F.pad(soft[:, None], (1, 1, 1, 1), mode="circular"), 3, stride=1)[:, 0]
+    return near * (1 - soft) * (1 - walls.float())
 
 
 def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record=False, damage_step=None, damage_fraction=0.25, cheese_period=CHEESE_PERIOD):
@@ -197,6 +216,7 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
     notes = torch.zeros(b, N_NOTES, h, w, device=mass.device)
     walls = batch.walls.float()
     cheese = batch.cheese
+    soft = cheese.float()
     present = torch.ones(b, dtype=torch.bool, device=mass.device)
     total_mass = mass.sum(dim=(1, 2))
 
@@ -207,8 +227,9 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
             mass = damage(mass, damage_fraction)
         if cheese_period and t % cheese_period == cheese_period - 1:
             # An eaten cheese is an empty mask, which senses nothing and so never moves.
-            mass, moved = move_cheese(mass, cheese & present[:, None, None], batch.walls, tau)
+            mass, moved, moved_soft = move_cheese(mass, cheese & present[:, None, None], soft, batch.walls, tau)
             cheese = torch.where(present[:, None, None], moved, cheese)
+            soft = torch.where(present[:, None, None], moved_soft, soft)
         here = cheese & present[:, None, None]
         blocked = blocked_moves(here | batch.walls)
         fire = (torch.rand(b, 1, h, w, device=mass.device) < fire_prob).float()
@@ -219,8 +240,9 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
             mass, notes = step(*args)
 
         ring = ring_of(cheese, batch.walls)
+        ring_weight = soft_ring(soft, batch.walls)
         occupied = (mass / tau).clamp(0, 1)
-        surround = (occupied * ring).sum(dim=(1, 2)) / ring.sum(dim=(1, 2)).clamp_min(1)
+        surround = (occupied * ring_weight).sum(dim=(1, 2)) / ring_weight.sum(dim=(1, 2)).clamp_min(1)
         deficit.append((1 - surround) * present)
         crowding.append(F.relu(mass - 1).pow(2).sum(dim=(1, 2)) / total_mass)
         thin = mass < FOG_MASS
