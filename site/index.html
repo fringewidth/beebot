@@ -149,7 +149,8 @@ function section(title, lede) {
 }
 // A privileged run smells the walking distance to the cheese: a control showing the task is solvable, not the swarm itself.
 const smells = run => Boolean(run.changes && run.changes.privileged);
-const runLabel = run => run.name + (smells(run) ? " (smells the cheese)" : "");
+const runNotes = run => [smells(run) ? "smells the cheese" : "", run.in_progress ? `in progress, best val so far at ${Math.round(run.best_at_minutes)} min` : "", run.under_fog_cap === false ? "over the fog cap" : ""].filter(Boolean);
+const runLabel = run => run.name + (runNotes(run).length ? ` (${runNotes(run).join("; ")})` : "");
 const shortLabel = run => run.name + (smells(run) ? " (smells)" : "");
 const bestOf = stage => stage.runs.find(r => !smells(r)) || null;
 
@@ -159,7 +160,7 @@ function scoreTiles(stage) {
   const best = bestOf(stage);
   const control = stage.runs.find(smells);
   const tiles = [
-    ["Best run · val score", best ? fmt(best.val.score) : "none yet", best ? best.name : "", best && base ? best.val.score < base.score : null],
+    ["Best run · val score", best ? fmt(best.val.score) : "none yet", best ? runLabel(best) : "", best && base ? best.val.score < base.score : null],
     ["Hand-written baseline", base ? fmt(base.score) : "–", "lower is better; 1 = never", null],
   ];
   if (control) tiles.push(["Control · smells the cheese", fmt(control.val.score), "shows the task is solvable", null]);
@@ -364,7 +365,7 @@ function table(stage) {
   if (stage.baseline.val) rows.push({ name: "baseline", changes: { rule: "hand-written" }, val: stage.baseline.val });
   rows.forEach((run, i) => {
     const tr = el("tr", run === bestOf(stage) ? { class: "best" } : {});
-    tr.append(el("td", {}, run.name));
+    tr.append(el("td", {}, runLabel(run)));
     const changes = el("td");
     const entries = Object.entries(run.changes || {});
     if (!entries.length) changes.append(el("span", { class: "chip" }, "defaults"));

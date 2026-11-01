@@ -468,3 +468,9 @@ Check-in 2026-11-01 12:00:
 - Shared and zerosum layouts: 2 to 4 cheeses of 1 to 5 squares; each swarm alone can fill the biggest ring, and the two together have Feast's density.
 - Val plays every layout twice, nests swapped. Score is 1 minus the eaten value share (the same for every game); payoffs, welfare, stag eaten, and fog per swarm are reported alongside. Fog cap 0.45 for both swarms.
 - Plan: two independent pairs per game (seeds 0 and 1), so co-trained pairs can be compared with strangers (A from one pair with B from the other), plus a cross-species pheromone blackout probe.
+
+2026-11-01 ~13:00, paused (the user needs the GPU). All runs stopped by PID; each resumes from its own checkpoint with its supervisor:
+- v4-feast-explore2 at 413.9 of 600 minutes. Val 412 minutes: 25/0/9% at fog 0.38 to 0.41, still falling with fog. Best under the cap stays the 352-minute check (0.883: 36/9/19%).
+- v5-chase-st at 156.8 of 720 minutes, full-speed level.
+- v6-rivals-shared-s0 at 15.1 of 360 minutes.
+The page now shows runs still training (best val check so far, under the stage's fog cap when one passes it, labelled in progress) and has a Chase tab. The report runs on the CPU, so it can be rebuilt while training holds the GPU.

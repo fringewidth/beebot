@@ -401,3 +401,70 @@ Check-in 2026-11-01 00:28:
 - v5-chase ate nothing in 50 minutes, with fog 0.93: the whole swarm is a film, and a film never fills a ring that runs from it. Feast's time-based schedule then started binding (w_fog 0.12) before anything was learned, which is the fogdual freeze trap. Stopped (`runs_cancelled/`).
 
 Recipe change for Chase: the fog target holds at 1.0 until the training success average first reaches 0.3, then tightens to 0.1 over 360 minutes (`--fog_gate 0.3 --fog_tighten_minutes 360`). Same idea as before, learn the task, then compact, but keyed to when learning happens instead of to the clock. Run v5-chase-gated, from scratch, 720 minutes. Feast keeps its time-based schedule; with no gate set, the code behaves as before.
+
+Chase is solvable as specified. `tests/chase_feasible.py`: a scripted swarm that sees the whole map and moves every robot down the walking distance to the cheese catches it in 56% of 22x22 and 81% of 30x30 val-like layouts (16 each) with sharp moves, and 0 to 19% with soft ones. It doesn't plan a cut-off; the torus and the walls do the cornering. So the cheese's speed and sensing aren't the problem; the learned swarm has to find it by touch, then pin it. v5-chase-gated at 49 minutes: nothing caught yet, fog 0.94, loss falling slowly (1.50 to 1.33).
+
+v4-feast-tighten at 220 minutes: as the fog limit tightens, fog falls (training 0.49, val 0.51 to 0.54) and success falls with it (val 210 minutes: interp 62%, extrap 31%, damage 25%; val score 0.803). The limit reaches 0.1 at 360 minutes.
+
+v5-chase-gated at 82 minutes: still nothing caught, loss flat at about 1.33, val 1.0 at 30 and 60 minutes. Frames of the 82-minute checkpoint: the swarm bursts into a thin film and a few piles; nothing heads for the cheese, which barely has to move. Making the cheese sense less far (radius 2 or 1) doesn't help this checkpoint.
+
+Why: backprop through the rollout sees the cheese's path as fixed. Its choice of direction (an argmin) passes no gradient, so the gradient says "put more mass on the ring" without knowing that more mass nearby makes the cheese run. Thickening near the cheese is undone by its flight, and nothing in the gradient explains why. Stopped (`runs_cancelled/`).
+
+Recipe change: a cheese-speed curriculum, the standard way to train against an opponent that is too strong at first. Training levels are a still cheese, then one move every 16, 8, 4 and finally 2 steps (`--cheese_periods 0,16,8,4,2`). Training moves to the next level once the success average reaches 0.5 (`--level_up 0.5`), and the fog gate waits for the last level. Val and test always use the full-speed cheese, so scores are comparable throughout. Run v5-chase-speedup, from scratch, 720 minutes.
+
+v4-feast-tighten at 254 minutes: fog limit 0.39, fog 0.41, w_fog 0.30. Training success 50%; val at 241 minutes 0.830 (interp 57%, extrap 12%, damage 24%), fog 0.44 to 0.47. Squeezing out fog costs most of the bigger-world skill so far.
+
+Check-in 2026-11-01 02:50:
+- v5-chase-speedup is learning. The still cheese was mastered by iteration 858 (training success average 0.5), and training moved on to a cheese that moves every 16 steps. Val with the full-speed cheese at 30 minutes: 0.956 (interp 4%, extrap 14%, damage 2%), the first catches of any Chase run.
+- v4-feast-tighten failed as the fog limit tightened. Val: 241 minutes 57/12/24% (fog 0.44 to 0.47); 271 minutes 33/2/15%; 301 minutes 24/0/10% (fog 0.29 to 0.37). The swarm didn't find a compact way to search; it lost the one strategy it had. Nothing in the loss rewards a compact swarm for covering ground. Stopped at 312 minutes (`runs_cancelled/`).
+
+Recipe change for Feast: an exploration term, the ad hoc "ideal behavior" kind the user allowed for Feast. It is the share of open floor that no solid robot has stood on yet, charged every step while any cheese is left (`w_explore 0.5`). A square counts as visited once it held tau (half a robot) or more, softly as for the rings, so a film visits almost nothing and compact groups sweeping the map earn the most. The terrain stage had the same kind of term. The fog limit tightens only after the training success average reaches 0.3, then over 300 minutes. Run v4-feast-explore, from scratch, 600 minutes.
+
+Check-in 2026-11-01 05:14:
+- v4-feast-explore: val at 60 minutes 0.899 (interp 51%, extrap 48%, damage 15%) and at 120 minutes 0.897 (50/45/12%), fog still 0.67 to 0.90 (the limit was only down to 0.74). Then from about 128 minutes it collapsed: loss 3 to 5, nothing eaten, fog weight still 0. The same pile-up collapse as v4-feast-shaped (189 minutes, never recovered) and v4-feast-tighten (57 to 82 minutes, recovered). Three of four long Feast runs, so it's the recipe, not bad luck. Stopped (`runs_cancelled/`).
+- v5-chase-speedup has sat at the cheese-moves-every-4-steps level for about 2 hours: training success 14 to 20% (level-up needs 50%), val with the full-speed cheese 5 to 17% per split.
+
+Changes:
+- Rollback on collapse (`--rollback true`): if the training success average falls below a third of its best (once that best is at least 0.3), the raw weights are reset to the averaged weights and Adam restarts. A generic safety net; the averaged weights lag by about 200 steps, so they are still good when a collapse is detected 20 to 40 steps in.
+- Feast restarts from scratch with it: v4-feast-explore2, otherwise identical to v4-feast-explore.
+- Chase resumes from its own checkpoint (196.7 minutes, level 3) with the level-up bar lowered to 20% and rollback on. Val always uses the full-speed cheese, so this only changes what training practices on; the plateau at 4 steps per move wasn't moving.
+
+Check-in 2026-11-01 06:59:
+- v4-feast-explore2 is the best fog-limited Feast run so far: val at 90 minutes 0.868 (interp 67%, extrap 62%, damage 18%), fog 0.69 to 0.90 with the limit at 0.78. Rollback fired three times (iterations 928, 1299, 1594), each when the success average dropped from about 0.63 to 0.20; training recovered each time.
+- v5-chase-speedup reached the full-speed cheese at iteration 5044 but doesn't learn there: training success 3 to 7%, val drifting down (287 minutes: 5/9/1%). Stopped (`runs_cancelled/`).
+
+Two Chase runs replace it, from scratch, same recipe (speed curriculum with level-up at 20%, gated fog limit, rollback):
+- v5-chase-wide: the network twice as wide (hidden 192). The user allows scaling the network when needed.
+- v5-chase-touch: the cheese senses robots only by touch (radius 1, `--sense_radius 1`), like the robots, instead of from 4 squares. The radius was my choice, not the user's spec ("moves toward the side with the least mass"), so this run is a proposal for the user to accept or veto, not the stage's official rule. Its val scores aren't comparable with radius-4 runs.
+Three runs share the GPU now.
+
+2026-11-01 08:30, the fog bar. v4-feast-explore2 val at 150 minutes 46/30/12% (fog 0.65 to 0.74), at 180 minutes 46/20/14% (fog 0.58 to 0.64): as fog falls, eating falls, slightly worse than v4-feast-tighten at the same fog, so the exploration term didn't buy a compact search. Frames of the 200-minute checkpoint: the swarm still bursts into an invisible film in the first 30 steps and condenses only on the rings.
+
+Calibration: the terrain finalist, accepted by the user as a proof of concept, measured val fog 0.45 (interp), 0.29 (extrap), 0.49 (damage). The fog the user rejected on Feast measured 0.73 to 0.96. Asked for a bar, the user left it to me. Decision: a stage passes only with val fog at or under 0.45 on every split, the terrain standard. Changes:
+- `--max_fog 0.45`: model_best is the best val score among checkpoints under the cap on every split. Until now the best checkpoint was always a fog one, and the moments under the cap were overwritten (v4-feast-tighten at 241 minutes: 57/12/24% at fog 0.44 to 0.47, not kept).
+- Every val checkpoint is now saved as model_<iteration>.pt, so a different cap can be applied after the fact.
+- The fog limit now tightens to 0.35 instead of 0.1, so val can sit under 0.45.
+All three runs resumed from their own checkpoints with these settings (Feast at 201.8 minutes, chase-wide at 101.5, chase-touch at 106.4).
+
+Check-in 2026-11-01 09:36:
+- v4-feast-explore2 val at 232 minutes 0.854 (interp 47%, extrap 19%, damage 19%), fog 0.53 to 0.57, a little better than at 180 minutes with less fog. The fog limit reaches 0.35 at about 318 minutes.
+- v5-chase-wide and v5-chase-touch both stuck at the 4-step level (training success about 8%, level-up needs 20%), val 3 to 14% per split. Width and touch-only sensing made no difference. Not a time problem either: with 12x and 24x steps per square instead of 6x, the 22x22 catch rate rises at most from 0 to 9% (`chase_time.py` on 32 layouts).
+
+Diagnosis: backprop treats the cheese's path as given, so the gradient can't learn that robots on one side push the cheese to the other, which is the whole skill of pinning it. The speed curriculum only postponed this.
+
+Fix: straight-through gradients for the cheese's flight. The forward pass is the hard rule as before (same moves, same scores). In the backward pass the choice of direction counts as a softmax over the four sides' sensed robot mass (temperature 1 robot), and the cheese's position and ring are carried as a float mask equal to the hard one in value. So the ring deficit now has a gradient through where the cheese went and why. Tests check that the soft mask equals the hard one and that robots to the north raise the gradient toward a southward move. Both runs stopped (`runs_cancelled/`); one run replaces them, from scratch, original rules (sensing radius 4, hidden 96): v5-chase-st.
+
+Check-in 2026-11-01 12:00:
+- v4-feast-explore2 passed the 0.45 fog bar from 322 minutes on, at a cost: val 322 minutes 42/3/16% (fog 0.42 to 0.45), 352 minutes 36/9/19% (fog 0.40 to 0.43, the best checkpoint under the cap, score 0.883), 382 minutes 33/2/12% (fog 0.37 to 0.40). Training fog is now 0.33 to 0.37 with the limit at 0.35. A weak proof of concept: the swarm still eats a third of unseen-size layouts without fog, but almost none of the bigger worlds.
+- v5-chase-st reached the full-speed cheese at iteration 2443, sooner than before, but val is the same as without straight-through gradients (120 minutes: 5/12/4%). The fog gate (training success 30% at full speed) has not opened.
+
+# v6 Rivals (code ready)
+
+`src/beebot/rivals.py`, `src/beebot/train_rivals.py`, `tests/test_rivals.py`. Physics and payoffs as planned in JOURNAL.md; the choices I made where the plan left room:
+- Each species reads its own and the other's mass and pheromones (a 20-channel `RivalNCA`) and writes only its own pheromones. Both move at once; crowding counts combined mass.
+- A cheese is eaten when the combined mass fills its ring. Each species owns the share of the ring's mass that is its own at that moment.
+- Smooth payoff per step: a remaining cheese pays value x ring fill x ring share; an eaten one pays value x the share it was eaten at. Shared: both are paid the total. Zerosum: own minus other's. Staghunt: own; two 1-square cheeses worth 1, one 12 to 20-square stag worth 4, and each swarm has 80% of the mass the stag's ring needs.
+- Each loss is differentiated only with respect to its own rule (`torch.autograd.grad`), so neither swarm trains the other.
+- Shared and zerosum layouts: 2 to 4 cheeses of 1 to 5 squares; each swarm alone can fill the biggest ring, and the two together have Feast's density.
+- Val plays every layout twice, nests swapped. Score is 1 minus the eaten value share (the same for every game); payoffs, welfare, stag eaten, and fog per swarm are reported alongside. Fog cap 0.45 for both swarms.
+- Plan: two independent pairs per game (seeds 0 and 1), so co-trained pairs can be compared with strangers (A from one pair with B from the other), plus a cross-species pheromone blackout probe.
