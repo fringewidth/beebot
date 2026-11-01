@@ -428,3 +428,12 @@ Changes:
 - Rollback on collapse (`--rollback true`): if the training success average falls below a third of its best (once that best is at least 0.3), the raw weights are reset to the averaged weights and Adam restarts. A generic safety net; the averaged weights lag by about 200 steps, so they are still good when a collapse is detected 20 to 40 steps in.
 - Feast restarts from scratch with it: v4-feast-explore2, otherwise identical to v4-feast-explore.
 - Chase resumes from its own checkpoint (196.7 minutes, level 3) with the level-up bar lowered to 20% and rollback on. Val always uses the full-speed cheese, so this only changes what training practices on; the plateau at 4 steps per move wasn't moving.
+
+Check-in 2026-11-01 06:59:
+- v4-feast-explore2 is the best fog-limited Feast run so far: val at 90 minutes 0.868 (interp 67%, extrap 62%, damage 18%), fog 0.69 to 0.90 with the limit at 0.78. Rollback fired three times (iterations 928, 1299, 1594), each when the success average dropped from about 0.63 to 0.20; training recovered each time.
+- v5-chase-speedup reached the full-speed cheese at iteration 5044 but doesn't learn there: training success 3 to 7%, val drifting down (287 minutes: 5/9/1%). Stopped (`runs_cancelled/`).
+
+Two Chase runs replace it, from scratch, same recipe (speed curriculum with level-up at 20%, gated fog limit, rollback):
+- v5-chase-wide: the network twice as wide (hidden 192). The user allows scaling the network when needed.
+- v5-chase-touch: the cheese senses robots only by touch (radius 1, `--sense_radius 1`), like the robots, instead of from 4 squares. The radius was my choice, not the user's spec ("moves toward the side with the least mass"), so this run is a proposal for the user to accept or veto, not the stage's official rule. Its val scores aren't comparable with radius-4 runs.
+Three runs share the GPU now.
