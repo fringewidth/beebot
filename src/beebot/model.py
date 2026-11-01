@@ -84,3 +84,20 @@ class StickyBaseline:
         logits = torch.zeros(mass.shape[0], len(OFFSETS), *mass.shape[1:], device=mass.device)
         logits[:, 0] = self.wander_stay + self.stick * touching
         return logits, torch.zeros_like(notes)
+
+
+class RivalNCA(NCA):
+    """One species' rule in Rivals: the NCA, also reading the other species' mass and pheromones.
+
+    Inputs per square: its own mass, the other species' mass, cheese, walls, its own
+    pheromones and the other species' pheromones. It writes only its own pheromones.
+    """
+
+    def __init__(self, hidden=96, n_hidden_layers=2, stay_bias=4.0):
+        super().__init__(hidden, n_hidden_layers, stay_bias)
+        self.body[0] = nn.Conv2d(4 + 2 * N_NOTES, hidden, kernel_size=3, padding=1, padding_mode="circular")
+
+    def forward(self, mass, other, cheese, walls, notes, other_notes):
+        x = torch.cat([mass[:, None], other[:, None], cheese[:, None], walls[:, None], notes, other_notes], dim=1)
+        out = self.head(self.body(x))
+        return out[:, : len(OFFSETS)], out[:, len(OFFSETS) :]
