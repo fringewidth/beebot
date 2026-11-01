@@ -149,3 +149,16 @@ def test_soft_cheese_matches_the_hard_one_and_carries_gradients():
 def test_soft_ring_equals_the_hard_ring(batch):
     soft = soft_ring(batch.cheese.float(), batch.walls)
     assert torch.equal(soft > 0.5, ring_of(batch.cheese, batch.walls))
+
+
+
+def test_explore_counts_floor_covered_by_solid_robots_only():
+    walls, cheese = empty_world()
+    solid = torch.zeros(1, 12, 12)
+    solid[0, 0, 0:4] = 1.0  # 4 squares at a full robot each
+    film = torch.full((1, 12, 12), 4.0 / 143)
+    film[0, 6, 6] = 0.0  # the same mass spread thinly over every square but the cheese
+    open_count = 144
+    for mass, expected in ((solid, 1 - 4 / open_count), (film, 1.0)):
+        result = rollout(StayPolicy(), ChaseBatch(mass=mass, cheese=cheese, walls=walls), 3, 1.0, 0.5, cheese_period=0)
+        assert result.explore[-1, 0].item() == pytest.approx(expected, abs=1e-5)

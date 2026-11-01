@@ -468,3 +468,23 @@ Check-in 2026-11-01 12:00:
 - Shared and zerosum layouts: 2 to 4 cheeses of 1 to 5 squares; each swarm alone can fill the biggest ring, and the two together have Feast's density.
 - Val plays every layout twice, nests swapped. Score is 1 minus the eaten value share (the same for every game); payoffs, welfare, stag eaten, and fog per swarm are reported alongside. Fog cap 0.45 for both swarms.
 - Plan: two independent pairs per game (seeds 0 and 1), so co-trained pairs can be compared with strangers (A from one pair with B from the other), plus a cross-species pheromone blackout probe.
+
+2026-11-01 ~13:00, paused (the user needs the GPU). All runs stopped by PID; each resumes from its own checkpoint with its supervisor:
+- v4-feast-explore2 at 413.9 of 600 minutes. Val 412 minutes: 25/0/9% at fog 0.38 to 0.41, still falling with fog. Best under the cap stays the 352-minute check (0.883: 36/9/19%).
+- v5-chase-st at 156.8 of 720 minutes, full-speed level.
+- v6-rivals-shared-s0 at 15.1 of 360 minutes.
+The page now shows runs still training (best val check so far, under the stage's fog cap when one passes it, labelled in progress) and has a Chase tab. The report runs on the CPU, so it can be rebuilt while training holds the GPU.
+
+2026-11-01 evening, resumed (user: go easy on the GPU, no more crashes). At most two training runs on the GPU at once; tests and the report run on the CPU.
+
+**v4 Feast closed as a weak proof of concept.** v4-feast-explore2 stopped at 413.9 minutes instead of 600: val had only fallen since the 352-minute check as fog kept tightening (382: 0.906, 412: 0.930). Finalized with the STOP file (summary from model_best.pt, which is model_5910.pt, the 352-minute check). `final_test.py` now scores model_best.pt when a run has one. Test set run once, on the CPU:
+- model: test 0.846, success 48% interp, 6% extrap, 27% damage, fog 0.39/0.37/0.36. Val on the CPU 0.907 (33/8/18%); the MPS val was 0.883 (36/9/19%). The difference is the random firing pattern, which differs between devices.
+- hand-written baseline: test 1.0, 0% on every split.
+Runs archived in `runs_v4/`, tagged `v4-feast`.
+
+Found while writing a Chase test: Feast's exploration credit is linear in mass from zero (visited = min(mass/tau, 1)), so a thin film earns twice the credit of the same mass in solid robots. The comment in feast.py claimed the opposite. The fog constraint held fog under the cap regardless, but the term pushed against it. Left as is in feast.py so v4 reproduces, with the comment corrected.
+
+**v5 Chase, recipe replaced.** v5-chase-st stopped at 176 minutes (`runs_cancelled/`, final val 0.955: 3/16/2% at fog 0.70 to 0.88). It could not pass: training success at full speed was 2 to 8%, and the fog gate only opened at the last level with 30% success, so fog was never limited. Also, at level_up 0.2 the curriculum moved on before the swarm had learned even the still cheese (training success about 17% at level 0). Replacement, from scratch, game rules unchanged: v5-chase-explore.
+- `--level_up 0.5` (the default; 0.2 was too early).
+- `--gate_any_level true`: the fog limit starts tightening once training success reaches 30% at any level.
+- `--w_explore 0.5` with the fixed credit: a square counts as visited once it held tau, with partial credit from tau/2 up, so a film visits nothing.

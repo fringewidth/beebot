@@ -1,0 +1,28 @@
+{
+  "name": "v4-feast-explore2",
+  "iterations": 7122,
+  "final_level": 0,
+  "diverged": false,
+  "train_success_ema": 0.0,
+  "val": {
+    "interp": {
+      "success": 0.3645833432674408,
+      "time": 0.7978982925415039,
+      "eaten_share": 0.719618022441864,
+      "fog": 0.4295381009578705
+    },
+    "extrap": {
+      "success": 0.09375,
+      "time": 0.9554714560508728,
+      "eaten_share": 0.6302083730697632,
+      "fog": 0.4010050296783447
+    },
+    "damage": {
+      "success": 0.1875,
+      "time": 0.8953405022621155,
+      "eaten_share": 0.5416666865348816,
+      "fog": 0.39916786551475525
+    },
+    "score": 0.8829034169514974
+  }
+}
