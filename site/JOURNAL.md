@@ -339,3 +339,13 @@ Chase has one cheese that runs from the swarm. A scripted swarm that can see the
 ### Rivals: built
 
 Two species share one world, each with its own rule, mass and pheromones, sensing each other's. A cheese is eaten when their combined mass fills its ring, and each owns the share of the ring it holds. Three games run on the same physics: shared (both paid for everything), zero-sum (paid the difference), and a stag hunt (small cheeses either can eat alone, a big one only both together can). Each swarm learns only from its own payoff. Training has just started.
+
+### Feast closed
+
+Feast closes as a weak proof of concept. On the held-out test layouts, under the fog bar, the swarm eats every cheese in 48% of unseen sizes, 6% of bigger worlds and 27% when part of the swarm is destroyed mid-run. The hand-written baseline eats everything in none of them. Keeping the swarm made of whole robots cost most of the skill on bigger worlds: a compact swarm has to search, and searching a big world compactly is exactly what it never learned.
+
+One bug turned up afterwards. The credit for covering ground was meant to reward only solid robots, but it paid each square in proportion to its mass, so a thin film earned more credit than solid robots. The fog limit kept the film in check anyway, but the term was pulling the wrong way all along. Chase uses the fixed version.
+
+### Chase, second try
+
+The first Chase run learned the still cheese only a little before training sped the cheese up, and at full speed it caught almost nothing. Because the fog limit waited for success at full speed, that run was never held to the fog bar at all. The new run waits for real progress before speeding the cheese up, starts limiting fog as soon as the swarm can catch anything, and gets the fixed credit for covering ground.

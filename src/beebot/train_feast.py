@@ -88,6 +88,10 @@ class FeastConfig:
     # Evaluation always uses the full-speed cheese.
     cheese_periods: str = ""
     level_up: float = 0.5
+    # Chase: open the fog gate once the success average reaches fog_gate at any level, not
+    # only at the last one (a swarm that never masters full speed would otherwise never be
+    # held to the fog limit).
+    gate_any_level: bool = False
     # Roll back a collapse: if the training success average falls below rollback_share of its
     # best (once that best is at least rollback_from), the raw weights go back to the averaged
     # weights and Adam restarts. Three Feast runs collapsed into piled-up mass (loss 3 to 5,
@@ -206,7 +210,7 @@ def train(cfg):
             target = cfg.fog_target
             if cfg.fog_target_start:
                 minutes = (awake_seconds() - start) / 60
-                at_last_level = not periods or level == len(periods) - 1
+                at_last_level = not periods or level == len(periods) - 1 or cfg.gate_any_level
                 if gate_minutes is None and at_last_level and success_ema >= cfg.fog_gate:
                     gate_minutes = minutes
                 tightened = 0.0 if gate_minutes is None else (minutes - gate_minutes) / tighten_minutes

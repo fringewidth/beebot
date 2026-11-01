@@ -178,8 +178,9 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
     present = batch.cheese.flatten(2).any(dim=2)  # (B, K)
     n_cheese = present.sum(dim=1)
     total_mass = mass.sum(dim=(1, 2))
-    # A square counts as visited once it has held tau or more of robot (softly, as for the
-    # rings), so a thin film visits nothing and only solid robots get credit for covering ground.
+    # A square counts as visited once it has held tau or more of robot, softly as for the rings.
+    # Known flaw, kept so v4 results reproduce: the credit is linear from zero mass, so a thin
+    # film earns more than the same mass in solid robots. Chase fixes this (chase.py).
     open_floor = (~batch.walls & ~batch.cheese.any(dim=1)).float()
     open_count = open_floor.sum(dim=(1, 2))
     visited = torch.zeros_like(mass)

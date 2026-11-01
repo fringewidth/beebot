@@ -219,8 +219,15 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
     soft = cheese.float()
     present = torch.ones(b, dtype=torch.bool, device=mass.device)
     total_mass = mass.sum(dim=(1, 2))
+    # Floor covered by solid robots. A square counts as visited once it has held tau of robot,
+    # with partial credit from tau/2 up, so a thin film visits nothing. (Feast's version gave
+    # credit from zero mass, which paid a film more than solid robots.) The cheese takes one
+    # square, so all non-wall floor counts as open.
+    open_floor = (~batch.walls).float()
+    open_count = open_floor.sum(dim=(1, 2))
+    visited = torch.zeros_like(mass)
 
-    deficit, crowding, fog, fog_share, left = [], [], [], [], []
+    deficit, crowding, fog, fog_share, explore, left = [], [], [], [], [], []
     masses, pheromones, cheeses, ring_frames = [], [], [], []
     for t in range(n_steps):
         if t == damage_step:
@@ -248,8 +255,11 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
         thin = mass < FOG_MASS
         fog.append((torch.sin(torch.pi * mass / FOG_MASS) * thin).sum(dim=(1, 2)) / total_mass)
         fog_share.append((mass * thin).sum(dim=(1, 2)) / total_mass)
+        solid = ((mass - tau / 2) / (tau / 2)).clamp(0, 1)
+        visited = torch.maximum(visited, solid * open_floor)
         full = ((mass > tau) | ~ring).flatten(1).all(dim=1)
         present = present & ~full
+        explore.append((1 - visited.sum(dim=(1, 2)) / open_count) * present.float())
         left.append(present.long())
         if record:
             masses.append(mass.detach().cpu().numpy())
@@ -264,7 +274,7 @@ def rollout(policy, batch, n_steps, fire_prob, tau, use_checkpoint=False, record
         fog=torch.stack(fog),
         fog_share=torch.stack(fog_share),
         unfinished=deficit,  # with one cheese, "some cheese is left" is its own ring deficit
-        explore=torch.zeros_like(deficit),  # not used in Chase
+        explore=torch.stack(explore),
         left=torch.stack(left),
         n_cheese=torch.ones(b, dtype=torch.long, device=mass.device),
         masses=masses,

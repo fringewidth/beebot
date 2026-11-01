@@ -1,6 +1,8 @@
 """Score a trained model, and the hand-written baseline, on val and on the untouched test set.
 
-    uv run final-test runs/<name>
+    uv run final-test runs/<name> [device]
+
+Scores model_best.pt when the run has one (the checkpoint chosen on val), else model.pt.
 
 Run this once per finalist, after the hill-climb is over. Re-running it to pick
 between candidates turns the test set into a second val set.
@@ -27,11 +29,15 @@ def main():
         n_hidden_layers=config["n_hidden_layers"],
         privileged=config.get("privileged", False),
     ).to(device)
-    model.load_state_dict(torch.load(run_dir / "model.pt", map_location=device))
+    weights = run_dir / "model_best.pt"
+    if not weights.exists():
+        weights = run_dir / "model.pt"
+    model.load_state_dict(torch.load(weights, map_location=device))
     model.eval()
     baseline = StickyBaseline()
 
     results = {
+        "weights": weights.name,
         "model": {"val": score(model, device, "val"), "test": score(model, device, "test")},
         "baseline": {"val": score(baseline, device, "val"), "test": score(baseline, device, "test")},
     }
