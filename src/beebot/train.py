@@ -134,8 +134,16 @@ def save_checkpoint(run_dir, model, iteration, level, minutes):
     (run_dir / "checkpoint.json").write_text(json.dumps(state))
 
 
-def keep_if_best(run_dir, model, device, best_score, iteration, minutes, evaluate=evaluate):
-    """Score the model on val; if it's the best so far, save it as model_best.pt. Returns the best score."""
+def fog_ok(scores, max_fog):
+    """True if every val split keeps its fog share at or under max_fog (None: no cap)."""
+    return max_fog is None or all(scores[split]["fog"] <= max_fog for split in ("interp", "extrap", "damage"))
+
+
+def keep_if_best(run_dir, model, device, best_score, iteration, minutes, evaluate=evaluate, max_fog=None):
+    """Score the model on val; if it's the best so far, save it as model_best.pt. Returns the best score.
+
+    With max_fog set, only checkpoints whose val fog stays under the cap on every split can be best.
+    """
     # Evaluation reseeds the random generators for determinism; keep training's own randomness intact.
     cpu_state = torch.get_rng_state()
     mps_state = torch.mps.get_rng_state() if device.type == "mps" else None
@@ -148,7 +156,7 @@ def keep_if_best(run_dir, model, device, best_score, iteration, minutes, evaluat
         torch.mps.set_rng_state(mps_state)
     with open(run_dir / "val_history.jsonl", "a") as f:
         f.write(json.dumps({"iteration": iteration, "minutes": round(minutes, 2), "val": scores}) + "\n")
-    if scores["score"] < best_score:
+    if scores["score"] < best_score and fog_ok(scores, max_fog):
         torch.save(model.state_dict(), run_dir / "model_best.pt")
         return scores["score"]
     return best_score
