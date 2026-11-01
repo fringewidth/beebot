@@ -63,6 +63,12 @@ class RivalsConfig:
     rollback: bool = True
     rollback_from: float = 0.3
     rollback_share: float = 0.33
+    # The best average fades by rollback_memory per iteration, so a slow decline (a tightening
+    # fog limit costs eating) doesn't count as a collapse; a sudden drop still does. With 1.0
+    # the best never fades: a run held below a third of its fog-free best by the fog limit
+    # then rolls back every few dozen iterations and stops learning (v6-rivals-shared-s0,
+    # 13 rollbacks from 258 to 305 minutes).
+    rollback_memory: float = 0.999
 
     log_every: int = 20
 
@@ -196,7 +202,7 @@ def train(cfg):
         target = cfg.fog_target + (cfg.fog_target_start - cfg.fog_target) * max(0.0, 1 - tightened)
         multipliers = [max(0.0, w + cfg.dual_lr * (fog - target)) for w, fog in zip(multipliers, fogs)]
 
-        best_eaten_ema = max(best_eaten_ema, eaten_ema)
+        best_eaten_ema = max(best_eaten_ema * cfg.rollback_memory, eaten_ema)
         if cfg.rollback and best_eaten_ema >= cfg.rollback_from and eaten_ema < cfg.rollback_share * best_eaten_ema:
             for i, model in enumerate(models):
                 model.load_state_dict(averaged[i].module.state_dict())

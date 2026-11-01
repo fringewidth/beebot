@@ -106,6 +106,12 @@ class FeastConfig:
     rollback: bool = False
     rollback_from: float = 0.3
     rollback_share: float = 0.33
+    # The best average fades by rollback_memory per iteration, so a slow decline (a tightening
+    # fog limit costs eating) doesn't count as a collapse; a sudden drop still does. With 1.0
+    # the best never fades: a run held below a third of its fog-free best by the fog limit
+    # then rolls back every few dozen iterations and stops learning (v6-rivals-shared-s0,
+    # 13 rollbacks from 258 to 305 minutes).
+    rollback_memory: float = 1.0
     w_time: float = 0.5  # every step until the last cheese is eaten
     w_explore: float = 0.0  # open floor no solid robot has visited yet (see feast.py)
 
@@ -221,7 +227,7 @@ def train(cfg):
         success = (result.left[-1] == 0).float().mean().item()
         eaten_share = (1 - result.left[-1].float() / result.n_cheese.float()).mean().item()
         success_ema = 0.95 * success_ema + 0.05 * success
-        best_success_ema = max(best_success_ema, success_ema)
+        best_success_ema = max(best_success_ema * cfg.rollback_memory, success_ema)
         if cfg.rollback and best_success_ema >= cfg.rollback_from and success_ema < cfg.rollback_share * best_success_ema:
             model.load_state_dict(averaged.module.state_dict())
             optimizer = torch.optim.Adam(model.parameters(), lr=optimizer.param_groups[0]["lr"])
