@@ -92,6 +92,9 @@ class FeastConfig:
     # best (once that best is at least rollback_from), the raw weights go back to the averaged
     # weights and Adam restarts. Three Feast runs collapsed into piled-up mass (loss 3 to 5,
     # nothing eaten) and stayed there for 25 minutes or for good.
+    # Chase only: how far the cheese senses robots. 0 keeps chase.SENSE_RADIUS. It applies to
+    # training and to this run's val scores, so runs with different radii aren't comparable.
+    sense_radius: int = 0
     rollback: bool = False
     rollback_from: float = 0.3
     rollback_share: float = 0.33
@@ -125,6 +128,8 @@ def train(cfg):
     device = torch.device(cfg.device)
     sizes = [int(s) for s in cfg.train_sizes.split(",")]
     env = TASKS[cfg.task]
+    if cfg.task == "chase" and cfg.sense_radius:
+        chase.SENSE_RADIUS = cfg.sense_radius
 
     model = NCA(hidden=cfg.hidden, n_hidden_layers=cfg.n_hidden_layers, stay_bias=cfg.stay_bias).to(device)
     if cfg.init:
