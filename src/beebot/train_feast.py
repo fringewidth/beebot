@@ -21,7 +21,7 @@ from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 
 from beebot import chase, feast
 from beebot.model import NCA, load_weights
-from beebot.train import awake_seconds, keep_if_best, parse_config, save_checkpoint
+from beebot.train import awake_seconds, fog_ok, keep_if_best, parse_config, save_checkpoint
 
 # Each task module provides sample_training_batch, rollout, evaluate and render_examples.
 # The loss is Feast's for both.
@@ -95,6 +95,10 @@ class FeastConfig:
     # Chase only: how far the cheese senses robots. 0 keeps chase.SENSE_RADIUS. It applies to
     # training and to this run's val scores, so runs with different radii aren't comparable.
     sense_radius: int = 0
+    # The run's best checkpoint is the best val score among checkpoints whose val fog is at
+    # most max_fog on every split (0: no cap). Every val checkpoint is also kept as
+    # model_<iteration>.pt, so a different cap can be applied afterwards.
+    max_fog: float = 0.0
     rollback: bool = False
     rollback_from: float = 0.3
     rollback_share: float = 0.33
@@ -142,7 +146,8 @@ def train(cfg):
     last_eval = awake_seconds()
     best_score = float("inf")
     if cfg.resume and (run_dir / "val_history.jsonl").exists():
-        best_score = min(json.loads(line)["val"]["score"] for line in open(run_dir / "val_history.jsonl"))
+        history = [json.loads(line)["val"] for line in open(run_dir / "val_history.jsonl")]
+        best_score = min([v["score"] for v in history if fog_ok(v, cfg.max_fog or None)], default=float("inf"))
     iteration = resumed["iteration"]
     success_ema = 0.0
     multiplier = cfg.w_fog
@@ -166,7 +171,7 @@ def train(cfg):
         return workers.submit(env.sample_training_batch, seed, size, cfg.batch_size), size
 
     if cfg.init and not cfg.resume:
-        best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, 0.0, evaluate=env.evaluate)
+        best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, 0.0, evaluate=env.evaluate, max_fog=cfg.max_fog or None)
 
     pending = request_batch()
     while awake_seconds() - start < cfg.minutes * 60 and not (run_dir / "STOP").exists():
@@ -251,7 +256,8 @@ def train(cfg):
             last_save = awake_seconds()
 
         if awake_seconds() - last_eval > cfg.eval_every_minutes * 60:
-            best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=env.evaluate)
+            torch.save(averaged.module.state_dict(), run_dir / f"model_{iteration}.pt")
+            best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=env.evaluate, max_fog=cfg.max_fog or None)
             last_eval = awake_seconds()
 
     workers.shutdown(cancel_futures=True)
@@ -259,7 +265,10 @@ def train(cfg):
     save_checkpoint(run_dir, averaged.module, iteration, level, (awake_seconds() - start) / 60)
 
     # The run's result is its best val checkpoint, final averaged model included.
-    best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=env.evaluate)
+    best_score = keep_if_best(run_dir, averaged.module, device, best_score, iteration, (awake_seconds() - start) / 60, evaluate=env.evaluate, max_fog=cfg.max_fog or None)
+    if not (run_dir / "model_best.pt").exists():
+        # No val checkpoint met the fog cap; the summary's fog numbers say so.
+        torch.save(averaged.module.state_dict(), run_dir / "model_best.pt")
     model.load_state_dict(torch.load(run_dir / "model_best.pt", map_location=device))
     torch.save(model.state_dict(), run_dir / "model.pt")
     model.eval()

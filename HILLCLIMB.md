@@ -437,3 +437,11 @@ Two Chase runs replace it, from scratch, same recipe (speed curriculum with leve
 - v5-chase-wide: the network twice as wide (hidden 192). The user allows scaling the network when needed.
 - v5-chase-touch: the cheese senses robots only by touch (radius 1, `--sense_radius 1`), like the robots, instead of from 4 squares. The radius was my choice, not the user's spec ("moves toward the side with the least mass"), so this run is a proposal for the user to accept or veto, not the stage's official rule. Its val scores aren't comparable with radius-4 runs.
 Three runs share the GPU now.
+
+2026-11-01 08:30, the fog bar. v4-feast-explore2 val at 150 minutes 46/30/12% (fog 0.65 to 0.74), at 180 minutes 46/20/14% (fog 0.58 to 0.64): as fog falls, eating falls, slightly worse than v4-feast-tighten at the same fog, so the exploration term didn't buy a compact search. Frames of the 200-minute checkpoint: the swarm still bursts into an invisible film in the first 30 steps and condenses only on the rings.
+
+Calibration: the terrain finalist, accepted by the user as a proof of concept, measured val fog 0.45 (interp), 0.29 (extrap), 0.49 (damage). The fog the user rejected on Feast measured 0.73 to 0.96. Asked for a bar, the user left it to me. Decision: a stage passes only with val fog at or under 0.45 on every split, the terrain standard. Changes:
+- `--max_fog 0.45`: model_best is the best val score among checkpoints under the cap on every split. Until now the best checkpoint was always a fog one, and the moments under the cap were overwritten (v4-feast-tighten at 241 minutes: 57/12/24% at fog 0.44 to 0.47, not kept).
+- Every val checkpoint is now saved as model_<iteration>.pt, so a different cap can be applied after the fact.
+- The fog limit now tightens to 0.35 instead of 0.1, so val can sit under 0.45.
+All three runs resumed from their own checkpoints with these settings (Feast at 201.8 minutes, chase-wide at 101.5, chase-touch at 106.4).
