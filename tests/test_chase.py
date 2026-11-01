@@ -5,7 +5,7 @@ import pytest
 import torch
 
 from beebot.ca import N_NOTES, OFFSETS
-from beebot.chase import ChaseBatch, cone_masses, evaluate, move_cheese, ring_of, rollout, sample_batch
+from beebot.chase import ChaseBatch, cone_masses, evaluate, move_cheese, ring_of, rollout, sample_batch, soft_ring
 from beebot.feast import first_done_step, loss
 from beebot.layout import UNREACHABLE, walking_distance
 from beebot.model import NCA, StickyBaseline
@@ -71,7 +71,7 @@ def test_cheese_stays_when_it_senses_no_robots():
     walls, cheese = empty_world()
     mass = torch.zeros(1, 12, 12)
     mass[0, 0, 0] = 3.0  # far outside the sensing radius
-    _, moved = move_cheese(mass, cheese, walls, 0.5)
+    _, moved, _ = move_cheese(mass, cheese, cheese.float(), walls, 0.5)
     assert torch.equal(moved, cheese)
 
 
@@ -79,7 +79,7 @@ def test_cheese_runs_from_the_robots():
     walls, cheese = empty_world()
     mass = torch.zeros(1, 12, 12)
     mass[0, 4, 6] = 1.0  # robots to the north
-    _, moved = move_cheese(mass, cheese, walls, 0.5)
+    _, moved, _ = move_cheese(mass, cheese, cheese.float(), walls, 0.5)
     assert moved[0, 7, 6] and moved.sum() == 1, "it moves south, away from the robots"
     sensed = cone_masses(mass, cheese)
     assert sensed[0, 0] == 1.0 and sensed[0, 1:].sum() == 0
@@ -92,7 +92,7 @@ def test_cheese_is_blocked_by_walls_and_by_robots():
     mass[0, 4, 6] = 1.0
     mass[0, 6, 7] = 0.6  # a robot to the east, too solid to push
     mass[0, 6, 5] = 0.6  # and to the west
-    new_mass, moved = move_cheese(mass, cheese, walls, 0.5)
+    new_mass, moved, _ = move_cheese(mass, cheese, cheese.float(), walls, 0.5)
     assert moved[0, 5, 6], "the only open way is north, toward the robots"
     assert torch.isclose(new_mass.sum(), mass.sum())
 
@@ -104,7 +104,7 @@ def test_thin_mass_is_pushed_into_the_vacated_square():
     mass[0, 9, 6] = 1.0
     mass[0, 6, 3] = 1.0
     mass[0, 6, 7] = 0.2  # a thin film to the east, the emptiest side
-    new_mass, moved = move_cheese(mass, cheese, walls, 0.5)
+    new_mass, moved, _ = move_cheese(mass, cheese, cheese.float(), walls, 0.5)
     assert moved[0, 6, 7]
     assert new_mass[0, 6, 7] == 0 and torch.isclose(new_mass[0, 6, 6], torch.tensor(0.2))
 
@@ -131,3 +131,21 @@ def test_evaluation_is_deterministic():
     first = evaluate(StickyBaseline(), torch.device("cpu"), "val")
     second = evaluate(StickyBaseline(), torch.device("cpu"), "val")
     assert first == second
+
+
+def test_soft_cheese_matches_the_hard_one_and_carries_gradients():
+    walls, cheese = empty_world()
+    mass = torch.zeros(1, 12, 12)
+    mass[0, 4, 6] = 1.0  # robots to the north push the cheese south
+    mass.requires_grad_(True)
+    _, moved, soft = move_cheese(mass, cheese, cheese.float(), walls, 0.5)
+    assert torch.equal(soft.detach() > 0.5, moved)
+    assert torch.allclose(soft.detach(), moved.float())
+    # More robots to the north make "south" likelier, which moves the soft cheese south.
+    soft[0, 7, 6].backward()
+    assert mass.grad[0, 4, 6] > 0
+
+
+def test_soft_ring_equals_the_hard_ring(batch):
+    soft = soft_ring(batch.cheese.float(), batch.walls)
+    assert torch.equal(soft > 0.5, ring_of(batch.cheese, batch.walls))

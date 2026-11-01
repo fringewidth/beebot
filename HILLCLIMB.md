@@ -445,3 +445,11 @@ Calibration: the terrain finalist, accepted by the user as a proof of concept, m
 - Every val checkpoint is now saved as model_<iteration>.pt, so a different cap can be applied after the fact.
 - The fog limit now tightens to 0.35 instead of 0.1, so val can sit under 0.45.
 All three runs resumed from their own checkpoints with these settings (Feast at 201.8 minutes, chase-wide at 101.5, chase-touch at 106.4).
+
+Check-in 2026-11-01 09:36:
+- v4-feast-explore2 val at 232 minutes 0.854 (interp 47%, extrap 19%, damage 19%), fog 0.53 to 0.57, a little better than at 180 minutes with less fog. The fog limit reaches 0.35 at about 318 minutes.
+- v5-chase-wide and v5-chase-touch both stuck at the 4-step level (training success about 8%, level-up needs 20%), val 3 to 14% per split. Width and touch-only sensing made no difference. Not a time problem either: with 12x and 24x steps per square instead of 6x, the 22x22 catch rate rises at most from 0 to 9% (`chase_time.py` on 32 layouts).
+
+Diagnosis: backprop treats the cheese's path as given, so the gradient can't learn that robots on one side push the cheese to the other, which is the whole skill of pinning it. The speed curriculum only postponed this.
+
+Fix: straight-through gradients for the cheese's flight. The forward pass is the hard rule as before (same moves, same scores). In the backward pass the choice of direction counts as a softmax over the four sides' sensed robot mass (temperature 1 robot), and the cheese's position and ring are carried as a float mask equal to the hard one in value. So the ring deficit now has a gradient through where the cheese went and why. Tests check that the soft mask equals the hard one and that robots to the north raise the gradient toward a southward move. Both runs stopped (`runs_cancelled/`); one run replaces them, from scratch, original rules (sensing radius 4, hidden 96): v5-chase-st.
