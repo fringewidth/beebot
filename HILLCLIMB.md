@@ -453,3 +453,18 @@ Check-in 2026-11-01 09:36:
 Diagnosis: backprop treats the cheese's path as given, so the gradient can't learn that robots on one side push the cheese to the other, which is the whole skill of pinning it. The speed curriculum only postponed this.
 
 Fix: straight-through gradients for the cheese's flight. The forward pass is the hard rule as before (same moves, same scores). In the backward pass the choice of direction counts as a softmax over the four sides' sensed robot mass (temperature 1 robot), and the cheese's position and ring are carried as a float mask equal to the hard one in value. So the ring deficit now has a gradient through where the cheese went and why. Tests check that the soft mask equals the hard one and that robots to the north raise the gradient toward a southward move. Both runs stopped (`runs_cancelled/`); one run replaces them, from scratch, original rules (sensing radius 4, hidden 96): v5-chase-st.
+
+Check-in 2026-11-01 12:00:
+- v4-feast-explore2 passed the 0.45 fog bar from 322 minutes on, at a cost: val 322 minutes 42/3/16% (fog 0.42 to 0.45), 352 minutes 36/9/19% (fog 0.40 to 0.43, the best checkpoint under the cap, score 0.883), 382 minutes 33/2/12% (fog 0.37 to 0.40). Training fog is now 0.33 to 0.37 with the limit at 0.35. A weak proof of concept: the swarm still eats a third of unseen-size layouts without fog, but almost none of the bigger worlds.
+- v5-chase-st reached the full-speed cheese at iteration 2443, sooner than before, but val is the same as without straight-through gradients (120 minutes: 5/12/4%). The fog gate (training success 30% at full speed) has not opened.
+
+# v6 Rivals (code ready)
+
+`src/beebot/rivals.py`, `src/beebot/train_rivals.py`, `tests/test_rivals.py`. Physics and payoffs as planned in JOURNAL.md; the choices I made where the plan left room:
+- Each species reads its own and the other's mass and pheromones (a 20-channel `RivalNCA`) and writes only its own pheromones. Both move at once; crowding counts combined mass.
+- A cheese is eaten when the combined mass fills its ring. Each species owns the share of the ring's mass that is its own at that moment.
+- Smooth payoff per step: a remaining cheese pays value x ring fill x ring share; an eaten one pays value x the share it was eaten at. Shared: both are paid the total. Zerosum: own minus other's. Staghunt: own; two 1-square cheeses worth 1, one 12 to 20-square stag worth 4, and each swarm has 80% of the mass the stag's ring needs.
+- Each loss is differentiated only with respect to its own rule (`torch.autograd.grad`), so neither swarm trains the other.
+- Shared and zerosum layouts: 2 to 4 cheeses of 1 to 5 squares; each swarm alone can fill the biggest ring, and the two together have Feast's density.
+- Val plays every layout twice, nests swapped. Score is 1 minus the eaten value share (the same for every game); payoffs, welfare, stag eaten, and fog per swarm are reported alongside. Fog cap 0.45 for both swarms.
+- Plan: two independent pairs per game (seeds 0 and 1), so co-trained pairs can be compared with strangers (A from one pair with B from the other), plus a cross-species pheromone blackout probe.
