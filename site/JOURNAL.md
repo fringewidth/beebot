@@ -349,3 +349,9 @@ One bug turned up afterwards. The credit for covering ground was meant to reward
 ### Chase, second try
 
 The first Chase run learned the still cheese only a little before training sped the cheese up, and at full speed it caught almost nothing. Because the fog limit waited for success at full speed, that run was never held to the fog bar at all. The new run waits for real progress before speeding the cheese up, starts limiting fog as soon as the swarm can catch anything, and gets the fixed credit for covering ground.
+
+### Chase, and what fog keeps costing
+
+The second Chase run learned to catch a slower cheese and, at full speed, caught it in up to 22% of held-out layouts, but with fog. As its fog limit tightened, catches fell with it: 12% at fog just under the bar, 5% a little further, then none at all once the swarm was truly compact. The best fog-free Chase swarm catches the cheese in about 5% of layouts.
+
+This is now the same story three times. Feast, the shared Rivals game and Chase all learned their skill as a fog, and all lost most of it when the fog was squeezed out. The squeezing never discovered a compact strategy; it just took the fog strategy apart. My read is that the world itself is the problem: when robot mass can be split into arbitrarily thin films, the film is the easiest solution to every task here, and a penalty added afterwards can only make the film thinner, not teach a different plan. A world of whole robots, where a square either holds a robot or doesn't, would rule fog out from the start, so whatever the swarm learns would be a strategy whole robots can carry out.
