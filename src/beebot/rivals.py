@@ -35,6 +35,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
+from PIL import Image
 from torch.utils.checkpoint import checkpoint
 
 from beebot.ca import FOG_MASS, N_NOTES, blocked_moves, damage, step
@@ -48,6 +49,7 @@ from beebot.layout import (
     open_region,
     walking_distance,
 )
+from beebot.render import BACKGROUND, BAR_HEIGHT, BAR_IN_TIME, BAR_OVER_TIME, CHEESE, OVERRUN, PIXELS_PER_SQUARE, RING, WALL
 
 TAU = 0.5
 FIRE_PROB = 0.75
@@ -217,6 +219,7 @@ class RivalRollout:
     masses_a: list  # (B, H, W) numpy arrays per step, only when recorded
     masses_b: list
     cheeses: list  # (B, H, W) bool numpy arrays per step: the cheese still present after the step
+    rings: list  # (B, H, W) bool numpy arrays per step: the rings of the cheese still present
 
 
 def _policy(model, other, other_notes):
@@ -256,7 +259,7 @@ def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=Fal
     payoff_b = torch.zeros(b, device=mass_a.device)
 
     rate_a, rate_b, crowding, fog_a, fog_b, fog_share_a, fog_share_b, eaten_value = [], [], [], [], [], [], [], []
-    masses_a, masses_b, cheeses = [], [], []
+    masses_a, masses_b, cheeses, ring_frames = [], [], [], []
     for t in range(n_steps):
         if t == damage_step:
             mass_a = damage(mass_a, damage_fraction)
@@ -309,6 +312,7 @@ def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=Fal
             masses_a.append(mass_a.detach().cpu().numpy())
             masses_b.append(mass_b.detach().cpu().numpy())
             cheeses.append((batch.cheese & present[:, :, None, None]).any(dim=1).cpu().numpy())
+            ring_frames.append((batch.rings & present[:, :, None, None]).any(dim=1).cpu().numpy())
 
     last = (batch.value > 0).float().cumsum(dim=1).argmax(dim=1)
     stag_eaten = ~present.gather(1, last[:, None])[:, 0]
@@ -327,6 +331,7 @@ def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=Fal
         masses_a=masses_a,
         masses_b=masses_b,
         cheeses=cheeses,
+        rings=ring_frames,
     )
 
 
@@ -392,3 +397,67 @@ def evaluate(model_a, model_b, device, game, which="val", blackout=False):
     }
     results["score"] = float(np.mean([1 - results[name]["eaten"] for name in ("interp", "extrap", "damage")]))
     return results
+
+
+# Videos: species A in blue, B in orange; where both stand, the colors mix.
+COLOR_A = np.array([90, 170, 255])
+COLOR_B = np.array([255, 140, 60])
+MAX_FRAMES = 300
+
+
+def _frame(mass_a, mass_b, cheese, walls, ring, step, limit, total):
+    image = np.where(ring[..., None], RING, BACKGROUND).astype(np.float32)
+    level_a = np.clip(mass_a, 0, 1)[..., None]
+    level_b = np.clip(mass_b, 0, 1)[..., None]
+    both = np.clip(level_a + level_b, 1e-6, None)
+    color = (COLOR_A * level_a + COLOR_B * level_b) / both
+    level = np.clip(level_a + level_b, 0, 1)
+    image = image * (1 - level) + color * level
+    over = np.clip(mass_a + mass_b - 1, 0, 1)[..., None]
+    image = image * (1 - over) + 255 * over
+    image[cheese] = CHEESE
+    image[walls] = WALL
+    image = image.astype(np.uint8).repeat(PIXELS_PER_SQUARE, axis=0).repeat(PIXELS_PER_SQUARE, axis=1)
+    bar = np.zeros((BAR_HEIGHT, image.shape[1], 3), dtype=np.uint8)
+    bar[:] = BACKGROUND
+    bar[:, : round(image.shape[1] * step / total)] = BAR_IN_TIME if step <= limit else BAR_OVER_TIME
+    return Image.fromarray(np.concatenate([image, bar]))
+
+
+def _render_picks(model_a, model_b, batch, device, out_dir, prefix, n_examples=3):
+    """The layouts where the pair ate the most value within the time limit, the slowest first among equals."""
+    size = batch.mass_a.shape[-1]
+    limit = STEPS_PER_CELL * size
+    n_steps = OVERRUN * limit
+    torch.manual_seed(0)
+    with torch.no_grad():
+        result = rollout(model_a, model_b, batch.to(device), n_steps, FIRE_PROB, TAU, record=True)
+    eaten = result.eaten_value[limit - 1].cpu()
+    done = (result.eaten_value[:limit] > 0.999).cpu()
+    finish = torch.where(done.any(dim=0), done.float().argmax(dim=0) + 1, torch.full_like(eaten, limit + 1, dtype=torch.long))
+    order = sorted(range(len(eaten)), key=lambda i: (-round(eaten[i].item(), 3), -finish[i].item()))[:n_examples]
+    first_rings = (batch.rings & batch.cheese.flatten(2).any(dim=2)[:, :, None, None]).any(dim=1).numpy()
+    first_cheese = batch.cheese.any(dim=1).numpy()
+    clips = []
+    for k, i in enumerate(order):
+        frames = [_frame(batch.mass_a[i].numpy(), batch.mass_b[i].numpy(), first_cheese[i], batch.walls[i].numpy(), first_rings[i], 0, limit, n_steps)]
+        # Long clips keep every stride-th step so a big world's clip stays a few MB.
+        stride = max(1, math.ceil(n_steps / MAX_FRAMES))
+        for t in range(stride - 1, n_steps, stride):
+            frames.append(_frame(result.masses_a[t][i], result.masses_b[t][i], result.cheeses[t][i], batch.walls[i].numpy(), result.rings[t][i], t + 1, limit, n_steps))
+        name = f"{prefix}_{k}.gif"
+        frames[0].save(Path(out_dir) / name, save_all=True, append_images=frames[1:], duration=60, loop=0)
+        clips.append({"file": name, "eaten": round(eaten[i].item(), 3), "steps": int(finish[i]) if finish[i] <= limit else None, "limit": limit})
+    return {"split": prefix, "size": size, "layouts": len(eaten), "all_eaten": int(done.any(dim=0).sum()), "clips": clips}
+
+
+def render_demo(model_a, model_b, device, out_dir, game):
+    """Demo clips for the page: the pair's best layouts at one interp size and one extrap size."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    spec = SETS["val"]
+    seed = spec["seed"] + 10 * GAMES.index(game)
+    return [
+        _render_picks(model_a, model_b, build_split(seed, spec["interp"][:1], game)[0], device, out_dir, "interp"),
+        _render_picks(model_a, model_b, build_split(seed + 1, spec["extrap"][:1], game)[0], device, out_dir, "extrap"),
+    ]

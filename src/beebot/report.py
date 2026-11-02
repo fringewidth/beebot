@@ -19,12 +19,13 @@ from pathlib import Path
 
 import torch
 
-from beebot import chase, feast
+from beebot import chase, feast, rivals
 from beebot.evaluate import evaluate
 from beebot.model import NCA, StickyBaseline
 from beebot.render import render_demo, render_examples
 from beebot.train import LEVELS, Config, fog_ok
 from beebot.train_feast import FeastConfig
+from beebot.train_rivals import RivalsConfig, load_pair
 
 # Stages whose task has its own module (sampling, evaluation, demo rendering).
 TASKS = {"feast": feast, "chase": chase}
@@ -40,6 +41,45 @@ NOT_A_CHANGE = {"name", "device", "log_every", "init", "use_checkpoint"}
 # Newest first. "reference" is the run whose config counts as that stage's
 # defaults; None means the current Config defaults.
 STAGES = [
+    {
+        "id": "v6-shared",
+        "title": "Rivals: shared",
+        "task": "rivals",
+        "game": "shared",
+        "folder": "runs",
+        "prefix": "v6-rivals-shared-",
+        "max_fog": 0.45,
+        "reference": None,
+        "status": "current",
+        "metric": "eaten",
+        "summary": "Two species of swarm, A (blue) and B (orange), in one world, each with its own rule, mass and pheromones, sensing the other's. A cheese is eaten once their combined robots fill its ring, and each swarm owns the share of the ring it holds. Both swarms are paid for every cheese eaten, whoever eats it: the cooperative control, the same objective as Feast split across two species. Each swarm learns only from its own payoff and updates only its own rule. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog cap 0.45 for both swarms.",
+    },
+    {
+        "id": "v6-zerosum",
+        "title": "Rivals: zero-sum",
+        "task": "rivals",
+        "game": "zerosum",
+        "folder": "runs",
+        "prefix": "v6-rivals-zerosum-",
+        "max_fog": 0.45,
+        "reference": None,
+        "status": "current",
+        "metric": "eaten",
+        "summary": "Two species of swarm, A (blue) and B (orange), in one world, each with its own rule, mass and pheromones, sensing the other's. A cheese is eaten once their combined robots fill its ring, and each swarm owns the share of the ring it holds. Each swarm is paid its share of every cheese minus the other's, so one swarm's gain is the other's loss: the competitive control. Each swarm learns only from its own payoff and updates only its own rule. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog cap 0.45 for both swarms.",
+    },
+    {
+        "id": "v6-staghunt",
+        "title": "Rivals: stag hunt",
+        "task": "rivals",
+        "game": "staghunt",
+        "folder": "runs",
+        "prefix": "v6-rivals-staghunt-",
+        "max_fog": 0.45,
+        "reference": None,
+        "status": "current",
+        "metric": "eaten",
+        "summary": "Two species of swarm, A (blue) and B (orange), in one world, each with its own rule, mass and pheromones, sensing the other's. A cheese is eaten once their combined robots fill its ring, and each swarm owns the share of the ring it holds. Two small cheeses either swarm can eat alone (worth 1 each) and one big cheese, the stag (worth 4), whose ring needs more robots than either swarm has. Each swarm is paid its own share. Hunting the stag together pays more, but only if the other swarm comes too. Each swarm learns only from its own payoff and updates only its own rule. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog cap 0.45 for both swarms.",
+    },
     {
         "id": "v5",
         "title": "Chase",
@@ -146,8 +186,9 @@ def curve(run_dir):
     points = []
     for line in (run_dir / "log.jsonl").read_text().splitlines():
         entry = json.loads(line)
-        if "success_ema" in entry:
-            points.append([entry["minutes"], entry.get("level", 0), entry["success_ema"]])
+        smoothed = entry.get("success_ema", entry.get("eaten_ema"))
+        if smoothed is not None:
+            points.append([entry["minutes"], entry.get("level", 0), smoothed])
     return points
 
 
@@ -172,6 +213,11 @@ def demo(stage, run_dir, device, weights):
     picks_path = run_dir / "demo" / "picks.json"
     if not picks_path.exists():
         config = read_json(run_dir / "config.json")
+        if stage.get("task") == "rivals":
+            a, b = load_pair(weights.parent, weights.name, config, device)
+            picks = rivals.render_demo(a, b, device, run_dir / "demo", stage["game"])
+            picks_path.write_text(json.dumps(picks, indent=2))
+            return {"run": run_dir.name, "videos": copy_videos(run_dir / "demo", stage["id"], run_dir.name), "picks": picks}
         model = NCA(hidden=config["hidden"], n_hidden_layers=config["n_hidden_layers"], privileged=config.get("privileged", False))
         model.load_state_dict(torch.load(weights, map_location=device))
         model.to(device).eval()
@@ -204,6 +250,10 @@ def provisional_summary(run_dir, cap):
     capped = [h for h in history if fog_ok(h["val"], cap)]
     best = min(capped or history, key=lambda h: h["val"]["score"])
     weights = run_dir / f"model_{best['iteration']}.pt"
+    if not weights.exists():
+        weights = run_dir / "model.pt"
+    if (run_dir / f"val_{best['iteration']}_a.pt").exists():
+        weights = run_dir / f"val_{best['iteration']}"  # a Rivals pair: the prefix of its two files
     checkpoint = read_json(run_dir / "checkpoint.json")
     return {
         "iterations": checkpoint["iteration"],
@@ -212,7 +262,7 @@ def provisional_summary(run_dir, cap):
         "in_progress": True,
         "under_fog_cap": bool(capped),
         "best_at_minutes": best["minutes"],
-        "weights": weights if weights.exists() else run_dir / "model.pt",
+        "weights": weights,
     }
 
 
@@ -220,6 +270,8 @@ def collect_stage(stage, device):
     folder = Path(stage["folder"])
     if stage["reference"]:
         defaults = read_json(folder / stage["reference"] / "config.json")
+    elif stage.get("task") == "rivals":
+        defaults = dataclasses.asdict(RivalsConfig())
     elif stage.get("task") in TASKS:
         defaults = dataclasses.asdict(FeastConfig())
     else:
@@ -231,6 +283,8 @@ def collect_stage(stage, device):
             continue
         config = read_json(run_dir / "config.json")
         if config is None or (stage.get("task") in TASKS and config.get("task", "feast") != stage["task"]):
+            continue
+        if stage.get("task") == "rivals" and config.get("game") != stage["game"]:
             continue
         summary = read_json(run_dir / "summary.json")
         if summary is None:
@@ -244,7 +298,7 @@ def collect_stage(stage, device):
                 "changes": config_changes(config, defaults),
                 "minutes": config["minutes"],
                 "iterations": summary["iterations"],
-                "final_level": summary["final_level"],
+                "final_level": summary.get("final_level", 0),
                 "diverged": summary.get("diverged", False),
                 "val": summary["val"],
                 "val_ring_only": summary.get("val_ring_only"),
@@ -255,7 +309,7 @@ def collect_stage(stage, device):
                 "under_fog_cap": summary.get("under_fog_cap"),
                 "best_at_minutes": summary.get("best_at_minutes"),
                 "run_dir": run_dir,
-                "weights": summary.get("weights", run_dir / "model.pt"),
+                "weights": summary.get("weights", run_dir / ("best" if stage.get("task") == "rivals" else "model.pt")),
             }
         )
 
@@ -273,7 +327,8 @@ def collect_stage(stage, device):
         "title": stage["title"],
         "status": stage["status"],
         "summary": stage["summary"],
-        "levels": 0 if stage.get("task") in TASKS else len(LEVELS),
+        "levels": 0 if stage.get("task") in TASKS or stage.get("task") == "rivals" else len(LEVELS),
+        "metric": stage.get("metric", "success"),
         "baseline": {
             "val": baseline["val"] if baseline else None,
             "probes": read_json(baseline_dir(stage) / "probes.json"),
@@ -287,13 +342,15 @@ def collect_stage(stage, device):
 def main():
     device = torch.device("cpu")
     for stage in STAGES:
-        if stage["status"] == "current":
+        if stage["status"] == "current" and stage.get("task") != "rivals":
             Path(stage["folder"]).mkdir(exist_ok=True)
             ensure_baseline(stage, device)
     if (SITE / "media").exists():
         shutil.rmtree(SITE / "media")
 
     stages = [collect_stage(stage, device) for stage in STAGES]
+    # A stage that hasn't started training yet gets no tab.
+    stages = [stage for stage in stages if stage["runs"] or stage["status"] != "current"]
     for document in DOCUMENTS:
         if Path(document).exists():
             shutil.copyfile(document, SITE / document)
