@@ -302,7 +302,37 @@ function bars(stage) {
   return s;
 }
 
+function rivalsProbes(stage) {
+  const s = section("Probes", "Do the swarms play in general or only with their own partner? Strangers pairs swarm A from one seed with swarm B from the other. Blackout makes each swarm read the other's pheromones as zero. Each cell: value eaten on unseen sizes / bigger worlds / damage, then the highest fog. Fog-capped uses the best pair under the fog cap; peak uses the best val check with fog allowed.");
+  const found = stage.rivals_probes;
+  if (!found) { s.append(el("p", { class: "empty" }, "Not run yet for this stage.")); return s; }
+  const cols = [["fog-capped", found.capped], ["peak (fog allowed)", found.peak]].filter(([, r]) => r);
+  const names = [...new Set(cols.flatMap(([, r]) => Object.keys(r)))];
+  const t = el("table");
+  const head = el("tr");
+  head.append(el("th", {}, "Pairing"));
+  for (const [name] of cols) head.append(el("th", { class: "r" }, name));
+  t.append(head);
+  for (const name of names) {
+    const tr = el("tr");
+    tr.append(el("td", {}, name));
+    for (const [, results] of cols) {
+      const r = results[name];
+      if (!r) { tr.append(el("td", { class: "r" }, "–")); continue; }
+      const splits = ["interp", "extrap", "damage"];
+      const fog = Math.max(...splits.map(k => r[k].fog));
+      tr.append(el("td", { class: "r num" }, `${splits.map(k => pct(r[k].eaten)).join(" / ")} · fog ${fmt(fog, 2)}`));
+    }
+    t.append(tr);
+  }
+  const wrap = el("div", { class: "table-wrap" });
+  wrap.append(t);
+  s.append(wrap);
+  return s;
+}
+
 function probes(stage) {
+  if (isRivals(stage)) return rivalsProbes(stage);
   const s = section("Stress tests", "Conditions the swarm never trained on, kept outside the val score. Each cell: share of layouts solved · time used.");
   const cols = [...stage.runs.filter(r => r.probes).slice(0, 3).map(r => [shortLabel(r), r.probes])];
   if (stage.baseline.probes) cols.push(["baseline", stage.baseline.probes]);

@@ -158,6 +158,19 @@ def finite(value):
     return value
 
 
+def rivals_probes(stage):
+    """Strangers and blackout probes for a Rivals game (see rivals_probes.py), on the
+    fog-capped pairs and on the peak (fog allowed) pairs."""
+    if stage.get("task") != "rivals":
+        return None
+    prefix = Path(stage["folder"]) / f"v6-rivals-{stage['game']}-probes"
+    found = {
+        "capped": read_json(Path(f"{prefix}.json")),
+        "peak": read_json(Path(f"{prefix}-peak.json")),
+    }
+    return found if any(found.values()) else None
+
+
 def baseline_dir(stage):
     return Path(stage["folder"]) / stage.get("baseline", "baseline")
 
@@ -334,6 +347,7 @@ def collect_stage(stage, device):
             "probes": read_json(baseline_dir(stage) / "probes.json"),
         },
         "demo": stage_demo,
+        "rivals_probes": rivals_probes(stage),
         "aside": collect_aside(stage),
         "runs": runs,
     }
