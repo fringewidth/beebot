@@ -494,3 +494,18 @@ Check-ins 2026-11-02 (two GPU runs):
 - v6-rivals-shared-s0 learned to eat (val 137 minutes: 51% of the value on unseen sizes, 65% on bigger worlds, fog 0.71 to 0.86), then traded eating for fog as its limit tightened. First check under the cap: 258 minutes, 24/28/18% of the value eaten, fog at most 0.45. The two swarms split the payoff about evenly.
 
 Bug: rollback loop. The collapse test compares the eating average with its best ever, and that best was set before the fog limit bit. Under the limit, eating fell legitimately below a third of it, so from 258 to 305 minutes v6-rivals-shared-s0 rolled back 13 times, about every 25 iterations, and stopped learning. Fix: the remembered best fades by `rollback_memory` per iteration (0.999: a third of its value in about 1100 iterations), so a slow decline doesn't count as a collapse and a sudden one still does. Default 0.999 in train_rivals.py; train_feast.py keeps 1.0 as its default (v4 reproduces) and Chase now runs with `--rollback_memory 0.999`. Chase had not rolled back yet but was close to the same trap. Both runs restarted from their own checkpoints (Rivals at about 304 minutes, Chase at 269).
+
+v6-rivals-shared-s0 finished (360 minutes). The eating collapsed after the rollback fix: from about 320 minutes swarm A went compact and idle (fog 0.13 to 0.18, payoff near 0) and B ate what little was eaten; in the shared game A loses nothing by idling. Best checkpoint under the fog cap stays the 258-minute one: 24% of the value eaten on unseen sizes, 28% on bigger worlds, 18% damaged, fog at most 0.45, the payoff split about evenly (13/11%, 14/14%, 10/8%). The remaining Rivals pairs run one after another on one GPU slot (`queue_rivals.sh`): zerosum s0, staghunt s0, then seed 1 of each game.
+
+Page: a tab per Rivals game (shared, zero-sum, stag hunt; a game gets its tab once a run starts). Tiles show the share of the value eaten per split, each swarm's share and fog. Demo clips show A in blue and B in orange, on the val layouts where the best pair ate the most; long clips keep every few steps so a 48x48 clip stays a few MB.
+
+**v5-chase-explore stopped at 420 of 720 minutes.** The fog limit reached 0.35 at about 370 minutes and the swarm went compact and stopped catching: training success 0 to 3% from about 390 minutes, val at 391 minutes 0/0/0% at fog 0.06 to 0.18. Rollback did not fire because the decline was gradual (by design since the fix). Val history, catches at full speed and fog:
+- 243 minutes: 16/22/8%, fog 0.58 to 0.71 (best overall, over the cap)
+- 330 minutes: 12/14/11%, fog 0.43 to 0.49 (interp just over the cap)
+- 360 minutes: 5/3/6%, fog 0.39 to 0.43 (best under the cap; the run's summary)
+- 391 minutes: 0/0/0%, fog 0.06 to 0.18
+Baseline: 0/2/0%. The stage stays open (test set unused); the decision on what counts for Chase is the user's (pinged).
+
+Pattern across three tasks: forcing fog under the bar costs most of the skill. Feast fell from 72/69% of layouts with fog to 36/9% under the cap; Rivals shared from 51/65% of the value to 24/28%; Chase from 16/22% to 5/3%. In each run the skill was learned through fog and then squeezed, and squeezing never found the compact strategy; the runs just got worse until they stopped. The continuous-mass world makes fog the easy solution, and a penalty on it shows up too late to shape the strategy. The discrete case (whole robots, no fractional mass) removes fog by construction rather than by penalty.
+
+GPU slot freed by Chase goes to the Rivals queue: two queues now, one GPU run each. Queue 1: zerosum s0 (running), then shared s1 and zerosum s1. Queue 2: staghunt s0 (started), then staghunt s1.

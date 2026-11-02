@@ -90,7 +90,7 @@ STAGES = [
         "max_fog": 0.45,
         "reference": None,
         "status": "current",
-        "summary": "One cheese on terrain that runs from the swarm: every 2 steps it moves one square toward the side with the least robot mass within 4 squares, blocked by walls and by squares holding half a robot or more. Eaten once its ring is full. A scripted swarm that can see the cheese catches it in 56 to 81% of layouts, so the task is fair; the blind swarm has to find it by touch and pin it. Training speeds the cheese up level by level (still, then every 16, 8, 4, 2 steps); val always uses full speed. The first run caught it in 3 to 16% of val layouts, only with fog, and was never held to the fog limit; it was stopped. A second run, from scratch with a slower curriculum, an earlier fog limit and credit for ground covered by solid robots, is training now.",
+        "summary": "One cheese on terrain that runs from the swarm: every 2 steps it moves one square toward the side with the least robot mass within 4 squares, blocked by walls and by squares holding half a robot or more. Eaten once its ring is full. A scripted swarm that can see the cheese catches it in 56 to 81% of layouts, so the task is fair; the blind swarm has to find it by touch and pin it. Training speeds the cheese up level by level (still, then every 16, 8, 4, 2 steps); val always uses full speed. The second run (slower curriculum, an earlier fog limit, credit for ground covered by solid robots) caught the full-speed cheese in up to 16/22/8% of val layouts with fog, but under the 0.45 fog cap only 5/3/6% (baseline 0/2/0%), and none at all once the swarm was fully compact. Not solved; the stage stays open.",
     },
     {
         "id": "v4",
