@@ -488,3 +488,9 @@ Found while writing a Chase test: Feast's exploration credit is linear in mass f
 - `--level_up 0.5` (the default; 0.2 was too early).
 - `--gate_any_level true`: the fog limit starts tightening once training success reaches 30% at any level.
 - `--w_explore 0.5` with the fixed credit: a square counts as visited once it held tau, with partial credit from tau/2 up, so a film visits nothing.
+
+Check-ins 2026-11-02 (two GPU runs):
+- v5-chase-explore climbs through the curriculum (level 3, every 4 steps, at 227 minutes). Val at full speed, best so far at 243 minutes: 16/22/8% (fog 0.58 to 0.71, over the cap). The cancelled run's best was 6/14/4%.
+- v6-rivals-shared-s0 learned to eat (val 137 minutes: 51% of the value on unseen sizes, 65% on bigger worlds, fog 0.71 to 0.86), then traded eating for fog as its limit tightened. First check under the cap: 258 minutes, 24/28/18% of the value eaten, fog at most 0.45. The two swarms split the payoff about evenly.
+
+Bug: rollback loop. The collapse test compares the eating average with its best ever, and that best was set before the fog limit bit. Under the limit, eating fell legitimately below a third of it, so from 258 to 305 minutes v6-rivals-shared-s0 rolled back 13 times, about every 25 iterations, and stopped learning. Fix: the remembered best fades by `rollback_memory` per iteration (0.999: a third of its value in about 1100 iterations), so a slow decline doesn't count as a collapse and a sudden one still does. Default 0.999 in train_rivals.py; train_feast.py keeps 1.0 as its default (v4 reproduces) and Chase now runs with `--rollback_memory 0.999`. Chase had not rolled back yet but was close to the same trap. Both runs restarted from their own checkpoints (Rivals at about 304 minutes, Chase at 269).
