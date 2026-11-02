@@ -526,3 +526,34 @@ Rivals results, 2026-11-02 afternoon (both queues kept running through a session
 - Zero-sum probes, seed 0 (val, CPU; same layouts and firing seeds, so the comparisons are paired):
   - fog-capped pair (335 minutes): co-trained 4/9/2% eaten, blackout 6/14/3%. Too little eating to read.
   - peak pair (213 minutes, fog allowed): co-trained 29/52/16%, blackout 35/58/18%. Payoffs A/B: co-trained 12/17, 24/28, 6/10%; blackout 15/20, 27/31, 7/12%. Hiding each swarm's pheromones from the other raises both swarms' take and leaves the gap between them unchanged. So in the zero-sum game, what each swarm does with the other's signals costs both of them food without changing who wins. Strangers wait for seed 1.
+
+2026-11-02 night. v6-rivals-shared-s1 finished (360 minutes). Val history, value eaten and the highest fog: 121 minutes 53/70/27% at fog 0.70 to 0.82 (peak), 213 minutes 29/28/19% at 0.32 to 0.46, 243 minutes 28/25/17% at 0.31 to 0.44 (best under the cap; the run's summary, payoffs A/B 17/11, 16/9, 10/7%), 360 minutes 24/25/17% at 0.21 to 0.35. Unlike seed 0, both swarms kept eating to the end.
+
+Shared probes (val, CPU; paired layouts and firing seeds). Value eaten on interp/extrap/damage:
+- Fog-capped pairs (s0 258 minutes, s1 243 minutes):
+  - co-trained s0 26/27/14%, blackout 25/28/15%
+  - co-trained s1 26/28/21%, blackout 26/28/20%
+  - strangers A0+B1 17/21/11% (fog up to 0.51), A1+B0 19/25/12% (fog up to 0.53)
+- Peak pairs (fog allowed):
+  - co-trained s0 50/63/29%, blackout 39/56/24%
+  - co-trained s1 54/68/24%, blackout 34/60/16%
+  - strangers A0+B1 16/41/9%, A1+B0 17/43/11%
+
+Reading:
+- Under the fog cap, cross-species pheromones carry nothing: blackout changes nothing. Strangers still lose about a third of the eating and get foggier, so each pair is fitted to its partner some other way, most likely by where each swarm puts its mass (touch, not signals).
+- At peak, the shared-game swarms do use each other's signals: blackout costs 11 to 20 points on unseen sizes. And they are fitted to their own partner much more: strangers eat about a third of what co-trained pairs eat on unseen sizes (16 to 17% against 50 to 54%). So the shared game learned cooperation, but a private convention, not general cooperation with any partner of the other species.
+- Compare zero-sum seed 0 at peak: there, blackout raised both swarms' take. So in the shared game cross-species signals help both swarms, and in zero-sum they hurt both.
+
+v6-rivals-zerosum-s1 finished (360 minutes), the same arc as seed 0. Val history, value eaten and the highest fog: 182 minutes 36/56/19% at 0.62 to 0.81 (peak), 274 minutes 19/39/11% at 0.44 to 0.51, 305 minutes 8/19/5% at 0.37 to 0.43 (best under the cap; the run's summary, payoffs A/B 5/3, 12/6, 3/2%), 360 minutes 1/5/0% at 0.26 to 0.30.
+
+Zero-sum probes, both seeds. Value eaten on interp/extrap/damage:
+- Fog-capped pairs (s0 335 minutes, s1 305 minutes): co-trained s0 4/9/2%, blackout 6/14/3%; co-trained s1 9/18/4%, blackout 12/24/5%; strangers A0+B1 4/9/2%, A1+B0 5/15/2%. Too little eating to read much, but blackout helps here too.
+- Peak pairs (s0 213 minutes, s1 182 minutes): co-trained s0 29/52/16%, blackout 35/58/18%; co-trained s1 34/55/20%, blackout 43/59/23%; strangers A0+B1 12/31/5%, A1+B0 16/29/11%.
+
+Reading, with both games:
+- Blackout raises eating in zero-sum on both seeds, at both checkpoints, for both swarms (s1 peak payoffs A/B: co-trained 20/14, 32/23, 11/8%; blackout 25/18, 36/24, 14/10%). In the shared game blackout lowers eating at peak. So each species' reaction to the other's pheromones helps both in the cooperative game and hurts both in the competitive one: the swarms learned to use rival signals in a way that matches the payoff, and in zero-sum what they learned is interference that costs both sides about equally.
+- Strangers lose most of the eating in both games at peak (zero-sum 12 to 16% on unseen sizes against 29 to 34%; shared 16 to 17% against 50 to 54%). Both games learned partner-specific play, not a general way to share a world with any swarm of the other species.
+- Stag hunt never learned (layout flaw, see above), so the cooperation-under-risk question is unanswered.
+- Under the fog cap almost all of this shrinks below what can be read, which is the fog pattern again.
+
+Rivals status: shared and zero-sum have two seeds each and probes; stag hunt has one seed that didn't learn. Open decisions (user): stag hunt rule change, pushable-cheese spec, Chase acceptance, discrete world first or not. The GPU is idle until then.
