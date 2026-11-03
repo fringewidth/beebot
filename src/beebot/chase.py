@@ -130,8 +130,8 @@ def ring_of(cheese, walls):
     return spread(cheese) & ~cheese & ~walls
 
 
-def cone_masses(mass, cheese):
-    """(B, 4) robot mass within SENSE_RADIUS of the cheese in each of the four cones around its center.
+def cone_masses(mass, cheese, radius=SENSE_RADIUS):
+    """(B, 4) robot mass within `radius` of the cheese in each of the four cones around its center.
 
     The center is a circular mean, so shapes that wrap around the edge work.
     """
@@ -151,7 +151,7 @@ def cone_masses(mass, cheese):
     # Offsets from the center, wrapped into [-L/2, L/2).
     oy = torch.remainder(ys[None, :, None] - cy[:, None, None] + h / 2, h) - h / 2
     ox = torch.remainder(xs[None, None, :] - cx[:, None, None] + w / 2, w) - w / 2
-    near = (spread(cheese, SENSE_RADIUS) & ~cheese).float() * mass
+    near = (spread(cheese, radius) & ~cheese).float() * mass
     vertical = oy.abs() >= ox.abs()
     cones = [
         vertical & (oy < 0),
@@ -163,7 +163,22 @@ def cone_masses(mass, cheese):
 
 
 def move_cheese(mass, cheese, soft, walls, tau):
-    """One flight step for every cheese in the batch. Returns (mass, cheese, soft).
+    """One flight step for every cheese in the batch. Returns (mass, cheese, soft)."""
+    new_cheese, new_soft = flee(mass, cheese, soft, walls, tau)
+    return displace(mass, cheese, new_cheese), new_cheese, new_soft
+
+
+def displace(mass, cheese, new_cheese):
+    """Robot mass on the squares a cheese moved into goes to the squares it left, so mass is conserved."""
+    entered = (new_cheese & ~cheese).float()
+    left = (cheese & ~new_cheese).float()
+    pushed = (mass * entered).sum(dim=(1, 2))
+    n_left = left.sum(dim=(1, 2)).clamp_min(1)
+    return mass * (1 - entered) + left * (pushed / n_left)[:, None, None]
+
+
+def flee(mass, cheese, soft, blockers, tau, radius=SENSE_RADIUS):
+    """Where each cheese moves in one flight step: (new cheese, new soft). blockers are squares it can't enter.
 
     The move itself is the hard rule. soft is the same cheese mask as a float that carries
     gradients: a straight-through estimate in which the choice of direction counts as a
@@ -171,7 +186,7 @@ def move_cheese(mass, cheese, soft, walls, tau):
     so the simulation is unchanged; backprop then sees that mass on one side pushes the
     cheese toward the other, which a hard argmin hides.
     """
-    sensed = cone_masses(mass, cheese)
+    sensed = cone_masses(mass, cheese, radius)
     opposite = sensed[:, [1, 0, 3, 2]]
     score = sensed - 1e-3 * opposite
     with torch.no_grad():
@@ -179,7 +194,7 @@ def move_cheese(mass, cheese, soft, walls, tau):
         for dy, dx in DIRECTIONS:
             moved = torch.roll(cheese, (dy, dx), dims=(1, 2))
             entered = moved & ~cheese
-            legal.append(~((moved & walls) | (entered & (mass >= tau))).flatten(1).any(dim=1))
+            legal.append(~((moved & blockers) | (entered & (mass >= tau))).flatten(1).any(dim=1))
         legal = torch.stack(legal, dim=1)
         choice = score.masked_fill(~legal, float("inf")).argmin(dim=1)
         moves = legal.any(dim=1) & (sensed.sum(dim=1) > 0)
@@ -195,12 +210,7 @@ def move_cheese(mass, cheese, soft, walls, tau):
         pick = moves & (choice == k)
         if pick.any():
             new_cheese[pick] = torch.roll(cheese[pick], (dy, dx), dims=(1, 2))
-    entered = (new_cheese & ~cheese).float()
-    left = (cheese & ~new_cheese).float()
-    pushed = (mass * entered).sum(dim=(1, 2))
-    n_left = left.sum(dim=(1, 2)).clamp_min(1)
-    mass = mass * (1 - entered) + left * (pushed / n_left)[:, None, None]
-    return mass, new_cheese, new_soft
+    return new_cheese, new_soft
 
 
 def soft_ring(soft, walls):

@@ -19,6 +19,18 @@ Games, each a different payoff on the same physics:
               big cheese (value 4) whose ring needs more mass than either swarm
               has. Each swarm is paid its own share. Hunting the stag together pays
               more, but only if the other swarm comes too.
+    staghunt2: the stag hunt with the swarms at the same density as the other games
+              (staghunt's swarms were about 10 units of mass at every world size, too
+              sparse to learn anything). Since either swarm alone could now fill the
+              stag's ring, the stag is eaten only when its ring is full and each species
+              holds at least STAG_MIN_SHARE of the ring's mass.
+    shared-push, zerosum-push: shared and zero-sum with cheese the robots can push.
+              Every PUSH_PERIOD steps each cheese moves one square away from the
+              robots touching it, both species counted together (Chase's flight
+              rule, sensing only the squares next to it). It can't move into walls,
+              other cheese, or squares holding TAU or more robot, so a full ring
+              holds it in place. A swarm can push a cheese toward its own side or
+              away from the other's.
 
 The loss is each swarm's payoff, made smooth: at every step a remaining cheese pays
 its value times its ring's fill times the swarm's share of the ring mass, and an
@@ -38,6 +50,8 @@ import torch.nn.functional as F
 from PIL import Image
 from torch.utils.checkpoint import checkpoint
 
+from beebot.chase import displace, flee, soft_ring
+from beebot.chase import spread as spread_torch
 from beebot.ca import FOG_MASS, N_NOTES, blocked_moves, damage, step
 from beebot.layout import (
     MASS_PER_RING_SQUARE,
@@ -57,7 +71,11 @@ STEPS_PER_CELL = 6
 LAYOUTS_PER_SIZE = 32
 WALLS = (0.0, 0.3)
 DAMAGE_FRACTION = 0.25
-GAMES = ("shared", "zerosum", "staghunt")
+GAMES = ("shared", "zerosum", "staghunt", "staghunt2", "shared-push", "zerosum-push")
+# A pushable game plays the payoff and layouts of its base game.
+PUSH_GAMES = {"shared-push": "shared", "zerosum-push": "zerosum"}
+PUSH_PERIOD = 2
+STAG_GAMES = ("staghunt", "staghunt2")
 
 SMALL_CHEESE = (1, 5)  # squares, shared and zerosum
 N_CHEESE = (2, 4)
@@ -67,6 +85,8 @@ STAG_VALUES = (1.0, 1.0, 4.0)
 # In the stag hunt each swarm has this share of the mass the stag's ring needs (TAU per
 # ring square), so neither can eat it alone and together they have 60% to spare.
 STAG_SWARM_SHARE = 0.8
+# In staghunt2 the stag needs both species: each must hold this share of its ring's mass.
+STAG_MIN_SHARE = 0.3
 
 SETS = {
     "val": {"seed": 7000, "interp": (22, 30, 36), "extrap": (48, 64)},
@@ -84,6 +104,7 @@ class RivalBatch:
     value: torch.Tensor  # (B, K), 0 for unused slots
     walls: torch.Tensor  # (B, H, W) bool
     rings: torch.Tensor  # (B, K, H, W) bool
+    joint: torch.Tensor = None  # (B, K) bool, cheeses that need both species (staghunt2's stag); None: none do
 
     def to(self, device):
         return RivalBatch(
@@ -93,6 +114,7 @@ class RivalBatch:
             value=self.value.to(device),
             walls=self.walls.to(device),
             rings=self.rings.to(device),
+            joint=None if self.joint is None else self.joint.to(device),
         )
 
     def swapped(self):
@@ -104,12 +126,13 @@ class RivalBatch:
             value=self.value,
             walls=self.walls,
             rings=self.rings,
+            joint=self.joint,
         )
 
 
 def _cheeses(rng, size, game, walls):
     """Cheese masks and values for one layout, or None if they didn't fit."""
-    if game == "staghunt":
+    if game in STAG_GAMES:
         shapes = [STAG_SMALL, STAG_SMALL, int(rng.integers(STAG_BIG[0], STAG_BIG[1] + 1))]
         values = list(STAG_VALUES)
     else:
@@ -155,8 +178,9 @@ def sample_layout(rng, size, game, wall_range=WALLS):
             if n_mass <= TAU * max(r.sum() for r in rings[:-1]):
                 continue  # each swarm must be able to eat a small cheese alone
         else:
-            # Each swarm alone can fill the biggest ring, and the two together have Feast's density.
-            n_mass = max(math.ceil(MASS_PER_RING_SQUARE * max(r.sum() for r in rings)), math.ceil(SWARM_DENSITY / 2 * passable.sum()))
+            # Each swarm alone can fill the biggest ring (staghunt2: the biggest small one), and the two together have Feast's density.
+            own_rings = rings[:-1] if game == "staghunt2" else rings
+            n_mass = max(math.ceil(MASS_PER_RING_SQUARE * max(r.sum() for r in own_rings)), math.ceil(SWARM_DENSITY / 2 * passable.sum()))
         nest_allowed = passable & ~all_rings
         nests = []
         for _ in range(2):
@@ -175,17 +199,21 @@ def sample_layout(rng, size, game, wall_range=WALLS):
 
 
 def sample_batch(rng, size, game, batch_size, wall_range=WALLS):
+    game = PUSH_GAMES.get(game, game)
     layouts = [sample_layout(rng, size, game, wall_range) for _ in range(batch_size)]
     k = max(len(c) for c, _, _, _, _ in layouts)
     cheese = np.zeros((batch_size, k, size, size), dtype=bool)
     rings = np.zeros_like(cheese)
     value = np.zeros((batch_size, k), dtype=np.float32)
+    joint = np.zeros((batch_size, k), dtype=bool)
     for i, (cheeses, values, walls, _, _) in enumerate(layouts):
         any_cheese = np.logical_or.reduce(cheeses)
         for j, (c, v) in enumerate(zip(cheeses, values)):
             cheese[i, j] = c
             rings[i, j] = _spread(c) & ~walls & ~any_cheese
             value[i, j] = v
+        if game == "staghunt2":
+            joint[i, len(cheeses) - 1] = True
     return RivalBatch(
         mass_a=torch.tensor(np.stack([a for _, _, _, a, _ in layouts])),
         mass_b=torch.tensor(np.stack([b for _, _, _, _, b in layouts])),
@@ -193,6 +221,7 @@ def sample_batch(rng, size, game, batch_size, wall_range=WALLS):
         value=torch.tensor(value),
         walls=torch.tensor(np.stack([w for _, _, w, _, _ in layouts])),
         rings=torch.tensor(rings),
+        joint=torch.tensor(joint),
     )
 
 
@@ -238,8 +267,24 @@ def _fog(mass, total):
     return soft, share
 
 
-def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=False, record=False, damage_step=None, damage_fraction=DAMAGE_FRACTION, blackout=False):
-    """blackout: each species reads the other's pheromones as zero (a probe of cross-species signalling)."""
+def push(mass_a, mass_b, cheese, soft, present, walls, tau):
+    """One push for every present cheese, in slot order: Chase's flight rule on the combined
+    mass touching it. Returns (mass_a, mass_b, cheese, soft); cheese and soft are (B, K, H, W)."""
+    cheese, soft = cheese.clone(), soft.clone()
+    for k in range(cheese.shape[1]):
+        here = cheese[:, k] & present[:, k, None, None]
+        others = (cheese & present[:, :, None, None]).any(dim=1) & ~here
+        moved, moved_soft = flee(mass_a + mass_b, here, soft[:, k], walls | others, tau, radius=1)
+        mass_a = displace(mass_a, here, moved)
+        mass_b = displace(mass_b, here, moved)
+        cheese[:, k] = torch.where(present[:, k, None, None], moved, cheese[:, k])
+        soft[:, k] = torch.where(present[:, k, None, None], moved_soft, soft[:, k])
+    return mass_a, mass_b, cheese, soft
+
+
+def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=False, record=False, damage_step=None, damage_fraction=DAMAGE_FRACTION, blackout=False, pushable=False):
+    """blackout: each species reads the other's pheromones as zero (a probe of cross-species signalling).
+    pushable: the cheese moves when pushed (the -push games)."""
     mass_a, mass_b = batch.mass_a, batch.mass_b
     b, h, w = mass_a.shape
     notes_a = torch.zeros(b, N_NOTES, h, w, device=mass_a.device)
@@ -247,8 +292,12 @@ def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=Fal
     walls = batch.walls.float()
     rings = batch.rings.float()
     ring_size = rings.sum(dim=(2, 3)).clamp_min(1)
+    hard_rings = batch.rings
+    cheese_k = batch.cheese
+    soft_k = batch.cheese.float()
     present = batch.cheese.flatten(2).any(dim=2)
     value = batch.value
+    joint = torch.zeros_like(present) if batch.joint is None else batch.joint
     total_value = value.sum(dim=1)
     total_a = mass_a.sum(dim=(1, 2))
     total_b = mass_b.sum(dim=(1, 2))
@@ -264,7 +313,14 @@ def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=Fal
         if t == damage_step:
             mass_a = damage(mass_a, damage_fraction)
             mass_b = damage(mass_b, damage_fraction)
-        cheese = (batch.cheese & present[:, :, None, None]).any(dim=1)
+        if pushable and t % PUSH_PERIOD == PUSH_PERIOD - 1:
+            mass_a, mass_b, cheese_k, soft_k = push(mass_a, mass_b, cheese_k, soft_k, present, batch.walls, tau)
+            k = cheese_k.shape[1]
+            any_cheese = cheese_k.any(dim=1)
+            hard_rings = (spread_torch(cheese_k.flatten(0, 1)).view_as(cheese_k) & ~batch.walls[:, None] & ~any_cheese[:, None])
+            rings = soft_ring(soft_k.flatten(0, 1), batch.walls.repeat_interleave(k, dim=0)).view_as(soft_k) * (~any_cheese[:, None]).float()
+            ring_size = rings.sum(dim=(2, 3)).clamp_min(1)
+        cheese = (cheese_k & present[:, :, None, None]).any(dim=1)
         blocked = blocked_moves(cheese | batch.walls)
         heard_b = torch.zeros_like(notes_b) if blackout else notes_b
         heard_a = torch.zeros_like(notes_a) if blackout else notes_a
@@ -287,8 +343,10 @@ def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=Fal
         ring_b = (mass_b[:, None] * rings).sum(dim=(2, 3))
         own_a = ring_a / (ring_a + ring_b).clamp_min(1e-6)
         own_b = ring_b / (ring_a + ring_b).clamp_min(1e-6)
+        # A joint cheese counts as surrounded only as far as the scarcer species holds its minimum share.
+        both = torch.where(joint, (torch.minimum(own_a, own_b) / STAG_MIN_SHARE).clamp(max=1), torch.ones_like(own_a))
 
-        full = ((total[:, None] > tau) | ~batch.rings).flatten(2).all(dim=2) & present
+        full = ((total[:, None] > tau) | ~hard_rings).flatten(2).all(dim=2) & present & (both >= 1)
         kept_a = torch.where(full, own_a, kept_a)
         kept_b = torch.where(full, own_b, kept_b)
         payoff_a = payoff_a + (full.float() * value * own_a.detach()).sum(dim=1) / total_value
@@ -296,8 +354,8 @@ def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=Fal
         present = present & ~full
 
         # A remaining cheese pays its fill times the ring share; an eaten one pays the share it was eaten at.
-        secured_a = torch.where(present, surround * own_a, kept_a)
-        secured_b = torch.where(present, surround * own_b, kept_b)
+        secured_a = torch.where(present, surround * both * own_a, kept_a)
+        secured_b = torch.where(present, surround * both * own_b, kept_b)
         rate_a.append((value * secured_a).sum(dim=1) / total_value)
         rate_b.append((value * secured_b).sum(dim=1) / total_value)
         crowding.append(F.relu(total - 1).pow(2).sum(dim=(1, 2)) / (total_a + total_b))
@@ -311,8 +369,8 @@ def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=Fal
         if record:
             masses_a.append(mass_a.detach().cpu().numpy())
             masses_b.append(mass_b.detach().cpu().numpy())
-            cheeses.append((batch.cheese & present[:, :, None, None]).any(dim=1).cpu().numpy())
-            ring_frames.append((batch.rings & present[:, :, None, None]).any(dim=1).cpu().numpy())
+            cheeses.append((cheese_k & present[:, :, None, None]).any(dim=1).cpu().numpy())
+            ring_frames.append((hard_rings & present[:, :, None, None]).any(dim=1).cpu().numpy())
 
     last = (batch.value > 0).float().cumsum(dim=1).argmax(dim=1)
     stag_eaten = ~present.gather(1, last[:, None])[:, 0]
@@ -337,12 +395,13 @@ def rollout(model_a, model_b, batch, n_steps, fire_prob, tau, use_checkpoint=Fal
 
 def losses(result, game, w_crowding, w_fog_a=0.0, w_fog_b=0.0):
     """(loss of A, loss of B). Each swarm minimizes the negative of its own smooth payoff."""
+    game = PUSH_GAMES.get(game, game)
     if game == "shared":
         payoff_a = payoff_b = (result.rate_a + result.rate_b).mean()
     elif game == "zerosum":
         payoff_a = (result.rate_a - result.rate_b).mean()
         payoff_b = -payoff_a
-    elif game == "staghunt":
+    elif game in STAG_GAMES:
         payoff_a = result.rate_a.mean()
         payoff_b = result.rate_b.mean()
     else:
@@ -358,7 +417,7 @@ def build_split(seed, sizes, game):
     return [sample_batch(rng, size, game, LAYOUTS_PER_SIZE) for size in sizes]
 
 
-def score_batches(model_a, model_b, batches, device, seed, damage, blackout=False):
+def score_batches(model_a, model_b, batches, device, seed, damage, blackout=False, pushable=False):
     """Scores of a pair. Each layout is played twice, once from each nest, so neither swarm gets the better start."""
     torch.manual_seed(seed)
     rows = {"eaten": [], "all_eaten": [], "payoff_a": [], "payoff_b": [], "stag": [], "fog_a": [], "fog_b": []}
@@ -368,7 +427,7 @@ def score_batches(model_a, model_b, batches, device, seed, damage, blackout=Fals
             n_steps = STEPS_PER_CELL * layout.mass_a.shape[-1]
             damage_step = n_steps // 4 if damage else None
             with torch.no_grad():
-                result = rollout(model_a, model_b, layout, n_steps, FIRE_PROB, TAU, damage_step=damage_step, blackout=blackout)
+                result = rollout(model_a, model_b, layout, n_steps, FIRE_PROB, TAU, damage_step=damage_step, blackout=blackout, pushable=pushable)
             final = result.eaten_value[-1]
             rows["eaten"].append(final)
             rows["all_eaten"].append((final > 0.999).float())
@@ -390,10 +449,11 @@ def evaluate(model_a, model_b, device, game, which="val", blackout=False):
     seed = spec["seed"] + 10 * GAMES.index(game)
     interp = build_split(seed, spec["interp"], game)
     extrap = build_split(seed + 1, spec["extrap"], game)
+    pushable = game in PUSH_GAMES
     results = {
-        "interp": score_batches(model_a, model_b, interp, device, seed, damage=False, blackout=blackout),
-        "extrap": score_batches(model_a, model_b, extrap, device, seed, damage=False, blackout=blackout),
-        "damage": score_batches(model_a, model_b, interp, device, seed + 2, damage=True, blackout=blackout),
+        "interp": score_batches(model_a, model_b, interp, device, seed, damage=False, blackout=blackout, pushable=pushable),
+        "extrap": score_batches(model_a, model_b, extrap, device, seed, damage=False, blackout=blackout, pushable=pushable),
+        "damage": score_batches(model_a, model_b, interp, device, seed + 2, damage=True, blackout=blackout, pushable=pushable),
     }
     results["score"] = float(np.mean([1 - results[name]["eaten"] for name in ("interp", "extrap", "damage")]))
     return results
@@ -424,14 +484,14 @@ def _frame(mass_a, mass_b, cheese, walls, ring, step, limit, total):
     return Image.fromarray(np.concatenate([image, bar]))
 
 
-def _render_picks(model_a, model_b, batch, device, out_dir, prefix, n_examples=3):
+def _render_picks(model_a, model_b, batch, device, out_dir, prefix, n_examples=3, pushable=False):
     """The layouts where the pair ate the most value within the time limit, the slowest first among equals."""
     size = batch.mass_a.shape[-1]
     limit = STEPS_PER_CELL * size
     n_steps = OVERRUN * limit
     torch.manual_seed(0)
     with torch.no_grad():
-        result = rollout(model_a, model_b, batch.to(device), n_steps, FIRE_PROB, TAU, record=True)
+        result = rollout(model_a, model_b, batch.to(device), n_steps, FIRE_PROB, TAU, record=True, pushable=pushable)
     eaten = result.eaten_value[limit - 1].cpu()
     done = (result.eaten_value[:limit] > 0.999).cpu()
     finish = torch.where(done.any(dim=0), done.float().argmax(dim=0) + 1, torch.full_like(eaten, limit + 1, dtype=torch.long))
@@ -458,6 +518,6 @@ def render_demo(model_a, model_b, device, out_dir, game):
     spec = SETS["val"]
     seed = spec["seed"] + 10 * GAMES.index(game)
     return [
-        _render_picks(model_a, model_b, build_split(seed, spec["interp"][:1], game)[0], device, out_dir, "interp"),
-        _render_picks(model_a, model_b, build_split(seed + 1, spec["extrap"][:1], game)[0], device, out_dir, "extrap"),
+        _render_picks(model_a, model_b, build_split(seed, spec["interp"][:1], game)[0], device, out_dir, "interp", pushable=game in PUSH_GAMES),
+        _render_picks(model_a, model_b, build_split(seed + 1, spec["extrap"][:1], game)[0], device, out_dir, "extrap", pushable=game in PUSH_GAMES),
     ]

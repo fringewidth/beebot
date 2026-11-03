@@ -48,11 +48,11 @@ STAGES = [
         "game": "shared",
         "folder": "runs",
         "prefix": "v6-rivals-shared-",
-        "max_fog": 0.45,
+        "fog_allowed": True,
         "reference": None,
         "status": "current",
         "metric": "eaten",
-        "summary": "Two species of swarm, A (blue) and B (orange), in one world, each with its own rule, mass and pheromones, sensing the other's. A cheese is eaten once their combined robots fill its ring, and each swarm owns the share of the ring it holds. Both swarms are paid for every cheese eaten, whoever eats it: the cooperative control, the same objective as Feast split across two species. Each swarm learns only from its own payoff and updates only its own rule. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog cap 0.45 for both swarms.",
+        "summary": "Two species of swarm, A (blue) and B (orange), in one world, each with its own rule, mass and pheromones, sensing the other's. A cheese is eaten once their combined robots fill its ring, and each swarm owns the share of the ring it holds. Both swarms are paid for every cheese eaten, whoever eats it: the cooperative control, the same objective as Feast split across two species. Each swarm learns only from its own payoff and updates only its own rule. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog is allowed.",
     },
     {
         "id": "v6-zerosum",
@@ -61,24 +61,37 @@ STAGES = [
         "game": "zerosum",
         "folder": "runs",
         "prefix": "v6-rivals-zerosum-",
-        "max_fog": 0.45,
+        "fog_allowed": True,
         "reference": None,
         "status": "current",
         "metric": "eaten",
-        "summary": "Two species of swarm, A (blue) and B (orange), in one world, each with its own rule, mass and pheromones, sensing the other's. A cheese is eaten once their combined robots fill its ring, and each swarm owns the share of the ring it holds. Each swarm is paid its share of every cheese minus the other's, so one swarm's gain is the other's loss: the competitive control. Each swarm learns only from its own payoff and updates only its own rule. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog cap 0.45 for both swarms.",
+        "summary": "Two species of swarm, A (blue) and B (orange), in one world, each with its own rule, mass and pheromones, sensing the other's. A cheese is eaten once their combined robots fill its ring, and each swarm owns the share of the ring it holds. Each swarm is paid its share of every cheese minus the other's, so one swarm's gain is the other's loss: the competitive control. Each swarm learns only from its own payoff and updates only its own rule. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog is allowed.",
+    },
+    {
+        "id": "v6-staghunt2",
+        "title": "Rivals: stag hunt, fixed",
+        "task": "rivals",
+        "game": "staghunt2",
+        "folder": "runs",
+        "prefix": "v6-rivals-staghunt2-",
+        "fog_allowed": True,
+        "reference": None,
+        "status": "current",
+        "metric": "eaten",
+        "summary": "The stag hunt again, with the layout flaw fixed. In the first version each swarm had about 10 units of mass at every world size, a quarter of the other games' density at size 40, and it never learned to eat. Here each swarm has the same density as in the other games, so either swarm could fill the stag's ring alone; instead, the stag (worth 4) is eaten only when its ring is full and each species holds at least 30% of the ring's mass. The two small cheeses (worth 1 each) are still for whoever takes them. Each swarm is paid its own share and learns only from its own payoff. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog is allowed.",
     },
     {
         "id": "v6-staghunt",
-        "title": "Rivals: stag hunt",
+        "title": "Rivals: stag hunt, sparse",
         "task": "rivals",
         "game": "staghunt",
         "folder": "runs",
         "prefix": "v6-rivals-staghunt-",
-        "max_fog": 0.45,
+        "fog_allowed": True,
         "reference": None,
         "status": "current",
         "metric": "eaten",
-        "summary": "Two species of swarm, A (blue) and B (orange), in one world, each with its own rule, mass and pheromones, sensing the other's. A cheese is eaten once their combined robots fill its ring, and each swarm owns the share of the ring it holds. Two small cheeses either swarm can eat alone (worth 1 each) and one big cheese, the stag (worth 4), whose ring needs more robots than either swarm has. Each swarm is paid its own share. Hunting the stag together pays more, but only if the other swarm comes too. Each swarm learns only from its own payoff and updates only its own rule. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog cap 0.45 for both swarms.",
+        "summary": "Two species of swarm, A (blue) and B (orange), in one world, each with its own rule, mass and pheromones, sensing the other's. A cheese is eaten once their combined robots fill its ring, and each swarm owns the share of the ring it holds. Two small cheeses either swarm can eat alone (worth 1 each) and one big cheese, the stag (worth 4), whose ring needs more robots than either swarm has. Each swarm is paid its own share. Hunting the stag together pays more, but only if the other swarm comes too. Each swarm learns only from its own payoff and updates only its own rule. Scored on the share of the cheese value eaten within the time limit, each layout played twice with the nests swapped. Fog is allowed.",
     },
     {
         "id": "v5",
@@ -87,7 +100,7 @@ STAGES = [
         "folder": "runs",
         "prefix": "v5-",
         "baseline": "baseline-chase",
-        "max_fog": 0.45,
+        "fog_allowed": True,
         "reference": None,
         "status": "current",
         "summary": "One cheese on terrain that runs from the swarm: every 2 steps it moves one square toward the side with the least robot mass within 4 squares, blocked by walls and by squares holding half a robot or more. Eaten once its ring is full. A scripted swarm that can see the cheese catches it in 56 to 81% of layouts, so the task is fair; the blind swarm has to find it by touch and pin it. Training speeds the cheese up level by level (still, then every 16, 8, 4, 2 steps); val always uses full speed. The second run (slower curriculum, an earlier fog limit, credit for ground covered by solid robots) caught the full-speed cheese in up to 16/22/8% of val layouts with fog, but under the 0.45 fog cap only 5/3/6% (baseline 0/2/0%), and none at all once the swarm was fully compact. Not solved; the stage stays open.",
@@ -102,10 +115,10 @@ STAGES = [
         "max_fog": 0.45,
         "reference": None,
         "status": "closed",
-        "summary": "Two to four cheeses on terrain; each vanishes once its ring is full, and the swarm must eat them all. No smell, pheromones only. Trained from scratch, no curriculum. The loss is the task (unfilled rings, plus crowding because robots take up space), a cost per step until everything is eaten, credit for floor that solid robots have covered, and a limit on fog (see below) that starts wide open and tightens once the swarm can eat. A run only counts at val fog of 0.45 or less on every split, the level of the accepted terrain swarm. Closed as a weak proof of concept on the 352-minute checkpoint of v4-feast-explore2: test 0.846, eating everything in 48% of unseen sizes, 6% of bigger worlds and 27% of damaged swarms, at fog 0.36 to 0.39, against 0% for the hand-written baseline. Bigger worlds are the weak spot: the swarm cannot search them without spreading thin.",
+        "summary": "Two to four cheeses on terrain; each vanishes once its ring is full, and the swarm must eat them all. No smell, pheromones only. Trained from scratch, no curriculum. Fog is allowed, so the proof of concept is the fog swarm (v4-feast-ema at 60 minutes, shown below as the fog hack): on the held-out test layouts it eats every cheese in 90% of unseen sizes, 64% of bigger worlds and 59% when a quarter of the swarm is destroyed mid-run, against 0% for the hand-written baseline (val 82/73/47%). The runs above were held to a fog cap of 0.45 before fog was allowed; the best of them (v4-feast-explore2, 352 minutes) scored 48/6/27% on test.",
         "aside": {
             "folder": "fog_hack",
-            "title": "The fog hack",
+            "title": "The fog swarm: Feast's best result",
             "text": "With the loss being the task alone, the swarm found a shortcut. Robot mass in the simulation is continuous, so a square can hold a few hundredths of a robot. The swarm dissolves into a thin film over the whole world, and the film thickens wherever it touches a cheese's ring until the ring is full. It never searches, because it is already everywhere. No swarm of whole robots could do this: the objective said 'fill every ring' and never said the swarm has to stay made of robots. It also outscores every fog-free swarm trained so far. Run v4-feast-ema at 60 minutes, on the same held-out layouts; fog is the share of the swarm sitting on squares with less than half a robot.",
         },
     },
@@ -305,6 +318,9 @@ def collect_stage(stage, device):
             if stage["status"] != "current" or not (run_dir / "val_history.jsonl").exists():
                 continue
             summary = provisional_summary(run_dir, stage.get("max_fog"))
+        elif stage.get("fog_allowed") and (run_dir / "val_history.jsonl").exists():
+            # Fog is allowed (user, 2026-11-03): a finished run counts by its best val check, not its best under the old cap.
+            summary = {**provisional_summary(run_dir, None), "in_progress": False, "iterations": summary["iterations"], "final_level": summary.get("final_level", 0)}
         runs.append(
             {
                 "name": run_dir.name,

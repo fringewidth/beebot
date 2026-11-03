@@ -114,7 +114,7 @@ select { font: 13px var(--mono); padding: 6px 8px; border-radius: 6px; border: 1
   <header>
     <div class="label">Neural cellular automata</div>
     <h1>Beebot</h1>
-    <p class="lede">Every square of the grid runs the same tiny network and sees only its 3x3 neighborhood. It can only pass mass to its neighbors; mass is never created. The swarm has to find a block of cheese and gather around it, with no leader and no map. Each tab is a version of the task, newest first: two rival swarms playing three games, a cheese that runs, several cheeses, cave-like terrain, touch alone, and the cheese's smell.</p>
+    <p class="lede">Every square of the grid runs the same tiny network and sees only its 3x3 neighborhood. It can only pass mass to its neighbors; mass is never created. The swarm has to find a block of cheese and gather around it, with no leader and no map. Each tab is a version of the task, newest first: two rival swarms playing three games, a cheese that runs, several cheeses, cave-like terrain, touch alone, and the cheese's smell. The question each tab answers: can a swarm of identical local rules learn this task by gradient descent? Robot mass is continuous, so a swarm may spread into a thin film (fog); fog is allowed.</p>
   </header>
 
   <nav class="tabs" role="tablist" id="tabs"></nav>
@@ -303,10 +303,10 @@ function bars(stage) {
 }
 
 function rivalsProbes(stage) {
-  const s = section("Probes", "Do the swarms play in general or only with their own partner? Strangers pairs swarm A from one seed with swarm B from the other. Blackout makes each swarm read the other's pheromones as zero. Each cell: value eaten on unseen sizes / bigger worlds / damage, then the highest fog. Fog-capped uses the best pair under the fog cap; peak uses the best val check with fog allowed.");
+  const s = section("Probes", "Do the swarms play in general or only with their own partner? Strangers pairs swarm A from one seed with swarm B from the other. Blackout makes each swarm read the other's pheromones as zero. Each cell: value eaten on unseen sizes / bigger worlds / damage, then the highest fog. The first column uses each run's best val check; the second the best pair under the fog cap that applied before fog was allowed.");
   const found = stage.rivals_probes;
   if (!found) { s.append(el("p", { class: "empty" }, "Not run yet for this stage.")); return s; }
-  const cols = [["fog-capped", found.capped], ["peak (fog allowed)", found.peak]].filter(([, r]) => r);
+  const cols = [["best (fog allowed)", found.peak], ["under the old fog cap", found.capped]].filter(([, r]) => r);
   const names = [...new Set(cols.flatMap(([, r]) => Object.keys(r)))];
   const t = el("table");
   const head = el("tr");
