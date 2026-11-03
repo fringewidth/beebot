@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="930" viewBox="0 0 1200 930">
+  <title>The idea: learning instructions from unlabelled play</title>
+  <defs>
+    <style>
+      text { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; fill: #141413; }
+      .serif { font-family: "Iowan Old Style", "Tiempos Text", Charter, Georgia, serif; }
+      .kicker { font-size: 14px; letter-spacing: 2px; fill: #87867F; }
+      .title { font-size: 34px; }
+      .lede { font-size: 18px; fill: #5E5D59; }
+      .h2 { font-size: 24px; }
+      .num { font-size: 24px; fill: #D97757; }
+      .bt { font-size: 19px; font-weight: 600; }
+      .bs { font-size: 16px; fill: #5E5D59; }
+      .cap { font-size: 17px; font-weight: 600; }
+      .verb { font-size: 16px; font-style: italic; fill: #5E5D59; }
+      .lg { font-size: 15px; fill: #3D3D3A; }
+      .data { fill: #E7EEF5; stroke: #6A9BCC; stroke-width: 1.5; }
+      .llm { fill: #F0EAF4; stroke: #9C7FB6; stroke-width: 1.5; }
+      .frozen { fill: #EEECE5; stroke: #8F8D86; stroke-width: 1.5; stroke-dasharray: 5 4; }
+      .trained { fill: #F8E7DF; stroke: #D97757; stroke-width: 1.5; }
+      .code { fill: #EAEEE3; stroke: #788C5D; stroke-width: 1.5; }
+      .plain { fill: #FFFFFF; stroke: #141413; stroke-width: 1; }
+      .wire { fill: none; stroke: #141413; stroke-width: 1.3; }
+      .fa { fill: none; stroke: #4E7FB0; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+    <marker id="ah" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M1,1.5 L11,6 L1,10.5" fill="none" stroke="#141413" stroke-width="1.4" stroke-linejoin="round"/>
+    </marker>
+    <pattern id="grid13a" x="60" y="225" width="13" height="13" patternUnits="userSpaceOnUse">
+      <path d="M13 0H0V13" fill="none" stroke="#E3E0D6" stroke-width="1"/>
+    </pattern>
+    <pattern id="grid13b" x="310" y="225" width="13" height="13" patternUnits="userSpaceOnUse">
+      <path d="M13 0H0V13" fill="none" stroke="#E3E0D6" stroke-width="1"/>
+    </pattern>
+    <g id="a13"><path class="fa" d="M-4 0H4M1.6 -2.4L4 0L1.6 2.4"/></g>
+    <pattern id="fR" x="310" y="225" width="13" height="13" patternUnits="userSpaceOnUse">
+      <use xlink:href="#a13" href="#a13" transform="translate(6.5 6.5)"/>
+    </pattern>
+    <pattern id="fDR" x="310" y="225" width="13" height="13" patternUnits="userSpaceOnUse">
+      <use xlink:href="#a13" href="#a13" transform="translate(6.5 6.5) rotate(40)"/>
+    </pattern>
+    <pattern id="fUR" x="310" y="225" width="13" height="13" patternUnits="userSpaceOnUse">
+      <use xlink:href="#a13" href="#a13" transform="translate(6.5 6.5) rotate(-40)"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="930" fill="#FAF9F5"/>
+
+  <!-- Header -->
+  <text x="48" y="52" class="kicker">BEEBOT  ·  LANGUAGE-CONDITIONED SWARM POLICY  ·  1 / 4</text>
+  <text x="48" y="98" class="serif title">Learning instructions from unlabelled play</text>
+  <text x="48" y="130" class="lede">One policy steers a swarm from typed instructions, including ones it has never seen.</text>
+  <line x1="48" y1="158" x2="1152" y2="158" stroke="#D6D3C8" stroke-width="1"/>
+
+  <!-- Section 1 -->
+  <text x="48" y="202" class="serif"><tspan class="num">1</tspan><tspan class="h2" dx="14">What the policy does at run time</tspan></text>
+
+  <!-- Scene grid: origin (60,225), 16 x 16 squares of 13 px -->
+  <g>
+    <rect x="60" y="225" width="208" height="208" fill="#FFFFFF"/>
+    <rect x="60" y="225" width="208" height="208" fill="url(#grid13a)"/>
+    <!-- yellow floor box rows 11-13, cols 10-13 -->
+    <rect x="190" y="368" width="52" height="39" fill="#F4E9C2" stroke="#C9A13A" stroke-width="1" stroke-dasharray="3 2"/>
+    <!-- walls -->
+    <g fill="#C9C5B9">
+      <rect x="112" y="329" width="13" height="13"/><rect x="125" y="329" width="13" height="13"/>
+      <rect x="112" y="342" width="13" height="13"/><rect x="125" y="342" width="13" height="13"/><rect x="138" y="342" width="13" height="13"/>
+      <rect x="125" y="355" width="13" height="13"/>
+      <rect x="216" y="238" width="13" height="13"/><rect x="216" y="251" width="13" height="13"/><rect x="229" y="251" width="13" height="13"/>
+    </g>
+    <!-- cheeses -->
+    <rect x="177" y="290" width="26" height="26" fill="#C8553D" rx="2"/>
+    <rect x="86" y="381" width="26" height="26" fill="#E3B23C" rx="2"/>
+    <!-- swarm mass, darker and larger = more -->
+    <g fill="#141413">
+      <circle cx="105.5" cy="283.5" r="3"/><circle cx="118.5" cy="283.5" r="3.5"/>
+      <circle cx="92.5" cy="296.5" r="3.5"/><circle cx="105.5" cy="296.5" r="5"/><circle cx="118.5" cy="296.5" r="5.5"/><circle cx="131.5" cy="296.5" r="4"/>
+      <circle cx="92.5" cy="309.5" r="4"/><circle cx="105.5" cy="309.5" r="5.5"/><circle cx="118.5" cy="309.5" r="5"/><circle cx="131.5" cy="309.5" r="4.5"/>
+      <circle cx="105.5" cy="322.5" r="3.5"/><circle cx="118.5" cy="322.5" r="3"/>
+    </g>
+    <rect x="60" y="225" width="208" height="208" fill="none" stroke="#141413" stroke-width="1"/>
+  </g>
+  <text x="164" y="466" text-anchor="middle" class="cap">Sees the whole scene</text>
+  <text x="164" y="488" text-anchor="middle" class="bs">16 × 16 squares, from above</text>
+
+  <!-- Field grid: origin (310,225), with a stack behind it for the 8 steps -->
+  <g>
+    <rect x="326" y="209" width="208" height="208" fill="#FFFFFF" stroke="#B9B6AC" stroke-width="1"/>
+    <rect x="318" y="217" width="208" height="208" fill="#FFFFFF" stroke="#B9B6AC" stroke-width="1"/>
+    <rect x="310" y="225" width="208" height="208" fill="#FFFFFF"/>
+    <rect x="310" y="225" width="208" height="208" fill="url(#grid13b)"/>
+    <rect x="310" y="225" width="208" height="52" fill="url(#fDR)"/>
+    <rect x="310" y="277" width="208" height="52" fill="url(#fR)"/>
+    <rect x="310" y="329" width="208" height="104" fill="url(#fUR)"/>
+    <g fill="#E4E1D7">
+      <rect x="362" y="329" width="13" height="13"/><rect x="375" y="329" width="13" height="13"/>
+      <rect x="362" y="342" width="13" height="13"/><rect x="375" y="342" width="13" height="13"/><rect x="388" y="342" width="13" height="13"/>
+      <rect x="375" y="355" width="13" height="13"/>
+      <rect x="466" y="238" width="13" height="13"/><rect x="466" y="251" width="13" height="13"/><rect x="479" y="251" width="13" height="13"/>
+    </g>
+    <rect x="427" y="290" width="26" height="26" fill="#C8553D" fill-opacity="0.35" rx="2"/>
+    <rect x="336" y="381" width="26" height="26" fill="#E3B23C" fill-opacity="0.35" rx="2"/>
+    <rect x="310" y="225" width="208" height="208" fill="none" stroke="#141413" stroke-width="1"/>
+  </g>
+  <text x="414" y="466" text-anchor="middle" class="cap">Outputs an arrow per square</text>
+  <text x="414" y="488" text-anchor="middle" class="bs">for each of the next 8 steps</text>
+
+  <!-- Run-time loop -->
+  <rect x="590" y="225" width="240" height="78" rx="6" class="plain"/>
+  <text x="610" y="257" class="bt">Typed instruction</text>
+  <text x="610" y="283" class="bs">“push the red cheese right”</text>
+
+  <rect x="590" y="330" width="240" height="78" rx="6" class="data"/>
+  <text x="610" y="362" class="bt">Current scene</text>
+  <text x="610" y="388" class="bs">mass, walls, cheeses</text>
+
+  <rect x="590" y="435" width="240" height="78" rx="6" class="code"/>
+  <text x="610" y="467" class="bt">Simulator</text>
+  <text x="610" y="493" class="bs">moves the swarm 4 steps</text>
+
+  <rect x="920" y="250" width="230" height="122" rx="6" class="trained"/>
+  <text x="940" y="284" class="bt">Policy</text>
+  <text x="940" y="312" class="bs">a neural network,</text>
+  <text x="940" y="334" class="bs">trained by us; about</text>
+  <text x="940" y="356" class="bs">3.75 million parameters</text>
+
+  <rect x="920" y="435" width="230" height="78" rx="6" class="data"/>
+  <text x="940" y="467" class="bt">Arrow field</text>
+  <text x="940" y="493" class="bs">8 steps ahead</text>
+
+  <path class="wire" d="M830 264 H870 V290 H918" marker-end="url(#ah)"/>
+  <path class="wire" d="M830 369 H870 V335 H918" marker-end="url(#ah)"/>
+  <path class="wire" d="M1035 372 V433" marker-end="url(#ah)"/>
+  <text x="1046" y="408" class="serif verb">draws</text>
+  <path class="wire" d="M920 474 H832" marker-end="url(#ah)"/>
+  <text x="876" y="463" text-anchor="middle" class="serif verb">run 4</text>
+  <path class="wire" d="M710 435 V410" marker-end="url(#ah)"/>
+  <text x="700" y="428" text-anchor="end" class="serif verb">look again</text>
+
+  <!-- Section 2 -->
+  <line x1="48" y1="540" x2="1152" y2="540" stroke="#D6D3C8" stroke-width="1"/>
+  <text x="48" y="586" class="serif"><tspan class="num">2</tspan><tspan class="h2" dx="14">How it learns, with nobody labelling the play</tspan></text>
+
+  <g>
+    <rect x="48" y="612" width="194" height="150" rx="6" class="llm"/>
+    <text x="68" y="648" class="serif" font-size="21">Play</text>
+    <text x="68" y="678" class="bs">LLMs write small</text>
+    <text x="68" y="700" class="bs">programs that steer</text>
+    <text x="68" y="722" class="bs">the swarm. No task,</text>
+    <text x="68" y="744" class="bs">no score.</text>
+
+    <rect x="275" y="612" width="194" height="150" rx="6" class="code"/>
+    <text x="295" y="648" class="serif" font-size="21">Record</text>
+    <text x="295" y="678" class="bs">Each program runs on</text>
+    <text x="295" y="700" class="bs">random scenes. Every</text>
+    <text x="295" y="722" class="bs">step is recorded.</text>
+
+    <rect x="502" y="612" width="194" height="150" rx="6" class="data"/>
+    <text x="522" y="648" class="serif" font-size="21">Relabel</text>
+    <text x="522" y="678" class="bs">Cut into windows.</text>
+    <text x="522" y="700" class="bs">What happened in a</text>
+    <text x="522" y="722" class="bs">window becomes its</text>
+    <text x="522" y="744" class="bs">goal.</text>
+
+    <rect x="729" y="612" width="194" height="150" rx="6" class="llm"/>
+    <text x="749" y="648" class="serif" font-size="21">Describe</text>
+    <text x="749" y="678" class="bs">An LLM writes the</text>
+    <text x="749" y="700" class="bs">instruction that</text>
+    <text x="749" y="722" class="bs">would have caused</text>
+    <text x="749" y="744" class="bs">that window.</text>
+
+    <rect x="956" y="612" width="194" height="150" rx="6" class="trained"/>
+    <text x="976" y="648" class="serif" font-size="21">Train</text>
+    <text x="976" y="678" class="bs">The policy learns to</text>
+    <text x="976" y="700" class="bs">copy the recorded</text>
+    <text x="976" y="722" class="bs">arrows, given the</text>
+    <text x="976" y="744" class="bs">goal.</text>
+
+    <path class="wire" d="M242 687 H273" marker-end="url(#ah)"/>
+    <path class="wire" d="M469 687 H500" marker-end="url(#ah)"/>
+    <path class="wire" d="M696 687 H727" marker-end="url(#ah)"/>
+    <path class="wire" d="M923 687 H954" marker-end="url(#ah)"/>
+  </g>
+
+  <!-- Key idea -->
+  <rect x="48" y="790" width="3" height="64" fill="#D97757"/>
+  <text x="68" y="814" style="font-size:18px"><tspan class="serif" font-style="italic">Hindsight relabelling.</tspan><tspan fill="#3D3D3A"> Any recorded stretch is a correct example of getting from its start to its end.</tspan></text>
+  <text x="68" y="842" style="font-size:18px" fill="#3D3D3A">So all play becomes training data: no rewards, no success checks, no one labelling play by hand.</text>
+
+  <!-- Legend -->
+  <line x1="48" y1="876" x2="1152" y2="876" stroke="#D6D3C8" stroke-width="1"/>
+  <g transform="translate(48 892)">
+    <rect x="0" y="2" width="22" height="16" rx="3" class="data"/><text x="32" y="15" class="lg">Data</text>
+    <rect x="92" y="2" width="22" height="16" rx="3" class="llm"/><text x="124" y="15" class="lg">LLM (Claude Haiku, Luna)</text>
+    <rect x="318" y="2" width="22" height="16" rx="3" class="frozen"/><text x="350" y="15" class="lg">Frozen pretrained model</text>
+    <rect x="530" y="2" width="22" height="16" rx="3" class="trained"/><text x="562" y="15" class="lg">Trained by us</text>
+    <rect x="668" y="2" width="22" height="16" rx="3" class="code"/><text x="700" y="15" class="lg">Plain code (simulator, rules)</text>
+    <rect x="920" y="2" width="22" height="16" rx="3" class="plain"/><text x="952" y="15" class="lg">Person, check or loss</text>
+  </g>
+</svg>
