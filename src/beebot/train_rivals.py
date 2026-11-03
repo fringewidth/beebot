@@ -173,7 +173,7 @@ def train(cfg):
         # Every other batch swaps the two nests, so neither swarm learns to play from one side only.
         if iteration % 2:
             batch = batch.swapped()
-        result = rivals.rollout(models[0], models[1], batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint)
+        result = rivals.rollout(models[0], models[1], batch, n_steps, cfg.fire_prob, cfg.tau, use_checkpoint=cfg.use_checkpoint, pushable=cfg.game in rivals.PUSH_GAMES)
         loss_a, loss_b = rivals.losses(result, cfg.game, cfg.w_crowding, multipliers[0], multipliers[1])
         if not (torch.isfinite(loss_a) and torch.isfinite(loss_b)):
             diverged = True

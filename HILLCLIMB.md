@@ -557,3 +557,25 @@ Reading, with both games:
 - Under the fog cap almost all of this shrinks below what can be read, which is the fog pattern again.
 
 Rivals status: shared and zero-sum have two seeds each and probes; stag hunt has one seed that didn't learn. Open decisions (user): stag hunt rule change, pushable-cheese spec, Chase acceptance, discrete world first or not. The GPU is idle until then.
+
+# 2026-11-03: fog is allowed
+
+User: "fog is fine. the proof of concept is 'can swarms learn arbitrary tasks'". Also: the GPU sat idle for about 6 hours waiting on decisions, and the user left them to me ("your choice. i don't care"). From now on I make the calls and log them here.
+
+What changes:
+- No fog cap. Every stage is judged on its best val check with fog allowed. The page's report reads each run's val history for that (stages marked `fog_allowed`); the old capped numbers stay in this log.
+- Feast: the best fog-allowed Feast swarm is the fog hack (v4-feast-ema, 60 minutes, in `fog_hack/`), val 82/73/47% on CPU. Its checkpoint was picked on val, so it gets one test-set run (CPU). v4-feast-explore2's fog-allowed peak (90 minutes, 67/62/18%) was not saved and scores lower anyway.
+- Chase: new run v5-chase-fog, the v5-chase-explore recipe with the fog constraint off (w_fog 0, no target, no cap), 720 minutes, rollback_memory 0.999. The explore run's fog-allowed best (243 minutes, 16/22/8%) was cut short by the fog limit at the point it was still improving.
+- Stag hunt (my call): game `staghunt2`, a new name so `staghunt` still reproduces. Each swarm gets the other games' density (Feast's, split in two, and at least enough to fill its biggest small ring alone). Since either swarm could now fill the stag's ring alone, the stag is eaten only when its ring is full and each species holds at least STAG_MIN_SHARE = 0.3 of the ring's mass. The smooth payoff scales the stag's fill by min(own_a, own_b)/0.3, clamped to 1, so a lone swarm surrounding the stag earns nothing for it. Tests: `test_staghunt2_stag_needs_both_species`, `test_staghunt2_swarms_have_the_other_games_density`. Run v6-rivals-staghunt2-s0, 360 minutes, fog limit off (`--fog_gate 2 --max_fog 0`: the gate never opens, so the target stays 1.0 and the multipliers stay at 0).
+- Next (my call): seed 1 of staghunt2 for the strangers probe, then the pushable-cheese Rivals variant: the Chase cheese rule driven by both species' combined mass, on the shared and zero-sum games. The discrete world comes after, as the user said ("later").
+
+Pushable cheese (my call): games `shared-push` and `zerosum-push`, the shared and zero-sum layouts and payoffs with cheese the robots can push. Every 2 steps each cheese moves one square away from the robots touching it, both species counted together. This is Chase's flight rule (`chase.flee`) with sensing radius 1 instead of 4. It can't enter walls, other cheese, or squares holding TAU or more, so a full ring pins it. Mass on the squares it enters goes to the squares it leaves, per species. Unlike Chase, no speed curriculum: a cheese only moves when touched, and an enclosed one can't. Gradients pass through the push direction (Chase's straight-through estimate) and through the ring's position. `chase.move_cheese` was split into `flee` and `displace`; Chase behaves the same (its tests pass). Tests: `test_push_moves_cheese_away_from_touching_robots_and_conserves_mass`, `test_full_ring_holds_a_pushable_cheese_and_it_is_eaten`, `test_push_games_play_and_train`.
+
+Queues (two GPU runs at most):
+- Slot 1: v5-chase-fog (720 minutes), then staghunt2 seed 1.
+- Slot 2: staghunt2 seed 0, then shared-push seed 0, then zerosum-push seed 0.
+All with the fog limit off (`RIVALS_FLAGS="--fog_gate 2.0 --max_fog 0.0"`).
+
+Feast with fog allowed: final test of `fog_hack/model_best.pt` (v4-feast-ema at 60 minutes, chosen on val), CPU, run once. Test 0.665: all cheese eaten in 90% of interp, 64% of extrap, 59% of damage layouts, fog 0.86/0.92/0.69. Val on the same run 0.711 (82/73/47%). Baseline 0% everywhere. This is Feast's proof of concept now. Results in `fog_hack/final_test.json`.
+
+Smoke test of zerosum-push training on the CPU (0.5 minutes, batch 2): trains, checkpoints and scores val without errors.
