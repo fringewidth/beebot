@@ -1,0 +1,217 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1230" viewBox="0 0 1200 1230">
+  <title>The data pipeline: from play to captioned windows</title>
+  <defs>
+    <style>
+      text { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; fill: #141413; }
+      .serif { font-family: "Iowan Old Style", "Tiempos Text", Charter, Georgia, serif; }
+      .mono { font-family: Menlo, "SF Mono", Consolas, monospace; }
+      .kicker { font-size: 14px; letter-spacing: 2px; fill: #87867F; }
+      .title { font-size: 34px; }
+      .lede { font-size: 18px; fill: #5E5D59; }
+      .h2 { font-size: 24px; }
+      .num { font-size: 24px; fill: #D97757; }
+      .bt { font-size: 19px; font-weight: 600; }
+      .bs { font-size: 16px; fill: #5E5D59; }
+      .bsn { font-size: 15px; fill: #5E5D59; }
+      .cap { font-size: 17px; font-weight: 600; }
+      .verb { font-size: 16px; font-style: italic; fill: #5E5D59; }
+      .note { font-size: 16px; fill: #3D3D3A; }
+      .tag { font-size: 15px; fill: #A3A198; }
+      .lg { font-size: 15px; fill: #3D3D3A; }
+      .data { fill: #E7EEF5; stroke: #6A9BCC; stroke-width: 1.5; }
+      .llm { fill: #F0EAF4; stroke: #9C7FB6; stroke-width: 1.5; }
+      .frozen { fill: #EEECE5; stroke: #8F8D86; stroke-width: 1.5; stroke-dasharray: 5 4; }
+      .trained { fill: #F8E7DF; stroke: #D97757; stroke-width: 1.5; }
+      .code { fill: #EAEEE3; stroke: #788C5D; stroke-width: 1.5; }
+      .plain { fill: #FFFFFF; stroke: #141413; stroke-width: 1; }
+      .wire { fill: none; stroke: #141413; stroke-width: 1.3; }
+    </style>
+    <marker id="ah" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M1,1.5 L11,6 L1,10.5" fill="none" stroke="#141413" stroke-width="1.4" stroke-linejoin="round"/>
+    </marker>
+    <pattern id="g6a" x="60" y="915" width="6" height="6" patternUnits="userSpaceOnUse">
+      <path d="M6 0H0V6" fill="none" stroke="#ECE9E0" stroke-width="1"/>
+    </pattern>
+    <pattern id="g6b" x="180" y="915" width="6" height="6" patternUnits="userSpaceOnUse">
+      <path d="M6 0H0V6" fill="none" stroke="#ECE9E0" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="1230" fill="#FAF9F5"/>
+
+  <!-- Header -->
+  <text x="48" y="52" class="kicker">BEEBOT  ·  LANGUAGE-CONDITIONED SWARM POLICY  ·  3 / 4</text>
+  <text x="48" y="98" class="serif title">Making the training data</text>
+  <text x="48" y="130" class="lede">Undirected play, cut into windows, described after the fact.</text>
+  <line x1="48" y1="158" x2="1152" y2="158" stroke="#D6D3C8" stroke-width="1"/>
+
+  <!-- ===== Section 1: play ===== -->
+  <text x="48" y="204" class="serif"><tspan class="num">1</tspan><tspan class="h2" dx="12">Play: LLMs write programs that steer the swarm</tspan></text>
+
+  <rect x="48" y="230" width="230" height="104" rx="6" class="llm"/>
+  <text x="66" y="264" class="bt">Play sessions</text>
+  <text x="66" y="292" class="bs">Claude Haiku and Luna,</text>
+  <text x="66" y="314" class="bs">no task, no score</text>
+
+  <rect x="338" y="230" width="210" height="104" rx="6" class="llm"/>
+  <text x="356" y="264" class="bt">A program</text>
+  <text x="356" y="292" class="bs">places up to 4</text>
+  <text x="356" y="314" class="bs">attractor points</text>
+
+  <rect x="608" y="230" width="250" height="104" rx="6" class="code"/>
+  <text x="626" y="264" class="bt">Sandbox + simulator</text>
+  <text x="626" y="292" class="bs">10 scenes × 64 steps;</text>
+  <text x="626" y="314" class="bs">points → arrow per square</text>
+
+  <rect x="918" y="230" width="234" height="104" rx="6" class="data"/>
+  <text x="936" y="264" class="bt">Recordings</text>
+  <text x="936" y="292" class="bs">every step: scene,</text>
+  <text x="936" y="314" class="bs">arrow field, phase name</text>
+
+  <path class="wire" d="M278 282 H336" marker-end="url(#ah)"/>
+  <text x="307" y="270" text-anchor="middle" class="serif verb">writes</text>
+  <path class="wire" d="M548 282 H606" marker-end="url(#ah)"/>
+  <text x="577" y="270" text-anchor="middle" class="serif verb">runs</text>
+  <path class="wire" d="M858 282 H916" marker-end="url(#ah)"/>
+  <text x="887" y="270" text-anchor="middle" class="serif verb">saves</text>
+
+  <path class="wire" d="M733 334 V366 H163 V336" marker-end="url(#ah)"/>
+  <text x="448" y="390" text-anchor="middle" class="serif verb">a short summary of what happened; then write something new</text>
+
+  <rect x="48" y="420" width="360" height="70" rx="6" class="data" stroke-opacity="0.6"/>
+  <text x="66" y="450" class="bt">Human teleop</text>
+  <text x="66" y="474" class="bs">recorder built; not yet in the data</text>
+
+  <rect x="438" y="420" width="420" height="70" rx="6" class="code" stroke-opacity="0.6"/>
+  <text x="456" y="450" class="bt">Scripted random player</text>
+  <text x="456" y="474" class="bs">only for ablations and model probes</text>
+
+  <!-- ===== Section 2: relabel and caption ===== -->
+  <line x1="48" y1="516" x2="860" y2="516" stroke="#D6D3C8" stroke-width="1"/>
+  <text x="48" y="560" class="serif"><tspan class="num">2</tspan><tspan class="h2" dx="12">Hindsight relabelling and captions</tspan></text>
+
+  <path class="wire" d="M1035 334 V578" marker-end="url(#ah)"/>
+
+  <!-- Row C, right to left -->
+  <rect x="918" y="580" width="234" height="104" rx="6" class="code"/>
+  <text x="936" y="614" class="bt">Cut into windows</text>
+  <text x="936" y="642" class="bs">8 to 48 steps, cut</text>
+  <text x="936" y="664" class="bs">where phases change</text>
+
+  <rect x="608" y="580" width="250" height="104" rx="6" class="code"/>
+  <text x="626" y="614" class="bt">Fact extractor</text>
+  <text x="626" y="642" class="bs">what changed: moves,</text>
+  <text x="626" y="664" class="bs">splits, pushes, eats</text>
+
+  <rect x="338" y="580" width="210" height="104" rx="6" class="llm"/>
+  <text x="356" y="614" class="bt">Captioner</text>
+  <text x="356" y="642" class="bs">facts + text grids</text>
+  <text x="356" y="664" class="bs">→ 3 instructions</text>
+
+  <rect x="48" y="580" width="230" height="104" rx="6" class="plain"/>
+  <text x="66" y="614" class="bt">Audit</text>
+  <text x="66" y="642" class="bs">automatic checks</text>
+  <text x="66" y="664" class="bs">+ human review</text>
+
+  <path class="wire" d="M918 632 H860" marker-end="url(#ah)"/>
+  <text x="889" y="620" text-anchor="middle" class="serif verb">read</text>
+  <path class="wire" d="M608 632 H550" marker-end="url(#ah)"/>
+  <text x="579" y="620" text-anchor="middle" class="serif verb">facts</text>
+  <path class="wire" d="M338 632 H280" marker-end="url(#ah)"/>
+  <text x="309" y="620" text-anchor="middle" class="serif verb">check</text>
+
+  <!-- Row D, left to right -->
+  <rect x="48" y="740" width="230" height="104" rx="6" class="code"/>
+  <text x="66" y="774" class="bt">Augment</text>
+  <text x="66" y="802" class="bs">rotate, flip, swap</text>
+  <text x="66" y="824" class="bs">colours; rewrite tags</text>
+
+  <rect x="338" y="740" width="210" height="104" rx="6" class="frozen"/>
+  <text x="356" y="774" class="bt">Text embedder</text>
+  <text x="356" y="802" class="bsn">Qwen3-Embedding-0.6B</text>
+  <text x="356" y="824" class="bsn">run once, not trained</text>
+
+  <rect x="608" y="740" width="250" height="104" rx="6" class="data"/>
+  <text x="626" y="774" class="bt">Caption half</text>
+  <text x="626" y="802" class="bs">captioned windows, each</text>
+  <text x="626" y="824" class="bs">with its embedding</text>
+
+  <rect x="918" y="740" width="234" height="104" rx="6" class="data"/>
+  <text x="936" y="774" class="bt">Goal half</text>
+  <text x="936" y="802" class="bs">every window: start</text>
+  <text x="936" y="824" class="bs">+ end frames only</text>
+
+  <path class="wire" d="M163 684 V738" marker-end="url(#ah)"/>
+  <path class="wire" d="M278 792 H336" marker-end="url(#ah)"/>
+  <text x="307" y="780" text-anchor="middle" class="serif verb">embed</text>
+  <path class="wire" d="M548 792 H606" marker-end="url(#ah)"/>
+  <text x="577" y="780" text-anchor="middle" class="serif verb">store</text>
+  <path class="wire" d="M1035 684 V738" marker-end="url(#ah)"/>
+  <text x="1045" y="716" class="serif verb">all of them</text>
+
+  <rect x="608" y="878" width="544" height="72" rx="6" class="plain"/>
+  <text x="626" y="908" class="bt">To training (diagram 4)</text>
+  <text x="626" y="934" class="bs">split by program: 80% train · 10% validation · 10% test</text>
+  <path class="wire" d="M733 844 V876" marker-end="url(#ah)"/>
+  <path class="wire" d="M1035 844 V876" marker-end="url(#ah)"/>
+
+  <!-- ===== Example window ===== -->
+  <line x1="48" y1="870" x2="560" y2="870" stroke="#D6D3C8" stroke-width="1"/>
+  <text x="48" y="898" class="cap">Example window: real facts and caption, sketched scene</text>
+
+  <g>
+    <rect x="60" y="915" width="96" height="96" fill="#FFFFFF"/>
+    <rect x="60" y="915" width="96" height="96" fill="url(#g6a)"/>
+    <rect x="120" y="981" width="12" height="12" fill="#4A6FA5" rx="1.5"/>
+    <g fill="#141413">
+      <circle cx="75" cy="930" r="2.2"/><circle cx="81" cy="930" r="2.6"/><circle cx="87" cy="930" r="2.6"/><circle cx="93" cy="930" r="2"/>
+      <circle cx="75" cy="936" r="2.6"/><circle cx="81" cy="936" r="2.8"/><circle cx="87" cy="936" r="2.8"/><circle cx="93" cy="936" r="2.4"/>
+      <circle cx="75" cy="942" r="2"/><circle cx="81" cy="942" r="2.6"/><circle cx="87" cy="942" r="2.4"/><circle cx="93" cy="942" r="2"/>
+    </g>
+    <rect x="60" y="915" width="96" height="96" fill="none" stroke="#141413" stroke-width="1"/>
+
+    <rect x="180" y="915" width="96" height="96" fill="#FFFFFF"/>
+    <rect x="180" y="915" width="96" height="96" fill="url(#g6b)"/>
+    <rect x="240" y="981" width="12" height="12" fill="none" stroke="#4A6FA5" stroke-width="1" stroke-dasharray="2 2"/>
+    <g fill="#141413">
+      <circle cx="237" cy="978" r="2.4"/><circle cx="243" cy="978" r="2.6"/><circle cx="249" cy="978" r="2.6"/><circle cx="255" cy="978" r="2.4"/>
+      <circle cx="237" cy="984" r="2.6"/><circle cx="255" cy="984" r="2.6"/>
+      <circle cx="237" cy="990" r="2.6"/><circle cx="255" cy="990" r="2.6"/>
+      <circle cx="237" cy="996" r="2.4"/><circle cx="243" cy="996" r="2.6"/><circle cx="249" cy="996" r="2.6"/><circle cx="255" cy="996" r="2.4"/>
+      <circle cx="245" cy="986" r="1.8"/><circle cx="249" cy="990" r="1.8"/>
+    </g>
+    <rect x="180" y="915" width="96" height="96" fill="none" stroke="#141413" stroke-width="1"/>
+    <path class="wire" d="M158 963 H178" marker-end="url(#ah)"/>
+  </g>
+  <text x="108" y="1032" text-anchor="middle" class="bsn">start</text>
+  <text x="228" y="1032" text-anchor="middle" class="bsn">end</text>
+
+  <text x="300" y="930" class="cap" style="font-size:16px">Facts, from code</text>
+  <text x="300" y="955" class="note">Swarm moved down and</text>
+  <text x="300" y="977" class="note">right, about 8 squares.</text>
+  <text x="300" y="999" class="note">It ate the blue cheese.</text>
+
+  <text x="48" y="1066" class="cap" style="font-size:16px">Caption, from the LLM (medium length)</text>
+  <text x="48" y="1092" class="note">Move <tspan class="mono tag">&lt;d&gt;</tspan>down and right<tspan class="mono tag">&lt;/d&gt;</tspan> to eat the <tspan class="mono tag">&lt;c&gt;</tspan>blue<tspan class="mono tag">&lt;/c&gt;</tspan> cheese.</text>
+  <text x="48" y="1128" class="cap" style="font-size:16px">Same window turned a quarter turn, blue swapped for red</text>
+  <text x="48" y="1154" class="note">Move <tspan class="mono tag">&lt;d&gt;</tspan>up and right<tspan class="mono tag">&lt;/d&gt;</tspan> to eat the <tspan class="mono tag">&lt;c&gt;</tspan>red<tspan class="mono tag">&lt;/c&gt;</tspan> cheese.</text>
+
+  <!-- Tag note, right side -->
+  <rect x="608" y="990" width="3" height="120" fill="#D97757"/>
+  <text x="628" y="1012" class="note"><tspan class="serif" font-style="italic" style="font-size:17px">Tags</tspan> mark direction and colour words, so a</text>
+  <text x="628" y="1036" class="note">rotated or recoloured scene gets a caption that</text>
+  <text x="628" y="1060" class="note">still matches. A direction or colour word left</text>
+  <text x="628" y="1084" class="note">untagged blocks that rewrite. Tags are removed</text>
+  <text x="628" y="1108" class="note">before embedding.</text>
+
+  <!-- Legend -->
+  <line x1="48" y1="1176" x2="1152" y2="1176" stroke="#D6D3C8" stroke-width="1"/>
+  <g transform="translate(48 1192)">
+    <rect x="0" y="2" width="22" height="16" rx="3" class="data"/><text x="32" y="15" class="lg">Data</text>
+    <rect x="92" y="2" width="22" height="16" rx="3" class="llm"/><text x="124" y="15" class="lg">LLM (Claude Haiku, Luna)</text>
+    <rect x="318" y="2" width="22" height="16" rx="3" class="frozen"/><text x="350" y="15" class="lg">Frozen pretrained model</text>
+    <rect x="530" y="2" width="22" height="16" rx="3" class="trained"/><text x="562" y="15" class="lg">Trained by us</text>
+    <rect x="668" y="2" width="22" height="16" rx="3" class="code"/><text x="700" y="15" class="lg">Plain code (simulator, rules)</text>
+    <rect x="920" y="2" width="22" height="16" rx="3" class="plain"/><text x="952" y="15" class="lg">Person, check or loss</text>
+  </g>
+</svg>

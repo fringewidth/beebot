@@ -1,0 +1,233 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="980" viewBox="0 0 1200 980">
+  <title>The model: goal vector, backbone and action expert</title>
+  <defs>
+    <style>
+      text { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; fill: #141413; }
+      .serif { font-family: "Iowan Old Style", "Tiempos Text", Charter, Georgia, serif; }
+      .kicker { font-size: 14px; letter-spacing: 2px; fill: #87867F; }
+      .title { font-size: 34px; }
+      .lede { font-size: 18px; fill: #5E5D59; }
+      .h2 { font-size: 24px; }
+      .num { font-size: 24px; fill: #D97757; }
+      .bt { font-size: 19px; font-weight: 600; }
+      .bs { font-size: 16px; fill: #5E5D59; }
+      .bsn { font-size: 15px; fill: #5E5D59; }
+      .cap { font-size: 17px; font-weight: 600; }
+      .verb { font-size: 16px; font-style: italic; fill: #5E5D59; }
+      .note { font-size: 16px; fill: #3D3D3A; }
+      .lg { font-size: 15px; fill: #3D3D3A; }
+      .data { fill: #E7EEF5; stroke: #6A9BCC; stroke-width: 1.5; }
+      .llm { fill: #F0EAF4; stroke: #9C7FB6; stroke-width: 1.5; }
+      .frozen { fill: #EEECE5; stroke: #8F8D86; stroke-width: 1.5; stroke-dasharray: 5 4; }
+      .trained { fill: #F8E7DF; stroke: #D97757; stroke-width: 1.5; }
+      .code { fill: #EAEEE3; stroke: #788C5D; stroke-width: 1.5; }
+      .plain { fill: #FFFFFF; stroke: #141413; stroke-width: 1; }
+      .layer { fill: #FFFFFF; stroke: #D97757; stroke-width: 1; }
+      .wire { fill: none; stroke: #141413; stroke-width: 1.3; }
+      .fa { fill: none; stroke: #4E7FB0; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+    <marker id="ah" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M1,1.5 L11,6 L1,10.5" fill="none" stroke="#141413" stroke-width="1.4" stroke-linejoin="round"/>
+    </marker>
+    <pattern id="g13" width="13" height="13" patternUnits="userSpaceOnUse">
+      <path d="M13 0H0V13" fill="none" stroke="#E3E0D6" stroke-width="1"/>
+    </pattern>
+    <pattern id="p26" width="26" height="26" patternUnits="userSpaceOnUse">
+      <path d="M26 0H0V26" fill="none" stroke="#5E5D59" stroke-width="2"/>
+    </pattern>
+    <pattern id="g7" width="7" height="7" patternUnits="userSpaceOnUse">
+      <path d="M7 0H0V7" fill="none" stroke="#ECE9E0" stroke-width="1"/>
+    </pattern>
+    <g id="a7"><path class="fa" d="M-2.6 0H2.6M0.9 -1.6L2.6 0L0.9 1.6"/></g>
+    <pattern id="noise" width="21" height="21" patternUnits="userSpaceOnUse">
+      <use href="#a7" xlink:href="#a7" transform="translate(3.5 3.5) rotate(30)"/>
+      <use href="#a7" xlink:href="#a7" transform="translate(10.5 3.5) rotate(200)"/>
+      <use href="#a7" xlink:href="#a7" transform="translate(17.5 3.5) rotate(110)"/>
+      <use href="#a7" xlink:href="#a7" transform="translate(3.5 10.5) rotate(285)"/>
+      <use href="#a7" xlink:href="#a7" transform="translate(10.5 10.5) rotate(160)"/>
+      <use href="#a7" xlink:href="#a7" transform="translate(17.5 10.5) rotate(15)"/>
+      <use href="#a7" xlink:href="#a7" transform="translate(3.5 17.5) rotate(250)"/>
+      <use href="#a7" xlink:href="#a7" transform="translate(10.5 17.5) rotate(75)"/>
+      <use href="#a7" xlink:href="#a7" transform="translate(17.5 17.5) rotate(330)"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="980" fill="#FAF9F5"/>
+
+  <!-- Header -->
+  <text x="48" y="52" class="kicker">BEEBOT  ·  LANGUAGE-CONDITIONED SWARM POLICY  ·  2 / 4</text>
+  <text x="48" y="98" class="serif title">The model</text>
+  <text x="48" y="130" class="lede">A goal vector, a backbone that reads the scene, and an action expert that draws the arrows. About 3.75M parameters.</text>
+  <line x1="48" y1="158" x2="1152" y2="158" stroke="#D6D3C8" stroke-width="1"/>
+
+  <text x="48" y="204" class="serif"><tspan class="num">1</tspan><tspan class="h2" dx="12">The goal, as a vector z</tspan></text>
+  <text x="480" y="204" class="serif"><tspan class="num">2</tspan><tspan class="h2" dx="12">Backbone</tspan></text>
+  <text x="850" y="204" class="serif"><tspan class="num">3</tspan><tspan class="h2" dx="12">Action expert</tspan></text>
+
+  <!-- ===== Column 1: goal sources to z ===== -->
+  <rect x="48" y="232" width="188" height="76" rx="6" class="data"/>
+  <text x="66" y="264" class="bt">Goal frames</text>
+  <text x="66" y="289" class="bs">window start + end</text>
+
+  <rect x="252" y="232" width="188" height="76" rx="6" class="data"/>
+  <text x="270" y="264" class="bt">Caption</text>
+  <text x="270" y="289" class="bs">a written instruction</text>
+
+  <rect x="48" y="340" width="188" height="200" rx="6" class="trained"/>
+  <text x="66" y="410" class="bt">Goal encoder</text>
+  <text x="66" y="436" class="bs">small transformer</text>
+  <text x="66" y="458" class="bs">3 layers</text>
+  <text x="66" y="480" class="bs">0.69M parameters</text>
+
+  <rect x="252" y="340" width="188" height="98" rx="6" class="frozen"/>
+  <text x="264" y="372" class="bt">Text embedder</text>
+  <text x="264" y="397" class="bsn">Qwen3-Embedding-0.6B</text>
+  <text x="264" y="419" class="bsn">1024 numbers, once</text>
+
+  <rect x="252" y="462" width="188" height="78" rx="6" class="trained"/>
+  <text x="270" y="494" class="bt">Text head</text>
+  <text x="270" y="519" class="bs">small MLP</text>
+
+  <rect x="166" y="568" width="156" height="72" rx="6" class="trained"/>
+  <text x="182" y="598" class="bt">Null goal</text>
+  <text x="182" y="622" class="bs">10% of samples</text>
+
+  <rect x="48" y="668" width="392" height="74" rx="6" class="trained"/>
+  <text x="66" y="699" class="bt">Shared normalisation</text>
+  <text x="66" y="724" class="bs">same for every source, so they look alike</text>
+
+  <rect x="164" y="772" width="160" height="44" rx="22" class="trained"/>
+  <text x="244" y="800" text-anchor="middle" class="bt">z · 64 numbers</text>
+
+  <path class="wire" d="M142 308 V338" marker-end="url(#ah)"/>
+  <path class="wire" d="M346 308 V338" marker-end="url(#ah)"/>
+  <path class="wire" d="M346 438 V460" marker-end="url(#ah)"/>
+  <path class="wire" d="M142 540 V666" marker-end="url(#ah)"/>
+  <path class="wire" d="M346 540 V666" marker-end="url(#ah)"/>
+  <path class="wire" d="M244 640 V666" marker-end="url(#ah)"/>
+  <path class="wire" d="M244 742 V770" marker-end="url(#ah)"/>
+  <!-- z joins the backbone as one token -->
+  <path class="wire" d="M324 794 H462 V464 H486" marker-end="url(#ah)"/>
+
+  <text x="48" y="856" class="note">Training: half of each batch gets z from</text>
+  <text x="48" y="878" class="note">frames, half from captions. At run time,</text>
+  <text x="48" y="900" class="note">only the caption path is used.</text>
+
+  <!-- ===== Column 2: backbone ===== -->
+  <g transform="translate(568 232) scale(0.6923)">
+    <rect width="208" height="208" fill="#FFFFFF"/>
+    <rect width="208" height="208" fill="url(#g13)"/>
+    <rect x="130" y="143" width="52" height="39" fill="#F4E9C2" stroke="#C9A13A" stroke-width="1.4" stroke-dasharray="3 2"/>
+    <g fill="#C9C5B9">
+      <rect x="52" y="104" width="13" height="13"/><rect x="65" y="104" width="13" height="13"/>
+      <rect x="52" y="117" width="13" height="13"/><rect x="65" y="117" width="13" height="13"/><rect x="78" y="117" width="13" height="13"/>
+      <rect x="65" y="130" width="13" height="13"/>
+      <rect x="156" y="13" width="13" height="13"/><rect x="156" y="26" width="13" height="13"/><rect x="169" y="26" width="13" height="13"/>
+    </g>
+    <rect x="117" y="65" width="26" height="26" fill="#C8553D" rx="2"/>
+    <rect x="26" y="156" width="26" height="26" fill="#E3B23C" rx="2"/>
+    <g fill="#141413">
+      <circle cx="45.5" cy="58.5" r="3"/><circle cx="58.5" cy="58.5" r="3.5"/>
+      <circle cx="32.5" cy="71.5" r="3.5"/><circle cx="45.5" cy="71.5" r="5"/><circle cx="58.5" cy="71.5" r="5.5"/><circle cx="71.5" cy="71.5" r="4"/>
+      <circle cx="32.5" cy="84.5" r="4"/><circle cx="45.5" cy="84.5" r="5.5"/><circle cx="58.5" cy="84.5" r="5"/><circle cx="71.5" cy="84.5" r="4.5"/>
+      <circle cx="45.5" cy="97.5" r="3.5"/><circle cx="58.5" cy="97.5" r="3"/>
+    </g>
+    <rect width="208" height="208" fill="url(#p26)"/>
+    <rect width="208" height="208" fill="none" stroke="#141413" stroke-width="1.4"/>
+  </g>
+  <text x="640" y="404" text-anchor="middle" class="cap">Current scene</text>
+  <text x="640" y="426" text-anchor="middle" class="bs">cut into 64 patches of 2 × 2</text>
+
+  <g>
+    <rect x="490" y="452" width="24" height="24" rx="4" class="trained"/>
+    <text x="502" y="469" text-anchor="middle" style="font-size:15px;font-weight:600">z</text>
+    <rect x="528" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="558" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="588" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="618" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="648" y="452" width="24" height="24" rx="4" class="data"/>
+    <text x="692" y="470" text-anchor="middle" class="bs">…</text>
+    <rect x="712" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="742" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="772" y="452" width="24" height="24" rx="4" class="data"/>
+  </g>
+  <text x="640" y="502" text-anchor="middle" class="bsn">1 goal token + 64 scene tokens</text>
+
+  <rect x="480" y="520" width="320" height="280" rx="6" class="trained"/>
+  <text x="500" y="552" class="bt">Backbone</text>
+  <text x="500" y="576" class="bs">transformer · 4 layers · 1.78M</text>
+  <rect x="500" y="600" width="280" height="36" rx="4" class="layer"/><text x="640" y="623" text-anchor="middle" class="bsn">layer 1</text>
+  <rect x="500" y="648" width="280" height="36" rx="4" class="layer"/><text x="640" y="671" text-anchor="middle" class="bsn">layer 2</text>
+  <rect x="500" y="696" width="280" height="36" rx="4" class="layer"/><text x="640" y="719" text-anchor="middle" class="bsn">layer 3</text>
+  <rect x="500" y="744" width="280" height="36" rx="4" class="layer"/><text x="640" y="767" text-anchor="middle" class="bsn">layer 4</text>
+
+  <text x="480" y="856" class="note">Each expert layer reads (attends to) the</text>
+  <text x="480" y="878" class="note">matching backbone layer. Never the other</text>
+  <text x="480" y="900" class="note">way, so the backbone runs once per decision.</text>
+
+  <!-- ===== Column 3: action expert ===== -->
+  <g>
+    <rect x="866" y="216" width="112" height="112" fill="#FFFFFF" stroke="#B9B6AC" stroke-width="1"/>
+    <rect x="858" y="224" width="112" height="112" fill="#FFFFFF" stroke="#B9B6AC" stroke-width="1"/>
+    <rect x="850" y="232" width="112" height="112" fill="#FFFFFF"/>
+    <rect x="850" y="232" width="112" height="112" fill="url(#noise)"/>
+    <rect x="850" y="232" width="112" height="112" fill="none" stroke="#141413" stroke-width="1"/>
+
+    <rect x="1026" y="216" width="112" height="112" fill="#FFFFFF" stroke="#B9B6AC" stroke-width="1"/>
+    <rect x="1018" y="224" width="112" height="112" fill="#FFFFFF" stroke="#B9B6AC" stroke-width="1"/>
+    <rect x="1010" y="232" width="112" height="112" fill="#FFFFFF"/>
+    <rect x="1010" y="232" width="112" height="112" fill="url(#noise)" transform="translate(1010 232) rotate(90) translate(-1010 -344)"/>
+    <rect x="1010" y="232" width="112" height="112" fill="none" stroke="#141413" stroke-width="1"/>
+  </g>
+  <text x="906" y="368" text-anchor="middle" class="bsn">steps 1–4</text>
+  <text x="1066" y="368" text-anchor="middle" class="bsn">steps 5–8</text>
+  <text x="1000" y="404" text-anchor="middle" class="cap">Noisy action chunk</text>
+  <text x="1000" y="426" text-anchor="middle" class="bs">plus the noise level t</text>
+
+  <g>
+    <rect x="850" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="880" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="910" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="940" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="970" y="452" width="24" height="24" rx="4" class="data"/>
+    <text x="1014" y="470" text-anchor="middle" class="bs">…</text>
+    <rect x="1036" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="1066" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="1096" y="452" width="24" height="24" rx="4" class="data"/>
+    <rect x="1126" y="452" width="24" height="24" rx="4" class="data"/>
+  </g>
+  <text x="1000" y="502" text-anchor="middle" class="bsn">128 action tokens (64 patches × 2 halves)</text>
+
+  <rect x="850" y="520" width="300" height="280" rx="6" class="trained"/>
+  <text x="870" y="552" class="bt">Action expert</text>
+  <text x="870" y="576" class="bs">transformer · 4 layers · 0.92M</text>
+  <rect x="870" y="600" width="260" height="36" rx="4" class="layer"/><text x="1000" y="623" text-anchor="middle" class="bsn">layer 1</text>
+  <rect x="870" y="648" width="260" height="36" rx="4" class="layer"/><text x="1000" y="671" text-anchor="middle" class="bsn">layer 2</text>
+  <rect x="870" y="696" width="260" height="36" rx="4" class="layer"/><text x="1000" y="719" text-anchor="middle" class="bsn">layer 3</text>
+  <rect x="870" y="744" width="260" height="36" rx="4" class="layer"/><text x="1000" y="767" text-anchor="middle" class="bsn">layer 4</text>
+
+  <!-- one-way reads, layer by layer -->
+  <path class="wire" d="M780 618 H868" marker-end="url(#ah)"/>
+  <path class="wire" d="M780 666 H868" marker-end="url(#ah)"/>
+  <path class="wire" d="M780 714 H868" marker-end="url(#ah)"/>
+  <path class="wire" d="M780 762 H868" marker-end="url(#ah)"/>
+  <text x="825" y="596" text-anchor="middle" class="serif verb">reads</text>
+
+  <rect x="850" y="834" width="300" height="70" rx="6" class="data"/>
+  <text x="870" y="864" class="bt">Predicted velocity</text>
+  <text x="870" y="889" class="bs">which way to nudge each token</text>
+  <path class="wire" d="M1000 800 V832" marker-end="url(#ah)"/>
+  <path class="wire" d="M1150 869 H1170 V290 H1124" marker-end="url(#ah)"/>
+  <text transform="translate(1188 580) rotate(-90)" text-anchor="middle" class="serif verb">nudge, repeat 10 times</text>
+
+  <!-- Legend -->
+  <line x1="48" y1="926" x2="1152" y2="926" stroke="#D6D3C8" stroke-width="1"/>
+  <g transform="translate(48 942)">
+    <rect x="0" y="2" width="22" height="16" rx="3" class="data"/><text x="32" y="15" class="lg">Data</text>
+    <rect x="92" y="2" width="22" height="16" rx="3" class="llm"/><text x="124" y="15" class="lg">LLM (Claude Haiku, Luna)</text>
+    <rect x="318" y="2" width="22" height="16" rx="3" class="frozen"/><text x="350" y="15" class="lg">Frozen pretrained model</text>
+    <rect x="530" y="2" width="22" height="16" rx="3" class="trained"/><text x="562" y="15" class="lg">Trained by us</text>
+    <rect x="668" y="2" width="22" height="16" rx="3" class="code"/><text x="700" y="15" class="lg">Plain code (simulator, rules)</text>
+    <rect x="920" y="2" width="22" height="16" rx="3" class="plain"/><text x="952" y="15" class="lg">Person, check or loss</text>
+  </g>
+</svg>
