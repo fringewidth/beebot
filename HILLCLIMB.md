@@ -579,3 +579,8 @@ All with the fog limit off (`RIVALS_FLAGS="--fog_gate 2.0 --max_fog 0.0"`).
 Feast with fog allowed: final test of `fog_hack/model_best.pt` (v4-feast-ema at 60 minutes, chosen on val), CPU, run once. Test 0.665: all cheese eaten in 90% of interp, 64% of extrap, 59% of damage layouts, fog 0.86/0.92/0.69. Val on the same run 0.711 (82/73/47%). Baseline 0% everywhere. This is Feast's proof of concept now. Results in `fog_hack/final_test.json`.
 
 Smoke test of zerosum-push training on the CPU (0.5 minutes, batch 2): trains, checkpoints and scores val without errors.
+
+2026-11-03 ~11:00, paused (user). Queues and runs stopped by PID. To resume, relaunch each with its own supervisor; each resumes from its own checkpoint:
+- v5-chase-fog at 172.7 of 720 minutes (level 3). Val 152 minutes: 5/23/4% at full speed.
+- v6-rivals-staghunt2-s0 at 168.6 of 360 minutes. Val 152 minutes: 14/36/8% of the value eaten, stag eaten 6/19/2%, payoffs about even.
+- Then requeue: after staghunt2-s0, shared-push:0 and zerosum-push:0; after v5-chase-fog, staghunt2:1 (all with RIVALS_FLAGS="--fog_gate 2.0 --max_fog 0.0").
