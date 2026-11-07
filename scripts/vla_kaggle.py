@@ -4,6 +4,7 @@
     uv run python scripts/vla_kaggle.py run SLUG "--name a --grid 16 ..." "--name b ..."
     uv run python scripts/vla_kaggle.py run SLUG --play "--name a ..."   # on the play data and caption set
     uv run python scripts/vla_kaggle.py tpu-run SLUG "--name a ..." ...   # TPU v5e-8, one run per chip, up to 8
+    uv run python scripts/vla_kaggle.py voxel-run SLUG --episodes 12000 "--name a ..." "--name b ..."  # voxel LM runs, play generated in the kernel
     uv run python scripts/vla_kaggle.py status SLUG
     uv run python scripts/vla_kaggle.py logs SLUG                 # the running kernel's log so far
     uv run python scripts/vla_kaggle.py pull SLUG                 # outputs to runs/kaggle/SLUG/
@@ -27,6 +28,7 @@ WORK = Path("data/vla/kaggle_train")
 TEMPLATE = Path(__file__).with_name("kaggle_train") / "kernel_template.py"
 TPU_TEMPLATE = Path(__file__).with_name("kaggle_tpu") / "kernel_template.py"
 LM_TEMPLATE = Path(__file__).with_name("kaggle_lm") / "kernel_template.py"
+VOXEL_TEMPLATE = Path(__file__).with_name("kaggle_voxel") / "kernel_template.py"
 PLAY_SLUG = "beebot-play-g32"
 CODE_SLUG = "beebot-src"
 SCRIPTED_SLUG = "beebot-scripted-g32"
@@ -57,7 +59,7 @@ def code():
         kaggle("datasets", "create", "-p", str(dataset))
 
 
-def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None, data_owner=None, ddp=False, play=False, module="beebot.vla.lm_train"):
+def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None, data_owner=None, ddp=False, play=False, module="beebot.vla.lm_train", voxel_episodes=0):
     user = username()
     owner = data_owner or user  # whose datasets to mount (shared privately when a teammate runs the kernel)
     kernel = WORK / slug
@@ -65,9 +67,9 @@ def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None
     runs = [shlex.split(a) for a in run_args]
     assert len(runs) <= (8 if tpu else 2), "one run per GPU (2) or per TPU chip (8)"
     assert not ddp or lm, "ddp: lm-run only (each run on both GPUs, one after another)"
-    template = TPU_TEMPLATE if tpu else LM_TEMPLATE if lm else TEMPLATE
+    template = VOXEL_TEMPLATE if voxel_episodes else TPU_TEMPLATE if tpu else LM_TEMPLATE if lm else TEMPLATE
     assert not play or template == TEMPLATE, "play: train-vla runs on GPU only"
-    (kernel / "kernel.py").write_text(template.read_text().replace("__RUNS__", json.dumps(runs)).replace("__DDP__", str(ddp)).replace("__PLAY__", str(play)).replace("__MODULE__", module))
+    (kernel / "kernel.py").write_text(template.read_text().replace("__RUNS__", json.dumps(runs)).replace("__DDP__", str(ddp)).replace("__PLAY__", str(play)).replace("__MODULE__", module).replace("__EPISODES__", str(voxel_episodes)))
     meta = {
         "id": f"{user}/{slug}",
         "title": slug,
@@ -83,7 +85,9 @@ def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None
         # Internet only so the kernel can pip-install torch_xla if the image lacks it.
         meta.update({"enable_gpu": False, "enable_tpu": True, "machine_shape": "TpuV5E8", "enable_internet": True})
         meta["dataset_sources"].append(f"{owner}/{SCRIPTED_SLUG}")
-    if lm:
+    if voxel_episodes:
+        meta.update({"enable_internet": True})  # the model from the Hub; play is generated in the kernel
+    elif lm:
         # Internet for the model, FineWeb-Edu and GSM8K from the Hub; the play data as a dataset.
         meta.update({"enable_internet": True})
         meta["dataset_sources"].append(f"{owner}/{PLAY_SLUG}")
@@ -100,7 +104,7 @@ def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["code", "run", "tpu-run", "lm-run", "status", "logs", "pull", "quota"])
+    parser.add_argument("command", choices=["code", "run", "tpu-run", "lm-run", "voxel-run", "status", "logs", "pull", "quota"])
     parser.add_argument("slug", nargs="?")
     parser.add_argument("runs", nargs="*")
     parser.add_argument("--from-kernel", help="lm-run: mount this kernel's outputs; run arguments '@input/<path>' resolve to files in them")
@@ -109,11 +113,14 @@ def main():
     parser.add_argument("--module", default="beebot.vla.lm_train", help="lm-run: the trainer module (beebot.vla.lm_rl for RL)")
     parser.add_argument("--play", action="store_true", help="run: train on the play data and caption set (datasets beebot-play-g32, beebot-caption-set-g32)")
     parser.add_argument("--from-dataset", help="lm-run: mount this dataset too (e.g. checkpoints of a cancelled kernel, which Kaggle will not mount)")
+    parser.add_argument("--episodes", type=int, default=12000, help="voxel-run: scripted episodes the kernel generates")
     args = parser.parse_args()
     if args.command == "code":
         code()
     elif args.command in ("run", "tpu-run", "lm-run"):
         run(args.slug, args.runs, tpu=args.command == "tpu-run", lm=args.command == "lm-run", from_kernel=args.from_kernel, from_dataset=args.from_dataset, data_owner=args.data_owner, ddp=args.ddp, play=args.play, module=args.module)
+    elif args.command == "voxel-run":
+        run(args.slug, args.runs, from_dataset=args.from_dataset, data_owner=args.data_owner, voxel_episodes=args.episodes)
     elif args.command == "status":
         kaggle("kernels", "status", f"{username()}/{args.slug}")
     elif args.command == "logs":
