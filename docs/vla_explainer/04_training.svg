@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="1120" viewBox="0 0 1200 1120">
+  <title>Training step and run-time loop</title>
+  <defs>
+    <style>
+      text { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; fill: #141413; }
+      .serif { font-family: "Iowan Old Style", "Tiempos Text", Charter, Georgia, serif; }
+      .kicker { font-size: 14px; letter-spacing: 2px; fill: #87867F; }
+      .title { font-size: 34px; }
+      .lede { font-size: 18px; fill: #5E5D59; }
+      .h2 { font-size: 24px; }
+      .num { font-size: 24px; fill: #D97757; }
+      .bt { font-size: 19px; font-weight: 600; }
+      .bs { font-size: 16px; fill: #5E5D59; }
+      .bsn { font-size: 15px; fill: #5E5D59; }
+      .verb { font-size: 16px; font-style: italic; fill: #5E5D59; }
+      .note { font-size: 16px; fill: #3D3D3A; }
+      .lg { font-size: 15px; fill: #3D3D3A; }
+      .data { fill: #E7EEF5; stroke: #6A9BCC; stroke-width: 1.5; }
+      .llm { fill: #F0EAF4; stroke: #9C7FB6; stroke-width: 1.5; }
+      .frozen { fill: #EEECE5; stroke: #8F8D86; stroke-width: 1.5; stroke-dasharray: 5 4; }
+      .trained { fill: #F8E7DF; stroke: #D97757; stroke-width: 1.5; }
+      .code { fill: #EAEEE3; stroke: #788C5D; stroke-width: 1.5; }
+      .plain { fill: #FFFFFF; stroke: #141413; stroke-width: 1; }
+      .wire { fill: none; stroke: #141413; stroke-width: 1.3; }
+      .fa { fill: none; stroke: #4E7FB0; stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+    <marker id="ah" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+      <path d="M1,1.5 L11,6 L1,10.5" fill="none" stroke="#141413" stroke-width="1.4" stroke-linejoin="round"/>
+    </marker>
+    <g id="a6"><path class="fa" d="M-2.2 0H2.2M0.8 -1.4L2.2 0L0.8 1.4"/></g>
+    <pattern id="cR" x="600" y="232" width="6" height="6" patternUnits="userSpaceOnUse">
+      <use href="#a6" xlink:href="#a6" transform="translate(3 3)"/>
+    </pattern>
+    <pattern id="cUR" x="600" y="232" width="6" height="6" patternUnits="userSpaceOnUse">
+      <use href="#a6" xlink:href="#a6" transform="translate(3 3) rotate(-40)"/>
+    </pattern>
+    <pattern id="cDR" x="600" y="232" width="6" height="6" patternUnits="userSpaceOnUse">
+      <use href="#a6" xlink:href="#a6" transform="translate(3 3) rotate(40)"/>
+    </pattern>
+    <pattern id="noise6" x="744" y="232" width="18" height="18" patternUnits="userSpaceOnUse">
+      <use href="#a6" xlink:href="#a6" transform="translate(3 3) rotate(30)"/>
+      <use href="#a6" xlink:href="#a6" transform="translate(9 3) rotate(200)"/>
+      <use href="#a6" xlink:href="#a6" transform="translate(15 3) rotate(110)"/>
+      <use href="#a6" xlink:href="#a6" transform="translate(3 9) rotate(285)"/>
+      <use href="#a6" xlink:href="#a6" transform="translate(9 9) rotate(160)"/>
+      <use href="#a6" xlink:href="#a6" transform="translate(15 9) rotate(15)"/>
+      <use href="#a6" xlink:href="#a6" transform="translate(3 15) rotate(250)"/>
+      <use href="#a6" xlink:href="#a6" transform="translate(9 15) rotate(75)"/>
+      <use href="#a6" xlink:href="#a6" transform="translate(15 15) rotate(330)"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="1120" fill="#FAF9F5"/>
+
+  <!-- Header -->
+  <text x="48" y="52" class="kicker">BEEBOT  ·  LANGUAGE-CONDITIONED SWARM POLICY  ·  4 / 4</text>
+  <text x="48" y="98" class="serif title">Training, and running it</text>
+  <text x="48" y="130" class="lede">One training step, then the loop that runs the trained policy.</text>
+  <line x1="48" y1="158" x2="1152" y2="158" stroke="#D6D3C8" stroke-width="1"/>
+
+  <!-- ===== Section 1: one training step ===== -->
+  <text x="48" y="204" class="serif"><tspan class="num">1</tspan><tspan class="h2" dx="12">One training step</tspan></text>
+
+  <rect x="48" y="232" width="452" height="96" rx="6" class="data"/>
+  <text x="66" y="266" class="bt">A batch of 256 windows of play</text>
+  <text x="66" y="294" class="bs">for each: the scene at a random step inside it,</text>
+  <text x="66" y="316" class="bs">and what was recorded next</text>
+
+  <!-- halves -->
+  <rect x="48" y="370" width="200" height="80" rx="6" class="data"/>
+  <text x="66" y="402" class="bt">Goal half · 128</text>
+  <text x="66" y="428" class="bs">start + end frames</text>
+
+  <rect x="48" y="590" width="200" height="80" rx="6" class="data"/>
+  <text x="66" y="622" class="bt">Caption half · 128</text>
+  <text x="66" y="648" class="bs">caption embedding</text>
+
+  <path class="wire" d="M148 328 V368" marker-end="url(#ah)"/>
+  <path class="wire" d="M48 300 H30 V630 H46" marker-end="url(#ah)"/>
+
+  <!-- z makers -->
+  <rect x="300" y="370" width="200" height="80" rx="6" class="trained"/>
+  <text x="318" y="402" class="bt">Goal encoder</text>
+  <text x="318" y="428" class="bs">frames → z</text>
+
+  <rect x="300" y="590" width="200" height="80" rx="6" class="trained"/>
+  <text x="318" y="622" class="bt">Text head</text>
+  <text x="318" y="648" class="bs">embedding → z</text>
+
+  <path class="wire" d="M248 410 H298" marker-end="url(#ah)"/>
+  <path class="wire" d="M248 630 H298" marker-end="url(#ah)"/>
+
+  <!-- contrastive -->
+  <rect x="300" y="480" width="200" height="80" rx="6" class="plain"/>
+  <text x="318" y="512" class="bt">Contrastive loss</text>
+  <text x="318" y="538" class="bs">match frames + text</text>
+  <path class="wire" d="M400 450 V478" marker-end="url(#ah)"/>
+  <path class="wire" d="M400 590 V562" marker-end="url(#ah)"/>
+
+  <!-- flow matching inputs -->
+  <rect x="600" y="232" width="96" height="96" fill="#FFFFFF"/>
+  <rect x="600" y="232" width="96" height="30" fill="url(#cDR)"/>
+  <rect x="600" y="262" width="96" height="30" fill="url(#cR)"/>
+  <rect x="600" y="292" width="96" height="36" fill="url(#cUR)"/>
+  <rect x="600" y="232" width="96" height="96" fill="none" stroke="#141413" stroke-width="1"/>
+  <text x="648" y="350" text-anchor="middle" class="bsn">real chunk a</text>
+
+  <rect x="744" y="232" width="96" height="96" fill="#FFFFFF"/>
+  <rect x="744" y="232" width="96" height="96" fill="url(#noise6)"/>
+  <rect x="744" y="232" width="96" height="96" fill="none" stroke="#141413" stroke-width="1"/>
+  <text x="792" y="350" text-anchor="middle" class="bsn">noise e</text>
+
+  <path class="wire" d="M500 280 H598" marker-end="url(#ah)"/>
+  <text x="549" y="268" text-anchor="middle" class="serif verb">next 8</text>
+
+  <path class="wire" d="M648 358 V388" marker-end="url(#ah)"/>
+  <path class="wire" d="M792 358 V388" marker-end="url(#ah)"/>
+  <rect x="600" y="390" width="240" height="76" rx="6" class="data"/>
+  <text x="618" y="422" class="bt">Partly noisy chunk</text>
+  <text x="618" y="448" class="bs">t · a + (1 − t) · e, random t</text>
+
+  <path class="wire" d="M720 466 V496" marker-end="url(#ah)"/>
+  <rect x="600" y="498" width="240" height="120" rx="6" class="trained"/>
+  <text x="618" y="532" class="bt">Policy</text>
+  <text x="618" y="560" class="bs">backbone + expert</text>
+  <text x="618" y="582" class="bs">predicts velocity v</text>
+
+  <!-- z into policy -->
+  <path class="wire" d="M500 410 H560 V530 H598" marker-end="url(#ah)"/>
+  <path class="wire" d="M500 630 H560 V590 H598" marker-end="url(#ah)"/>
+  <text x="572" y="562" text-anchor="middle" class="serif verb">z</text>
+
+  <!-- losses -->
+  <path class="wire" d="M840 280 H1026 V496" marker-end="url(#ah)"/>
+  <text x="933" y="268" text-anchor="middle" class="serif verb">target: a − e</text>
+
+  <rect x="900" y="498" width="252" height="120" rx="6" class="plain"/>
+  <text x="918" y="532" class="bt">Flow-matching loss</text>
+  <text x="918" y="560" class="bs">gap between v and a − e;</text>
+  <text x="918" y="582" class="bs">squares near the swarm</text>
+  <text x="918" y="604" class="bs">count most</text>
+  <path class="wire" d="M840 558 H898" marker-end="url(#ah)"/>
+  <text x="869" y="546" text-anchor="middle" class="serif verb">v</text>
+
+  <rect x="900" y="660" width="252" height="96" rx="6" class="plain" stroke-width="1.8"/>
+  <text x="918" y="694" class="bt">Total loss</text>
+  <text x="918" y="720" class="bs">flow loss, both halves</text>
+  <text x="918" y="742" class="bs">+ 0.1 × contrastive</text>
+  <path class="wire" d="M1026 618 V658" marker-end="url(#ah)"/>
+  <path class="wire" d="M300 520 H276 V621 A9 9 0 0 0 276 639 V708 H898" marker-end="url(#ah)"/>
+
+  <text x="1152" y="786" text-anchor="end" class="serif verb">one optimiser step updates every orange part</text>
+  <text x="48" y="750" class="note">In both halves, 10% of z are swapped for the null goal.</text>
+  <text x="48" y="774" class="note">The flow-matching recipe is explained in the text.</text>
+
+  <!-- ===== Section 2: run time ===== -->
+  <line x1="48" y1="818" x2="1152" y2="818" stroke="#D6D3C8" stroke-width="1"/>
+  <text x="48" y="864" class="serif"><tspan class="num">2</tspan><tspan class="h2" dx="12">At run time</tspan></text>
+
+  <rect x="48" y="896" width="210" height="96" rx="6" class="plain"/>
+  <text x="66" y="930" class="bt">A person types</text>
+  <text x="66" y="956" class="bs">“eat only the blue</text>
+  <text x="66" y="978" class="bs">cheese”</text>
+
+  <rect x="306" y="896" width="196" height="96" rx="6" class="frozen"/>
+  <text x="324" y="930" class="bt">Text embedder</text>
+  <text x="324" y="956" class="bs">frozen, run once</text>
+
+  <rect x="550" y="896" width="160" height="96" rx="6" class="trained"/>
+  <text x="568" y="930" class="bt">Text head</text>
+  <text x="568" y="956" class="bs">→ z</text>
+
+  <rect x="758" y="884" width="210" height="120" rx="6" class="trained"/>
+  <text x="776" y="918" class="bt">Policy</text>
+  <text x="776" y="946" class="bs">10 small steps from</text>
+  <text x="776" y="968" class="bs">noise → 8 fields</text>
+
+  <rect x="1016" y="896" width="136" height="96" rx="6" class="code"/>
+  <text x="1034" y="930" class="bt">Simulator</text>
+  <text x="1034" y="956" class="bs">runs 4 steps</text>
+
+  <path class="wire" d="M258 944 H304" marker-end="url(#ah)"/>
+  <path class="wire" d="M502 944 H548" marker-end="url(#ah)"/>
+  <path class="wire" d="M710 944 H756" marker-end="url(#ah)"/>
+  <text x="733" y="932" text-anchor="middle" class="serif verb">z</text>
+  <path class="wire" d="M968 944 H1014" marker-end="url(#ah)"/>
+  <path class="wire" d="M1084 992 V1030 H863 V1006" marker-end="url(#ah)"/>
+  <text x="973" y="1054" text-anchor="middle" class="serif verb">new scene; decide again (z is reused)</text>
+
+  <!-- Legend -->
+  <line x1="48" y1="1072" x2="1152" y2="1072" stroke="#D6D3C8" stroke-width="1"/>
+  <g transform="translate(48 1086)">
+    <rect x="0" y="2" width="22" height="16" rx="3" class="data"/><text x="32" y="15" class="lg">Data</text>
+    <rect x="92" y="2" width="22" height="16" rx="3" class="llm"/><text x="124" y="15" class="lg">LLM (Claude Haiku, Luna)</text>
+    <rect x="318" y="2" width="22" height="16" rx="3" class="frozen"/><text x="350" y="15" class="lg">Frozen pretrained model</text>
+    <rect x="530" y="2" width="22" height="16" rx="3" class="trained"/><text x="562" y="15" class="lg">Trained by us</text>
+    <rect x="668" y="2" width="22" height="16" rx="3" class="code"/><text x="700" y="15" class="lg">Plain code (simulator, rules)</text>
+    <rect x="920" y="2" width="22" height="16" rx="3" class="plain"/><text x="952" y="15" class="lg">Person, check or loss</text>
+  </g>
+</svg>
