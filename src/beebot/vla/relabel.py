@@ -132,14 +132,37 @@ def candidates(scene, rng):
     return out
 
 
-def satisfied(family, spec, scene, frames, eaten):
+def satisfied(family, spec, scene, frames, eaten, found=None):
+    """The episode (frames, eaten) does what the instruction asks, and eats nothing it forbids.
+    found: tasks.groups of the end frame, computed once per episode."""
     task = T.Task(family, "", spec, "")
-    s, unasked = T.score(task, scene, frames, eaten)
+    s, unasked = T.score(task, scene, frames, eaten, found)
     if unasked:
         return False
     if family == "logic" and not spec["eat"] and not spec["any_of"]:  # none / absent: nothing eaten is the success
         return not eaten
     return s >= THRESHOLD
+
+
+def options_of(scene, frames, eaten, rng):
+    """{family: [(text, spec)]} of the satisfied candidates of one episode."""
+    found = T.groups(frames[-1]["mass"])
+    options = {}
+    for family, items in candidates(scene, rng).items():
+        ok = [(text, spec) for _, text, spec in items if satisfied(family, spec, scene, frames, eaten, found)]
+        if ok:
+            options[family] = ok
+    return options
+
+
+def pick(family, ok, rng):
+    """(text, logic form or "") of one satisfied instruction: for logic a satisfied form first,
+    uniformly, as the suite draws forms, then an instruction of it."""
+    form = ""
+    if family == "logic":
+        form = str(rng.choice(sorted({spec["form"] for _, spec in ok})))
+        ok = [(text, spec) for text, spec in ok if spec["form"] == form]
+    return ok[int(rng.integers(len(ok)))][0], form
 
 
 def label_episode(store, e, rng):
@@ -154,21 +177,8 @@ def label_episode(store, e, rng):
         if not (scene["mass"] >= 0.5).any():
             continue
         frames, eaten = window_frames(store, e, w0, w1, slots)
-        end_groups = GROUPS(frames[-1]["mass"])
-        T.groups = lambda mass, min_share=0.15: end_groups  # score() only asks for the end frame's groups
-        options = {}
-        for family, items in candidates(scene, rng).items():
-            ok = [(text, spec) for _, text, spec in items if satisfied(family, spec, scene, frames, eaten)]
-            if ok:
-                options[family] = ok
-        if not options:
-            continue
-        for family, ok in sorted(options.items()):
-            form = ""
-            if family == "logic":  # a form first, uniformly among the satisfied ones, as the suite draws forms
-                form = str(rng.choice(sorted({spec["form"] for _, spec in ok})))
-                ok = [(text, spec) for text, spec in ok if spec["form"] == form]
-            text, _ = ok[int(rng.integers(len(ok)))]
+        for family, ok in sorted(options_of(scene, frames, eaten, rng).items()):
+            text, form = pick(family, ok, rng)
             records.append({"id": f"{program_id}:{scene_index}:{w0}-{w1}", "provider": "relabel", "types": [family], "form": form, "captions": [text]})
     return records
 
@@ -189,7 +199,6 @@ def thin_idle(records, rng):
 
 
 STORE = None
-GROUPS = T.groups
 
 
 def _init(play_cache):
