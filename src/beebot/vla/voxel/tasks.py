@@ -78,7 +78,8 @@ def check(spec, facts):
 
 def candidates(scene, rng):
     """Every training instruction the scene allows, by family: {family: [(text, spec)]}.
-    scene: {"colours": names of the cheeses alive at the start, "gravity": bool}."""
+    scene: {"colours": names of the cheeses alive at the start, "gravity": bool, optionally "gap":
+    bool, whether the terrain has a trench to bridge}."""
     present = list(scene["colours"])
     everything = set(present)
     out = {f: [] for f in ("move", "region", "split", "merge", "push", "eat", "around", "tower", "bridge")}
@@ -116,7 +117,8 @@ def candidates(scene, rng):
         for label, rank in TOWER_RANK.items():
             add("tower", say(rng, "tower", b=label), [("tower_at_least", rank)], everything)
         add("tower", say(rng, "tower_any"), [("tower_at_least", 1)], everything)
-        add("bridge", say(rng, "bridge"), [("atom", ("bridge",))], everything)
+        if scene.get("gap", True):  # eval scenes say whether there is a trench; play windows don't (their labels are facts already)
+            add("bridge", say(rng, "bridge"), [("atom", ("bridge",))], everything)
     return {f: v for f, v in out.items() if v}
 
 

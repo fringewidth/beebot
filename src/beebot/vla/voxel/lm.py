@@ -107,7 +107,7 @@ class VoxConfig:
     minutes: float = 60.0
     null_prob: float = 0.1
     eval_every_minutes: float = 30.0
-    eval_scenes: int = 96  # per evaluation: scenes, one instruction each
+    eval_per_family: int = 12  # per evaluation: scenes per instruction family (and of held-out pairs), one instruction each
     eval_steps: int = 48
     eval_guidance: float = 2.0
     test_share: float = 0.05  # the last share of episodes: held-out play for the validation loss
@@ -136,24 +136,34 @@ def batch_of(store, labels, n, rng, device):
     return obs, codes, [r["text"] for r in picks]
 
 
-def eval_tasks(n, rng, held=False):
-    """(world, [(family, text, spec)]) on n fresh scenes: one instruction per scene, its family
-    drawn uniformly among those the scene allows (pairs: two families; held: held-out pairs)."""
-    world, _ = sample_scenes(rng, n, gravity_prob=0.5)
-    out = []
-    for i in range(n):
-        scene = {"colours": [PALETTE_NAMES[c] for c in world.cheese_color[i].tolist() if c >= 0], "gravity": bool(world.gravity[i])}
-        options = V.candidates(scene, rng)
-        if held or rng.random() < 0.2:
-            pairs = [p for p in V.pair_options(options, rng, held=held)]
-            if pairs:
-                text, spec = pairs[int(rng.integers(len(pairs)))]
-                out.append(("held_pair" if held else "pair", text, spec))
-                continue
-        family = str(rng.choice(sorted(options)))
-        text, spec = options[family][int(rng.integers(len(options[family])))]
-        out.append((family, text, spec))
-    return world, out
+EVAL_FAMILIES = ("move", "region", "split", "merge", "push", "eat", "around", "tower", "bridge", "pair")
+
+
+def eval_tasks(per_family, rng, held=False):
+    """(world, [(family, text, spec)]): per_family fresh scenes for each family (held: the
+    held-out pairs only), each scene drawn until it allows that family, one instruction each."""
+    worlds, out = [], []
+    for family in ("held_pair",) if held else EVAL_FAMILIES:
+        found = 0
+        while found < per_family:
+            world, meta = sample_scenes(rng, 16, gravity_prob=0.5)
+            for i in range(16):
+                if found == per_family:
+                    break
+                scene = {"colours": [PALETTE_NAMES[c] for c in world.cheese_color[i].tolist() if c >= 0], "gravity": bool(world.gravity[i]), "gap": meta[i]["layout"] == "gap"}
+                options = V.candidates(scene, rng)
+                if family in ("pair", "held_pair"):
+                    choices = V.pair_options(options, rng, held=held)
+                else:
+                    choices = options.get(family, [])
+                if not choices:
+                    continue
+                text, spec = choices[int(rng.integers(len(choices)))]
+                worlds.append(world.index(i))
+                out.append((family, text, spec))
+                found += 1
+    fields = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
+    return VoxelWorld(*(torch.cat([getattr(w, f) for w in worlds]) for f in fields)), out
 
 
 @torch.no_grad()
@@ -183,7 +193,7 @@ def scorecard(policy, tokenizer, cfg, device, seed=4242):
     generator = torch.Generator().manual_seed(seed)
     rows = {}
     for held in (False, True):
-        world, items = eval_tasks(cfg.eval_scenes if not held else cfg.eval_scenes // 3, rng, held)
+        world, items = eval_tasks(cfg.eval_per_family, rng, held)
         texts = [t for _, t, _ in items]
         by_family = {}
         for i, (f, _, _) in enumerate(items):
@@ -276,6 +286,21 @@ def run():
             eval_seconds += time.time() - t_eval
             next_eval = elapsed + cfg.eval_every_minutes * 60
     evaluate(step_i, (time.time() - t0 - eval_seconds) / 60)
+
+
+def score_checkpoint():
+    """The scorecard of a saved run: uv run python -c 'from beebot.vla.voxel.lm import score_checkpoint; score_checkpoint()' --name RUN"""
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    cfg = parse_config(VoxConfig)
+    device = torch.device(cfg.device)
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model)
+    tokenizer.padding_side = "right"
+    saved = json.loads((Path("runs") / cfg.name / "config.json").read_text())
+    policy = VoxelLMPolicy(AutoModelForCausalLM.from_pretrained(cfg.model, dtype=torch.float32), lora_rank=saved["lora_rank"]).to(device)
+    weights = torch.load(Path("runs") / cfg.name / "policy_latest.pt", map_location="cpu")
+    policy.load_state_dict({k: v.float() for k, v in weights.items()}, strict=False)
+    print(json.dumps(scorecard(policy, tokenizer, cfg, device)), flush=True)
 
 
 if __name__ == "__main__":
