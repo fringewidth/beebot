@@ -1,0 +1,85 @@
+"""The attractor controller: turns a per-scene set of target voxels into every robot's action.
+
+Each robot heads for the nearest target voxel no robot holds yet (or, when every target is held,
+the nearest target), taking the one of its 27 actions whose destination is closest to that goal
+among destinations that are inside the grid and not a wall or cheese. A robot already on a
+target stays. Optionally, robots touching a chosen cheese on its back side press into it along a
+push direction. A share of robots take a random action instead (jitter).
+
+Every intent of the scripted player is expressed as such a target set: a point (go somewhere),
+two points (split), a cheese's shell (eat), a column (tower), a span (bridge), the face behind a
+cheese (push).
+"""
+
+import torch
+
+from beebot.vla.voxel.world import DIR_TABLE, N_ACTIONS, STAY, cheese_id_map, flat_index, gather
+
+JITTER_PROB = 0.1
+FAR = 1e9
+
+
+def robot_list(world):
+    """Every robot as (global flat index, scene, (z, y, x))."""
+    b, d, h, w = world.mass.shape
+    v = d * h * w
+    robots = (world.mass > 0.5).reshape(-1).nonzero().squeeze(1)
+    local = robots % v
+    here = torch.stack([local // (h * w), (local // w) % h, local % w], dim=1)
+    return robots, robots // v, here
+
+
+def act(world, targets, valid, press_cheese=None, press_dir=None, jitter=JITTER_PROB, generator=None):
+    """Action codes (B, D, H, W) int8 (STAY where no robot is).
+
+    targets (B, S, 3) long, valid (B, S) bool: each scene's target voxels (a scene with none
+    stays put). press_cheese (B,) long (-1 for none) and press_dir (B, 3) long: robots whose
+    move along press_dir lands on that cheese take that move."""
+    b, d, h, w = world.mass.shape
+    device = world.mass.device
+    robots, scene, here = robot_list(world)
+    codes = torch.full((b * d * h * w,), STAY, dtype=torch.int8, device=device)
+    if robots.numel() == 0:
+        return codes.view(b, d, h, w)
+    held = gather(world.mass, targets, 0.0) > 0.5
+    free = valid & ~held
+    tgt = targets[scene].float()  # (N, S, 3)
+    dist = ((tgt - here.unsqueeze(1).float()) ** 2).sum(-1)
+    near_valid = dist.masked_fill(~valid[scene], FAR)
+    near_free = dist.masked_fill(~free[scene], FAR)
+    any_free = free[scene].any(dim=1)
+    choice = torch.where(any_free, near_free.argmin(dim=1), near_valid.argmin(dim=1))
+    goal = tgt.gather(1, choice.view(-1, 1, 1).expand(-1, 1, 3)).squeeze(1)
+    active = valid[scene].any(dim=1) & (near_valid.min(dim=1).values > 0)
+
+    table = DIR_TABLE.to(device)
+    dest = here.unsqueeze(1) + table.unsqueeze(0)  # (N, 27, 3)
+    flat, inside = flat_index(dest, (d, h, w))
+    ids = cheese_id_map(world).reshape(b, -1)
+    blocked = world.walls.reshape(b, -1)[scene.unsqueeze(1), flat] | (ids[scene.unsqueeze(1), flat] >= 0) | ~inside
+    blocked[:, STAY] = False
+    cost = ((dest.float() - goal.unsqueeze(1)) ** 2).sum(-1)
+    cost = cost + 1e-3 * torch.rand(cost.shape, generator=generator, device=device)
+    move = cost.masked_fill(blocked, FAR).argmin(dim=1)
+    move = torch.where(active, move, STAY)
+
+    if press_cheese is not None:
+        pc = press_cheese[scene]
+        step_code = direction_code(press_dir)[scene]
+        landing = here + press_dir[scene]
+        lf, lin = flat_index(landing, (d, h, w))
+        on = lin & (pc >= 0) & (ids[scene, lf] == pc)
+        move = torch.where(on, step_code, move)
+
+    jittered = torch.rand(move.shape, generator=generator, device=device) < jitter
+    random_move = torch.randint(N_ACTIONS, move.shape, generator=generator, device=device)
+    move = torch.where(jittered, random_move, move)
+    codes[robots] = move.to(torch.int8)
+    return codes.view(b, d, h, w)
+
+
+def direction_code(direction):
+    """(..., 3) long unit steps -> action codes (STAY for zero)."""
+    table = DIR_TABLE.to(direction.device)
+    match = (direction.unsqueeze(-2) == table).all(dim=-1)
+    return match.float().argmax(dim=-1)

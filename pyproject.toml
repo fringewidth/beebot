@@ -8,9 +8,11 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "datasets>=5.1.0",
     "numpy>=2.5.4",
     "pillow>=13.0.0",
     "torch>=2.14.1",
+    "transformers>=5.22.1",
 ]
 
 [project.scripts]
@@ -23,6 +25,14 @@ final-test = "beebot.final_test:main"
 report = "beebot.report:main"
 probe = "beebot.probe:main"
 score = "beebot.score:main"
+play-run = "beebot.vla.play_cli:main"
+vla-teleop = "beebot.vla.teleop:main"
+train-vla = "beebot.vla.train:main"
+play-stats = "beebot.vla.play_stats:main"
+vla-caption = "beebot.vla.caption:main"
+vla-caption-set = "beebot.vla.caption_set:main"
+play-coverage = "beebot.vla.play_coverage:main"
+vla-preflight = "beebot.vla.preflight:main"
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14.0"]
