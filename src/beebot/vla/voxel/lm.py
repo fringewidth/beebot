@@ -99,6 +99,7 @@ class VoxConfig:
     labels: str = "data/vla/voxel_play_g16/labels.jsonl"
     episodes: int = 0  # 0: all; else train on the first N episodes (data scaling)
     lora_rank: int = 64
+    init_lora: str = ""  # a 2D LM policy checkpoint (lm_train's policy_best.pt): start from its LoRA weights (2D -> 3D transfer)
     batch: int = 16
     lr_lm: float = 2e-4
     lr_new: float = 3e-4
@@ -229,7 +230,16 @@ def run():
     tokenizer = AutoTokenizer.from_pretrained(cfg.model)
     tokenizer.padding_side = "right"
     lm = AutoModelForCausalLM.from_pretrained(cfg.model, dtype=torch.float32)
-    policy = VoxelLMPolicy(lm, lora_rank=cfg.lora_rank).to(device)
+    policy = VoxelLMPolicy(lm, lora_rank=cfg.lora_rank)
+    if cfg.init_lora:
+        saved = torch.load(cfg.init_lora, map_location="cpu")
+        saved = saved.get("weights", saved)
+        lora = {k: v.float() for k, v in saved.items() if k.startswith("lm.") and k.rsplit(".", 1)[-1] in ("a", "b")}  # LoRALinear's a and b
+        own = dict(policy.named_parameters())
+        assert lora and all(k in own and own[k].shape == v.shape for k, v in lora.items()), "init_lora: no matching LoRA weights"
+        policy.load_state_dict(lora, strict=False)
+        print(f"LoRA from {cfg.init_lora}: {len(lora)} tensors", flush=True)
+    policy = policy.to(device)
     store = load(cfg.store)
     n_episodes = cfg.episodes or len(store["gravity"])
     test_from = int(len(store["gravity"]) * (1 - cfg.test_share))
@@ -257,8 +267,8 @@ def run():
         trainable = {n for n, p in policy.named_parameters() if p.requires_grad}
         torch.save({k: v.half() for k, v in policy.state_dict().items() if k in trainable}, run_dir / "policy_latest.pt")
 
-    t0 = time.time()
     evaluate(0, 0.0)
+    t0 = time.time()  # the training clock starts after the first scorecard
     eval_seconds, next_eval = 0.0, cfg.eval_every_minutes * 60
     losses = []
     for step_i in range(1, cfg.steps + 1):
