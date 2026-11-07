@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beebot: a swarm that follows instructions</title>
+<meta name="description" content="Four diagrams and plain-language notes on Beebot, a policy that steers a simulated robot swarm from typed instructions, learned from unlabelled play: the idea, the model, the data pipeline and training.">
+<meta name="color-scheme" content="light dark">
+<style>
+  :root {
+    --bg: #FAF9F5;
+    --ink: #141413;
+    --muted: #5E5D59;
+    --faint: #87867F;
+    --rule: #D6D3C8;
+    --accent: #C4623F;
+    --card: #FAF9F5;
+    --card-edge: #E3E0D6;
+    --serif: "Iowan Old Style", "Tiempos Text", Charter, "Bitstream Charter", Georgia, serif;
+    --sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    --mono: Menlo, "SF Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1B1A18;
+      --ink: #ECEAE3;
+      --muted: #B0AEA5;
+      --faint: #8F8D86;
+      --rule: #3A3935;
+      --accent: #E08B6E;
+      --card-edge: #3A3935;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 18px;
+    line-height: 1.62;
+  }
+  main {
+    display: grid;
+    grid-template-columns: [full-start] minmax(16px, 1fr) [content-start] min(660px, calc(100% - 32px)) [content-end] minmax(16px, 1fr) [full-end];
+    padding: 64px 0 96px;
+  }
+  main > *, main > section > * { grid-column: content; }
+  a { color: inherit; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--accent); }
+
+  .kicker {
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(36px, 7vw, 56px);
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    margin: 0 0 24px;
+  }
+  .lede { font-size: 20px; color: var(--muted); margin: 0 0 32px; }
+  nav.toc {
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 0;
+    margin-bottom: 24px;
+    font-size: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+  }
+  nav.toc a { text-decoration: none; color: var(--muted); }
+  nav.toc a span { font-family: var(--serif); color: var(--accent); margin-right: 6px; }
+  nav.toc a:hover { color: var(--ink); }
+
+  section { display: contents; }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(28px, 4.5vw, 36px);
+    line-height: 1.15;
+    margin: 88px 0 20px;
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+  }
+  h2 .n { color: var(--accent); font-size: 0.8em; min-width: 1ch; }
+  p { margin: 0 0 18px; }
+  ul { margin: 0 0 18px; padding-left: 1.1em; }
+  li { margin: 0 0 10px; padding-left: 4px; }
+  li::marker { color: var(--accent); }
+  strong { font-weight: 600; }
+  em.term { font-family: var(--serif); font-size: 1.06em; }
+  code { font-family: var(--mono); font-size: 0.86em; color: var(--muted); }
+
+  main > section > figure.fig, figure.fig {
+    grid-column: full;
+    width: min(1160px, calc(100% - 32px));
+    margin: 28px auto 40px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .scroll a { display: block; }
+  .scroll img { display: block; width: 100%; height: auto; }
+  figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 16px;
+    font-size: 15px;
+    color: var(--muted);
+    padding-top: 10px;
+  }
+  figcaption .what { font-family: var(--serif); font-style: italic; font-size: 16px; }
+  .hint { display: none; }
+  .glossary dt { font-family: var(--serif); font-size: 19px; margin-top: 14px; }
+  .glossary dd { margin: 2px 0 0; color: var(--muted); }
+  footer {
+    margin-top: 72px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    font-size: 15px;
+    color: var(--faint);
+  }
+
+  @media (max-width: 760px) {
+    body { font-size: 17px; }
+    main { padding-top: 40px; }
+    h2 { margin-top: 64px; }
+    .scroll img { width: 900px; max-width: none; }
+    .hint { display: inline; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <p class="kicker">Beebot · research explainer</p>
+  <h1>A swarm that follows instructions, learned from play</h1>
+  <p class="lede">How the language-conditioned swarm policy works, in four diagrams: the idea, the model, how the training data is made, and how it is trained and run. Written for readers who know roughly what a neural network, a loss, an embedding and a transformer are.</p>
+
+  <nav class="toc" aria-label="Contents">
+    <a href="#idea"><span>1</span>The idea</a>
+    <a href="#model"><span>2</span>The model</a>
+    <a href="#data"><span>3</span>The data</a>
+    <a href="#training"><span>4</span>Training and running</a>
+    <a href="#words"><span>·</span>Words you will hear</a>
+  </nav>
+
+  <p>Colours mean the same thing in every diagram: blue is data, mauve is an LLM, dashed grey is a frozen pretrained model, clay is what we train, sage is plain code, and white is a person, a check or a loss.</p>
+
+  <!-- 1 -->
+  <section>
+  <h2 id="idea"><span class="n">1</span>The idea</h2>
+  <figure class="fig">
+    <div class="card"><div class="scroll"><a href="01_idea.svg"><img src="01_idea.svg" width="1200" height="930" alt="Diagram 1. Top: the policy sees the whole 16 by 16 scene and outputs an arrow on every square for the next 8 steps; a typed instruction and the current scene go into the policy, which draws an arrow field; the simulator runs 4 steps and the policy looks again. Bottom: five stages, play, record, relabel, describe, train."></a></div></div>
+    <figcaption><span class="what">Diagram 1 · The big picture</span><span><span class="hint">Swipe sideways, or </span><a href="01_idea.svg">open full size</a> · <a href="01_idea.png">PNG</a></span></figcaption>
+  </figure>
+  <p>The world is a 16 × 16 grid seen from above. The swarm is mass spread over squares. There are walls, coloured cheeses the swarm can push or eat, and coloured floor boxes it can move over.</p>
+  <p>We want one policy that takes a typed instruction such as “move the cheese to the top right corner” or “split in four and go to each corner” and carries it out. That includes instructions it never saw in training.</p>
+  <p>The policy’s output is an arrow on every square, saying which way the mass there should flow. It plans 8 steps of arrows at once. The simulator runs the first 4, then the policy looks at the new scene and plans again.</p>
+  <p>Nobody writes down tasks for it. LLMs play with the swarm by writing small programs, and every run is recorded. Afterwards each recording is cut into short windows. Whatever happened in a window is treated as that window’s goal (<em class="term">hindsight relabelling</em>), and an LLM writes the instruction that would have produced it.</p>
+  <p>The approach follows Lynch and Sermanet’s “language from play” and pi0-style robot policies. Like pi0, it has a transformer that reads the scene and a separate “action expert” that generates actions by flow matching.</p>
+  </section>
+
+  <!-- 2 -->
+  <section>
+  <h2 id="model"><span class="n">2</span>The model</h2>
+  <figure class="fig">
+    <div class="card"><div class="scroll"><a href="02_model.svg"><img src="02_model.svg" width="1200" height="980" alt="Diagram 2. Goal frames go through a goal encoder; a caption goes through a frozen text embedder and a text head; both, or a learned null goal, pass a shared normalisation to become z, 64 numbers. The backbone transformer reads z plus 64 scene tokens. The action expert transformer reads 128 noisy action tokens, and each of its 4 layers reads the matching backbone layer. It outputs a predicted velocity, applied 10 times."></a></div></div>
+    <figcaption><span class="what">Diagram 2 · The model</span><span><span class="hint">Swipe sideways, or </span><a href="02_model.svg">open full size</a> · <a href="02_model.png">PNG</a></span></figcaption>
+  </figure>
+  <ul>
+    <li><strong>The goal as a vector z.</strong> In training, a goal comes in one of two forms: the window’s start and end frames, or a written caption. Each form has its own small encoder. Both end in the same 64-number vector z and pass through the same normalisation, so the rest of the model cannot tell which kind of goal it received.</li>
+    <li><strong>The text embedder</strong> is Qwen3-Embedding-0.6B, a pretrained model that turns a sentence into 1024 numbers. It is frozen: we never train it, and we run it once over every caption before training starts. A small trained MLP, the text head, maps its output to z.</li>
+    <li><strong>The null goal.</strong> For 10% of samples, z is swapped for a learned “no goal” vector. At run time this lets us compare the policy with and without the instruction and push its output further toward the instruction (classifier-free guidance).</li>
+    <li><strong>The backbone</strong> is a 4-layer transformer. Its input is the current scene as 64 tokens, each covering a 2 × 2 block of squares with 10 numbers per square (mass, wall, and whether a cheese or box is there and its colour), plus one token for z.</li>
+    <li><strong>The action expert</strong> is a second, smaller transformer that works on the next 8 steps of arrows, split into 128 tokens (64 blocks × 2 halves of the chunk). At each layer it reads the matching backbone layer. The backbone never reads the expert, so it runs once per decision while the expert runs 10 times.</li>
+    <li><strong>Flow matching.</strong> The expert does not output the arrows in one go. It starts from random noise, and 10 times over predicts a velocity: which way to nudge every number so the chunk looks more like real play. This copes with cases where several different moves are equally good, such as going around a wall on the left or the right, better than predicting one averaged answer. In total there are about 3.75 million trained parameters, small enough to train on one laptop.</li>
+  </ul>
+  </section>
+
+  <!-- 3 -->
+  <section>
+  <h2 id="data"><span class="n">3</span>Making the training data</h2>
+  <figure class="fig">
+    <div class="card"><div class="scroll"><a href="03_data_pipeline.svg"><img src="03_data_pipeline.svg" width="1200" height="1230" alt="Diagram 3. Play sessions with Claude Haiku and Luna write programs that place up to 4 attractor points; a sandboxed simulator runs each on 10 scenes for 64 steps and saves recordings, and a summary goes back to the session. Recordings are cut into windows of 8 to 48 steps, a fact extractor measures what changed, a captioner LLM writes 3 instructions, and an audit checks them. Captions are augmented by rotation, flips and colour swaps, embedded once by the frozen text embedder, and stored. Every window also serves the goal half. Data is split by program 80, 10, 10. An example shows facts, a tagged caption, and its rewrite after a quarter turn."></a></div></div>
+    <figcaption><span class="what">Diagram 3 · From play to captioned windows</span><span><span class="hint">Swipe sideways, or </span><a href="03_data_pipeline.svg">open full size</a> · <a href="03_data_pipeline.png">PNG</a></span></figcaption>
+  </figure>
+  <ul>
+    <li><strong>Play.</strong> Long-running LLM sessions (Claude Haiku, and Luna from a second provider) write short Python programs. Given the scene, a program places up to 4 attractor points and can ask for a share of the swarm at each one, or push straight through a cheese. Plain code turns the points into the arrow field. Each program runs in a sandbox on 10 random scenes for 64 steps. The session then reads a short summary of what happened and is asked to try something new. There is no task and no score.</li>
+    <li><strong>Windows.</strong> Programs label their current phase (“gather behind the red cheese”). Phase changes are used only to decide where to cut the recordings into 8 to 48 step windows. They are never used as labels.</li>
+    <li><strong>Facts, then captions.</strong> A fact extractor (plain code) lists what changed in each window: where the swarm moved and ended up, how many groups it split into, which cheeses were pushed or eaten, which boxes were entered. Windows where nothing changed are dropped. An LLM gets the facts plus the first, middle and last frames drawn as text, and writes three instructions: short, medium and detailed. Automatic checks and a human audit follow.</li>
+    <li><strong>Tags and augmentation.</strong> Captions mark direction words <code>&lt;d&gt;</code> and colour words <code>&lt;c&gt;</code>. That lets a window be rotated, flipped or recoloured with its caption rewritten to match. If a caption has a direction or colour word outside a tag, the rewrite is refused rather than risk a wrong caption. Each caption keeps up to 5 versions, which the frozen embedder turns into vectors once.</li>
+    <li><strong>Two halves and splits.</strong> Every window can serve as a goal-frames example. Only captioned windows serve as caption examples. Data is split by program (80% train, 10% validation, 10% test), so test behaviour comes from programs the model never saw.</li>
+    <li><strong>Other sources.</strong> A human teleop recorder exists, but its recordings are not loaded into training yet. A scripted random player is used only for ablations and for probing the architecture.</li>
+  </ul>
+  </section>
+
+  <!-- 4 -->
+  <section>
+  <h2 id="training"><span class="n">4</span>Training, and running it</h2>
+  <figure class="fig">
+    <div class="card"><div class="scroll"><a href="04_training.svg"><img src="04_training.svg" width="1200" height="1120" alt="Diagram 4. Training step: a batch of 256 windows splits into a goal half of 128 and a caption half of 128. The goal encoder and text head make z, and a contrastive loss matches them. The real chunk a and noise e mix at a random t into a partly noisy chunk; the policy predicts velocity v; the flow-matching loss compares v with a minus e; the total loss adds 0.1 times the contrastive loss. Run time: a person types, the frozen embedder and text head make z, the policy takes 10 small steps from noise to 8 fields, the simulator runs 4 steps, and the policy decides again."></a></div></div>
+    <figcaption><span class="what">Diagram 4 · One training step, and the run-time loop</span><span><span class="hint">Swipe sideways, or </span><a href="04_training.svg">open full size</a> · <a href="04_training.png">PNG</a></span></figcaption>
+  </figure>
+  <ul>
+    <li><strong>A batch</strong> has 256 samples: 128 whose goal is given as frames and 128 whose goal is given as a caption. Each sample is the scene at a random step inside a window, plus the next 8 arrow fields that were actually recorded (the real chunk, a).</li>
+    <li><strong>The flow-matching step.</strong> Draw random noise e and a random mix level t, and blend them into a partly noisy chunk. The policy predicts a velocity v, and the target is a − e, the straight-line direction from the noise to the real chunk. The loss is the squared gap between the two. Squares the swarm could reach count fully, far squares count a tenth as much, walls not at all, and steps past the end of the window not at all.</li>
+    <li><strong>The contrastive loss</strong> (weight 0.1) pulls the z made from a window’s frames and the z made from its caption together, and pushes apart those of different windows. This ties the language side to the outcome side. Pairs from the same program or with the same caption are not pushed apart.</li>
+    <li><strong>Choosing a checkpoint.</strong> Validation loss is not used for this. Every 15 minutes the policy is run in the simulator on held-out windows, and we compare the facts of what it did with the facts of the target window (the “facts score”). The best checkpoint so far is kept.</li>
+    <li><strong>At run time</strong> a person types an instruction. The frozen embedder and the text head turn it into z once. Then the loop repeats: the backbone reads the scene, the expert takes 10 small steps from noise to 8 arrow fields, the simulator runs 4 of them, and the policy looks again.</li>
+  </ul>
+  </section>
+
+  <section>
+  <h2 id="words"><span class="n">·</span>Words you will hear</h2>
+  <dl class="glossary">
+    <dt>Hindsight relabelling</dt>
+    <dd>Treating whatever happened in a recording as the goal it was “trying” to reach, so any recording is a correct example.</dd>
+    <dt>Flow matching</dt>
+    <dd>A way to generate outputs: start from noise and repeatedly nudge it toward realistic outputs, using a learned velocity.</dd>
+    <dt>Embedding</dt>
+    <dd>A fixed-length list of numbers standing for a sentence (or an image), placed so that similar meanings land close together.</dd>
+    <dt>Classifier-free guidance</dt>
+    <dd>Running the model with and without the instruction and exaggerating the difference, to make it follow the instruction more firmly.</dd>
+    <dt>Receding horizon</dt>
+    <dd>Plan a few steps, carry out some of them, look again, plan again.</dd>
+    <dt>Attractor point</dt>
+    <dd>A spot the swarm is pulled toward. Play programs steer only by placing these.</dd>
+  </dl>
+  </section>
+
+  <footer>Numbers in the diagrams were checked against the training code (model, data and training defaults) as of November 2026.</footer>
+</main>
+</body>
+</html>

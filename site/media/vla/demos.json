@@ -1,0 +1,130 @@
+{
+ "windows": 96,
+ "mean_scores": {
+  "replay": 0.793,
+  "flow": 0.408,
+  "readout": 0.74
+ },
+ "picks": [
+  {
+   "index": 20,
+   "episode": 9191,
+   "w0": 32,
+   "w1": 48,
+   "horizon": 24,
+   "goal": [
+    "eat the yellow cheese"
+   ],
+   "scores": {
+    "replay": 1.0,
+    "flow": 0.0,
+    "readout": 1.0
+   },
+   "file": "demo_0.gif"
+  },
+  {
+   "index": 42,
+   "episode": 18640,
+   "w0": 0,
+   "w1": 80,
+   "horizon": 120,
+   "goal": [
+    "eat the red cheese",
+    "eat the blue cheese",
+    "move down and left",
+    "end up center"
+   ],
+   "scores": {
+    "replay": 1.0,
+    "flow": 0.0,
+    "readout": 1.0
+   },
+   "file": "demo_1.gif"
+  },
+  {
+   "index": 90,
+   "episode": 10179,
+   "w0": 96,
+   "w1": 128,
+   "horizon": 48,
+   "goal": [
+    "eat the red cheese"
+   ],
+   "scores": {
+    "replay": 1.0,
+    "flow": 0.0,
+    "readout": 1.0
+   },
+   "file": "demo_2.gif"
+  },
+  {
+   "index": 93,
+   "episode": 7174,
+   "w0": 16,
+   "w1": 48,
+   "horizon": 48,
+   "goal": [
+    "eat the red cheese"
+   ],
+   "scores": {
+    "replay": 1.0,
+    "flow": 0.0,
+    "readout": 1.0
+   },
+   "file": "demo_3.gif"
+  },
+  {
+   "index": 55,
+   "episode": 16585,
+   "w0": 0,
+   "w1": 48,
+   "horizon": 72,
+   "goal": [
+    "eat the green cheese",
+    "split into 3 groups",
+    "move right",
+    "end up center"
+   ],
+   "scores": {
+    "replay": 1.0,
+    "flow": 0.16666666666666666,
+    "readout": 1.0
+   },
+   "file": "demo_4.gif"
+  },
+  {
+   "index": 12,
+   "episode": 5468,
+   "w0": 0,
+   "w1": 32,
+   "horizon": 48,
+   "goal": [
+    "eat the blue cheese",
+    "move left",
+    "end up center"
+   ],
+   "scores": {
+    "replay": 1.0,
+    "flow": 0.2,
+    "readout": 1.0
+   },
+   "file": "demo_5.gif"
+  },
+  {
+   "index": 57,
+   "episode": 9031,
+   "w0": 16,
+   "w1": 96,
+   "horizon": 120,
+   "goal": [
+    "eat the red cheese"
+   ],
+   "scores": {
+    "replay": 1.0,
+    "flow": 0.0,
+    "readout": 0.0
+   },
+   "file": "demo_fail.gif"
+  }
+ ]
+}

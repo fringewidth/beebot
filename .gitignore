@@ -3,3 +3,5 @@ __pycache__/
 *.pt
 runs/*/videos/
 runs/*/demo/
+data/
+queue/

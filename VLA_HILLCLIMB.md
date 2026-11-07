@@ -345,3 +345,44 @@ program's intent at places where nothing acts) that no real controller would eve
 Runs: vla-d-g32-play-masked2 and vla-d-g32-play-world2 (play g32, 24k steps), and on Kaggle
 k16-masked2 vs k16-flow (scripted g16, 24k steps). Kaggle's k16-masked and k16-masked-world
 use the leaky code; they could not be cancelled, so they stand as a negative control.
+
+### Knowledge insulation, and the backbone readout as the policy (2026-11-05, night)
+
+KI (pi0.5 Knowledge Insulation): the backbone gets its own per-square action cross-entropy
+readout, and the expert reads the backbone's keys and values through a stop-gradient. With the
+stop-gradient, only the readout trains the backbone and the goal encoders.
+
+Val facts during training (play g32, 128 val windows; the play data grows between runs, so the
+val windows differ slightly between runs):
+
+| Run | Expert | 45 min | step 3.5k | step 9.5k | step 12k | end |
+| --- | --- | --- | --- | --- | --- | --- |
+| vla-d-g32-play-goal | flow, no KI | 0.36 | 0.41 | about 0.49 | | test 0.500 / 0.537 (w1 / w2) |
+| vla-d-g32-play-insulate | flow, KI | 0.52 | 0.45 | about 0.53 | 0.53 | test 0.505 / 0.567 |
+| vla-d-g32-play-masked2 | masked, no KI | 0.32 | 0.32 | | | stopped at 5.8k, flat at 0.30 |
+| vla-d-g32-play-masked-ki | masked, KI | 0.43 | 0.45 | 0.57 | 0.55 | stopped at 14k; eat recall 0.25 to 0.36 |
+
+KI speeds learning a lot (both experts), and the masked expert eats far better than the flow
+expert (eat recall 0.25 to 0.36 vs about 0.10).
+
+Then the surprise. With the stop-gradient, the backbone is trained only by the readout, so the
+readout is itself a complete policy: a transformer whose scene tokens are read out directly
+into each square's 8 actions, sampled once, independently per square. On the insulate
+checkpoint, same 512 test windows (scripts/vla_inference_sweep.py):
+
+| Decoder | Execute | Guidance | Facts | Reached | Pushed | Ate | Around | Groups |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| flow expert | 4 | 1 | 0.530 | 0.30 | 0.37 | 0.18 | 0.28 | 0.72 |
+| flow expert | 4 | 2 | 0.587 | 0.35 | 0.30 | 0.21 | 0.49 | 0.73 |
+| backbone readout, one-shot | 4 | 1 | 0.678 | 0.47 | 0.38 | 0.44 | 0.50 | 0.79 |
+| backbone readout, one-shot | 1 | 1 | 0.706 | 0.49 | 0.33 | 0.61 | 0.62 | 0.84 |
+
+The simplest policy wins by a wide margin, and eats go from 0.18 to 0.61. The expert, reading the
+same backbone, loses information: a randomly initialised second network over token space is a
+worse decoder than a linear map from the scene tokens, at least at this scale. Independent
+per-square sampling does not stop the ring from closing once the policy re-plans every step.
+
+Follow-ups (running): objective "readout" (no expert at all; cheaper, and its val now scores
+the readout itself), and readout plus a future-state readout (world_model with "readout": each
+square's state after each step, read out from the same tokens, so the world-model loss now
+shapes the backbone, which it could not through the insulated expert).
