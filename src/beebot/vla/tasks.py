@@ -515,9 +515,10 @@ def box_score(mask, rect):
     return float(min(1.0, inside / BOX_IN))
 
 
-def score(task, scene, frames, eaten):
+def score(task, scene, frames, eaten, found=None):
     """(score in [0, 1], unasked: a cheese the task did not ask for was eaten). frames: snapshots
-    (goal_eval.snapshot) from the start to the end; eaten: colour names in the order eaten."""
+    (goal_eval.snapshot) from the start to the end; eaten: colour names in the order eaten; found:
+    groups(end mass) if already computed (scoring many tasks on one episode)."""
     spec, end = task.spec, frames[-1]
     mass = end["mass"]
     occupied = mass >= 0.5
@@ -555,7 +556,7 @@ def score(task, scene, frames, eaten):
         along = (r1.mean() - r0.mean()) * dy + (c1.mean() - c0.mean()) * dx
         return float(np.clip(along / 6, 0, 1)), unasked
     if task.family == "parallel":
-        found = groups(mass)
+        found = groups(mass) if found is None else found
         local = [(k, x) for k, x in spec["jobs"] if k in ("region", "box")]
         scores = []
         for k, x in spec["jobs"]:
@@ -616,10 +617,11 @@ def score(task, scene, frames, eaten):
 
 
 @torch.no_grad()
-def run(sample, condition, scenes, tasks, steps, device, keep_steps=()):
+def run(sample, condition, scenes, tasks, steps, device, keep_steps=(), outcomes=False):
     """Roll out a batch: sample(obs, cond) -> per-square moves (B, ...) and the field to apply,
     as (moves, field); condition(texts) -> cond. Returns per episode (score, unasked), and for the
-    steps in keep_steps the (obs, moves) pairs (CPU)."""
+    steps in keep_steps the (obs, moves) pairs (CPU); with outcomes, also per episode (frames,
+    eaten) for scoring other instructions on the same episode (relabel)."""
     world, runners = stack(scenes)
     world, runners = world.to(device), runners.to(device)
     cond = condition([t.text for t in tasks])
@@ -643,4 +645,6 @@ def run(sample, condition, scenes, tasks, steps, device, keep_steps=()):
             for i in range(len(tasks)):
                 frames[i].append(goal_eval.snapshot(world, i))
     results = [score(task, scene, f, e) for task, scene, f, e in zip(tasks, scenes, frames, eaten)]
+    if outcomes:
+        return results, kept, list(zip(frames, eaten))
     return results, kept

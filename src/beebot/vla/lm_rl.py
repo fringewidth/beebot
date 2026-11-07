@@ -29,7 +29,7 @@ import torch
 import torch.nn.functional as F
 
 from beebot.train import parse_config
-from beebot.vla import goal_eval, grounding, tasks
+from beebot.vla import caption, goal_eval, grounding, relabel, tasks
 from beebot.vla.data import decode_field, sample_batch
 from beebot.vla.lm_policy import PATCH, LMPolicy
 import torch.distributed as dist
@@ -81,6 +81,8 @@ class RLConfig:
     max_grad_norm: float = 1.0
     mode: str = "grounding"  # "grounding": instructions on play scenes (instruction()); "generalist": the task suite (beebot.vla.tasks)
     eval_tasks: int = 16  # generalist scorecard: tasks per family (in distribution) and per held-out split
+    relabel_weight: float = 0.0  # generalist: also imitate each rollout under an instruction it satisfied (relabel), with this weight
+    idle_keep: float = 0.25  # relabelling: chance of keeping an eat-nothing logic label (most rollouts satisfy one; see relabel.thin_idle)
 
 
 def init_dir(cfg):
@@ -203,15 +205,37 @@ def collect_tasks(policy, tokenizer, cfg, rng, np_rng, device):
     scenes = [s for s, _ in pairs for _ in range(cfg.samples)]
     batch = [t for _, t in pairs for _ in range(cfg.samples)]
     keep = set(rng.sample(range(cfg.steps), cfg.grad_states))
-    results, kept = tasks.run(lm_sampler(policy, 1.0, tasks.SIZE // PATCH), lambda texts: tokens(tokenizer, texts, device), scenes, batch, cfg.steps, device, keep)
+    results, kept, outcomes = tasks.run(lm_sampler(policy, 1.0, tasks.SIZE // PATCH), lambda texts: tokens(tokenizer, texts, device), scenes, batch, cfg.steps, device, keep, outcomes=True)
     r = torch.tensor([s - cfg.disrupt_penalty * float(u) for s, u in results])
     advantage = r - r.view(cfg.prompts, cfg.samples).mean(1).repeat_interleave(cfg.samples)
     ids, mask = tokens(tokenizer, [t.text for t in batch], "cpu")
     by_family = {}
     for t, (s, _) in zip(batch, results):
         by_family.setdefault(t.family, []).append(s)
-    stats = {"reward": round(r.mean().item(), 4), "met": round(float(np.mean([s for s, _ in results])), 4), "unasked": round(float(np.mean([u for _, u in results])), 4), **{f"met_{f}": round(float(np.mean(v)), 3) for f, v in sorted(by_family.items())}}
-    return kept, ids, mask, advantage, stats
+    flat = r.view(cfg.prompts, cfg.samples)
+    stats = {"reward": round(r.mean().item(), 4), "met": round(float(np.mean([s for s, _ in results])), 4), "unasked": round(float(np.mean([u for _, u in results])), 4), "flat_groups": round(float((flat.max(1).values - flat.min(1).values < 1e-6).float().mean()), 3), **{f"met_{f}": round(float(np.mean(v)), 3) for f, v in sorted(by_family.items())}}
+    hindsight = None
+    if cfg.relabel_weight:
+        texts, weights, families = [], [], {}
+        for scene, (frames, eaten) in zip(scenes, outcomes):
+            options = relabel.options_of(scene, frames, eaten, np_rng)
+            if "logic" in options:
+                active = [o for o in options["logic"] if o[1]["form"] not in relabel.IDLE_FORMS]
+                options["logic"] = active if active or np_rng.random() >= cfg.idle_keep else options["logic"]
+                if not options["logic"]:
+                    del options["logic"]
+            if not options:
+                texts.append("")
+                weights.append(0.0)
+                continue
+            family = str(np_rng.choice(sorted(options)))
+            texts.append(relabel.pick(family, options[family], np_rng)[0])
+            weights.append(1.0)
+            families[family] = families.get(family, 0) + 1
+        h_ids, h_mask = tokens(tokenizer, [caption.strip_tags(t) for t in texts], "cpu")
+        hindsight = (h_ids, h_mask, torch.tensor(weights))
+        stats.update({"relabelled": round(float(np.mean(weights)), 3), **{f"relabel_{f}": n for f, n in sorted(families.items())}})
+    return kept, ids, mask, advantage, stats, hindsight
 
 
 def generalist_card(policy, tokenizer, cfg, device, suite):
@@ -341,13 +365,17 @@ def run():
         t_update = time.time()
         policy.eval()
         with amp():
+            hindsight = None
             if cfg.mode == "generalist":
-                states, ids, mask, advantage, stats = collect_tasks(policy, tokenizer, cfg, rng, np_rng, device)
+                states, ids, mask, advantage, stats, hindsight = collect_tasks(policy, tokenizer, cfg, rng, np_rng, device)
             else:
                 states, ids, mask, advantage, stats = collect(policy, tokenizer, store, windows, cfg, rng, device)
         policy.train()
         optimizer.zero_grad(set_to_none=True)
         pg = policy_gradient(policy, states, ids, mask, advantage, cfg, device, scale=scaler.scale, amp=amp)
+        if hindsight is not None:  # imitation of each rollout under what it did (a constant positive advantage)
+            h_ids, h_mask, h_weights = hindsight
+            stats["hindsight"] = round(policy_gradient(policy, states, h_ids, h_mask, cfg.relabel_weight * h_weights, cfg, device, scale=scaler.scale, amp=amp), 5)
         imitation = 0.0
         if cfg.imitation_weight:
             obs, goal, actions, weights, _ = sample_batch(store, windows, cfg.imitation_batch, generator, device, True)
