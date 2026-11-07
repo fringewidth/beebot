@@ -114,14 +114,18 @@ class LMPolicy(nn.Module):
         r = torch.arange(n, device=device)
         return (self.row(r).unsqueeze(1) + self.col(r).unsqueeze(0)).view(n * n, -1)
 
+    def scene_tokens(self, obs):
+        """(B, (G / PATCH)^2, H) scene tokens of obs (B, C, G, G), in the LM's dtype."""
+        pos = self.grid_positions(obs.shape[-1], obs.device)
+        return (self.scene_embed(patchify(obs, PATCH)) + pos + self.kind[0]).to(self.lm.get_input_embeddings().weight.dtype)
+
     def hidden(self, obs, goal=None, text_ids=None, text_mask=None, null=None):
-        """Final hidden states of the scene tokens (B, (G / PATCH)^2, H). goal: (B, C + 1, G, G)
-        or None; text_ids, text_mask: (B, L) or None; null: (B,) bool rows with no goal."""
-        b, _, g, _ = obs.shape
+        """Final hidden states of the scene tokens (B, T_scene, H). goal: (B, C + 1, G, G) or None;
+        text_ids, text_mask: (B, L) or None; null: (B,) bool rows with no goal."""
+        b = obs.shape[0]
         device = obs.device
-        pos = self.grid_positions(g, device)
         dtype = self.lm.get_input_embeddings().weight.dtype
-        scene = (self.scene_embed(patchify(obs, PATCH)) + pos + self.kind[0]).to(dtype)
+        scene = self.scene_tokens(obs)
         parts, valid, is_text = [], [], []
         length = 0
         if text_ids is not None:
@@ -130,6 +134,7 @@ class LMPolicy(nn.Module):
             is_text.append(torch.ones(text_ids.shape[1], dtype=torch.bool, device=device))
             length = text_ids.shape[1]
         if goal is not None:
+            pos = self.grid_positions(goal.shape[-1], device)
             parts.append((self.goal_embed(patchify(goal, PATCH)) + pos + self.kind[1]).to(dtype))
             valid.append(torch.ones(b, pos.shape[0], dtype=torch.bool, device=device))
             is_text.append(torch.zeros(pos.shape[0], dtype=torch.bool, device=device))
