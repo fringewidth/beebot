@@ -96,18 +96,26 @@ class Design:
         area = ROTOR_AREA * self.side**2
         return (2 * AIR * area) ** (1 / 3) * (FLIGHT_EFFICIENCY * power) ** (2 / 3)
 
-    def capability(self):
+    def capability(self, pressure=1.0, torque=1.0, power=1.0):
+        """The design in simulator units. pressure, torque and power scale the magnet holding
+        pressure, actuator torque density and flight specific power (for sensitivity checks)."""
         weight = self.mass() * G
         return Capability(
-            strength=self.pull() / weight,
-            torque=ACTUATOR_TORQUE * self.actuator_share * self.side**3 / (weight * self.side),
-            thrust=self.thrust() / weight,
+            strength=pressure * self.pull() / weight,
+            torque=torque * ACTUATOR_TORQUE * self.actuator_share * self.side**3 / (weight * self.side),
+            thrust=power ** (2 / 3) * self.thrust() / weight,
             cheese=OBJECT_DENSITY * OBJECT_SIDE**3 * self.side**3 / self.mass(),
             switchable=self.connector == "epm",
         )
 
     def label(self):
         return f"L{self.side * 100:g}cm-{self.connector}-c{self.connector_share:g}-a{self.actuator_share:g}-f{self.flight_share:g}"
+
+
+def from_label(label):
+    """The design a label() names, e.g. L3cm-magnet-c0.05-a0.1-f0."""
+    side, connector, c, a, f = label.split("-")
+    return Design(float(side[1:-2]) / 100, connector, float(c[1:]), float(a[1:]), float(f[1:]))
 
 
 def describe(design):
