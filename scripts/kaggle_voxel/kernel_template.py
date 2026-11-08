@@ -8,6 +8,7 @@ The driver (scripts/vla_kaggle.py voxel-run) fills in RUNS, EPISODES and DEMO_SC
 
 import glob
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -30,7 +31,12 @@ def find(name, max_depth=8):
     return [p for p in found if "/._" not in p]
 
 
-tarfile.open(find("beebot-src.tar.gz")[0]).extractall("/kaggle/working/code")
+archives = find("beebot-src.tar.gz")
+if archives:
+    tarfile.open(archives[0]).extractall("/kaggle/working/code")
+else:  # Kaggle sometimes unpacks the uploaded tarball
+    package = find("beebot/vla/train.py", 8)[0]
+    shutil.copytree(package.rsplit("/beebot/vla/train.py", 1)[0], "/kaggle/working/code/src")
 RUNS = [[find(a[len("@input/") :])[0] if a.startswith("@input/") else a for a in args] for args in RUNS]
 env = {**os.environ, "PYTHONPATH": "/kaggle/working/code/src", "TOKENIZERS_PARALLELISM": "false", "OMP_NUM_THREADS": "4"}
 os.makedirs("/kaggle/working/logs", exist_ok=True)
