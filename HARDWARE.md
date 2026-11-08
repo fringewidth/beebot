@@ -398,3 +398,39 @@ What it says:
 Caveats: the scaling laws for the brake (L^3) and magnets (L^2) are assumptions, and convex up is
 only simulated from the floor, not on top of a structure. Every number here should be replaced by
 bench measurements of a prototype's magnet pull, brake torque and flywheel speed.
+
+### Round 2b: 5 cm cube on steel, for the first build (2026-11-08)
+
+The first swarm is 10 cubes at 5 cm on a ₹10,000 budget, built from off-the-shelf modules. This
+round climbs from the calibrated M-Blocks on a steel floor at grip 0.3:
+`runs/cube/climb-5cm-steel.jsonl`.
+
+| design | move score | harm |
+| --- | --- | --- |
+| M-Blocks on steel (validation seeds) | 0.511 | 0.04 |
+| climbed: brake x 2.56, the rest as M-Blocks (test seeds) | **0.721** | **0.07** |
+
+At 5 cm only the brake needed to change. Raising the top speed, strengthening the magnets or
+stiffening the brake further did not help. A brake of x 2.56 is 6.7 N m, which stops the flywheel
+in about 2.5 ms; a spring-loaded pin dropping into the flywheel's rim gives a stop that hard.
+Most of the remaining harm is convex up over a lone neighbour, which gets dragged along (0.38).
+
+Targets for the build:
+
+| quantity | target |
+| --- | --- |
+| cube | 150 g |
+| flywheel | inertia 8.4e-6 kg m^2: a 23 g thin ring at 19 mm radius (a brass or steel pipe offcut about 38 mm across), or about 45 g of 38 mm washers, since a solid disc stores half as much per gram as a ring |
+| brake | stops the flywheel within about 2.5 ms |
+| magnets | 6.6 N per twin pair, 13 N per hinge edge |
+| floor | steel; spacer chosen so each magnet's grip is 0.3 of its pull on a twin |
+
+Tuned flywheel speeds per move (rpm):
+
+| move | rpm |
+| --- | --- |
+| floor roll | 4,800 |
+| concave down / convex down | 8,400 to 9,800 |
+| traverse / wall crawl | 10,600 to 11,500 |
+| convex up | 17,000 to 19,000 |
+| concave up | 20,000 |
