@@ -26,6 +26,7 @@ import torch.nn.functional as F
 
 from beebot.train import parse_config
 from beebot.vla.lm_policy import MAX_SIDE, LMPolicy
+from beebot.vla.voxel import suite as S
 from beebot.vla.voxel import tasks as V
 from beebot.vla.voxel.facts import window_facts
 from beebot.vla.voxel.play_store import load
@@ -98,6 +99,11 @@ class VoxConfig:
     store: str = "data/vla/voxel_play_g16"
     labels: str = "data/vla/voxel_play_g16/labels.jsonl"
     episodes: int = 0  # 0: all; else train on the first N episodes (data scaling)
+    demo_store: str = ""  # expert demonstrations of the suite (voxel/demos.py); "" for none
+    demo_labels: str = ""
+    demo_share: float = 0.0  # share of each batch from the demonstrations (the rest from play)
+    card: str = "suite"  # scorecard: "suite" (voxel/suite.py families and held-out splits) or "play" (fact-checked play families)
+    wall_minutes: float = 0.0  # > 0: stop training this long after the process started (Kaggle's 12 h cap)
     lora_rank: int = 64
     init_lora: str = ""  # a 2D LM policy checkpoint (lm_train's policy_best.pt): start from its LoRA weights (2D -> 3D transfer)
     batch: int = 16
@@ -217,9 +223,35 @@ def scorecard(policy, tokenizer, cfg, device, seed=4242):
     return rows
 
 
+def suite_card(policy, tokenizer, cfg, device, seed=4242):
+    """The voxel suite (voxel/suite.py): per family on in-distribution test tasks and per held-out
+    split, the mean score with the instruction, with another task's instruction of the same group
+    (shuffled), and the unasked-eating rate."""
+    policy.eval()
+    rng = np.random.default_rng(seed)
+    groups = [(f"test_{f}", "test", f) for f in S.FAMILIES] + [(f"held_{h}", h, None) for h in S.HELD_OUT]
+    rows = {}
+    for name, split, family in groups:
+        world, metas, items = S.sample_tasks(rng, cfg.eval_per_family, split, family)
+        texts = [t.text for t in items]
+        out = {}
+        for kind, these in (("score", texts), ("shuffled", texts[1:] + texts[:1])):
+            results = []
+            for s in range(0, len(items), 32):
+                part = world.index(slice(s, s + 32))
+                ids, mask = tokens(tokenizer, these[s : s + 32], device)
+                actor = lambda w, t, ids=ids, mask=mask: policy.act(observe(w).to(device), ids, mask, cfg.eval_guidance).cpu()  # noqa: E731
+                results += S.run(part, metas[s : s + 32], items[s : s + 32], actor, steps=cfg.eval_steps, seed=seed)[0]
+            out[kind] = results
+        rows[name] = {"score": round(float(np.mean([r[0] for r in out["score"]])), 3), "shuffled": round(float(np.mean([r[0] for r in out["shuffled"]])), 3), "unasked": round(float(np.mean([r[1] for r in out["score"]])), 3)}
+    policy.train()
+    return rows
+
+
 def run():
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
+    t_start = time.time()
     cfg = parse_config(VoxConfig)
     device = torch.device(cfg.device)
     torch.manual_seed(cfg.seed)
@@ -240,13 +272,20 @@ def run():
         policy.load_state_dict(lora, strict=False)
         print(f"LoRA from {cfg.init_lora}: {len(lora)} tensors", flush=True)
     policy = policy.to(device)
-    store = load(cfg.store)
-    n_episodes = cfg.episodes or len(store["gravity"])
-    test_from = int(len(store["gravity"]) * (1 - cfg.test_share))
-    labels = [json.loads(l) for l in open(cfg.labels)]
-    train = [r for r in labels if r["e"] < min(n_episodes, test_from)]
-    test = [r for r in labels if r["e"] >= test_from]
-    print(f"{len(train)} training labels on {min(n_episodes, test_from)} episodes, {len(test)} test labels", flush=True)
+    sources = []  # (store, training labels, test labels, share of each batch)
+    if cfg.store and cfg.demo_share < 1:
+        store = load(cfg.store)
+        n_episodes = cfg.episodes or len(store["gravity"])
+        test_from = int(len(store["gravity"]) * (1 - cfg.test_share))
+        labels = [json.loads(l) for l in open(cfg.labels)]
+        sources.append((store, [r for r in labels if r["e"] < min(n_episodes, test_from)], [r for r in labels if r["e"] >= test_from], 1 - cfg.demo_share))
+    if cfg.demo_store and cfg.demo_share > 0:
+        demos = load(cfg.demo_store)
+        labels = [json.loads(l) for l in open(cfg.demo_labels)]
+        test_from = int(len(labels) * (1 - cfg.test_share))
+        sources.append((demos, labels[:test_from], labels[test_from:], cfg.demo_share))
+    for _, train, test, share in sources:
+        print(f"source: {len(train)} training labels, {len(test)} test labels, share {share}", flush=True)
     optimizer = torch.optim.AdamW([{"params": policy.lm_parameters(), "lr": cfg.lr_lm}, {"params": policy.new_parameters(), "lr": cfg.lr_new}], weight_decay=0.01)
     history = open(run_dir / "history.jsonl", "a")
 
@@ -256,14 +295,18 @@ def run():
         history.flush()
 
     def evaluate(step_i, minutes):
-        val = []
+        val = {}
         policy.eval()
         with torch.no_grad():
-            for k in range(8):  # the same held-out batches every time
-                obs, codes, texts = batch_of(store, test, cfg.batch, random.Random(k), device)
-                val.append(policy.loss(obs, codes, *tokens(tokenizer, texts, device)).item())
+            for j, (store, _, test, _) in enumerate(sources):
+                losses_ = []
+                for k in range(8):  # the same held-out batches every time
+                    obs, codes, texts = batch_of(store, test, cfg.batch, random.Random(k), device)
+                    losses_.append(policy.loss(obs, codes, *tokens(tokenizer, texts, device)).item())
+                val[f"val_loss_{j}"] = round(float(np.mean(losses_)), 4)
         policy.train()
-        log({"step": step_i, "minutes": round(minutes, 1), "val_loss": round(float(np.mean(val)), 4), "card": scorecard(policy, tokenizer, cfg, device)})
+        card = suite_card(policy, tokenizer, cfg, device) if cfg.card == "suite" else scorecard(policy, tokenizer, cfg, device)
+        log({"step": step_i, "minutes": round(minutes, 1), **val, "card": card})
         trainable = {n for n, p in policy.named_parameters() if p.requires_grad}
         torch.save({k: v.half() for k, v in policy.state_dict().items() if k in trainable}, run_dir / "policy_latest.pt")
 
@@ -273,13 +316,18 @@ def run():
     losses = []
     for step_i in range(1, cfg.steps + 1):
         elapsed = time.time() - t0 - eval_seconds
-        if cfg.minutes and elapsed > cfg.minutes * 60:
+        if (cfg.minutes and elapsed > cfg.minutes * 60) or (cfg.wall_minutes and time.time() - t_start > cfg.wall_minutes * 60):
             break
         fraction = min(elapsed / (cfg.minutes * 60), 1.0) if cfg.minutes else step_i / cfg.steps
         warm = min(1.0, step_i / cfg.warmup_steps)
         for g, base in zip(optimizer.param_groups, (cfg.lr_lm, cfg.lr_new)):
             g["lr"] = base * warm * 0.5 * (1 + math.cos(math.pi * fraction))
-        obs, codes, texts = batch_of(store, train, cfg.batch, rng, device)
+        parts = []
+        for j, (store, train, _, share) in enumerate(sources):
+            n = cfg.batch - sum(len(p[2]) for p in parts) if j == len(sources) - 1 else round(cfg.batch * share)
+            if n > 0:
+                parts.append(batch_of(store, train, n, rng, device))
+        obs, codes, texts = torch.cat([p[0] for p in parts]), torch.cat([p[1] for p in parts]), [t for p in parts for t in p[2]]
         ids, mask = tokens(tokenizer, texts, device)
         null = torch.rand(cfg.batch, device=device) < cfg.null_prob
         loss = policy.loss(obs, codes, ids, mask, null)
@@ -310,7 +358,7 @@ def score_checkpoint():
     policy = VoxelLMPolicy(AutoModelForCausalLM.from_pretrained(cfg.model, dtype=torch.float32), lora_rank=saved["lora_rank"]).to(device)
     weights = torch.load(Path("runs") / cfg.name / "policy_latest.pt", map_location="cpu")
     policy.load_state_dict({k: v.float() for k, v in weights.items()}, strict=False)
-    print(json.dumps(scorecard(policy, tokenizer, cfg, device)), flush=True)
+    print(json.dumps(suite_card(policy, tokenizer, cfg, device) if cfg.card == "suite" else scorecard(policy, tokenizer, cfg, device)), flush=True)
 
 
 if __name__ == "__main__":

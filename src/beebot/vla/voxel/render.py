@@ -9,7 +9,7 @@ palette colour.
 import numpy as np
 from PIL import Image, ImageDraw
 
-from beebot.vla.voxel.world import CHEESE_SIDE, PALETTE_RGB
+from beebot.vla.voxel.world import CHEESE_SIDE, COLOUR_RGB
 
 ROBOT = (70, 80, 95)
 WALL = (196, 178, 140)
@@ -37,7 +37,7 @@ def render_scene(mass, walls, cheese_pos=(), cheese_alive=(), cheese_color=(), s
         colour[(z, y, x)] = WALL
     for p, alive, c in zip(cheese_pos, cheese_alive, cheese_color):
         if alive and c >= 0:
-            rgb = tuple(int(v * 255) for v in PALETTE_RGB[int(c)].tolist())
+            rgb = tuple(int(v * 255) for v in COLOUR_RGB[int(c)].tolist())
             z0, y0, x0 = (int(v) for v in p)
             for z in range(z0, z0 + CHEESE_SIDE):
                 for y in range(y0, y0 + CHEESE_SIDE):

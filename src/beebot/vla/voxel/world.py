@@ -24,7 +24,7 @@ from dataclasses import dataclass, replace
 
 import torch
 
-from beebot.vla.world import PALETTE_NAMES, PALETTE_RGB  # noqa: F401  (the same four colours as 2D)
+from beebot.vla.world import COLOUR_NAMES, COLOUR_RGB, PALETTE_NAMES, PALETTE_RGB  # noqa: F401  (2D colours: the four play colours first, then the extended ones)
 
 SIZE = 16
 CHEESE_SIDE = 2
@@ -299,7 +299,7 @@ def observe(world):
     """(B, 6, D, H, W) float: robot, wall, cheese mask, cheese RGB."""
     ids = cheese_id_map(world)
     present = ids >= 0
-    colour = PALETTE_RGB.to(world.mass.device)[world.cheese_color.clamp(min=0)]  # (B, K, 3)
+    colour = COLOUR_RGB.to(world.mass.device)[world.cheese_color.clamp(min=0)]  # (B, K, 3)
     rgb = colour.gather(1, ids.clamp(min=0).view(ids.shape[0], -1, 1).expand(-1, -1, 3)).view(*ids.shape, 3)
     rgb = (rgb * present.unsqueeze(-1)).permute(0, 4, 1, 2, 3)
     return torch.cat([world.mass.unsqueeze(1), world.walls.float().unsqueeze(1), present.float().unsqueeze(1), rgb], dim=1)
