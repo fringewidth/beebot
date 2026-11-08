@@ -17,6 +17,9 @@ RUNS = __RUNS__  # [[arg, ...], ...], one list of voxel.lm arguments per GPU
 EPISODES = __EPISODES__  # scripted play episodes to generate (runs may train on a prefix: --episodes N)
 DEMO_SCENES = __DEMO_SCENES__  # scenes of expert demonstrations of the suite (voxel/demos.py); 0 for none
 
+T_KERNEL = time.time()
+KERNEL_MINUTES = 705  # Kaggle stops a session at 12 h; leave a margin
+FINAL_MINUTES = 30  # the last scorecard and checkpoint after training stops
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "transformers==5.22.1"], check=False)
 
 
@@ -42,7 +45,11 @@ print(f"play, labels and demos in {(time.time() - t0) / 60:.1f} min", flush=True
 
 
 def launch(gpu, args):
+    """Start one voxel.lm run on GPU gpu, its wall budget what the session has left after setup
+    (and its cosine schedule over most of that, the rest being scorecards)."""
     name = args[args.index("--name") + 1]
+    left = KERNEL_MINUTES - (time.time() - T_KERNEL) / 60 - FINAL_MINUTES
+    args = [*args, "--wall_minutes", f"{left:.0f}", "--minutes", f"{0.85 * left:.0f}"]
     log = open(f"/kaggle/working/logs/{name}.out", "w")
     full = [*args, "--store", store, "--labels", f"{store}/labels.jsonl", *(["--demo_store", demos, "--demo_labels", f"{demos}/labels.jsonl"] if DEMO_SCENES else []), "--device", "cuda"]
     print(f"gpu {gpu}: {name} {' '.join(full)}", flush=True)
