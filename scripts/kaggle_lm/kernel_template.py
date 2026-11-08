@@ -47,7 +47,19 @@ else:
 captions = find("captions_g32.jsonl")[0]
 # Files from a previous kernel or a checkpoint dataset, resolved now so a missing one fails before
 # the play cache is built.
-RUNS = [[find(a[len("@input/") :], 8)[0] if a.startswith("@input/") else a for a in args] for args in RUNS]
+# Extra data packed as a beebot-extra*.tar archive (expert stores, a starting checkpoint): unpacked here
+# unless Kaggle already unpacked it, and searched after /kaggle/input.
+for archive in find("beebot-extra*.tar*"):
+    tarfile.open(archive).extractall("/kaggle/working/extra")
+
+
+def resolve(name):
+    found = find(name, 8) or sorted(glob.glob(f"/kaggle/working/extra/**/{name}", recursive=True), key=len)
+    assert found, f"no {name} in the inputs"
+    return found[0]
+
+
+RUNS = [[resolve(a[len("@input/") :]) if a.startswith("@input/") else a for a in args] for args in RUNS]
 print(f"play root {play_root}, captions {captions}, found in {time.time() - t_setup:.0f} s", flush=True)
 import torch, transformers  # noqa: E402
 
@@ -110,3 +122,4 @@ for path in glob.glob("/kaggle/working/logs/*.out"):
     print(f"==== {path}", flush=True)
     print("".join(open(path).readlines()[-60:]), flush=True)
 shutil.rmtree("/kaggle/working/data", ignore_errors=True)  # keep outputs small
+shutil.rmtree("/kaggle/working/extra", ignore_errors=True)
