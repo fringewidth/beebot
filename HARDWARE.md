@@ -236,3 +236,154 @@ tasks to the suite:
 1. hold a load.
 
 That changes the product's task distribution, so it is a decision for us, not for the search.
+
+## Rigid-body check: a pivoting cube in MuJoCo
+
+The voxel physics above treats a move as allowed or not. To decide what to build, the moves
+themselves have to be simulated: does a real cube land in the next cell? `hardware/cube.py`
+simulates an M-Blocks-style module in MuJoCo, and `hardware/cube_search.py` scores and
+hill-climbs designs. Tests: `uv run pytest -q tests/test_cube.py`.
+
+### Model
+
+1. **Module.** A rigid cube with a flywheel inside. The flywheel starts at speed, then a band
+   brake (Coulomb friction of fixed torque) stops it within milliseconds. Its angular momentum
+   jumps into the cube, which pivots about an edge.
+1. **Magnets.** Two edge magnets per edge and one alignment magnet per face, all inset from the
+   surface. Every pair of magnets on different cubes attracts with a force that peaks where twins
+   sit in face contact and falls as r^-3. Edge magnets of cubes that share only an edge still
+   attract, and that attraction is the hinge.
+1. **Contacts.** MuJoCo's soft contacts with Coulomb friction.
+1. **Variation per trial.** Friction 0.3 to 0.7, magnet strength ±25% per cube, brake torque
+   ±40%, flywheel speed ±2%, mass ±5%, placement errors up to 0.03 L.
+1. **Control.** The only knob is the flywheel speed, tuned for each move as a real module would
+   be calibrated: a speed grid with a refinement pass, then fresh trials at the chosen speed.
+
+### Moves
+
+| primitive | scene | turn |
+| --- | --- | --- |
+| floor_roll | lone cube on the floor rolls one cell | 90° |
+| floor_peel | the same, bonded to a neighbour behind and one beside | 90° |
+| traverse | on top of a row, to the next cell | 90° |
+| convex_up / convex_down | up onto a neighbour's top / down off it | 180° |
+| concave_up / concave_down | climb a wall to hang on its side / back down | 90° |
+| wall_crawl | hanging on a wall, sideways to the next cell (flywheel vertical) | 90° |
+
+A move succeeds when the cube rests aligned in the target cell and no neighbour moved. A
+harmless failure leaves it aligned where it started, so the policy can simply retry. A harmful
+failure leaves it off the lattice or knocks a neighbour. Moves with neighbours run twice: once
+with the neighbours anchored (part of a large lattice) and once free (lone modules).
+
+### Calibration against the 3D M-Blocks
+
+Reference: Romanishin et al., ICRA 2015.
+
+- **Module:** 50 mm cube, 150 g.
+- **Flywheel:** 8.4e-6 kg m^2, up to 20000 rpm.
+- **Brake:** peaks at 2.6 N m over 10 to 30 ms.
+- **Magnets:** about 23 N face pull and an 18 N hinge, from the M-Blocks patents.
+- **Measured success:** traverse 100%, convex 95 to 100%, concave 55 to 90%, overall above 88%.
+
+With the edge magnets at 4.5 module weights per twin pair, the simulated rates with anchored
+neighbours are:
+
+| move | sim | real M-Blocks |
+| --- | --- | --- |
+| traverse | 0.90 to 0.97 | 1.00 |
+| convex up / down | 0.70 to 0.78 | 0.95 to 1.00 |
+| concave up / down | 0.78 to 1.00 | 0.55 to 0.90 |
+| wall crawl | 0.82 to 0.85 | no counterpart measured |
+
+Two fixes were needed to get there:
+
+1. MuJoCo's joint `frictionloss` is a soft constraint. As a brake it acted like a damper peaking
+   below 1 N m, so no pivot could ever break a bond. The brake is now an explicit Coulomb torque,
+   capped at what would stop the flywheel within two steps, which keeps it stable at any size.
+1. Off-lattice trials needed early exits so that a design scores in about a minute.
+
+### What the voxel expert asks of a cube
+
+These are the moves the suite's expert issued to the best crawler of round 1
+(L3cm-magnet-c0.12-a0.25-f0): 189k moves over 192 tasks.
+
+| move | share |
+| --- | --- |
+| convex up | 0.33 |
+| horizontal diagonal, elevated | 0.20 |
+| horizontal diagonal, on the floor | 0.15 |
+| convex down | 0.11 |
+| wall crawl | 0.09 |
+| floor roll | 0.05 |
+| floor peel | 0.03 |
+| concave down / up | 0.02 / 0.02 |
+| traverse | 0.005 |
+
+Round 1 lets a crawler move along two horizontal axes at once (`physics.allowed_moves` only bans
+three-axis moves). A pivoting cube cannot: a diagonal takes two pivots. More than a third of
+the expert's moves are such diagonals, so round 1 flattered crawlers. The cube score counts a
+diagonal as the matching straight move squared.
+
+### Score
+
+**Move score** is the sum, over moves, of each move's share in the mix times its validated
+success rate. Anchored and free neighbours are averaged. The score is in [0, 1].
+
+The design space is scaled from the calibrated M-Blocks. Brake torque goes as L^3 and magnet
+pull as L^2. The flywheel radius stays at 0.38 L, and density is 1200 kg/m^3. The knobs are:
+
+- flywheel mass share
+- motor top speed
+- brake strength
+- magnet strength
+- a steel floor
+- the floor's grip on each magnet (0 is no steel; thinner steel or a spacer lowers it)
+
+### Round 2: 3 cm cube (2026-11-08)
+
+**Climb.** Greedy hill-climb from the M-Blocks design scaled to 3 cm, on 3 cm cubes. Each round
+evaluates every one-step neighbour and moves to the best one when it wins by at least 0.01.
+Selection uses validation seeds, and the final design is re-scored on fresh test seeds:
+`runs/cube/climb-3cm.jsonl`, `runs/cube/steel-sweep-3cm.jsonl`.
+
+| design | move score | harm (off or knock) |
+| --- | --- | --- |
+| M-Blocks scaled to 3 cm | 0.230 | 0.30 |
+| climbed: flywheel share 0.25, brake x 2.56, magnets x 0.39, no steel (test seeds) | 0.573 | 0.18 |
+| the same on steel with grip 0.3 (test seeds) | **0.663** | **0.02** |
+
+Steel grip, on the climbed design (validation seeds):
+
+| grip | 0.05 | 0.1 | 0.2 | 0.3 | 0.5 |
+| --- | --- | --- | --- | --- | --- |
+| move score | 0.556 | 0.644 | 0.664 | 0.663 | 0.586 |
+| harm | 0.23 | 0.10 | 0.11 | 0.04 | 0.16 |
+
+What it says:
+
+1. **A 3 cm cube needs more flywheel than M-Blocks scaled down.** The flywheel's momentum scales
+   as L^5 at a given speed, while a pivot needs momentum scaling as L^4.5. The climb raised the
+   flywheel's share of the mass from 0.155 to 0.25 and the brake to 2.56 times the scaled
+   M-Blocks brake (about 1.4 N m).
+1. **Magnets should be weaker at 3 cm.** Magnet pull scales with face area, so per module weight
+   it grows as 1/L, and at 3 cm the reference magnets out-hold the pivot. The climb settled at
+   0.39 of the reference volume.
+1. **The arena floor should be steel with a light grip.** It holds lone neighbours down, so a
+   mover pivoting over them no longer drags them. At grip 0.3 harmful failures fall from 0.18 to
+   0.02. Grip 0.5 holds the mover itself too hard: convex up falls to 0.2. In practice that means
+   a thin steel sheet or a spacer such as paint or a mat; the right one needs a pull test on the
+   bench.
+1. **Weak spots that remain.**
+   1. Convex up against an anchored neighbour (0.03).
+   1. Concave up with free neighbours (0).
+   1. Rolling away from neighbours bonded behind and beside (0 everywhere). In-plane magnet shear
+      holds the side bond, which matters for packed crowds on the floor.
+
+   The policy has to plan around these, or the hardware needs a way to release a bond, such as an
+   electropermanent face.
+1. **One artefact.** A lower motor top speed was accepted in round 7, but its only effect is a
+   finer speed grid for tuning, about +0.02. It is not physics.
+
+Caveats: the scaling laws for the brake (L^3) and magnets (L^2) are assumptions, and convex up is
+only simulated from the floor, not on top of a structure. Every number here should be replaced by
+bench measurements of a prototype's magnet pull, brake torque and flywheel speed.
