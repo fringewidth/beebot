@@ -128,4 +128,111 @@ These are first-order. Each should be replaced by a measurement from a prototype
 
 ## Results
 
-(filled in as the search runs)
+### Round 1: grid (2026-11-08)
+
+**Grid.** 258 designs over these axes:
+
+| axis | values |
+| --- | --- |
+| side | 1, 3, 10 cm |
+| connector | permanent, electropermanent |
+| connector share | 0 to 0.25 |
+| actuator share | 0.01 to 0.4 |
+| flight share | 0, 0.2, 0.35, 0.5 |
+
+Two kinds of design were skipped:
+
+1. Designs whose flight system cannot lift them.
+1. Most actuator variants of drones, which barely use their actuator.
+
+Each design was scored on the same 96 tasks (seed 0): `runs/hardware/grid2.jsonl`,
+`uv run python -m beebot.hardware.analyze runs/hardware/grid2.jsonl`.
+
+**Validation.** The best design of every (size, locomotion, connector) group, the top three
+overall and the references were re-scored on 288 fresh tasks (seed 1), never used for selection:
+`runs/hardware/validate1.jsonl`.
+
+| design | grid (96) | validation (288) | formation | construction | logic | parallel | herd | runner |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 cm drone, no connectors (L1cm-magnet-c0-a0.01-f0.5) | 0.763 | **0.785** | 0.640 | 1.000 | 0.932 | 0.756 | 0.428 | 0.961 |
+| 1 cm drone with switchable connectors (L1cm-epm-c0.06-a0.01-f0.5) | 0.763 | **0.785** | 0.638 | 1.000 | 0.932 | 0.756 | 0.428 | 0.961 |
+| ideal drone (unbreakable connectors, unlimited thrust) | 0.770 | 0.784 | 0.639 | 1.000 | 0.932 | 0.756 | 0.421 | 0.961 |
+| voxel world's own rules | 0.784 | 0.771 | 0.631 | 0.997 | 0.919 | 0.703 | 0.430 | 0.961 |
+| 3 cm drone, no connectors | 0.751 | 0.763 | 0.640 | 1.000 | 0.932 | 0.756 | 0.281 | 0.961 |
+| 3 cm crawler, permanent magnets (L3cm-magnet-c0.12-a0.25-f0) | 0.753 | **0.749** | 0.646 | 0.994 | 0.878 | 0.717 | 0.394 | 0.863 |
+| ideal crawler (unbreakable connectors, unlimited torque) | 0.742 | 0.742 | 0.632 | 0.977 | 0.892 | 0.683 | 0.376 | 0.902 |
+| 1 cm crawler, switchable (L1cm-epm-c0.25-a0.03-f0) | 0.743 | 0.742 | 0.632 | 0.977 | 0.892 | 0.683 | 0.376 | 0.902 |
+| 10 cm crawler, permanent magnets (L10cm-magnet-c0.12-a0.4-f0) | **0.778** | 0.733 | 0.627 | 0.956 | 0.865 | 0.675 | 0.378 | 0.902 |
+| 10 cm crawler, switchable | 0.761 | 0.721 | 0.622 | 0.950 | 0.878 | 0.638 | 0.389 | 0.863 |
+| crawler with no connectors (any size) | 0.715 | 0.662 | 0.627 | 0.963 | 0.757 | 0.620 | 0.172 | 0.804 |
+
+What the round says:
+
+1. **The grid's winner was luck.** The 10 cm permanent-magnet crawler topped the grid at 0.778
+   but drops to 0.733 on fresh tasks. With 258 designs on 96 tasks, the top is selected on
+   noise. Grid ranks are only good for picking candidates, never for conclusions.
+1. **Drones: about 0.04 above crawlers, and only at small size.**
+   1. 1 cm drones match the ideal drone (0.785 against 0.784).
+   1. At 3 cm drones lose most of their pushing (herd 0.43 to 0.28): thrust per weight falls
+      as L^(-1/3), so they have little spare thrust to push with.
+   1. At 10 cm no flight system that fits in the cube lifts the module.
+   1. The edge over crawlers is mobility, seen in logic, parallel and runner: drones go
+      straight to the target. It is not force.
+1. **Connectors are worth about 0.08 to a crawler.** Without connectors a crawler cannot climb
+   on others or hang off them; pushing falls to 0.17 and eating (logic) to 0.76. With them, the
+   best crawler reaches the ideal crawler.
+1. **The connector type depends on size.**
+   1. Permanent magnets lead at 3 cm, where a heavy actuator can pry bonds open.
+   1. Switchable (electropermanent) connectors take over as size grows: at 10 cm, the best
+      permanent design on the grid needed 40% of the module as actuator.
+1. **At 1 cm a module can have both flight and connectors.** The 1 cm drone with switchable
+   connectors (strength 28 module weights, thrust 1.27) scores the same as the connector-less
+   one. Structural ability costs nothing on this metric there. The square-cube law makes both
+   thrust per weight and magnet hold per weight abundant at small size.
+
+### Sensitivity to the constants
+
+Each run halves one constant and re-scores on the 288 validation tasks:
+`runs/hardware/sensitivity1.jsonl`.
+
+| design | as estimated | magnet pressure x 0.5 | flight power x 0.5 |
+| --- | --- | --- | --- |
+| 1 cm drone, switchable connectors | 0.785 | | 0.721 (cannot fly) |
+| 1 cm drone, no connectors | 0.785 | | 0.746 (thrust 1.07, herd 0.17) |
+| 3 cm drone, no connectors | 0.763 | | 0.662 (cannot fly) |
+| 3 cm crawler, permanent magnets | 0.749 | 0.750 | |
+| 1 cm crawler, switchable | 0.742 | 0.743 | |
+| 10 cm crawler, permanent magnets | 0.733 | 0.723 | |
+
+What it shows:
+
+1. **Crawlers hold up.** Their scores barely move with connector strength.
+1. **The drone lead does not.** It rests on the flight power estimate, taken from Crazyflie-class
+   parts. At half of it:
+   1. The 1 cm drone with connectors and the 3 cm drone can no longer fly.
+   1. The connector-less 1 cm drone barely flies and falls just below the best crawler.
+
+   Before trusting the drone result, the flight constant needs measuring on a 1 cm prototype.
+
+### What the metric cannot see yet
+
+The task mix decides the answer, and the suite is mostly about mobility.
+
+1. **Herd** is the only family that needs force. All good designs sit at about 0.4 there, which
+   the expert's herding limits, not the hardware.
+1. **Construction** tasks are towers, flat bridges and filling a trench, and mostly need
+   compression. Even crawlers without connectors get 0.96.
+1. **Nothing in the suite needs** tension, reach, a lever or carrying a load across a structure.
+1. **Arching.** A two-layer bridge with no connectors stands as a flat arch, like dry masonry,
+   because terrain friction under resting modules is not limited.
+
+So "drones win" here means only that drones win this suite. They lose the moment the suite asks
+for force or structure. To make the metric weigh what the swarm is for, add structure-and-force
+tasks to the suite:
+
+1. carry the cheese across the bridge;
+1. reach out over a gap;
+1. lift with a lever;
+1. hold a load.
+
+That changes the product's task distribution, so it is a decision for us, not for the search.
