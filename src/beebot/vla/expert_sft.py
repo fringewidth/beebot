@@ -30,12 +30,20 @@ from beebot.vla.play_data import load_play_cache
 C1 = "runs/lm-qwen-lora-c1"
 
 
-def demo_batch(store, labels, n, rng, generator, device):
+def demo_batch(stores, labels, n, rng, generator, device):
+    """n demonstration samples drawn uniformly over all labels; stores: one store (overfit) or a
+    list of stores, each label's "store" naming its own (default 0)."""
+    stores = stores if isinstance(stores, list) else [stores]
     picks = [labels[rng.randrange(len(labels))] for _ in range(n)]
-    steps = store["field"].shape[1]
-    pick = torch.tensor([[p["e"], 0, steps] for p in picks])
-    obs, _, actions, weights, _ = batch_from(store, pick, generator, device)
-    return obs, actions, weights, [p["text"] for p in picks]
+    parts = []
+    for k, store in enumerate(stores):
+        mine = [p for p in picks if p.get("store", 0) == k]
+        if not mine:
+            continue
+        steps = store["field"].shape[1]
+        obs, _, actions, weights, _ = batch_from(store, torch.tensor([[p["e"], 0, steps] for p in mine]), generator, device)
+        parts.append((obs, actions, weights, [p["text"] for p in mine]))
+    return torch.cat([p[0] for p in parts]), torch.cat([p[1] for p in parts]), torch.cat([p[2] for p in parts]), [t for p in parts for t in p[3]]
 
 
 def sft_step(policy, optimizer, tokenizer, batch, device, null_prob=0.1):
@@ -124,13 +132,14 @@ def train(args):
     from beebot.vla.lm_train import Captions
 
     device = torch.device(args.device)
-    cfg = RLConfig(init_run=C1, checkpoint="policy_best.pt", eval_tasks=args.eval_tasks, eval_steps=64, eval_guidance=2.0)
+    cfg = RLConfig(init_run=args.init_run, checkpoint=args.checkpoint, eval_tasks=args.eval_tasks, eval_steps=64, eval_guidance=2.0)
     policy, tokenizer = load_policy(cfg, device)
     run_dir = Path("runs") / args.name
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "config.json").write_text(json.dumps({**json.loads((Path(C1) / "config.json").read_text()), "expert_sft": vars(args)}, indent=1))
-    demos = load_play_cache(args.store)
-    labels = [json.loads(l) for l in open(Path(args.store) / "labels.jsonl")]
+    base = {k: v for k, v in json.loads((Path(args.init_run) / "config.json").read_text()).items() if k != "expert_sft"}
+    (run_dir / "config.json").write_text(json.dumps({**base, "expert_sft": vars(args)}, indent=1))
+    stores = [load_play_cache(path) for path in args.store.split(",")]
+    labels = [{**json.loads(l), "store": k} for k, path in enumerate(args.store.split(",")) for l in open(Path(path) / "labels.jsonl")]
     play = load_play_cache(args.play_cache) if args.caption_share else None
     captions = Captions(args.captions, play, tokenizer, 128, 128) if args.caption_share else None
     suite = make_suite(cfg)
@@ -158,7 +167,7 @@ def train(args):
         for g, base in zip(optimizer.param_groups, (args.lr_lm, args.lr_new)):
             g["lr"] = base * min(1.0, step / args.warmup_steps) * 0.5 * (1 + math.cos(math.pi * fraction))
         n_caption = int(round(args.batch * args.caption_share))
-        losses.append(sft_step(policy, optimizer, tokenizer, demo_batch(demos, labels, args.batch - n_caption, py_rng, generator, device), device))
+        losses.append(sft_step(policy, optimizer, tokenizer, demo_batch(stores, labels, args.batch - n_caption, py_rng, generator, device), device))
         if n_caption:
             obs, actions, weights, ids, mask = captions.sample(play, n_caption, generator, device)
             loss = policy.policy_loss(obs, actions, weights, text_ids=ids, text_mask=mask)
@@ -180,7 +189,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["overfit", "train"])
     parser.add_argument("--name", default="lm-expert-sft")
-    parser.add_argument("--store", default="data/vla/experts_g32")
+    parser.add_argument("--store", default="data/vla/experts_g32", help="train: one or more expert stores, comma-separated")
+    parser.add_argument("--init_run", default=C1, help="train: the run to start from (its config.json and checkpoint)")
+    parser.add_argument("--checkpoint", default="policy_best.pt")
     parser.add_argument("--play_cache", default="data/vla/play_cache_g32")
     parser.add_argument("--captions", default="data/vla/kaggle_play/captions_g32.jsonl")
     parser.add_argument("--caption_share", type=float, default=0.25)

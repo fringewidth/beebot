@@ -44,6 +44,9 @@ PUSH_REACH = 12  # how far past the cheese a push aims
 BEHIND = 2  # squares behind the cheese's face where pushers gather
 PUSH_SHARE = 0.3  # of the swarm that pushes; the rest parks PARK squares further back
 PARK = 8
+PUSHERS = 0  # > 0: at most this many robots push (a fixed count, not a share of the swarm)
+CLEAR = 2  # herding starts by clearing everyone this close to the cheese away ...
+CLEAR_STEPS = 12  # ... for at most this many steps
 NUDGE_DONE = 5  # squares moved along the asked direction (the checker credits 4)
 SURROUND_ROBOTS = 12  # robots sent to surround a cheese: enough to ring it, too few to eat it
 CARDINAL = {"up": (-1, 0), "down": (1, 0), "left": (0, -1), "right": (0, 1)}
@@ -69,6 +72,7 @@ class Expert:
         self.start = (rows.mean(), cols.mean()) if len(rows) else (T.SIZE / 2, T.SIZE / 2)
         self.push = None  # (direction, phase, steps in phase) for herding
         self.origin = None  # the herded cheese's starting corner
+        self.cleared, self.clear_steps = False, 0  # herding: the initial clearing phase
 
     def alive(self, world, i, colour):
         k = self.slot[colour]
@@ -127,6 +131,21 @@ class Expert:
         p = self.cheese_point(world, i, colour)
         return float(np.hypot(rows.float().mean().item() - p["row"], cols.float().mean().item() - p["col"]))
 
+    def clearing(self, world, i, pos):
+        """True while any robot is within CLEAR squares of the herded cheese, for at most
+        CLEAR_STEPS steps from the start (a swarm that starts around a cheese near a wall
+        covers its small open ring and eats it as soon as anyone moves)."""
+        if self.cleared:
+            return False
+        y, x = pos
+        mass = world.mass[i] >= 0.5
+        near = mass[max(y - CLEAR, 0) : y + self.side + CLEAR, max(x - CLEAR, 0) : x + self.side + CLEAR].any().item()
+        self.clear_steps += 1
+        if not near or self.clear_steps > CLEAR_STEPS:
+            self.cleared = True
+            return False
+        return True
+
     def herd_commands(self, world, i):
         s = self.spec
         if "nudge" in s:
@@ -156,16 +175,24 @@ class Expert:
         behind = (cy - d[0] * reach, cx - d[1] * reach)
         # A small pushing group; the rest park well behind it, so nobody wraps around the cheese
         # (covering most of its ring eats it).
-        park = {**_point(behind[0] - d[0] * PARK, behind[1] - d[1] * PARK), "share": 1 - PUSH_SHARE}
+        robots = max(float((world.mass[i] >= 0.5).sum()), 1.0)
+        push_share = min(PUSH_SHARE, PUSHERS / robots) if PUSHERS else PUSH_SHARE
+        # Park at the corner farthest from the cheese: "further behind" falls off the grid for
+        # pushes toward an edge, and clamped back it lands beside the pushers.
+        corners = [(2, 2), (2, T.SIZE - 3), (T.SIZE - 3, 2), (T.SIZE - 3, T.SIZE - 3)]
+        far = max(corners, key=lambda c: (c[0] - cy) ** 2 + (c[1] - cx) ** 2)
+        park = {**_point(*far), "share": 1 - push_share}
+        if self.push[1] == "gather" and self.clearing(world, i, pos):
+            return [_point(*far)]  # robots start touching the cheese: everyone clears off first
         if self.push[1] == "gather":
             mass = world.mass[i] >= 0.5
             near = mass[max(int(behind[0]) - 2, 0) : int(behind[0]) + 3, max(int(behind[1]) - 2, 0) : int(behind[1]) + 3].sum().item()
             if near >= 6 or self.push[2] > 24:
                 self.push[1], self.push[2] = "press", 0
-            return [{**_point(*behind), "share": PUSH_SHARE}, park]
+            return [{**_point(*behind), "share": push_share}, park]
         if self.push[2] > 16:  # re-plan: gather behind again from the cheese's new position
             self.push[1], self.push[2] = "gather", 0
-        return [{**_point(cy + d[0] * PUSH_REACH, cx + d[1] * PUSH_REACH), "straight": True, "share": PUSH_SHARE}, park]
+        return [{**_point(cy + d[0] * PUSH_REACH, cx + d[1] * PUSH_REACH), "straight": True, "share": push_share}, park]
 
 
 def mask_field(world, i, mask):
@@ -258,12 +285,12 @@ def succeeded(task, result):
     return score >= (FORMATION_SUCCESS if task.family == "formation" else SUCCESS)
 
 
-def draw(rng, n, contrast=0.5):
+def draw(rng, n, contrast=0.5, families=None):
     """n (scene, task) pairs of the training split, families uniform; with probability contrast a
     scene also gets a second instruction from another family that fits it (same-scene contrast)."""
     out = []
     while len(out) < n:
-        scene, task = T.sample_task(rng, "train")
+        scene, task = T.sample_task(rng, "train", family=str(rng.choice(families)) if families else None)
         out.append((scene, task))
         if rng.random() < contrast and len(out) < n:
             for family in rng.permutation(T.FAMILIES):
@@ -277,7 +304,7 @@ def draw(rng, n, contrast=0.5):
     return out
 
 
-def write(out_dir, episodes, seed=0, batch=64, device="cpu"):
+def write(out_dir, episodes, seed=0, batch=64, device="cpu", families=None):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
@@ -285,7 +312,7 @@ def write(out_dir, episodes, seed=0, batch=64, device="cpu"):
     t0 = time.time()
     kept = 0
     while kept < episodes:
-        pairs = draw(rng, batch)
+        pairs = draw(rng, batch, families=families)
         results, rec = play([s for s, _ in pairs], [t for _, t in pairs], device=device, seed=int(rng.integers(1 << 30)))
         keep = [i for i, ((_, task), r) in enumerate(zip(pairs, results)) if succeeded(task, r)]
         for (_, task), r in zip(pairs, results):
@@ -318,9 +345,10 @@ def main():
     parser.add_argument("--batch", type=int, default=64)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--families", default="", help="comma-separated: only these families' tasks (their scenes may still get a second instruction of another family)")
     args = parser.parse_args()
     torch.set_num_threads(args.threads)
-    write(args.out, args.episodes, args.seed, args.batch)
+    write(args.out, args.episodes, args.seed, args.batch, families=args.families.split(",") if args.families else None)
 
 
 if __name__ == "__main__":
