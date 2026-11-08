@@ -164,6 +164,7 @@ def train(args):
     from beebot.vla.lm_train import Captions, distill_loss, general_text, language
     from beebot.vla.train import Config, load_data
 
+    t_start = time.time()  # wall clock, setup and evaluations included (for wall_minutes)
     device = torch.device(args.device)
     amp = device.type == "cuda"
     cfg = RLConfig(init_run=args.init_run, checkpoint=args.checkpoint, eval_tasks=args.eval_tasks, eval_scenes=args.eval_scenes)
@@ -234,7 +235,7 @@ def train(args):
     step = 0
     while True:
         elapsed = time.time() - t0 - eval_seconds
-        if elapsed > args.minutes * 60:
+        if elapsed > args.minutes * 60 or (args.wall_minutes and time.time() - t_start > args.wall_minutes * 60):
             break
         step += 1
         fraction = min(elapsed / (args.minutes * 60), 1.0)
@@ -297,7 +298,8 @@ def main():
     parser.add_argument("--families", default="", help="overfit: comma-separated families (default: the first --tasks of place, logic, formation, parallel, herd, runner)")
     parser.add_argument("--probe", action="store_true", help="overfit: also score under other guidance, lengths and greedy moves")
     parser.add_argument("--steps", type=int, default=300)
-    parser.add_argument("--minutes", type=float, default=90.0)
+    parser.add_argument("--minutes", type=float, default=90.0, help="training time, evaluations excluded")
+    parser.add_argument("--wall_minutes", type=float, default=0.0, help="train: also stop when this much wall time has passed since start (0: off), before a final evaluation")
     parser.add_argument("--batch", type=int, default=16)
     parser.add_argument("--lr_lm", type=float, default=1e-4)
     parser.add_argument("--lr_new", type=float, default=2e-4)
