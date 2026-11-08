@@ -59,7 +59,7 @@ def code():
         kaggle("datasets", "create", "-p", str(dataset))
 
 
-def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None, data_owner=None, ddp=False, play=False, module="beebot.vla.lm_train", voxel_episodes=0):
+def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None, data_owner=None, ddp=False, play=False, module="beebot.vla.lm_train", voxel_episodes=0, demo_scenes=0):
     user = username()
     owner = data_owner or user  # whose datasets to mount (shared privately when a teammate runs the kernel)
     kernel = WORK / slug
@@ -69,7 +69,7 @@ def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None
     assert not ddp or lm, "ddp: lm-run only (each run on both GPUs, one after another)"
     template = VOXEL_TEMPLATE if voxel_episodes else TPU_TEMPLATE if tpu else LM_TEMPLATE if lm else TEMPLATE
     assert not play or template == TEMPLATE, "play: train-vla runs on GPU only"
-    (kernel / "kernel.py").write_text(template.read_text().replace("__RUNS__", json.dumps(runs)).replace("__DDP__", str(ddp)).replace("__PLAY__", str(play)).replace("__MODULE__", module).replace("__EPISODES__", str(voxel_episodes)))
+    (kernel / "kernel.py").write_text(template.read_text().replace("__RUNS__", json.dumps(runs)).replace("__DDP__", str(ddp)).replace("__PLAY__", str(play)).replace("__MODULE__", module).replace("__EPISODES__", str(voxel_episodes)).replace("__DEMO_SCENES__", str(demo_scenes)))
     meta = {
         "id": f"{user}/{slug}",
         "title": slug,
@@ -114,13 +114,14 @@ def main():
     parser.add_argument("--play", action="store_true", help="run: train on the play data and caption set (datasets beebot-play-g32, beebot-caption-set-g32)")
     parser.add_argument("--from-dataset", help="lm-run: mount this dataset too (e.g. checkpoints of a cancelled kernel, which Kaggle will not mount)")
     parser.add_argument("--episodes", type=int, default=12000, help="voxel-run: scripted episodes the kernel generates")
+    parser.add_argument("--demo-scenes", type=int, default=0, help="voxel-run: scenes of expert suite demonstrations the kernel generates")
     args = parser.parse_args()
     if args.command == "code":
         code()
     elif args.command in ("run", "tpu-run", "lm-run"):
         run(args.slug, args.runs, tpu=args.command == "tpu-run", lm=args.command == "lm-run", from_kernel=args.from_kernel, from_dataset=args.from_dataset, data_owner=args.data_owner, ddp=args.ddp, play=args.play, module=args.module)
     elif args.command == "voxel-run":
-        run(args.slug, args.runs, from_dataset=args.from_dataset, data_owner=args.data_owner, voxel_episodes=args.episodes)
+        run(args.slug, args.runs, from_dataset=args.from_dataset, data_owner=args.data_owner, voxel_episodes=args.episodes, demo_scenes=args.demo_scenes)
     elif args.command == "status":
         kaggle("kernels", "status", f"{username()}/{args.slug}")
     elif args.command == "logs":

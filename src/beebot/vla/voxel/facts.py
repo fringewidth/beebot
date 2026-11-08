@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from beebot.vla.voxel.world import CHEESE_SIDE, DIRS, PALETTE_NAMES, SHELL_OFFSETS, SIZE
+from beebot.vla.voxel.world import CHEESE_SIDE, COLOUR_NAMES, DIRS, SHELL_OFFSETS, SIZE
 
 MOVE_VOXELS = 2.0  # at the 16-grid
 AXIS_SHARE = 0.4
@@ -197,7 +197,7 @@ def window_facts(static, start, end):
     for k, colour in enumerate(static["cheese_color"]):
         if colour < 0 or not start["cheese_alive"][k]:
             continue
-        name = PALETTE_NAMES[colour]
+        name = COLOUR_NAMES[colour]
         p0, p1 = np.asarray(start["cheese_pos"][k], dtype=int), np.asarray(end["cheese_pos"][k], dtype=int)
         if not end["cheese_alive"][k]:
             facts.types.add("eat")
