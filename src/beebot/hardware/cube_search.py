@@ -71,7 +71,7 @@ class Build:
     max_rpm: float = 20000.0
     brake_scale: float = 1.0  # brake torque relative to the reference's, scaled to this size
     magnet_scale: float = 1.0  # magnet volume relative to the reference's, scaled to this size
-    steel_floor: float = 0.0  # 1: the arena floor is steel, so face magnets hold to it
+    steel_floor: float = 0.0  # grip of a steel floor on each magnet, relative to its twin's (0: no steel; thinner steel or a spacer lowers it)
 
     def cube(self):
         ref_mass = REF_DENSITY * self.side**3
@@ -93,7 +93,8 @@ class Build:
         return f"L{self.side * 100:g}cm-fw{self.flywheel_share:.3g}-rpm{self.max_rpm:.0f}-brake{self.brake_scale:.3g}-mag{self.magnet_scale:.3g}-steel{self.steel_floor:g}"
 
 
-BOUNDS = {"flywheel_share": (0.05, 0.35), "max_rpm": (8000.0, 40000.0), "brake_scale": (0.25, 3.0), "magnet_scale": (0.2, 3.0)}
+BOUNDS = {"flywheel_share": (0.05, 0.35), "max_rpm": (8000.0, 40000.0), "brake_scale": (0.25, 3.0), "magnet_scale": (0.2, 3.0), "steel_floor": (0.05, 1.0)}
+STEEL_START = 0.3  # floor grip when the climb first lays steel
 
 
 def rng_for(phase, primitive, index, k):
@@ -169,14 +170,16 @@ def evaluate_many(cubes, phase="validate", workers=5):
 
 def neighbours(build, step):
     """Designs one step away: each continuous knob up and down by a factor `step` (clipped to
-    BOUNDS), and the steel floor toggled."""
+    BOUNDS; the floor's grip only once there is steel), and the steel floor laid or removed."""
     out = []
     for field, (lo, hi) in BOUNDS.items():
+        if getattr(build, field) == 0:
+            continue
         for factor in (step, 1 / step):
             value = float(np.clip(getattr(build, field) * factor, lo, hi))
             if not math.isclose(value, getattr(build, field)):
                 out.append(replace(build, **{field: value}))
-    out.append(replace(build, steel_floor=1.0 - build.steel_floor))
+    out.append(replace(build, steel_floor=0.0 if build.steel_floor > 0 else STEEL_START))
     return out
 
 
