@@ -49,7 +49,7 @@ captions = find("captions_g32.jsonl")[0]
 # the play cache is built.
 # Extra data packed as a beebot-extra*.tar archive (expert stores, a starting checkpoint): unpacked here
 # unless Kaggle already unpacked it, and searched after /kaggle/input.
-for archive in find("beebot-extra*.tar*"):
+for archive in [p for p in find("beebot-extra*.tar*") if os.path.isfile(p)]:
     tarfile.open(archive).extractall("/kaggle/working/extra")
 
 
