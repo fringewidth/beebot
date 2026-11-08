@@ -29,12 +29,13 @@ def robot_list(world):
     return robots, robots // v, here
 
 
-def act(world, targets, valid, press_cheese=None, press_dir=None, jitter=JITTER_PROB, generator=None):
+def act(world, targets, valid, press_cheese=None, press_dir=None, jitter=JITTER_PROB, generator=None, allowed=None):
     """Action codes (B, D, H, W) int8 (STAY where no robot is).
 
     targets (B, S, 3) long, valid (B, S) bool: each scene's target voxels (a scene with none
     stays put). press_cheese (B,) long (-1 for none) and press_dir (B, 3) long: robots whose
-    move along press_dir lands on that cheese take that move."""
+    move along press_dir lands on that cheese take that move. allowed (N, 27) bool, over the robots
+    in robot_list order: actions the robots can carry out (hardware limits); None allows all."""
     b, d, h, w = world.mass.shape
     device = world.mass.device
     robots, scene, here = robot_list(world)
@@ -57,6 +58,8 @@ def act(world, targets, valid, press_cheese=None, press_dir=None, jitter=JITTER_
     flat, inside = flat_index(dest, (d, h, w))
     ids = cheese_id_map(world).reshape(b, -1)
     blocked = world.walls.reshape(b, -1)[scene.unsqueeze(1), flat] | (ids[scene.unsqueeze(1), flat] >= 0) | ~inside
+    if allowed is not None:
+        blocked |= ~allowed
     blocked[:, STAY] = False
     cost = ((dest.float() - goal.unsqueeze(1)) ** 2).sum(-1)
     cost = cost + 1e-3 * torch.rand(cost.shape, generator=generator, device=device)
