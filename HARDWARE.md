@@ -344,13 +344,14 @@ pull as L^2. The flywheel radius stays at 0.38 L, and density is 1200 kg/m^3. Th
 **Climb.** Greedy hill-climb from the M-Blocks design scaled to 3 cm, on 3 cm cubes. Each round
 evaluates every one-step neighbour and moves to the best one when it wins by at least 0.01.
 Selection uses validation seeds, and the final design is re-scored on fresh test seeds:
-`runs/cube/climb-3cm.jsonl`, `runs/cube/steel-sweep-3cm.jsonl`.
+`runs/cube/climb-3cm.jsonl`, `runs/cube/steel-sweep-3cm.jsonl`, `runs/cube/climb-3cm-steel.jsonl`.
 
 | design | move score | harm (off or knock) |
 | --- | --- | --- |
 | M-Blocks scaled to 3 cm | 0.230 | 0.30 |
 | climbed: flywheel share 0.25, brake x 2.56, magnets x 0.39, no steel (test seeds) | 0.573 | 0.18 |
-| the same on steel with grip 0.3 (test seeds) | **0.663** | **0.02** |
+| the same on steel with grip 0.3 (test seeds) | 0.663 | 0.02 |
+| climbed again on steel: magnets x 0.63 (test seeds) | **0.716** | **0.01** |
 
 Steel grip, on the climbed design (validation seeds):
 
@@ -368,14 +369,24 @@ What it says:
 1. **Magnets should be weaker at 3 cm.** Magnet pull scales with face area, so per module weight
    it grows as 1/L, and at 3 cm the reference magnets out-hold the pivot. The climb settled at
    0.39 of the reference volume.
+1. **On steel, the magnets want to be stronger again.** The second climb, started on steel at grip
+   0.3, raised the magnets to 0.63 of the reference volume (0.716 on test seeds, harm 0.013).
+   Without steel, strong magnets dragged lone neighbours along. Once the floor holds them down, a
+   stronger hinge carries the cube through the 180-degree climb over a neighbour: convex up rose
+   from 0.42 to 0.66, and that move is a third of the mix. Three more rounds found nothing better.
+   In physical units the design is:
+   1. a 34 g cube;
+   1. an 8 g flywheel ring at 11 mm radius, at about 14,000 rpm;
+   1. a brake that stops it in about 1 ms (1.4 N m);
+   1. about 3 N per hinge edge and 12 N per face.
 1. **The arena floor should be steel with a light grip.** It holds lone neighbours down, so a
    mover pivoting over them no longer drags them. At grip 0.3 harmful failures fall from 0.18 to
    0.02. Grip 0.5 holds the mover itself too hard: convex up falls to 0.2. In practice that means
    a thin steel sheet or a spacer such as paint or a mat; the right one needs a pull test on the
    bench.
 1. **Weak spots that remain.**
-   1. Convex up against an anchored neighbour (0.03).
-   1. Concave up with free neighbours (0).
+   1. Concave up (0.40).
+   1. Convex up (0.66).
    1. Rolling away from neighbours bonded behind and beside (0 everywhere). In-plane magnet shear
       holds the side bond, which matters for packed crowds on the floor.
 

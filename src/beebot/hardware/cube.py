@@ -205,12 +205,13 @@ class Jitter:
 NOMINAL = Jitter(friction=(0.5, 0.5), magnet=0.0, brake=0.0, speed=0.0, mass=0.0, offset=0.0)
 
 
-def trial(cube, primitive, omega, rng, jitter=Jitter(), anchored=False, trace=None):
+def trial(cube, primitive, omega, rng, jitter=Jitter(), anchored=False, trace=None, watch=None):
     """Run one primitive at flywheel speed omega (rad/s, the policy's knob; capped at the motor's
     max). Returns a dict with outcome in {"success", "stay", "off", "knock"}:
     success: the mover sits aligned in the target cell and no neighbour moved;
     stay: the mover is aligned in its start cell and no neighbour moved (a harmless failure);
-    knock: a neighbour was displaced or turned; off: anything else."""
+    knock: a neighbour was displaced or turned; off: anything else. watch(model, data), if given,
+    is called after every step (for rendering)."""
     spec = PRIMITIVES[primitive]
     cells = np.array(spec["substrate"] + [spec["mover"]], dtype=float)
     n = len(cells)
@@ -252,6 +253,8 @@ def trial(cube, primitive, omega, rng, jitter=Jitter(), anchored=False, trace=No
         rot = data.xmat[body_ids].reshape(n, 3, 3)
         data.xfrc_applied[body_ids] = magnets.wrench(pos, rot)
         mujoco.mj_step(model, data)
+        if watch is not None:
+            watch(model, data)
         if trace is not None and int(round(data.time / DT)) % 50 == 0:
             trace.append((data.time, data.xpos[body_ids].copy() / cube.side, data.xmat[body_ids].reshape(n, 3, 3).copy()))
         if data.time > BRAKE_AT + 0.05:
