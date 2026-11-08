@@ -7,8 +7,10 @@ mixed with the play captions it was trained on, starting from a trained policy (
 overfit: a few fixed (scene, instruction) pairs from different families, their expert episodes
 recorded in memory, the policy trained on exactly those, then rolled out on exactly those: if its
 score on them does not rise well above the starting policy's, a larger run will not help.
-train: demonstrations from an expert store plus play captions (caption_share of each batch),
-scored with lm_rl's generalist scorecard (in-distribution families and held-out splits).
+train: demonstrations from expert stores plus play captions (caption_share of each batch), with
+held-out demonstrations, weight decay and distillation of the frozen LM on general text; every
+evaluation logs the held-out demonstration loss, the generalist scorecard, the grounding tests and
+the language scores, and keeps a checkpoint.
 """
 
 import argparse
@@ -128,55 +130,139 @@ def overfit(args):
         print("greedy (argmax moves):", dict(zip([t.family for _, t in pairs], greedy)), flush=True)
 
 
+def fresh_policy(model, lora_rank, device):
+    """A new LoRA policy on a pretrained LM (no earlier behaviour training): for size comparisons."""
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    from beebot.vla.lm_policy import LMPolicy
+
+    tokenizer = AutoTokenizer.from_pretrained(model)
+    tokenizer.padding_side = "right"
+    lm = AutoModelForCausalLM.from_pretrained(model, dtype=torch.float16 if device.type == "cuda" else torch.float32)
+    return LMPolicy(lm, lora_rank=lora_rank, freeze_embeddings=True).to(device), tokenizer
+
+
+def split_labels(labels, val_share):
+    """(training, held-out) labels: the last val_share of each store's episodes are held out."""
+    last = {}
+    for l in labels:
+        last[l["store"]] = max(last.get(l["store"], 0), l["e"])
+    cut = {k: (1 - val_share) * (n + 1) for k, n in last.items()}
+    return [l for l in labels if l["e"] < cut[l["store"]]], [l for l in labels if l["e"] >= cut[l["store"]]]
+
+
 def train(args):
-    from beebot.vla.lm_train import Captions
+    """Long behaviour cloning with what it takes to see the whole curve and not lose old skills:
+    held-out demonstrations (their loss next to the training loss), weight decay, rehearsal of the
+    play captions, distillation of the frozen LM on general text, and at every evaluation the task
+    scorecard, the grounding tests and the language scores, with a checkpoint each time."""
+    from types import SimpleNamespace
+
+    from beebot.vla import grounding
+    from beebot.vla.lm_probe import probe_items
+    from beebot.vla.lm_rl import scorecard
+    from beebot.vla.lm_train import Captions, distill_loss, general_text, language
+    from beebot.vla.train import Config, load_data
 
     device = torch.device(args.device)
-    cfg = RLConfig(init_run=args.init_run, checkpoint=args.checkpoint, eval_tasks=args.eval_tasks, eval_steps=64, eval_guidance=2.0)
-    policy, tokenizer = load_policy(cfg, device)
+    amp = device.type == "cuda"
+    cfg = RLConfig(init_run=args.init_run, checkpoint=args.checkpoint, eval_tasks=args.eval_tasks, eval_scenes=args.eval_scenes)
+    if args.fresh_model:
+        policy, tokenizer = fresh_policy(args.fresh_model, args.lora_rank, device)
+        base = {"model": args.fresh_model, "lora_rank": args.lora_rank, "freeze_embeddings": True}
+    else:
+        policy, tokenizer = load_policy(cfg, device)
+        base = {k: v for k, v in json.loads((Path(args.init_run) / "config.json").read_text()).items() if k != "expert_sft"}
     run_dir = Path("runs") / args.name
     run_dir.mkdir(parents=True, exist_ok=True)
-    base = {k: v for k, v in json.loads((Path(args.init_run) / "config.json").read_text()).items() if k != "expert_sft"}
     (run_dir / "config.json").write_text(json.dumps({**base, "expert_sft": vars(args)}, indent=1))
-    stores = [load_play_cache(path) for path in args.store.split(",")]
-    labels = [{**json.loads(l), "store": k} for k, path in enumerate(args.store.split(",")) for l in open(Path(path) / "labels.jsonl")]
-    play = load_play_cache(args.play_cache) if args.caption_share else None
+    stores = [load_play_cache(path) for path in args.store]
+    labels = [{**json.loads(l), "store": k} for k, path in enumerate(args.store) for l in open(Path(path) / "labels.jsonl")]
+    train_labels, val_labels = split_labels(labels, args.val_share)
+    play = load_play_cache(args.play_cache)
     captions = Captions(args.captions, play, tokenizer, 128, 128) if args.caption_share else None
+    _, _, _, _, _, test_windows = load_data(Config(grid=32, data="play", play_cache=args.play_cache, val_windows=128, test_windows=512), "cpu")
+    trials = grounding.make_trials(play, test_windows, args.eval_scenes)
+    text_cfg = SimpleNamespace(general=args.general, lm_length=args.lm_length, gsm8k_share=0.2, instruct_share=0.3, seed=args.seed, gsm8k_problems=50)
+    text_chunks, held_text, _ = general_text(text_cfg, tokenizer)  # held-out text: perplexity is the forgetting signal
+    probe = {"world_probe": probe_items()}
     suite = make_suite(cfg)
-    optimizer = optimizer_for(policy, args.lr_lm, args.lr_new)
+    optimizer = torch.optim.AdamW([{"params": policy.lm_parameters(), "lr": args.lr_lm}, {"params": policy.new_parameters(), "lr": args.lr_new}], weight_decay=args.weight_decay)
+    params = [p for g in optimizer.param_groups for p in g["params"]]
+    scaler = torch.amp.GradScaler("cuda", enabled=amp)
     py_rng, generator = random.Random(args.seed), torch.Generator().manual_seed(args.seed)
     history = open(run_dir / "history.jsonl", "a")
+    print(f"{len(train_labels)} training and {len(val_labels)} held-out demonstrations over {len(stores)} store(s)", flush=True)
+
+    def autocast():
+        return torch.autocast(device.type, dtype=torch.float16, enabled=amp)
 
     def log(row):
         print(json.dumps(row), flush=True)
         history.write(json.dumps(row) + "\n")
         history.flush()
 
+    def demo_loss(batch, null=None):
+        obs, actions, weights, texts = batch
+        ids, mask = tokens(tokenizer, texts, device)
+        with autocast():
+            return policy.policy_loss(obs, actions, weights, text_ids=ids, text_mask=mask, null=null)
+
+    @torch.no_grad()
+    def held_out_loss():
+        policy.eval()
+        out = float(np.mean([demo_loss(demo_batch(stores, val_labels, args.batch, random.Random(k), torch.Generator().manual_seed(k), device)).item() for k in range(args.val_batches)]))
+        train_part = float(np.mean([demo_loss(demo_batch(stores, train_labels, args.batch, random.Random(1000 + k), torch.Generator().manual_seed(1000 + k), device)).item() for k in range(args.val_batches)]))
+        policy.train()
+        return out, train_part
+
     def evaluate(step, minutes):
-        log({"step": step, "minutes": round(minutes, 1), "general": generalist_card(policy, tokenizer, cfg, device, suite)})
+        val, train_fixed = held_out_loss()
+        with autocast():
+            card = generalist_card(policy, tokenizer, cfg, device, suite)
+            ground = scorecard(policy, tokenizer, play, trials, cfg, device)
+        lang = language(policy, tokenizer, held_text, probe, None, device, with_gsm=False)
+        log({"step": step, "minutes": round(minutes, 1), "demo_val_loss": round(val, 4), "demo_train_loss_fixed": round(train_fixed, 4), "language": lang, "grounding": ground, "general": card})
         trainable = {n for n, p in policy.named_parameters() if p.requires_grad}
-        torch.save({k: v.half() for k, v in policy.state_dict().items() if k in trainable}, run_dir / "policy_latest.pt")
+        weights = {k: v.half() for k, v in policy.state_dict().items() if k in trainable}
+        torch.save(weights, run_dir / "policy_latest.pt")
+        torch.save(weights, run_dir / f"policy_step{step}.pt")
 
     evaluate(0, 0.0)
-    t0, eval_seconds, next_eval, losses = time.time(), 0.0, args.eval_every_minutes * 60, []
-    for step in range(1, 10**9):
+    t0, eval_seconds, next_eval = time.time(), 0.0, args.eval_every_minutes * 60
+    losses, kls = [], []
+    step = 0
+    while True:
         elapsed = time.time() - t0 - eval_seconds
         if elapsed > args.minutes * 60:
             break
+        step += 1
         fraction = min(elapsed / (args.minutes * 60), 1.0)
-        for g, base in zip(optimizer.param_groups, (args.lr_lm, args.lr_new)):
-            g["lr"] = base * min(1.0, step / args.warmup_steps) * 0.5 * (1 + math.cos(math.pi * fraction))
+        for g, base_lr in zip(optimizer.param_groups, (args.lr_lm, args.lr_new)):
+            g["lr"] = base_lr * min(1.0, step / args.warmup_steps) * (0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * fraction)))
+        optimizer.zero_grad(set_to_none=True)
         n_caption = int(round(args.batch * args.caption_share))
-        losses.append(sft_step(policy, optimizer, tokenizer, demo_batch(stores, labels, args.batch - n_caption, py_rng, generator, device), device))
+        null = torch.rand(args.batch - n_caption, device=device) < args.null_prob
+        loss = demo_loss(demo_batch(stores, train_labels, args.batch - n_caption, py_rng, generator, device), null)
+        scaler.scale(loss).backward()
+        losses.append(loss.item())
         if n_caption:
             obs, actions, weights, ids, mask = captions.sample(play, n_caption, generator, device)
-            loss = policy.policy_loss(obs, actions, weights, text_ids=ids, text_mask=mask)
-            optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_([p for g in optimizer.param_groups for p in g["params"]], 1.0)
-            optimizer.step()
+            with autocast():
+                c_loss = policy.policy_loss(obs, actions, weights, text_ids=ids, text_mask=mask)
+            scaler.scale(c_loss * n_caption / (args.batch - n_caption)).backward()
+        if args.distill_weight:
+            chunk = torch.stack([next(text_chunks) for _ in range(args.lm_batch)]).to(device)
+            with autocast():
+                kl = distill_loss(policy.lm, None, chunk)
+            scaler.scale(args.distill_weight * kl).backward()
+            kls.append(kl.item())
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(params, 1.0)
+        scaler.step(optimizer)
+        scaler.update()
         if step % 50 == 0:
-            log({"step": step, "minutes": round(elapsed / 60, 1), "demo_loss": round(float(np.mean(losses[-50:])), 4)})
+            log({"step": step, "minutes": round(elapsed / 60, 1), "demo_loss": round(float(np.mean(losses[-50:])), 4), **({"distill_kl": round(float(np.mean(kls[-50:])), 5)} if kls else {})})
         if elapsed >= next_eval:
             t_eval = time.time()
             evaluate(step, elapsed / 60)
@@ -189,12 +275,24 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["overfit", "train"])
     parser.add_argument("--name", default="lm-expert-sft")
-    parser.add_argument("--store", default="data/vla/experts_g32", help="train: one or more expert stores, comma-separated")
+    parser.add_argument("--store", nargs="+", default=["data/vla/experts_g32"], help="train: one or more expert stores")
     parser.add_argument("--init_run", default=C1, help="train: the run to start from (its config.json and checkpoint)")
     parser.add_argument("--checkpoint", default="policy_best.pt")
+    parser.add_argument("--fresh_model", default="", help="train: start from this pretrained LM with a new LoRA instead of init_run (size comparisons)")
+    parser.add_argument("--lora_rank", type=int, default=64)
     parser.add_argument("--play_cache", default="data/vla/play_cache_g32")
+    parser.add_argument("--play_root", default="", help="accepted for the Kaggle kernel's arguments; the cache is what is read")
     parser.add_argument("--captions", default="data/vla/kaggle_play/captions_g32.jsonl")
     parser.add_argument("--caption_share", type=float, default=0.25)
+    parser.add_argument("--general", default="hf", help="general text for distillation: hf (FineWeb-Edu, GSM8K, chats) or a local text file")
+    parser.add_argument("--distill_weight", type=float, default=1.0)
+    parser.add_argument("--lm_batch", type=int, default=2)
+    parser.add_argument("--lm_length", type=int, default=256)
+    parser.add_argument("--weight_decay", type=float, default=0.05)
+    parser.add_argument("--null_prob", type=float, default=0.1)
+    parser.add_argument("--val_share", type=float, default=0.05, help="train: last share of each store's episodes held out")
+    parser.add_argument("--val_batches", type=int, default=8)
+    parser.add_argument("--eval_scenes", type=int, default=32, help="train: grounding test scenes")
     parser.add_argument("--tasks", type=int, default=4)
     parser.add_argument("--families", default="", help="overfit: comma-separated families (default: the first --tasks of place, logic, formation, parallel, herd, runner)")
     parser.add_argument("--probe", action="store_true", help="overfit: also score under other guidance, lengths and greedy moves")
