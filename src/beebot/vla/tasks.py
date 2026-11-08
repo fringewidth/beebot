@@ -269,6 +269,8 @@ def logic(rng, held):
         rng.shuffle(p)
         everything = set(present)
         spec = {"eat": set(), "any_of": set(), "order": [], "forbid": set()}
+        if not p and form not in ("none", "absent"):  # a scene without cheeses (only possible when another family's scene is reused)
+            return None
         if form in ("except", "or", "and", "ordered", "neither", "all_but_two") and len(p) < (3 if form in ("neither", "all_but_two") else 2):
             return None
         if form == "single":
