@@ -29,10 +29,11 @@ from beebot.hardware import physics
 from beebot.hardware.design import Design, describe
 from beebot.vla.voxel import controller
 from beebot.vla.voxel import suite as S
-from beebot.vla.voxel.world import COLOUR_NAMES, step as voxel_step
+from beebot.vla.voxel.world import COLOUR_NAMES, DIR_TABLE, N_ACTIONS, STAY, cheese_id_map, flat_index, step as voxel_step
 
 N_TASKS = 192
 SEED = 0
+JITTER = 0.1  # the controller's share of random moves; the greedy expert stalls without them
 DECK_REACH = 2
 
 
@@ -63,13 +64,34 @@ def task_sample(n=N_TASKS, seed=SEED):
     return world, metas, [anchor_bridge(t, m) for t, m in zip(tasks, metas)]
 
 
+def careless(world, codes, share):
+    """Replace a share of the robots' actions with random ones (as the controller's jitter), except
+    that a random move never presses on a cheese: with designs that push hard, a stray press would
+    shove the cheese, an operator's slip rather than the hardware's doing."""
+    if share <= 0:
+        return codes
+    b, d, h, w = world.mass.shape
+    robots, scene, here = controller.robot_list(world)
+    pick = torch.rand(len(robots)) < share
+    move = torch.randint(N_ACTIONS, (len(robots),))
+    flat, inside = flat_index(here + DIR_TABLE[move], (d, h, w))
+    onto = inside & (cheese_id_map(world).reshape(b, -1)[scene, flat] >= 0)
+    move = torch.where(onto, STAY, move)
+    codes = codes.clone()
+    codes.view(-1)[robots[pick]] = move[pick].to(codes.dtype)
+    return codes
+
+
 @contextmanager
-def limited_expert(cap):
-    """The suite's expert, choosing only among moves the design can make."""
+def limited_expert(cap, jitter):
+    """The suite's expert, choosing only among moves the design can make (cap None: any), with
+    the given share of random moves."""
     original = S.act
 
     def act(world, *args, **kwargs):
-        return controller.act(world, *args, allowed=physics.allowed_moves(world, cap), **kwargs)
+        allowed = None if cap is None else physics.allowed_moves(world, cap)
+        kwargs.pop("jitter", None)
+        return careless(world, controller.act(world, *args, allowed=allowed, jitter=0.0, **kwargs), jitter)
 
     S.act = act
     try:
@@ -78,9 +100,20 @@ def limited_expert(cap):
         S.act = original
 
 
-def rollout(world, metas, tasks, cap, steps=S.EPISODE_STEPS, seed=SEED):
+def land(world, cap):
+    """Rotors off: settle the end state under gravity without thrust until nothing moves."""
+    grounded = replace(cap, thrust=0.0)
+    for _ in range(world.mass.shape[1]):
+        after = physics.settle(world, grounded)
+        if torch.equal(after.mass, world.mass) and torch.equal(after.cheese_pos, world.cheese_pos):
+            break
+        world = after
+    return world
+
+
+def rollout(world, metas, tasks, cap, steps=S.EPISODE_STEPS, seed=SEED, jitter=JITTER):
     """Run the expert on every task under the design's physics (cap None: the voxel world's own
-    rules). Returns per task (score, unasked)."""
+    rules), land, and score. Returns per task (score, unasked)."""
     generator = torch.Generator().manual_seed(seed)
     runners = torch.zeros(world.cheese_alive.shape, dtype=torch.bool)
     for i, task in enumerate(tasks):
@@ -92,17 +125,18 @@ def rollout(world, metas, tasks, cap, steps=S.EPISODE_STEPS, seed=SEED):
     for t in range(steps):
         before = world.cheese_alive.clone()
         score = torch.rand(world.mass.shape, generator=generator)
-        if cap is None:
+        with limited_expert(cap, jitter):
             codes = expert(world, t)
+        if cap is None:
             world, _ = voxel_step(world, codes.long(), score)
         else:
-            with limited_expert(cap):
-                codes = expert(world, t)
             world, _ = physics.step(world, codes.long(), cap, score, memory)
         if runners.any() and (t + 1) % S.RUNNER_PERIOD == 0:
             world = replace(world, cheese_pos=S.flee(world, runners))
         for i, k in (before & ~world.cheese_alive).nonzero().tolist():
             eaten[i].append(COLOUR_NAMES[int(world.cheese_color[i, k])])
+    if cap is not None:
+        world = land(world, cap)
     results = []
     for i, task in enumerate(tasks):
         static = {"walls": start.walls[i].numpy(), "cheese_color": start.cheese_color[i].tolist(), "gravity": True, "meta": metas[i]}
@@ -121,14 +155,14 @@ def work_score(results, tasks):
     return float(values.mean()), families
 
 
-def evaluate(cap, n=N_TASKS, seed=SEED, batch=64):
+def evaluate(cap, n=N_TASKS, seed=SEED, batch=64, jitter=JITTER):
     torch.manual_seed(seed)  # the controller's jitter draws from the global generator
     world, metas, tasks = task_sample(n, seed)
     results = []
     for lo in range(0, n, batch):
         idx = list(range(lo, min(lo + batch, n)))
         sub = world.index(torch.tensor(idx))
-        results += rollout(sub, [metas[i] for i in idx], [tasks[i] for i in idx], cap, seed=seed + lo)
+        results += rollout(sub, [metas[i] for i in idx], [tasks[i] for i in idx], cap, seed=seed + lo, jitter=jitter)
     return work_score(results, tasks)
 
 
