@@ -619,11 +619,13 @@ def score(task, scene, frames, eaten, found=None):
 
 
 @torch.no_grad()
-def run(sample, condition, scenes, tasks, steps, device, keep_steps=(), outcomes=False):
+def run(sample, condition, scenes, tasks, steps, device, keep_steps=(), outcomes=False, replan=None):
     """Roll out a batch: sample(obs, cond) -> per-square moves (B, ...) and the field to apply,
     as (moves, field); condition(texts) -> cond. Returns per episode (score, unasked), and for the
     steps in keep_steps the (obs, moves) pairs (CPU); with outcomes, also per episode (frames,
-    eaten) for scoring other instructions on the same episode (relabel)."""
+    eaten) for scoring other instructions on the same episode (relabel). replan(t, world, eaten)
+    -> the texts to condition on from step t, or None to keep the current ones (plans.py); the
+    tasks are still scored on their own instructions."""
     world, runners = stack(scenes)
     world, runners = world.to(device), runners.to(device)
     cond = condition([t.text for t in tasks])
@@ -632,6 +634,9 @@ def run(sample, condition, scenes, tasks, steps, device, keep_steps=(), outcomes
     alive_before = world.cheese_alive.cpu()
     kept = []
     for t in range(steps):
+        texts = replan(t, world, eaten) if replan is not None else None
+        if texts is not None:
+            cond = condition(texts)
         obs = observe(world)
         moves, field = sample(obs, cond)
         if t in keep_steps:
