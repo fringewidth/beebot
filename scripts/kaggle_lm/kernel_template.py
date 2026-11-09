@@ -60,6 +60,28 @@ def resolve(name):
 
 
 RUNS = [[resolve(a[len("@input/") :]) if a.startswith("@input/") else a for a in args] for args in RUNS]
+
+
+def local(path):
+    """An expert store on the input mount, copied once to local disk: the trainer memory-maps it and
+    reads at random, which from the mount is several times slower until the page cache is warm
+    (the 30k-demo run lost its first two hours to it)."""
+    if not path.startswith("/kaggle/input/"):
+        return path
+    target = "/tmp/stores/" + path.rstrip("/").rsplit("/", 1)[1]
+    if not os.path.exists(target):
+        shutil.copytree(path, target)
+    return target
+
+
+t_copy = time.time()
+for args in RUNS:
+    if "--store" in args:
+        i = args.index("--store") + 1
+        while i < len(args) and not args[i].startswith("--"):
+            args[i] = local(args[i])
+            i += 1
+print(f"expert stores on local disk in {time.time() - t_copy:.0f} s", flush=True)
 print(f"play root {play_root}, captions {captions}, found in {time.time() - t_setup:.0f} s", flush=True)
 import torch, transformers  # noqa: E402
 
