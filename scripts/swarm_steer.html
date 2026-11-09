@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swarm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07090c;
+    --panel: #0d1116;
+    --ink: #d9e2ea;
+    --muted: #6c7a87;
+    --faint: #2a333d;
+    --accent: #9fe7ff;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; font-weight: 300; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; overflow-x: hidden; }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 40%, rgba(80, 140, 170, 0.07), transparent 60%); }
+  .frame { width: min(640px, 100%, max(300px, calc(100vh - 250px))); position: relative; }
+  .bar { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .bar .name { color: var(--ink); }
+  .bar button { background: none; border: none; color: var(--muted); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; padding: 0 0 0 14px; }
+  .bar button:hover { color: var(--ink); }
+  .stage { position: relative; width: 100%; aspect-ratio: 1; border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); overflow: hidden; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .corner { position: absolute; width: 10px; height: 10px; border-color: rgba(159, 231, 255, 0.35); border-style: solid; }
+  .tl { top: 6px; left: 6px; border-width: 1px 0 0 1px; } .tr { top: 6px; right: 6px; border-width: 1px 1px 0 0; }
+  .bl { bottom: 6px; left: 6px; border-width: 0 0 1px 1px; } .br { bottom: 6px; right: 6px; border-width: 0 1px 1px 0; }
+  .status { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 10px; min-height: 16px; letter-spacing: 0.06em; }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--faint); margin-right: 8px; vertical-align: 1px; }
+  .running .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  #events span { margin-left: 12px; animation: fade 2.6s forwards; }
+  @keyframes fade { 0% { opacity: 0; } 10% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+  form { margin-top: 18px; display: flex; align-items: center; border-bottom: 1px solid var(--faint); transition: border-color 0.3s; }
+  form:focus-within { border-color: rgba(159, 231, 255, 0.5); }
+  form .prompt { font-family: var(--mono); color: var(--accent); margin-right: 10px; opacity: 0.8; }
+  input { flex: 1; background: none; border: none; outline: none; color: var(--ink); font: 400 17px/1.2 Inter, system-ui, sans-serif; padding: 12px 0; min-width: 0; }
+  input::placeholder { color: #4a5663; }
+  .hint { margin-top: 12px; font-size: 14px; color: var(--muted); min-height: 20px; }
+  .hint button { background: none; border: none; padding: 0; font: inherit; color: var(--ink); cursor: pointer; border-bottom: 1px dotted var(--muted); }
+  .hint button:hover { color: var(--accent); border-color: var(--accent); }
+  .note { margin-top: 28px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: #3c4651; text-align: center; padding: 0 16px; }
+  .message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="bar"><span class="name">Swarm</span><span><span id="units">—</span><button id="sound" type="button">sound off</button><button id="reset" type="button">new field</button></span></div>
+  <div class="stage">
+    <canvas id="trail"></canvas><canvas id="view"></canvas>
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+    <div class="message" id="message">connecting</div>
+  </div>
+  <div class="status" id="status"><span><span class="dot"></span><span id="state">idle</span></span><span id="events"></span></div>
+  <form id="form" autocomplete="off"><span class="prompt">&rsaquo;</span><input id="input" maxlength="140" placeholder="tell the swarm what to do" aria-label="Instruction"></form>
+  <div class="hint" id="hint"></div>
+</div>
+<div class="note">one language model steers every robot, step by step, from your words</div>
+<script>
+const N = 32;
+const $ = (id) => document.getElementById(id);
+const view = $("view"), trail = $("trail");
+const ctx = view.getContext("2d"), tctx = trail.getContext("2d");
+let sid = null, palette = null, walls = null, boxes = [], prev = null, curr = null, cheeses = [], lastT = -1, tickAt = 0, tickGap = 140;
+try { sid = localStorage.getItem("swarm-sid"); } catch (e) {}
+
+function size() {
+  const px = Math.round(view.clientWidth * devicePixelRatio);
+  for (const c of [view, trail]) { if (c.width !== px) { c.width = px; c.height = px; } }
+  return px;
+}
+function rgb(name, a) { const c = palette.rgb[name] || [1, 1, 1]; return `rgba(${c.map((v) => Math.round(v * 255)).join(",")},${a})`; }
+function colourName(i) { return palette.colours[i]; }
+
+function draw(now) {
+  requestAnimationFrame(draw);
+  if (!walls || !curr) return;
+  const px = size(), cell = px / N;
+  const k = Math.min(1, (now - tickAt) / tickGap);
+  ctx.clearRect(0, 0, px, px);
+  // grid points
+  ctx.fillStyle = "rgba(120,150,170,0.10)";
+  for (let y = 1; y < N; y++) for (let x = 1; x < N; x++) ctx.fillRect(x * cell - 0.75, y * cell - 0.75, 1.5, 1.5);
+  // walls
+  for (let i = 0; i < N * N; i++) if (walls[i] === "1") {
+    const x = (i % N) * cell, y = Math.floor(i / N) * cell;
+    ctx.fillStyle = "#151b22"; ctx.fillRect(x, y, cell + 0.5, cell + 0.5);
+    ctx.fillStyle = "rgba(255,255,255,0.025)"; ctx.fillRect(x, y, cell, cell * 0.18);
+  }
+  // boxes: [y, x, height, width, colour]
+  for (const b of boxes) {
+    const [y0, x0, bh, bw, c] = b, name = colourName(c);
+    ctx.fillStyle = rgb(name, 0.06); ctx.fillRect(x0 * cell, y0 * cell, bw * cell, bh * cell);
+    ctx.strokeStyle = rgb(name, 0.55); ctx.lineWidth = Math.max(1, cell * 0.08); ctx.setLineDash([cell * 0.5, cell * 0.3]);
+    ctx.strokeRect(x0 * cell, y0 * cell, bw * cell, bh * cell); ctx.setLineDash([]);
+  }
+  // cheeses: [y, x, colour], 4 x 4 squares at this grid
+  const side = Math.max(2, N / 8);
+  for (const [y, x, c] of cheeses) {
+    const name = colourName(c), pad = cell * 0.18;
+    ctx.shadowColor = rgb(name, 0.8); ctx.shadowBlur = cell * 1.2;
+    ctx.fillStyle = rgb(name, 0.92);
+    roundRect(ctx, x * cell + pad, y * cell + pad, side * cell - 2 * pad, side * cell - 2 * pad, cell * 0.5); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  // robots: fade between the last two states
+  const r = cell * 0.3;
+  ctx.shadowColor = "rgba(159,231,255,0.9)"; ctx.shadowBlur = cell * 0.9;
+  for (let i = 0; i < N * N; i++) {
+    const was = prev && prev[i] === "1", is = curr[i] === "1";
+    if (!was && !is) continue;
+    const a = was && is ? 1 : is ? k : 1 - k;
+    if (a <= 0.02) continue;
+    ctx.fillStyle = `rgba(214,244,255,${0.92 * a})`;
+    ctx.beginPath(); ctx.arc((i % N + 0.5) * cell, (Math.floor(i / N) + 0.5) * cell, r, 0, 2 * Math.PI); ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+}
+function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function stampTrail() {
+  const px = size(), cell = px / N;
+  tctx.fillStyle = "rgba(13,17,22,0.22)"; tctx.fillRect(0, 0, px, px);
+  tctx.fillStyle = "rgba(120,200,235,0.16)";
+  for (let i = 0; i < N * N; i++) if (curr[i] === "1") tctx.fillRect((i % N + 0.3) * cell, (Math.floor(i / N) + 0.3) * cell, cell * 0.4, cell * 0.4);
+}
+
+// --- sound: synthesized, quiet, off until asked for ---
+let audio = null, soundOn = false;
+let soundPref = null; try { soundPref = localStorage.getItem("swarm-sound"); } catch (e) {}
+soundOn = soundPref !== "off";  // on unless turned off; audio starts at the first click or key
+function ensureAudio() {
+  if (audio || !soundOn) return audio;
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ac.createGain(); master.gain.value = 0.9;
+  const comp = ac.createDynamicsCompressor(); master.connect(comp); comp.connect(ac.destination);
+  const delay = ac.createDelay(1); delay.delayTime.value = 0.23; const fb = ac.createGain(); fb.gain.value = 0.32;
+  const wet = ac.createGain(); wet.gain.value = 0.35; delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(master);
+  // a low pad that swells while the swarm is moving
+  const pad = ac.createGain(); pad.gain.value = 0; const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 260; lp.Q.value = 6;
+  for (const [f, type, g] of [[55, "sawtooth", 0.5], [82.4, "sine", 0.7], [110.3, "triangle", 0.25]]) {
+    const o = ac.createOscillator(); o.type = type; o.frequency.value = f; const og = ac.createGain(); og.gain.value = g; o.connect(og); og.connect(lp); o.start();
+  }
+  const lfo = ac.createOscillator(); lfo.frequency.value = 0.09; const lfoGain = ac.createGain(); lfoGain.gain.value = 140; lfo.connect(lfoGain); lfoGain.connect(lp.frequency); lfo.start();
+  lp.connect(pad); pad.connect(master);
+  const noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  audio = { ac, master, delay, pad, noise };
+  return audio;
+}
+function tone(freqs, dur, type, gain, toDelay) {
+  const a = ensureAudio(); if (!a) return;
+  const t = a.ac.currentTime;
+  freqs.forEach(([f0, f1], i) => {
+    const o = a.ac.createOscillator(), g = a.ac.createGain(); o.type = type;
+    o.frequency.setValueAtTime(f0, t + i * 0.06); o.frequency.exponentialRampToValueAtTime(f1, t + i * 0.06 + dur);
+    g.gain.setValueAtTime(0.0001, t + i * 0.06); g.gain.exponentialRampToValueAtTime(gain, t + i * 0.06 + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.06 + dur);
+    o.connect(g); g.connect(a.master); if (toDelay) g.connect(a.delay); o.start(t + i * 0.06); o.stop(t + i * 0.06 + dur + 0.05);
+  });
+}
+function shimmer(moved) {
+  const a = ensureAudio(); if (!a || moved === 0) return;
+  const t = a.ac.currentTime, src = a.ac.createBufferSource(); src.buffer = a.noise;
+  const bp = a.ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2400 + Math.random() * 2600; bp.Q.value = 9;
+  const g = a.ac.createGain(); const level = Math.min(1, moved / 80) * 0.11;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(level + 0.0001, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+  src.connect(bp); bp.connect(g); g.connect(a.master); g.connect(a.delay); src.start(t, Math.random() * 0.8, 0.15);
+}
+function swell(on) { const a = ensureAudio(); if (!a) return; a.pad.gain.setTargetAtTime(on ? 0.05 : 0, a.ac.currentTime, on ? 0.6 : 1.2); }
+const sounds = {
+  command: () => tone([[300, 900], [450, 1350]], 0.28, "sine", 0.06, true),
+  eat: () => tone([[880, 880], [1318, 1318]], 0.16, "triangle", 0.07, true),
+  reset: () => tone([[700, 140]], 0.5, "sine", 0.04, true),
+  done: () => tone([[523, 523], [392, 392]], 0.22, "sine", 0.04, true),
+};
+function setSound(on) {
+  soundOn = on; try { localStorage.setItem("swarm-sound", on ? "on" : "off"); } catch (e) {}
+  $("sound").textContent = on ? "sound on" : "sound off";
+  if (on) { ensureAudio(); audio.ac.resume(); audio.master.gain.value = 0.9; swell(running); } else if (audio) audio.master.gain.value = 0;
+}
+$("sound").onclick = () => setSound(!soundOn);
+$("sound").textContent = soundOn ? "sound on" : "sound off";
+
+// --- server ---
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const data = await r.json(); if (!r.ok) throw Object.assign(new Error(data.error || "error"), { status: r.status }); return data;
+}
+let running = false, polling = false;
+function apply(f) {
+  if (f.t !== lastT) {
+    const moved = curr ? [...f.mass].reduce((n, ch, i) => n + (ch !== curr[i] ? 1 : 0), 0) : 0;
+    prev = curr; curr = f.mass; cheeses = f.cheeses; tickGap = Math.max(60, Math.min(400, performance.now() - tickAt)); tickAt = performance.now(); lastT = f.t;
+    stampTrail(); if (running) shimmer(moved);
+  }
+  $("units").textContent = `${[...f.mass].filter((c) => c === "1").length} units`;
+  if (f.running !== running) { running = f.running; swell(running); }
+  $("status").classList.toggle("running", running);
+  $("state").textContent = running ? `executing · ${f.command}` : "idle";
+  for (const e of f.events) {
+    if (e === "done") { sounds.done(); continue; }
+    const s = document.createElement("span"); s.textContent = e; $("events").appendChild(s); setTimeout(() => s.remove(), 2600); sounds.eat();
+  }
+  hint(f.suggestion, f.first);
+}
+function hint(text, first) {
+  const h = $("hint"); h.innerHTML = "";
+  if (!text) return;
+  h.append(first ? "try " : "next, try ");
+  const b = document.createElement("button"); b.type = "button"; b.textContent = `“${text}”`;
+  b.onclick = () => { $("input").value = text; send(text); }; h.append(b);
+}
+async function fresh() {
+  $("message").textContent = "";
+  try {
+    const f = await api("/api/new", { sid });
+    sid = f.sid; try { localStorage.setItem("swarm-sid", sid); } catch (e) {}
+    walls = f.walls; boxes = f.boxes; prev = null; curr = null; lastT = -1;
+    tctx.clearRect(0, 0, trail.width, trail.height); apply(f); sounds.reset();
+  } catch (e) { $("message").textContent = e.message; }
+}
+async function send(text) {
+  ensureAudio(); if (audio) audio.ac.resume();
+  try { apply(await api("/api/command", { sid, text })); sounds.command(); }
+  catch (e) { if (e.status === 404) { await fresh(); } }
+}
+async function poll() {
+  if (polling || !sid || !walls) return; polling = true;
+  try { apply(await api(`/api/frame?sid=${encodeURIComponent(sid)}`)); }
+  catch (e) { if (e.status === 404) await fresh(); }
+  finally { polling = false; }
+}
+document.addEventListener("pointerdown", () => { ensureAudio(); if (audio) audio.ac.resume(); }, { once: true });
+document.addEventListener("keydown", () => { ensureAudio(); if (audio) audio.ac.resume(); }, { once: true });
+$("form").onsubmit = (e) => { e.preventDefault(); const text = $("input").value.trim(); if (text) send(text); $("input").select(); };
+$("reset").onclick = fresh;
+(async () => {
+  try { palette = await api("/api/palette"); } catch (e) { $("message").textContent = "the swarm is offline"; return; }
+  await fresh(); setInterval(poll, 90); requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
