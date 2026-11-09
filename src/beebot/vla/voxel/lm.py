@@ -106,6 +106,7 @@ class VoxConfig:
     wall_minutes: float = 0.0  # > 0: stop training this long after the process started (Kaggle's 12 h cap)
     lora_rank: int = 64
     init_lora: str = ""  # a 2D LM policy checkpoint (lm_train's policy_best.pt): start from its LoRA weights (2D -> 3D transfer)
+    init_policy: str = ""  # a voxel policy checkpoint (a voxel.lm run's policy_latest.pt): continue from all its trainable weights
     batch: int = 16
     lr_lm: float = 2e-4
     lr_new: float = 3e-4
@@ -271,6 +272,12 @@ def run():
         assert lora and all(k in own and own[k].shape == v.shape for k, v in lora.items()), "init_lora: no matching LoRA weights"
         policy.load_state_dict(lora, strict=False)
         print(f"LoRA from {cfg.init_lora}: {len(lora)} tensors", flush=True)
+    if cfg.init_policy:
+        saved = torch.load(cfg.init_policy, map_location="cpu")
+        trainable = {n for n, p in policy.named_parameters() if p.requires_grad}
+        assert set(saved) == trainable, f"init_policy: trainable weights differ: {sorted(set(saved) ^ trainable)[:5]}"
+        policy.load_state_dict({k: v.float() for k, v in saved.items()}, strict=False)
+        print(f"policy from {cfg.init_policy}: {len(saved)} tensors", flush=True)
     policy = policy.to(device)
     sources = []  # (store, training labels, test labels, share of each batch)
     if cfg.store and cfg.demo_share < 1:
