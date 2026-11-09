@@ -23,7 +23,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from beebot.vla import experts, tasks
+from beebot.vla import describe, experts, tasks
 from beebot.vla.data import batch_from
 from beebot.vla.lm_policy import PATCH
 from beebot.vla.lm_rl import RLConfig, generalist_card, lm_sampler, load_policy, make_suite, tokens
@@ -223,7 +223,8 @@ def train(args):
             card = generalist_card(policy, tokenizer, cfg, device, suite)
             ground = scorecard(policy, tokenizer, play, trials, cfg, device)
         lang = language(policy, tokenizer, held_text, probe, None, device, with_gsm=False)
-        log({"step": step, "minutes": round(minutes, 1), "demo_val_loss": round(val, 4), "demo_train_loss_fixed": round(train_fixed, 4), "language": lang, "grounding": ground, "general": card})
+        scene_qa = {"describe": describe.evaluate(policy, tokenizer, stores, val_labels, device)} if args.describe_batch else {}
+        log({"step": step, "minutes": round(minutes, 1), "demo_val_loss": round(val, 4), "demo_train_loss_fixed": round(train_fixed, 4), "language": lang, "grounding": ground, "general": card, **scene_qa})
         trainable = {n for n, p in policy.named_parameters() if p.requires_grad}
         weights = {k: v.half() for k, v in policy.state_dict().items() if k in trainable}
         torch.save(weights, run_dir / "policy_latest.pt")
@@ -231,7 +232,7 @@ def train(args):
 
     evaluate(0, 0.0)
     t0, eval_seconds, next_eval = time.time(), 0.0, args.eval_every_minutes * 60
-    losses, kls = [], []
+    losses, kls, d_losses = [], [], []
     step = 0
     while True:
         elapsed = time.time() - t0 - eval_seconds
@@ -252,6 +253,11 @@ def train(args):
             with autocast():
                 c_loss = policy.policy_loss(obs, actions, weights, text_ids=ids, text_mask=mask)
             scaler.scale(c_loss * n_caption / (args.batch - n_caption)).backward()
+        if args.describe_batch:
+            with autocast():
+                d_loss = describe.loss(policy, tokenizer, describe.sample(stores, train_labels, args.describe_batch, py_rng, device), device)
+            scaler.scale(args.describe_weight * d_loss).backward()
+            d_losses.append(d_loss.item())
         if args.distill_weight:
             chunk = torch.stack([next(text_chunks) for _ in range(args.lm_batch)]).to(device)
             with autocast():
@@ -263,7 +269,7 @@ def train(args):
         scaler.step(optimizer)
         scaler.update()
         if step % 50 == 0:
-            log({"step": step, "minutes": round(elapsed / 60, 1), "demo_loss": round(float(np.mean(losses[-50:])), 4), **({"distill_kl": round(float(np.mean(kls[-50:])), 5)} if kls else {})})
+            log({"step": step, "minutes": round(elapsed / 60, 1), "demo_loss": round(float(np.mean(losses[-50:])), 4), **({"distill_kl": round(float(np.mean(kls[-50:])), 5)} if kls else {}), **({"describe_loss": round(float(np.mean(d_losses[-50:])), 4)} if d_losses else {})})
         if elapsed >= next_eval:
             t_eval = time.time()
             evaluate(step, elapsed / 60)
@@ -290,6 +296,8 @@ def main():
     parser.add_argument("--lm_batch", type=int, default=2)
     parser.add_argument("--lm_length", type=int, default=256)
     parser.add_argument("--weight_decay", type=float, default=0.05)
+    parser.add_argument("--describe_batch", type=int, default=0, help="train: scene questions per step (describe.py): the text attends to the scene tokens and answers which cheeses are present or were eaten")
+    parser.add_argument("--describe_weight", type=float, default=1.0)
     parser.add_argument("--null_prob", type=float, default=0.1)
     parser.add_argument("--val_share", type=float, default=0.05, help="train: last share of each store's episodes held out")
     parser.add_argument("--val_batches", type=int, default=8)
