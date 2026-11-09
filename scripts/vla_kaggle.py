@@ -97,7 +97,7 @@ def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None
         # A previous kernel's outputs (checkpoints) mounted under /kaggle/input.
         meta["kernel_sources"] = [f"{user}/{from_kernel}"]
     if from_dataset:
-        meta["dataset_sources"].append(from_dataset if "/" in from_dataset else f"{owner}/{from_dataset}")
+        meta["dataset_sources"] += [d if "/" in d else f"{owner}/{d}" for d in from_dataset.split(",")]
     (kernel / "kernel-metadata.json").write_text(json.dumps(meta))
     kaggle("kernels", "push", "-p", str(kernel))
 
@@ -112,7 +112,7 @@ def main():
     parser.add_argument("--ddp", action="store_true", help="lm-run: one run on both GPUs (torchrun)")
     parser.add_argument("--module", default="beebot.vla.lm_train", help="lm-run: the trainer module (beebot.vla.lm_rl for RL)")
     parser.add_argument("--play", action="store_true", help="run: train on the play data and caption set (datasets beebot-play-g32, beebot-caption-set-g32)")
-    parser.add_argument("--from-dataset", help="lm-run: mount this dataset too (e.g. checkpoints of a cancelled kernel, which Kaggle will not mount)")
+    parser.add_argument("--from-dataset", help="lm-run: mount these datasets too, comma-separated (e.g. checkpoints of a cancelled kernel, which Kaggle will not mount)")
     parser.add_argument("--episodes", type=int, default=12000, help="voxel-run: scripted episodes the kernel generates")
     parser.add_argument("--demo-scenes", type=int, default=0, help="voxel-run: scenes of expert suite demonstrations the kernel generates")
     args = parser.parse_args()
