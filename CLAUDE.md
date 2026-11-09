@@ -12,7 +12,7 @@ Kaggle GPU quota is the scarcest resource. Every Kaggle minute should be a gradi
 
 Several Claude sessions run experiments in this repo at once. `BOARD.md` at the repo root holds the live state: who runs what on the Mac GPU and Kaggle, the queues, messages between sessions and a short log. It is gitignored (live state; the repo is public). If it is missing, recreate it with sections Mac (Running, Queue), Kaggle (Accounts, Queue), Messages, Log.
 
-1. Identify yourself by the first 8 characters of your session id (the uuid in your scratchpad path) plus a 1-3 word topic, e.g. `c5a781cd compute`.
+1. Identify yourself by your session name (the one ListAgents reports as "This session is ...", e.g. `beebot-b3`) plus a 1-3 word topic, e.g. `beebot-b3 compute`. The name is also your address for SendMessage.
 1. Read `BOARD.md` before starting anything on the Mac GPU or Kaggle, and edit it before you launch. Edit with the Edit tool, never Write or shell redirection: Edit refuses if someone changed the file since your read, so re-read and retry.
 1. A claim lists the PID (Mac) or kernel slug (Kaggle), the command or run name, start time and expected end. Without a PID or slug it is a reservation and expires after 15 minutes.
 1. Trust processes over the board. Check `pgrep -fl beebot` and `ps -p <pid>` before believing a claim or concluding the Mac is free. A claim whose PID is dead is stale: move it to Log with "died, found by <you>" and message its owner.
