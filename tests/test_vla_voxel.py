@@ -8,6 +8,7 @@ from beebot.vla.voxel.scripted import generate
 from beebot.vla.voxel.world import (
     FULL_SHELL,
     N_ACTIONS,
+    N_CHANNELS,
     PALETTE_RGB,
     STAY,
     SHELL_OFFSETS,
@@ -194,9 +195,10 @@ def test_eat_by_shell_coverage():
 def test_observe_channels():
     world = world_from_arrays(grid(), cheeses=[(0, 0, 0, 3)])
     obs = observe(world)
-    assert obs.shape == (1, 6, N, N, N)
+    assert obs.shape == (1, N_CHANNELS, N, N, N)
     assert obs[0, 2].sum() == 8 and obs[0, 1].sum() == 0
-    assert torch.allclose(obs[0, 3:, 1, 1, 1], PALETTE_RGB[3])
+    assert torch.allclose(obs[0, 3:6, 1, 1, 1], PALETTE_RGB[3])
+    assert torch.equal(obs[0, 6], obs[0, 2]) and not obs[0, 7:].any()  # food on the cheese, no zones
 
 
 def test_controller_heads_for_targets():

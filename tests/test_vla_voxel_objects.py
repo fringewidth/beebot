@@ -16,9 +16,9 @@ from beebot.vla.voxel import demos
 from beebot.vla.voxel import objects as O
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel import wordings as W
-from beebot.vla.voxel.world import BOX, CHANNELS, COLOUR_NAMES, COLOUR_RGB, CUBE_MOVES, FRICTION, HEAVY_FRICTION, MAX_OBJECTS, N_CHANNELS, OLD_CHANNELS, PATTERNS, STAY, VoxelWorld, concat, failure_rates, object_form, observe, paint_of, sample_object_scenes, sample_scenes, step, with_objects
+from beebot.vla.voxel.world import BOX, CHANNELS, COLOUR_NAMES, COLOUR_RGB, CUBE_MOVES, FRICTION, HEAVY_FRICTION, MAX_OBJECTS, N_CHANNELS, OLD_CHANNELS, PATTERNS, STAY, VoxelWorld, cheese_id_map, failure_rates, object_form, observe, paint_of, sample_object_scenes, sample_scenes, step, with_objects
 
-OBJECT_DIGESTS = ("PLACEHOLDER_A", "PLACEHOLDER_B")  # draw_digest of test_the_object_draw_is_pinned
+OBJECT_DIGESTS = ("c1e7638c764a7ccc", "9fcd4fae028eb9ee")  # draw_digest of test_the_object_draw_is_pinned
 
 
 def one_object(form, pos, colour="red", colour2=None, pattern="plain", heavy=False, food=True, size=16, mass=None, gravity=False, zones=None):
@@ -169,7 +169,7 @@ def test_zones_are_observed_where_a_robot_stands_on_them():
 def test_sampled_object_scenes_are_valid():
     world, metas = sample_object_scenes(np.random.default_rng(4), 12, robots=40)
     assert world.cheese_alive.shape[1] == MAX_OBJECTS and world.form.shape[2:] == (BOX,) * 3
-    ids = __import__("beebot.vla.voxel.world", fromlist=["cheese_id_map"]).cheese_id_map(world)
+    ids = cheese_id_map(world)
     for i in range(12):
         assert not ((ids[i] >= 0) & (world.mass[i] > 0)).any() and not ((ids[i] >= 0) & world.walls[i]).any()
         things = O.things_of(world, i)
