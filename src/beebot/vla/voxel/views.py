@@ -155,7 +155,7 @@ from PIL import Image, ImageFilter
 
 from beebot.vla.voxel.world import COLOUR_NAMES, COLOUR_RGB
 
-DEFAULT_STRENGTH = 0.5
+DEFAULT_STRENGTH = 0.75  # README "Views and randomization": zero-shot colours and shapes hold to 0.75, colours drop at 1
 GROUPS = ("camera", "lighting", "style", "materials", "colour", "distractors", "corruptions")
 CAMERAS = ("perspective", "top")
 FRAME_HEIGHT = 4  # voxels above the floor the oblique camera keeps in frame

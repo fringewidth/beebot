@@ -1,0 +1,450 @@
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-0", "answer": ["purple", "white"], "guess": ["purple", "white"], "reply": "purple, white\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-1", "answer": ["orange", "pink", "red"], "guess": ["orange", "pink", "red"], "reply": "pink, orange, red\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-2", "answer": ["blue"], "guess": ["blue"], "reply": "blue\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-3", "answer": ["cyan", "orange", "red"], "guess": ["cyan", "orange", "red"], "reply": "red, cyan, orange\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-4", "answer": ["yellow"], "guess": ["yellow"], "reply": "yellow\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-5", "answer": ["cyan", "red"], "guess": ["cyan", "red"], "reply": "red, cyan, brown\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-6", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "white, green\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-7", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "green, white\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-8", "answer": ["purple"], "guess": ["purple", "yellow"], "reply": "yellow, purple\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-9", "answer": ["cyan", "purple", "yellow"], "guess": ["cyan", "purple", "yellow"], "reply": "cyan, purple, yellow\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-10", "answer": ["blue", "red"], "guess": ["blue", "red", "yellow"], "reply": "red, blue, yellow\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-11", "answer": ["orange", "purple", "white"], "guess": ["orange", "purple", "white"], "reply": "purple, white, orange\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-12", "answer": ["blue", "orange", "yellow"], "guess": ["blue", "orange", "yellow"], "reply": "blue, yellow, orange\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-13", "answer": ["pink", "purple"], "guess": ["pink", "purple"], "reply": "purple, pink\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-14", "answer": ["purple", "yellow"], "guess": ["purple", "yellow"], "reply": "yellow, purple\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-15", "answer": ["blue", "orange"], "guess": ["blue", "orange"], "reply": "orange, blue\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-16", "answer": ["orange", "purple", "yellow"], "guess": ["orange", "purple", "yellow"], "reply": "yellow, orange, purple\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-17", "answer": ["pink", "purple", "red"], "guess": ["pink", "purple", "red"], "reply": "red, purple, pink\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-18", "answer": ["orange"], "guess": ["orange"], "reply": "orange\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-19", "answer": ["pink", "white"], "guess": ["pink", "white"], "reply": "white, pink\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-20", "answer": ["green", "red"], "guess": ["green", "red"], "reply": "red, green\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-21", "answer": ["cyan"], "guess": ["cyan"], "reply": "cyan\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-22", "answer": ["cyan", "red"], "guess": ["cyan", "red"], "reply": "red, cyan\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-23", "answer": ["cyan", "purple", "white"], "guess": ["cyan", "purple", "white"], "reply": "white, cyan, purple\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-24", "answer": ["orange", "yellow"], "guess": ["orange", "yellow"], "reply": "orange, yellow\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-25", "answer": ["white"], "guess": ["white"], "reply": "white\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-26", "answer": ["blue", "red"], "guess": ["blue", "red"], "reply": "red, blue\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-27", "answer": ["green"], "guess": ["green"], "reply": "green\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-28", "answer": ["cyan"], "guess": ["cyan", "orange"], "reply": "orange, cyan\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "colours", "id": "colours-29", "answer": ["red"], "guess": ["red"], "reply": "red\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-0", "answer": "M", "guess": "M", "reply": "M\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-1", "answer": "Y", "guess": "Y", "reply": "Y\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-2", "answer": "V", "guess": "U", "reply": "U\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-3", "answer": "I", "guess": "I", "reply": "I\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-4", "answer": "H", "guess": "H", "reply": "H\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-5", "answer": "K", "guess": "K", "reply": "K\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-6", "answer": "C", "guess": "L", "reply": "L\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-7", "answer": "T", "guess": "T", "reply": "T\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-8", "answer": "V", "guess": "U", "reply": "U\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-9", "answer": "U", "guess": "U", "reply": "U\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-10", "answer": "D", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-11", "answer": "D", "guess": "C", "reply": "C\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-12", "answer": "X", "guess": "X", "reply": "X\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-13", "answer": "G", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-14", "answer": "B", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-15", "answer": "M", "guess": "M", "reply": "M\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-16", "answer": "T", "guess": "T", "reply": "T\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-17", "answer": "S", "guess": "S", "reply": "S\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-18", "answer": "Y", "guess": "Y", "reply": "Y\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-19", "answer": "E", "guess": "E", "reply": "E\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-20", "answer": "K", "guess": "K", "reply": "K\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-21", "answer": "D", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-22", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-23", "answer": "P", "guess": "P", "reply": "P\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-24", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-25", "answer": "N", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-26", "answer": "J", "guess": "J", "reply": "J\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-27", "answer": "Q", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-28", "answer": "F", "guess": "F", "reply": "F\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "letters", "id": "letters-29", "answer": "G", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-13", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-23", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-20", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-14", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-28", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-25", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-1", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-26", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-17", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-10", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-5", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-4", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-11", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-12", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-22", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-8", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-0", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-29", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-3", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-18", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-2", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-15", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-24", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-19", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-21", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-9", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-7", "answer": "hollow sphere", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-27", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-16", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 0.0}
+{"setting": "clean", "strength": 0.0, "probe": "shapes", "id": "shapes-6", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 0.0}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-0", "answer": ["purple", "white"], "guess": ["purple", "white"], "reply": "purple, white\n", "correct": true, "azimuth": 359.86}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-1", "answer": ["orange", "pink", "red"], "guess": ["orange", "pink", "red"], "reply": "red, orange, pink\n", "correct": true, "azimuth": 284.06}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-2", "answer": ["blue"], "guess": ["blue"], "reply": "blue\n", "correct": true, "azimuth": 358.33}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-3", "answer": ["cyan", "orange", "red"], "guess": ["cyan", "orange", "red"], "reply": "red, cyan, orange\n", "correct": true, "azimuth": 174.34}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-4", "answer": ["yellow"], "guess": ["yellow"], "reply": "yellow\n", "correct": true, "azimuth": 84.03}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-5", "answer": ["cyan", "red"], "guess": ["cyan", "red"], "reply": "cyan, red\n", "correct": true, "azimuth": 108.04}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-6", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "white, green\n", "correct": true, "azimuth": 27.46}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-7", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "green, white\n", "correct": true, "azimuth": 350.47}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-8", "answer": ["purple"], "guess": ["purple"], "reply": "purple\n", "correct": true, "azimuth": 179.36}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-9", "answer": ["cyan", "purple", "yellow"], "guess": ["cyan", "purple", "yellow"], "reply": "cyan, purple, yellow\n", "correct": true, "azimuth": 13.98}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-10", "answer": ["blue", "red"], "guess": ["blue", "red"], "reply": "red, blue\n", "correct": true, "azimuth": 183.89}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-11", "answer": ["orange", "purple", "white"], "guess": ["orange", "purple", "white"], "reply": "orange, purple, white\n", "correct": true, "azimuth": 204.24}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-12", "answer": ["blue", "orange", "yellow"], "guess": ["blue", "orange", "yellow"], "reply": "blue, orange, yellow\n", "correct": true, "azimuth": 299.07}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-13", "answer": ["pink", "purple"], "guess": ["pink", "purple"], "reply": "purple, pink\n", "correct": true, "azimuth": 1.38}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-14", "answer": ["purple", "yellow"], "guess": ["purple", "yellow"], "reply": "yellow, purple\n", "correct": true, "azimuth": 27.18}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-15", "answer": ["blue", "orange"], "guess": ["blue", "orange"], "reply": "blue, orange\n", "correct": true, "azimuth": 246.52}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-16", "answer": ["orange", "purple", "yellow"], "guess": ["orange", "purple", "yellow"], "reply": "yellow, purple, orange\n", "correct": true, "azimuth": 190.17}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-17", "answer": ["pink", "purple", "red"], "guess": ["pink", "purple", "red"], "reply": "pink, red, purple\n", "correct": true, "azimuth": 254.22}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-18", "answer": ["orange"], "guess": ["orange"], "reply": "orange\n", "correct": true, "azimuth": 91.21}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-19", "answer": ["pink", "white"], "guess": ["green", "pink"], "reply": "green, pink\n", "correct": false, "azimuth": 150.25}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-20", "answer": ["green", "red"], "guess": ["green", "orange", "red"], "reply": "red, green, orange\n", "correct": false, "azimuth": 97.41}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-21", "answer": ["cyan"], "guess": ["cyan"], "reply": "cyan\n", "correct": true, "azimuth": 100.44}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-22", "answer": ["cyan", "red"], "guess": ["cyan", "red"], "reply": "red, cyan\n", "correct": true, "azimuth": 254.53}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-23", "answer": ["cyan", "purple", "white"], "guess": ["cyan", "purple"], "reply": "cyan, purple\n", "correct": false, "azimuth": 102.48}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-24", "answer": ["orange", "yellow"], "guess": ["orange", "yellow"], "reply": "orange, yellow\n", "correct": true, "azimuth": 256.88}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-25", "answer": ["white"], "guess": ["pink", "white"], "reply": "white, pink\n", "correct": false, "azimuth": 199.86}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-26", "answer": ["blue", "red"], "guess": ["blue", "red"], "reply": "red, blue\n", "correct": true, "azimuth": 170.1}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-27", "answer": ["green"], "guess": ["green"], "reply": "green\n", "correct": true, "azimuth": 330.17}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-28", "answer": ["cyan"], "guess": ["cyan"], "reply": "cyan\n", "correct": true, "azimuth": 160.95}
+{"setting": "s25", "strength": 0.25, "probe": "colours", "id": "colours-29", "answer": ["red"], "guess": ["cyan", "red"], "reply": "red, cyan\n", "correct": false, "azimuth": 279.31}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-0", "answer": "M", "guess": "M", "reply": "M\n", "correct": true, "azimuth": 359.86}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-1", "answer": "Y", "guess": "T", "reply": "T\n", "correct": false, "azimuth": 284.06}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-2", "answer": "V", "guess": "U", "reply": "U\n", "correct": false, "azimuth": 358.33}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-3", "answer": "I", "guess": "I", "reply": "I\n", "correct": true, "azimuth": 174.34}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-4", "answer": "H", "guess": "I", "reply": "I\n", "correct": false, "azimuth": 84.03}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-5", "answer": "K", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 108.04}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-6", "answer": "C", "guess": "C", "reply": "C\n", "correct": true, "azimuth": 27.46}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-7", "answer": "T", "guess": "T", "reply": "T\n", "correct": true, "azimuth": 350.47}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-8", "answer": "V", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 179.36}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-9", "answer": "U", "guess": "U", "reply": "U\n", "correct": true, "azimuth": 13.98}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-10", "answer": "D", "guess": "D", "reply": "D\n", "correct": true, "azimuth": 183.89}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-11", "answer": "D", "guess": "D", "reply": "D\n", "correct": true, "azimuth": 204.24}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-12", "answer": "X", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 299.07}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-13", "answer": "G", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 1.38}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-14", "answer": "B", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 27.18}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-15", "answer": "M", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 246.52}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-16", "answer": "T", "guess": "L", "reply": "L\n", "correct": false, "azimuth": 190.17}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-17", "answer": "S", "guess": "L", "reply": "L\n", "correct": false, "azimuth": 254.22}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-18", "answer": "Y", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 91.21}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-19", "answer": "E", "guess": "E", "reply": "E\n", "correct": true, "azimuth": 150.25}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-20", "answer": "K", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 97.41}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-21", "answer": "D", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 100.44}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-22", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 254.53}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-23", "answer": "P", "guess": "T", "reply": "T\n", "correct": false, "azimuth": 102.48}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-24", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 256.88}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-25", "answer": "N", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 199.86}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-26", "answer": "J", "guess": "I", "reply": "I\n", "correct": false, "azimuth": 170.1}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-27", "answer": "Q", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 330.17}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-28", "answer": "F", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 160.95}
+{"setting": "s25", "strength": 0.25, "probe": "letters", "id": "letters-29", "answer": "G", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 279.31}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-13", "answer": "hollow sphere", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 359.86}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-23", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 284.06}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-20", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 358.33}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-14", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 174.34}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-28", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 84.03}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-25", "answer": "hollow sphere", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 108.04}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-1", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 27.46}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-26", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 350.47}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-17", "answer": "pyramid", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 179.36}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-10", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 13.98}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-5", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 183.89}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-4", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 204.24}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-11", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 299.07}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-12", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 1.38}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-22", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 27.18}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-8", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 246.52}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-0", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 190.17}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-29", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 254.22}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-3", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 91.21}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-18", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 150.25}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-2", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 97.41}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-15", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 100.44}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-24", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 254.53}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-19", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 102.48}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-21", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 256.88}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-9", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 199.86}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-7", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 170.1}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-27", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 330.17}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-16", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 160.95}
+{"setting": "s25", "strength": 0.25, "probe": "shapes", "id": "shapes-6", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 279.31}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-0", "answer": ["purple", "white"], "guess": ["purple", "white"], "reply": "purple, white\n", "correct": true, "azimuth": 359.86}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-1", "answer": ["orange", "pink", "red"], "guess": ["orange", "pink", "red"], "reply": "pink, orange, red\n", "correct": true, "azimuth": 100.36}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-2", "answer": ["blue"], "guess": ["blue"], "reply": "blue\n", "correct": true, "azimuth": 191.1}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-3", "answer": ["cyan", "orange", "red"], "guess": ["cyan", "red", "yellow"], "reply": "red, cyan, yellow\n", "correct": false, "azimuth": 8.25}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-4", "answer": ["yellow"], "guess": ["yellow"], "reply": "yellow\n", "correct": true, "azimuth": 248.24}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-5", "answer": ["cyan", "red"], "guess": ["cyan", "red"], "reply": "red, cyan\n", "correct": true, "azimuth": 332.59}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-6", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "green, white\n", "correct": true, "azimuth": 263.02}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-7", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "white, green\n", "correct": true, "azimuth": 17.53}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-8", "answer": ["purple"], "guess": ["purple"], "reply": "purple\n", "correct": true, "azimuth": 114.02}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-9", "answer": ["cyan", "purple", "yellow"], "guess": ["cyan", "purple", "yellow"], "reply": "yellow, purple, cyan\n", "correct": true, "azimuth": 163.1}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-10", "answer": ["blue", "red"], "guess": ["blue", "red"], "reply": "red, blue\n", "correct": true, "azimuth": 94.01}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-11", "answer": ["orange", "purple", "white"], "guess": ["purple", "white", "yellow"], "reply": "yellow, purple, white\n", "correct": false, "azimuth": 203.81}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-12", "answer": ["blue", "orange", "yellow"], "guess": ["blue", "green", "orange", "yellow"], "reply": "green, yellow, orange, blue\n", "correct": false, "azimuth": 243.87}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-13", "answer": ["pink", "purple"], "guess": ["pink", "purple"], "reply": "pink, purple\n", "correct": true, "azimuth": 91.01}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-14", "answer": ["purple", "yellow"], "guess": ["purple", "yellow"], "reply": "purple, yellow\n", "correct": true, "azimuth": 240.54}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-15", "answer": ["blue", "orange"], "guess": ["blue", "orange"], "reply": "blue, orange\n", "correct": true, "azimuth": 170.18}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-16", "answer": ["orange", "purple", "yellow"], "guess": ["orange", "purple", "yellow"], "reply": "yellow, orange, purple\n", "correct": true, "azimuth": 267.97}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-17", "answer": ["pink", "purple", "red"], "guess": ["pink", "purple", "red"], "reply": "red, pink, purple\n", "correct": true, "azimuth": 241.24}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-18", "answer": ["orange"], "guess": ["orange"], "reply": "orange\n", "correct": true, "azimuth": 244.61}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-19", "answer": ["pink", "white"], "guess": ["cyan", "green", "pink", "white"], "reply": "pink, white, cyan, green\n", "correct": false, "azimuth": 254.54}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-20", "answer": ["green", "red"], "guess": ["green", "purple", "red"], "reply": "red, green, purple\n", "correct": false, "azimuth": 280.73}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-21", "answer": ["cyan"], "guess": ["cyan"], "reply": "cyan\n", "correct": true, "azimuth": 101.11}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-22", "answer": ["cyan", "red"], "guess": ["cyan", "red"], "reply": "cyan, red\n", "correct": true, "azimuth": 93.63}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-23", "answer": ["cyan", "purple", "white"], "guess": ["cyan", "purple", "white"], "reply": "purple, cyan, white\n", "correct": true, "azimuth": 288.9}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-24", "answer": ["orange", "yellow"], "guess": ["orange", "yellow"], "reply": "orange, yellow\n", "correct": true, "azimuth": 246.37}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-25", "answer": ["white"], "guess": ["green", "white"], "reply": "green, white\n", "correct": false, "azimuth": 62.78}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-26", "answer": ["blue", "red"], "guess": ["blue", "red"], "reply": "red, blue\n", "correct": true, "azimuth": 297.44}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-27", "answer": ["green"], "guess": ["green"], "reply": "green\n", "correct": true, "azimuth": 246.63}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-28", "answer": ["cyan"], "guess": ["cyan", "purple"], "reply": "cyan, purple\n", "correct": false, "azimuth": 67.89}
+{"setting": "medium", "strength": 0.5, "probe": "colours", "id": "colours-29", "answer": ["red"], "guess": ["red"], "reply": "red\n", "correct": true, "azimuth": 77.83}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-0", "answer": "M", "guess": "M", "reply": "M\n", "correct": true, "azimuth": 359.86}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-1", "answer": "Y", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 100.36}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-2", "answer": "V", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 191.1}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-3", "answer": "I", "guess": "I", "reply": "I\n", "correct": true, "azimuth": 8.25}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-4", "answer": "H", "guess": "I", "reply": "I\n", "correct": false, "azimuth": 248.24}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-5", "answer": "K", "guess": "K", "reply": "K\n", "correct": true, "azimuth": 332.59}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-6", "answer": "C", "guess": "U", "reply": "U\n", "correct": false, "azimuth": 263.02}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-7", "answer": "T", "guess": "T", "reply": "T\n", "correct": true, "azimuth": 17.53}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-8", "answer": "V", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 114.02}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-9", "answer": "U", "guess": "U", "reply": "U\n", "correct": true, "azimuth": 163.1}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-10", "answer": "D", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 94.01}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-11", "answer": "D", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 203.81}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-12", "answer": "X", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 21.34}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-13", "answer": "G", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 186.4}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-14", "answer": "B", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 331.35}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-15", "answer": "M", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 173.68}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-16", "answer": "T", "guess": "T", "reply": "T\n", "correct": true, "azimuth": 96.98}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-17", "answer": "S", "guess": "U", "reply": "U\n", "correct": false, "azimuth": 64.29}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-18", "answer": "Y", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 71.6}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-19", "answer": "E", "guess": "U", "reply": "U\n", "correct": false, "azimuth": 258.45}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-20", "answer": "K", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 196.6}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-21", "answer": "D", "guess": "D", "reply": "D\n", "correct": true, "azimuth": 179.43}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-22", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 115.17}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-23", "answer": "P", "guess": "L", "reply": "L\n", "correct": false, "azimuth": 264.61}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-24", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 272.95}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-25", "answer": "N", "guess": "H", "reply": "H\n", "correct": false, "azimuth": 185.84}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-26", "answer": "J", "guess": "J", "reply": "J\n", "correct": true, "azimuth": 351.32}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-27", "answer": "Q", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 117.6}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-28", "answer": "F", "guess": "L", "reply": "L\n", "correct": false, "azimuth": 180.56}
+{"setting": "medium", "strength": 0.5, "probe": "letters", "id": "letters-29", "answer": "G", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 175.75}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-13", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 359.86}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-23", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 100.36}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-20", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 191.1}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-14", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 8.25}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-28", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 248.24}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-25", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 332.59}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-1", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 263.02}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-26", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 17.53}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-17", "answer": "pyramid", "guess": "pyramid", "reply": "pyramid\n", "correct": true, "azimuth": 114.02}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-10", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 163.1}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-5", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 94.01}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-4", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 203.81}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-11", "answer": "pyramid", "guess": "flat ring", "reply": "flat ring\n", "correct": false, "azimuth": 21.34}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-12", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 186.4}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-22", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 331.35}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-8", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 173.68}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-0", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 96.98}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-29", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 64.29}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-3", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 71.6}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-18", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 258.45}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-2", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 196.6}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-15", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 179.43}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-24", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 115.17}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-19", "answer": "hollow sphere", "guess": "pyramid", "reply": "pyramid\n", "correct": false, "azimuth": 264.61}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-21", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 272.95}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-9", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 185.84}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-7", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 351.32}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-27", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 117.6}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-16", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 180.56}
+{"setting": "medium", "strength": 0.5, "probe": "shapes", "id": "shapes-6", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 175.75}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-0", "answer": ["purple", "white"], "guess": ["purple", "white"], "reply": "purple, white\n", "correct": true, "azimuth": 359.86}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-1", "answer": ["orange", "pink", "red"], "guess": ["orange", "pink", "red"], "reply": "pink, orange, red\n", "correct": true, "azimuth": 331.94}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-2", "answer": ["blue"], "guess": ["blue"], "reply": "blue\n", "correct": true, "azimuth": 332.02}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-3", "answer": ["cyan", "orange", "red"], "guess": ["cyan", "orange", "red", "yellow"], "reply": "red, cyan, yellow, orange\n", "correct": false, "azimuth": 161.82}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-4", "answer": ["yellow"], "guess": ["yellow"], "reply": "yellow\n", "correct": true, "azimuth": 68.17}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-5", "answer": ["cyan", "red"], "guess": ["cyan", "red"], "reply": "red, cyan\n", "correct": true, "azimuth": 65.51}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-6", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "green, white\n", "correct": true, "azimuth": 178.61}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-7", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "green, white\n", "correct": true, "azimuth": 154.15}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-8", "answer": ["purple"], "guess": ["purple"], "reply": "purple\n", "correct": true, "azimuth": 262.86}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-9", "answer": ["cyan", "purple", "yellow"], "guess": ["cyan", "purple", "yellow"], "reply": "cyan, purple, yellow\n", "correct": true, "azimuth": 107.47}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-10", "answer": ["blue", "red"], "guess": ["blue", "green", "red"], "reply": "red, green, blue\n", "correct": false, "azimuth": 354.88}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-11", "answer": ["orange", "purple", "white"], "guess": ["orange", "purple", "white"], "reply": "orange, purple, white\n", "correct": true, "azimuth": 169.15}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-12", "answer": ["blue", "orange", "yellow"], "guess": ["blue", "orange", "yellow"], "reply": "blue, yellow, orange\n", "correct": true, "azimuth": 79.01}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-13", "answer": ["pink", "purple"], "guess": ["pink", "purple"], "reply": "pink, purple\n", "correct": true, "azimuth": 70.33}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-14", "answer": ["purple", "yellow"], "guess": ["purple", "yellow"], "reply": "yellow, purple\n", "correct": true, "azimuth": 161.64}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-15", "answer": ["blue", "orange"], "guess": ["blue", "orange"], "reply": "blue, orange\n", "correct": true, "azimuth": 154.27}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-16", "answer": ["orange", "purple", "yellow"], "guess": ["orange", "purple", "yellow"], "reply": "yellow, orange, purple\n", "correct": true, "azimuth": 265.45}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-17", "answer": ["pink", "purple", "red"], "guess": ["pink", "purple", "red"], "reply": "red, pink, purple\n", "correct": true, "azimuth": 199.21}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-18", "answer": ["orange"], "guess": ["orange", "yellow"], "reply": "yellow, orange\n", "correct": false, "azimuth": 354.86}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-19", "answer": ["pink", "white"], "guess": ["pink", "white"], "reply": "pink, white\n", "correct": true, "azimuth": 190.76}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-20", "answer": ["green", "red"], "guess": ["green", "pink", "red"], "reply": "red, green, pink\n", "correct": false, "azimuth": 334.9}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-21", "answer": ["cyan"], "guess": ["cyan"], "reply": "cyan\n", "correct": true, "azimuth": 343.34}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-22", "answer": ["cyan", "red"], "guess": ["cyan", "red"], "reply": "red, cyan\n", "correct": true, "azimuth": 343.77}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-23", "answer": ["cyan", "purple", "white"], "guess": ["cyan", "purple", "white"], "reply": "cyan, purple, white\n", "correct": true, "azimuth": 155.6}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-24", "answer": ["orange", "yellow"], "guess": ["orange", "yellow"], "reply": "yellow, orange\n", "correct": true, "azimuth": 158.26}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-25", "answer": ["white"], "guess": ["pink", "yellow"], "reply": "yellow, pink\n", "correct": false, "azimuth": 335.11}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-26", "answer": ["blue", "red"], "guess": ["blue", "red"], "reply": "red, blue\n", "correct": true, "azimuth": 197.72}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-27", "answer": ["green"], "guess": ["green", "pink"], "reply": "pink, green\n", "correct": false, "azimuth": 185.33}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-28", "answer": ["cyan"], "guess": ["cyan", "pink"], "reply": "cyan, pink\n", "correct": false, "azimuth": 343.51}
+{"setting": "s75", "strength": 0.75, "probe": "colours", "id": "colours-29", "answer": ["red"], "guess": ["red"], "reply": "red\n", "correct": true, "azimuth": 103.84}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-0", "answer": "M", "guess": "M", "reply": "M\n", "correct": true, "azimuth": 359.86}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-1", "answer": "Y", "guess": "T", "reply": "T\n", "correct": false, "azimuth": 331.94}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-2", "answer": "V", "guess": "U", "reply": "U\n", "correct": false, "azimuth": 332.02}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-3", "answer": "I", "guess": "I", "reply": "I\n", "correct": true, "azimuth": 161.82}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-4", "answer": "H", "guess": "H", "reply": "H\n", "correct": true, "azimuth": 150.88}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-5", "answer": "K", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 207.28}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-6", "answer": "C", "guess": "C", "reply": "C\n", "correct": true, "azimuth": 332.96}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-7", "answer": "T", "guess": "T", "reply": "T\n", "correct": true, "azimuth": 19.47}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-8", "answer": "V", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 174.03}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-9", "answer": "U", "guess": "U", "reply": "U\n", "correct": true, "azimuth": 179.69}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-10", "answer": "D", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 64.08}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-11", "answer": "D", "guess": "D", "reply": "D\n", "correct": true, "azimuth": 346.29}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-12", "answer": "X", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 184.2}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-13", "answer": "G", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 200.18}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-14", "answer": "B", "guess": "B", "reply": "B\n", "correct": true, "azimuth": 114.94}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-15", "answer": "M", "guess": "H", "reply": "H\n", "correct": false, "azimuth": 150.6}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-16", "answer": "T", "guess": "T", "reply": "T\n", "correct": true, "azimuth": 63.26}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-17", "answer": "S", "guess": "S", "reply": "S\n", "correct": true, "azimuth": 190.6}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-18", "answer": "Y", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 179.96}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-19", "answer": "E", "guess": "M", "reply": "M\n", "correct": false, "azimuth": 79.25}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-20", "answer": "K", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 259.86}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-21", "answer": "D", "guess": "D", "reply": "D\n", "correct": true, "azimuth": 198.14}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-22", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 345.15}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-23", "answer": "P", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 176.49}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-24", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 276.62}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-25", "answer": "N", "guess": "Z", "reply": "Z\n", "correct": false, "azimuth": 266.13}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-26", "answer": "J", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 100.06}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-27", "answer": "Q", "guess": "G", "reply": "G\n", "correct": false, "azimuth": 258.09}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-28", "answer": "F", "guess": "F", "reply": "F\n", "correct": true, "azimuth": 171.0}
+{"setting": "s75", "strength": 0.75, "probe": "letters", "id": "letters-29", "answer": "G", "guess": "G", "reply": "G\n", "correct": true, "azimuth": 80.61}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-13", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 359.86}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-23", "answer": "pyramid", "guess": "flat ring", "reply": "flat ring\n", "correct": false, "azimuth": 331.94}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-20", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 332.02}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-14", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 161.82}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-28", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 150.88}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-25", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 207.28}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-1", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 332.96}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-26", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 19.47}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-17", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 174.03}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-10", "answer": "wall", "guess": "flat ring", "reply": "flat ring\n", "correct": false, "azimuth": 179.69}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-5", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 64.08}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-4", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 346.29}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-11", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 184.2}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-12", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 200.18}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-22", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 114.94}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-8", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 150.6}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-0", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 63.26}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-29", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 190.6}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-3", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 179.96}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-18", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 79.25}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-2", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 259.86}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-15", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 198.14}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-24", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 345.15}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-19", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 176.49}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-21", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 276.62}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-9", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 266.13}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-7", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 100.06}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-27", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 258.09}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-16", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 171.0}
+{"setting": "s75", "strength": 0.75, "probe": "shapes", "id": "shapes-6", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 80.61}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-0", "answer": ["purple", "white"], "guess": ["purple", "white"], "reply": "purple, white\n", "correct": true, "azimuth": 359.86}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-1", "answer": ["orange", "pink", "red"], "guess": ["orange", "pink", "red"], "reply": "pink, orange, red\n", "correct": true, "azimuth": 18.78}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-2", "answer": ["blue"], "guess": ["blue", "cyan"], "reply": "blue, cyan\n", "correct": false, "azimuth": 195.19}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-3", "answer": ["cyan", "orange", "red"], "guess": ["cyan", "orange", "red"], "reply": "orange, red, cyan\n", "correct": true, "azimuth": 283.01}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-4", "answer": ["yellow"], "guess": ["yellow"], "reply": "yellow\n", "correct": true, "azimuth": 78.08}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-5", "answer": ["cyan", "red"], "guess": ["cyan", "purple", "red"], "reply": "red, cyan, purple\n", "correct": false, "azimuth": 269.24}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-6", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "green, white\n", "correct": true, "azimuth": 251.63}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-7", "answer": ["green", "white"], "guess": ["green", "white"], "reply": "green, white\n", "correct": true, "azimuth": 277.49}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-8", "answer": ["purple"], "guess": ["purple", "yellow"], "reply": "purple, yellow\n", "correct": false, "azimuth": 185.49}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-9", "answer": ["cyan", "purple", "yellow"], "guess": ["cyan", "purple", "yellow"], "reply": "purple, cyan, yellow\n", "correct": true, "azimuth": 112.1}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-10", "answer": ["blue", "red"], "guess": ["blue", "red"], "reply": "red, blue\n", "correct": true, "azimuth": 85.03}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-11", "answer": ["orange", "purple", "white"], "guess": ["green", "purple", "white", "yellow"], "reply": "yellow, green, white, purple\n", "correct": false, "azimuth": 164.7}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-12", "answer": ["blue", "orange", "yellow"], "guess": ["blue", "orange", "yellow"], "reply": "orange, blue, yellow\n", "correct": true, "azimuth": 248.27}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-13", "answer": ["pink", "purple"], "guess": ["pink", "purple"], "reply": "pink, purple\n", "correct": true, "azimuth": 190.39}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-14", "answer": ["purple", "yellow"], "guess": ["purple", "yellow"], "reply": "yellow, purple\n", "correct": true, "azimuth": 6.37}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-15", "answer": ["blue", "orange"], "guess": ["blue", "orange"], "reply": "blue, orange\n", "correct": true, "azimuth": 197.44}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-16", "answer": ["orange", "purple", "yellow"], "guess": ["orange", "purple", "yellow"], "reply": "yellow, purple, orange\n", "correct": true, "azimuth": 293.13}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-17", "answer": ["pink", "purple", "red"], "guess": ["pink", "red"], "reply": "red, pink\n", "correct": false, "azimuth": 63.94}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-18", "answer": ["orange"], "guess": ["purple", "yellow"], "reply": "yellow, purple\n", "correct": false, "azimuth": 152.32}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-19", "answer": ["pink", "white"], "guess": ["pink", "white"], "reply": "pink, white\n", "correct": true, "azimuth": 171.11}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-20", "answer": ["green", "red"], "guess": ["green", "red"], "reply": "red, green\n", "correct": true, "azimuth": 273.21}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-21", "answer": ["cyan"], "guess": ["cyan"], "reply": "cyan\n", "correct": true, "azimuth": 264.3}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-22", "answer": ["cyan", "red"], "guess": ["cyan", "red"], "reply": "cyan, red\n", "correct": true, "azimuth": 116.99}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-23", "answer": ["cyan", "purple", "white"], "guess": ["cyan", "purple"], "reply": "cyan, purple\n", "correct": false, "azimuth": 174.39}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-24", "answer": ["orange", "yellow"], "guess": ["orange", "yellow"], "reply": "yellow, orange\n", "correct": true, "azimuth": 209.82}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-25", "answer": ["white"], "guess": ["white"], "reply": "white\n", "correct": true, "azimuth": 348.72}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-26", "answer": ["blue", "red"], "guess": ["blue", "green", "red"], "reply": "red, blue, green\n", "correct": false, "azimuth": 252.76}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-27", "answer": ["green"], "guess": ["green"], "reply": "green\n", "correct": true, "azimuth": 155.38}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-28", "answer": ["cyan"], "guess": ["cyan"], "reply": "cyan\n", "correct": true, "azimuth": 183.7}
+{"setting": "strong", "strength": 1.0, "probe": "colours", "id": "colours-29", "answer": ["red"], "guess": ["pink", "red"], "reply": "red, pink\n", "correct": false, "azimuth": 82.83}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-0", "answer": "M", "guess": "H", "reply": "H\n", "correct": false, "azimuth": 359.86}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-1", "answer": "Y", "guess": "Y", "reply": "Y\n", "correct": true, "azimuth": 18.78}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-2", "answer": "V", "guess": "U", "reply": "U\n", "correct": false, "azimuth": 195.19}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-3", "answer": "I", "guess": "H", "reply": "H\n", "correct": false, "azimuth": 283.01}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-4", "answer": "H", "guess": "I", "reply": "I\n", "correct": false, "azimuth": 78.08}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-5", "answer": "K", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 269.24}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-6", "answer": "C", "guess": "U", "reply": "U\n", "correct": false, "azimuth": 251.63}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-7", "answer": "T", "guess": "T", "reply": "T\n", "correct": true, "azimuth": 277.49}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-8", "answer": "V", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 185.49}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-9", "answer": "U", "guess": "U", "reply": "U\n", "correct": true, "azimuth": 112.1}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-10", "answer": "D", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 85.03}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-11", "answer": "D", "guess": "O", "reply": "O\n", "correct": false, "azimuth": 164.7}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-12", "answer": "X", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 248.27}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-13", "answer": "G", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 190.39}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-14", "answer": "B", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 6.37}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-15", "answer": "M", "guess": "W", "reply": "W\n", "correct": false, "azimuth": 197.44}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-16", "answer": "T", "guess": "T", "reply": "T\n", "correct": true, "azimuth": 293.13}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-17", "answer": "S", "guess": "S", "reply": "S\n", "correct": true, "azimuth": 63.94}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-18", "answer": "Y", "guess": "X", "reply": "X\n", "correct": false, "azimuth": 152.32}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-19", "answer": "E", "guess": "E", "reply": "E\n", "correct": true, "azimuth": 171.11}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-20", "answer": "K", "guess": "A", "reply": "A\n", "correct": false, "azimuth": 273.21}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-21", "answer": "D", "guess": "B", "reply": "B\n", "correct": false, "azimuth": 65.56}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-22", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 208.1}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-23", "answer": "P", "guess": "L", "reply": "L\n", "correct": false, "azimuth": 242.05}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-24", "answer": "L", "guess": "L", "reply": "L\n", "correct": true, "azimuth": 95.37}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-25", "answer": "N", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 284.35}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-26", "answer": "J", "guess": "J", "reply": "J\n", "correct": true, "azimuth": 16.14}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-27", "answer": "Q", "guess": "C", "reply": "C\n", "correct": false, "azimuth": 290.32}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-28", "answer": "F", "guess": "F", "reply": "F\n", "correct": true, "azimuth": 179.53}
+{"setting": "strong", "strength": 1.0, "probe": "letters", "id": "letters-29", "answer": "G", "guess": "E", "reply": "E\n", "correct": false, "azimuth": 150.06}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-13", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 359.86}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-23", "answer": "pyramid", "guess": "flat ring", "reply": "flat ring\n", "correct": false, "azimuth": 18.78}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-20", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 195.19}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-14", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 283.01}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-28", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 78.08}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-25", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 269.24}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-1", "answer": "hollow sphere", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 251.63}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-26", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 277.49}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-17", "answer": "pyramid", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 185.49}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-10", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 112.1}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-5", "answer": "pyramid", "guess": "pyramid", "reply": "pyramid\n", "correct": true, "azimuth": 85.03}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-4", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 164.7}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-11", "answer": "pyramid", "guess": "flat ring", "reply": "flat ring\n", "correct": false, "azimuth": 248.27}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-12", "answer": "hollow cube", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 190.39}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-22", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 6.37}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-8", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 197.44}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-0", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 293.13}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-29", "answer": "pyramid", "guess": "wall", "reply": "wall\n", "correct": false, "azimuth": 63.94}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-3", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 152.32}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-18", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 171.11}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-2", "answer": "flat ring", "guess": "flat ring", "reply": "flat ring\n", "correct": true, "azimuth": 273.21}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-15", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 65.56}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-24", "answer": "hollow cube", "guess": "flat ring", "reply": "flat ring\n", "correct": false, "azimuth": 208.1}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-19", "answer": "hollow sphere", "guess": "hollow cube", "reply": "hollow cube\n", "correct": false, "azimuth": 242.05}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-21", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 95.37}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-9", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 284.35}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-7", "answer": "hollow sphere", "guess": "hollow sphere", "reply": "hollow sphere\n", "correct": true, "azimuth": 16.14}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-27", "answer": "3D plus sign", "guess": "3D plus sign", "reply": "3D plus sign\n", "correct": true, "azimuth": 290.32}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-16", "answer": "wall", "guess": "wall", "reply": "wall\n", "correct": true, "azimuth": 179.53}
+{"setting": "strong", "strength": 1.0, "probe": "shapes", "id": "shapes-6", "answer": "hollow cube", "guess": "hollow cube", "reply": "hollow cube\n", "correct": true, "azimuth": 150.06}
