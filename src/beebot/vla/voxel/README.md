@@ -399,6 +399,109 @@ and dropped.
 
 Tests: `tests/test_vla_voxel_free_cube.py`.
 
+## Coverage
+
+What a person can ask a swarm of pivoting cubes to do, as a grammar: **who** (a selector) x
+**what** (a job) x **when** (modifiers). The suite's six families (`FAMILIES`) cover part of it;
+three more families (`suite.COVERAGE`: `motion`, `subset`, `switch`) add the rest that an expert
+can demonstrate. They are drawn by `suite.sample_coverage`, never by `sample_tasks`, so the
+draws of the six families are unchanged (`tests/test_vla_voxel_coverage.py` pins their digests
+for the default, `--cube` and `--counts log` draws).
+
+### Who
+
+| selector | spec (`spec["who"]`) | canonical phrase | status |
+| --- | --- | --- | --- |
+| everyone | `{"select": "all"}` | (none) | every family |
+| the smaller / larger group (two groups), the smallest / largest (three) | `{"select": "group", "by": "size", "which": ...}` | "the smaller group" | added |
+| the group on the left / right / back / front | `{"select": "group", "by": "side", "which": side}` | "the group on the left" | added |
+| the group nearest the red cheese | `{"select": "group", "by": "cheese", "which": colour}` | "the group nearest the red cheese" | added |
+| everyone except one of those | the same with `"except": true` | "everyone except the smaller group" | added |
+| the robots on top (standing on other robots) | `{"select": "top"}` | "the robots standing on other robots" | added |
+| N of you (3 to 8), half of you | `{"select": "count", "count": N}`, `{"select": "half"}` | "5 of you", "half of you" | added |
+| two groups, each its own job | `parallel` (jobs region, tower, surround, eat) | "split into two groups: one should ..., the other should ..." | exists |
+| the one / ones in a region ("the robots in the back left") | | | covered by the side selector in multi-group scenes; a bare region cut through a group is not drawn (a person would not ask it of one blob) |
+| everyone except the tower, the robots that built X | | | out: needs memory of who did what, or a structure standing at the start; a tower is a group like any other once it stands, so "the larger group" etc. apply |
+| robot number 7, the red robot | | | out: robots have no identity or colour |
+
+A group is a 26-connected set of robots (`suite.components`). Group selectors are drawn only in
+scenes whose groups the words tell apart: sizes at least 1.4 times apart, a side or a cheese with
+one group clearly nearest (3 voxels clear of the next). The robots a selector leaves out must stay
+where they are.
+
+### What
+
+| job | spec kind | canonical sentence | status |
+| --- | --- | --- | --- |
+| stay, stop, freeze, stay where you are | `stay` | "stay where you are" | added (motion; also the usual second instruction of a switch) |
+| go to a region / corner | `goto` | "go to the back left of the floor" | added for everyone and for selected robots (`parallel` had it only as one of two jobs) |
+| go next to a cheese (without eating it) | `approach` | "go next to the red cheese without eating it" | added |
+| gather into one group | `gather` | "gather into one group" | added |
+| spread out | `spread` | "spread out so that no two of you touch" | added |
+| split into two / three groups | `groups` | "split into two separate groups" | added |
+| line up | `line` | "line up in one row from left to right" (or back to front) | added, swarms of up to 14 (`LINE_MAX`) |
+| climb onto a plateau | `climb` | "climb onto the plateau on the left" | added (trench scenes) |
+| climb on top of a cheese | `perch` | "3 of you: climb on top of the red cheese; ..." | added with a count selector (four voxels on top) |
+| move a few steps in a direction | `move` | "move three steps toward the left" | added |
+| follow / chase a cheese without eating it | `follow` | "follow the red cheese without eating it" | added (the cheese flees, as a runner) |
+| catch / eat cheeses by colour logic | `eat` | "eat the red cheese", "eat every cheese except ..." | exists (logic, runner); eating by a selected group added |
+| surround a cheese | `surround` | "surround the red cheese" | exists (parallel) |
+| push a cheese to a region or into the trench | `herd_region`, `herd_trench` | "push the red cheese to the left of the floor without eating it" | exists |
+| letters, shapes | `mask` | "write A flat on the floor", "form a hollow cube" | exists |
+| tower, bridge, fill, stairs | `tower`, `bridge`, `fill`, `stairs` | "build a tower 5 robots tall" | exists; a tower by a selected group added |
+| undo, go back to where you started | | | out: the policy sees one frame; the start is gone by then. Needs memory (a history in the context, or the start frame as input) |
+| come to me, follow me, look at me | | | out: no user in the world |
+| faster, slower, carefully | | | out: one step per tick, no speed to set |
+| dance, wave, celebrate | | | out: no checkable outcome |
+| how many of you are there, which group is larger (questions) | | | not an action: the answer is in `scene_summary` and belongs to the text side, with "stay" as the action |
+| carry a cheese, lift a cheese, open / close, push a lever | | | out: cheeses are only pushed; no levers or doors (README, "Left out") |
+| build a ramp, a wall to block a runner, a shelter | | | out for now: no checker; a wall is a shape (formation) |
+
+### When (modifiers)
+
+| modifier | example | status |
+| --- | --- | --- |
+| except (on colours) | "eat every cheese except the red one" | exists (logic) |
+| except (on robots) | "everyone except the smaller group: ..." | added (selector `except`) |
+| then, in order (eating) | "eat the red cheese first, then the blue cheese" | exists (logic ordered) |
+| a new instruction mid-episode | "go to the left" ... (step k) "stop" / "actually, gather into one group" | added (`switch`): task A from step 0, task B from step k (8 to 24); B is stay half the time, else go to another region, gather or spread |
+| then, for other jobs in one instruction ("go left, then build a tower") | | out for now: the checker sees the start and the end only; a sequence needs the step at which the first part was done. The switch family covers the same behaviour with the second part given as a new instruction |
+| until (an event) | "spread out until the red cheese is gone" | out: until-conditions on the world's own events do not occur (cheeses do not vanish by themselves); "until I say stop" is the switch |
+| at the same time (two jobs) | "half of you go left, the other half build a tower" | exists (parallel) |
+| only N / at most N robots | "use only 3 robots" | added as the count selector |
+
+### Records for labelling
+
+Two functions give every task and scene in plain JSON (names stable; the Haiku labelling pipeline
+reads them):
+
+```python
+record = suite.canonical_record(task)    # any Task, old or new
+summary = suite.scene_summary(world, i)  # scene i of a VoxelWorld batch
+```
+
+`canonical_record(task)` returns `{"family", "kind", "plain", "spec", "subgoals"}`:
+
+1. `kind`: `suite.task_kind`, e.g. `"eat:ordered"`, `"goto@smaller"`, `"switch:goto>stay"`.
+1. `plain`: one canonical English sentence (`wordings.canonical`; `wordings.parse_canonical`
+   inverts it). A subset task reads `"the smaller group: go to the back left of the floor;
+   everyone else: stay where you are"`. A switch task joins its instructions with
+   `"; then, on a new instruction: "`.
+1. `spec`: the checker's spec, JSON-safe (sets as sorted lists, arrays left out), with the
+   canonical slots under `"slots"`. A switch task's spec is `{"kind": "switch", "parts": [{"t":
+   first step, "record": record}, ...]}`.
+1. `subgoals`: ordered plain sub-goal sentences: the cheeses of an eat task in order, the two
+   jobs of a parallel task, the selected robots' job then "everyone else: stay where you are",
+   the instructions of a switch task in turn.
+
+`scene_summary(world, i)` returns `{"robots", "gravity", "terrain", "cheeses", "groups",
+"scattered", "towers", "on_top"}`: terrain `{"kind": "flat"}`, `{"kind": "trench", "runs",
+"region", "width", "depth", "plateaus"}` or `{"kind": "hills", "highest", "regions"}`; each cheese
+`{"colour", "region", "at": [z, y, x], "on"}`; groups (26-connected, at least 2 robots and a tenth
+of the swarm, largest first) `{"size", "region", "centre": [y, x], "height"}`; towers (vertical
+runs of 3 or more) `{"height", "region"}`; `on_top` counts robots standing on robots. Regions are
+the nine floor regions of `FLOOR_REGIONS`.
+
 ## Compact store
 
 A dense store spends 0.6 MB on an episode of 72 steps (145 grids of 4096 bytes) to hold 6 to
