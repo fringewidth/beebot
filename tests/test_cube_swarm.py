@@ -45,6 +45,16 @@ def test_plan_picks_the_primitive_from_the_surroundings():
     assert swarm.move(1, (0, 0, 1)).detail == "refused"
 
 
+def test_plan_counts_what_holds_the_mover_back():
+    swarm = Swarm([(0, 0, 0), (0, 1, 1), (0, 0, -1)], seed=0, jitter=NOMINAL, settle=0.05)
+    east = swarm.plan(0, (0, 0, 1))  # away from the cube behind, past one touching by an edge, into the cell beside it
+    assert (east.primitive, east.bonds, east.hinges, east.rubs) == ("floor_peel", 1, 1, 1)
+    south = swarm.plan(1, (0, -1, 0))  # into the slot beside cube 0, sliding down its face
+    assert (south.primitive, south.bonds, south.hinges, south.rubs) == ("floor_roll", 0, 1, 1)
+    west = swarm.plan(2, (0, 0, -1))  # away from cube 0: bonded behind, nothing else
+    assert (west.primitive, west.bonds, west.hinges, west.rubs) == ("floor_peel", 1, 0, 0)
+
+
 def test_culled_pair_search_gives_the_same_forces():
     cube = DESIGN.cube()
     rng = np.random.default_rng(0)
