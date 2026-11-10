@@ -55,6 +55,8 @@ SETS = {"logic.and": ("set.eat", "eat"), "logic.all": ("set.eat", "eat"), "logic
 ALIASES = {"eat": "logic.single", "logic.all_but_two": "logic.neither"}  # intents whose canonical sentence is the same
 SHAPE_NAMES = {words: name for name, words in S.SHAPE_WORDS.items()}
 COMPOSITE = ("sub.", "set.", "who.", "do.")  # parts of other intents, never a whole instruction
+PROPERTIES = {group: values for group, values in DATA.get("properties", {}).items() if group != "about"}  # object property words (README "Objects"): group -> canonical -> {"train", "held_out"}
+ADJECTIVE_GROUPS = ("size", "weight", "pattern", "colour", "shape")  # the order of adjectives in a thing phrase
 DO = {"goto": ("do.region", "region"), "approach": ("do.approach", "colour"), "gather": ("do.gather", None), "spread": ("do.spread", None), "groups": ("do.groups", None), "move": ("do.move", "toward"), "perch": ("do.perch", "colour"), "climb": ("do.climb", "side"), "tower": ("do.tower", "height"), "eat": ("do.eat", "colour")}
 MOTION = {"stay": ("stay", None), "goto": ("region", "region"), "approach": ("approach", "colour"), "follow": ("follow", "colour"), "gather": ("gather", None), "spread": ("spread", None), "climb": ("climb", "side"), "move": ("move", "toward")}
 MOTION_SLOT = {"region": "r", "approach": "c", "follow": "c", "climb": "r", "move": "r"}
@@ -150,9 +152,81 @@ def entries(kind, value, split):
     elif kind in LEXICAL:
         if split in ("train", "words"):
             out += [("synonym", [(word, False)]) for word in LEXICAL[kind]["train" if split == "train" else "held_out"]]
+    elif kind == "thing":
+        if split in ("train", "words"):
+            out += [("synonym", [(text, False)]) for text in thing_variants(value, "train" if split == "train" else "held_out")]
+    elif kind == "plural":
+        if split in ("train", "words"):
+            out += [("synonym", [(word, False)]) for word in PROPERTIES["plural"][value]["train" if split == "train" else "held_out"]]
     else:
         raise ValueError(kind)
     return out
+
+
+# ---------------------------------------------------------------------------------------------
+# Thing phrases (README "Objects"): "the large striped red cheese", "the smaller of the two blue
+# blocks", "the cheese nearest the trench", "the block next to the yellow cheese"
+
+
+def property_words(group):
+    """The canonical words of a property group, longest first ("colour" gives the colours)."""
+    words = list(SLOTS["colour"]["values"]) if group == "colour" else list(PROPERTIES[group])
+    return sorted(words, key=len, reverse=True)
+
+
+def thing_pattern():
+    """A regular expression (no named groups) of every canonical thing phrase."""
+    alt = lambda group: "(?:" + "|".join(re.escape(w) for w in property_words(group)) + ")"  # noqa: E731
+    adjective = "(?:" + "|".join(alt(g) for g in ADJECTIVE_GROUPS) + ")"
+    base = f"the (?:{alt('superlative')} )?(?:{adjective} )*{alt('noun')}"
+    compare = f"the {alt('comparative')} of the two (?:{adjective} )*{alt('plural')}"
+    anchor = f"(?:the trench|the {alt('colour')} {alt('zone')})"
+    near = f"{base} {alt('nearness')} {anchor}"
+    beside = f"{base} {alt('relation')} {base}"
+    return f"(?:{compare}|{near}|{beside}|{base})"
+
+
+def thing_tokens(text):
+    """[(word, group or None)] of a canonical thing phrase: each property word (multi-word ones
+    whole) with its group, the other words with None."""
+    known = sorted(((w, g) for g in ADJECTIVE_GROUPS + ("noun", "plural", "superlative", "comparative", "nearness", "relation", "zone") for w in property_words(g)), key=lambda item: -len(item[0]))
+    out, rest = [], text
+    while rest:
+        for word, group in known:
+            if rest == word or rest.startswith(word + " "):
+                out.append((word, group))
+                rest = rest[len(word) + 1 :]
+                break
+        else:
+            word, _, rest = rest.partition(" ")
+            out.append((word, None))
+    return out
+
+
+def property_synonyms(group, word, part):
+    """The expressions of a property word on one side ("train" or "held_out"); colours use their
+    synonyms (none for a colour the suite holds out, on the training side)."""
+    if group is None:
+        return []
+    if group == "colour":
+        entry = SLOTS["colour"]["values"][word]
+        return [] if suite_held(entry) and part == "train" else list(entry["synonyms"][part])
+    return list(PROPERTIES[group][word][part])
+
+
+def thing_variants(text, part):
+    """Rewordings of a canonical thing phrase with property words from one side: each word
+    replaced alone by each of its expressions, then every word at once by its first, second, ...
+    expression."""
+    tokens = thing_tokens(text)
+    options = [property_synonyms(group, word, part) for word, group in tokens]
+    out = []
+    for j, choices in enumerate(options):
+        for choice in choices:
+            out.append(" ".join(choice if m == j else word for m, (word, _) in enumerate(tokens)))
+    for r in range(max((len(c) for c in options), default=0)):
+        out.append(" ".join(c[r % len(c)] if c else word for (word, _), c in zip(tokens, options)))
+    return list(dict.fromkeys(v for v in out if v != text))
 
 
 def category_entries(target, present, split):
@@ -244,6 +318,10 @@ def vocabulary(kind):
         options = [r"\d+"]
     elif kind == "letter":
         options = ["[A-Z]{1,2}"]
+    elif kind == "thing":
+        return thing_pattern()
+    elif kind == "plural":
+        options = list(PROPERTIES["plural"])
     else:
         options = [".+"]
     return "|".join(sorted((o if kind in ("count", "letter", "job", "who", "do") else re.escape(o) for o in options), key=len, reverse=True))
@@ -326,7 +404,11 @@ def slots_of(task, present=None):
     kind = spec["kind"]
     if task.parts:
         raise ValueError("a switch task has one instruction per part: slots_of(part) for each of task.parts")
-    if "who" in spec:
+    if spec.get("objects"):
+        from beebot.vla.voxel import objects as O
+
+        out = O.slots_of(task)
+    elif "who" in spec:
         out = coverage_slots(spec)
     elif kind == "mask":
         key, words = invert(task.text, ("letter_floor", "letter_stand", "shape"))
@@ -541,6 +623,10 @@ def slot_expressions():
     for kind, entry in LEXICAL.items():
         out["train"] += [(kind, kind, text) for text in [entry["canonical"]] + entry["train"]]
         out["held_out"] += [(kind, kind, text) for text in entry["held_out"]]
+    for group, values in PROPERTIES.items():
+        for value, entry in values.items():
+            out["train"] += [("property." + group, value, text) for text in [value] + entry["train"]]
+            out["held_out"] += [("property." + group, value, text) for text in entry["held_out"]]
     for side in out:
         out[side] += [("letter", "", frame.replace("{w}", "").strip()) for frame in SLOTS["letter"][side]]
     for cat in CATEGORIES:
@@ -550,13 +636,17 @@ def slot_expressions():
 
 def held_out_sets():
     """What is fixed as held out before any training, by kind: words per slot value, languages,
-    categories, frames, templates per intent, and the suite's own held-out items and compositions."""
+    categories, frames, templates per intent, the suite's own held-out items and compositions, and
+    those of the object families (objects.HELD_OUT)."""
+    from beebot.vla.voxel import objects as O
+
     sides = slot_expressions()
     words = {}
     for kind, value, text in sides["held_out"]:
         if kind != "category":
             words.setdefault(kind, {}).setdefault(str(value), []).append(text)
     return {
+        "objects": {key: [list(v) if isinstance(v, tuple) else v for v in value] for key, value in O.HELD_OUT.items()},
         "words": words,
         "languages": LANGUAGES["held_out"],
         "categories": {cat["name"]: cat["set"] for cat in CATEGORIES if cat["split"] == "held_out"},

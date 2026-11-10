@@ -11,7 +11,7 @@ import torch
 from beebot.vla.voxel import controller, demos
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel.play_store import load
-from beebot.vla.voxel.world import CUBE_MOVES, DIR_TABLE, MOVE_CLASS, MOVE_CLASSES, STAY, fail_moves, failure_rates, world_from_arrays
+from beebot.vla.voxel.world import CUBE_MOVES, DIR_TABLE, MOVE_CLASS, MOVE_CLASSES, N_CHANNELS, STAY, fail_moves, failure_rates, world_from_arrays
 
 
 def _diagonal(codes):
@@ -231,7 +231,8 @@ def test_cube_store_round_trip(tmp_path):
     from beebot.vla.voxel.lm import batch_of
 
     obs, codes, texts = batch_of(store, labels, 5, random.Random(0), "cpu")
-    assert obs.shape == (5, 6, 16, 16, 16) and codes.shape == (5, 16, 16, 16) and len(texts) == 5
+    assert obs.shape == (5, N_CHANNELS, 16, 16, 16) and codes.shape == (5, 16, 16, 16) and len(texts) == 5
+    assert not obs[:, 7:].any() and torch.equal(obs[:, 6], obs[:, 2])  # an old store: food on every cheese voxel, no zones
     again = tmp_path / "again"
     demos.write(again, 6, seed=0, chunk=6, steps=steps, moves="cube", robots=(6, 115), failure=demos.parse_failure("0.15,up_over=0.3"))
     assert (np.load(again / "actions.npy", mmap_mode="r")[:count] == np.asarray(store["actions"][:count])).all()  # deterministic under the seed
