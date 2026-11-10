@@ -53,7 +53,7 @@ class StreamVoxelPolicy(VoxelLMPolicy):
 
     def patches(self, obs, kind):
         pos = self.positions3(obs.shape[-1], obs.device)
-        return (self.scene_embed(patchify3(obs)) + pos + self.kind[kind]).to(self.lm.get_input_embeddings().weight.dtype)
+        return (self.scene_embed(patchify3(obs[:, : self.channels])) + pos + self.kind[kind]).to(self.lm.get_input_embeddings().weight.dtype)
 
     def user_turn(self, obs, text_ids, text_mask, null=None):
         """Embeddings and key mask of the stream up to the start of the reply: (B, T, H), (B, T)."""
