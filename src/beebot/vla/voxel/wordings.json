@@ -2778,6 +2778,100 @@
     "make a group per one of the {k}",
     "tally the {k}, then form that many separate groups"
    ]
+  },
+  "build": {
+   "slots": {
+    "o": "object"
+   },
+   "canonical": "build {o}",
+   "train": [
+    "build {o}",
+    "make {o}",
+    "make {o} out of yourselves",
+    "build {o} out of robots",
+    "form {o}",
+    "please build {o}",
+    "could you build {o}?",
+    "can you make {o}?",
+    "I'd like you to build {o}",
+    "I want {o}, built from all of you",
+    "put together {o}",
+    "assemble {o}",
+    "assemble into {o}",
+    "stack yourselves into {o}",
+    "turn yourselves into {o}",
+    "let's build {o}",
+    "build me {o}",
+    "make me {o}",
+    "construct {o}",
+    "go build {o}",
+    "your job: build {o}",
+    "time to build {o}",
+    "build {o}, please",
+    "show me {o} made of robots",
+    "use your bodies to make {o}",
+    "stack up into the shape of {o}",
+    "how about building {o}?",
+    "everyone, build {o} together",
+    "work together to build {o}",
+    "I need {o}: build it",
+    "can you all make {o}?",
+    "shape yourselves into {o}"
+   ],
+   "held_out": [
+    "erect {o}",
+    "fashion {o} from your own bodies",
+    "piece together {o}",
+    "sculpt {o}",
+    "would you mind putting up {o}?",
+    "raise {o} right here"
+   ]
+  },
+  "build.use": {
+   "slots": {
+    "f": "use"
+   },
+   "canonical": "build something {f}",
+   "train": [
+    "build something {f}",
+    "make something {f}",
+    "make me something {f}",
+    "build me something {f}",
+    "please build something {f}",
+    "could you build something {f}?",
+    "can you make something {f}?",
+    "I need something {f}",
+    "I'd like something {f}",
+    "put together something {f}",
+    "assemble something {f}",
+    "construct something {f}",
+    "form something {f}",
+    "turn yourselves into something {f}",
+    "stack up into something {f}",
+    "build anything {f}",
+    "make anything {f}",
+    "I want something {f}, built from all of you",
+    "let's build something {f}",
+    "your job: build something {f}",
+    "time to build something {f}",
+    "build something {f}, please",
+    "use your bodies to make something {f}",
+    "how about building something {f}?",
+    "work together to build something {f}",
+    "everyone, make something {f}",
+    "shape yourselves into something {f}",
+    "can you all build something {f}?",
+    "go build something {f}",
+    "make a thing {f}"
+   ],
+   "held_out": [
+    "erect something {f}",
+    "fashion something {f} from your own bodies",
+    "piece together something {f}",
+    "sculpt something {f}",
+    "would you mind putting up something {f}?",
+    "raise something {f} right here"
+   ]
   }
  },
  "lexical": {
