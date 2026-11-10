@@ -48,11 +48,15 @@ def unpatchify3(v, d, p=PATCH):
 
 
 class VoxelLMPolicy(LMPolicy):
-    def __init__(self, lm, lora_rank=0, freeze_embeddings=True):
-        super().__init__(lm, obs_channels=N_CHANNELS, lora_rank=lora_rank, freeze_embeddings=freeze_embeddings)
+    """channels: how many of world.CHANNELS the policy reads (the first ones of observe()):
+    world.N_CHANNELS, or world.OLD_CHANNELS for a checkpoint trained before objects."""
+
+    def __init__(self, lm, lora_rank=0, freeze_embeddings=True, channels=N_CHANNELS):
+        super().__init__(lm, obs_channels=channels, lora_rank=lora_rank, freeze_embeddings=freeze_embeddings)
         hidden = lm.config.hidden_size
         del self.goal_embed  # text goals only
-        self.scene_embed = nn.Linear(N_CHANNELS * PATCH**3, hidden)
+        self.channels = channels
+        self.scene_embed = nn.Linear(channels * PATCH**3, hidden)
         self.depth = nn.Embedding(MAX_SIDE, hidden)
         self.readout = nn.Linear(hidden, PATCH**3 * N_ACTIONS)
         scale = lm.get_input_embeddings().weight.std().item()
@@ -66,7 +70,7 @@ class VoxelLMPolicy(LMPolicy):
 
     def scene_tokens(self, obs):
         pos = self.positions3(obs.shape[-1], obs.device)
-        return (self.scene_embed(patchify3(obs)) + pos + self.kind[0]).to(self.lm.get_input_embeddings().weight.dtype)
+        return (self.scene_embed(patchify3(obs[:, : self.channels])) + pos + self.kind[0]).to(self.lm.get_input_embeddings().weight.dtype)
 
     def logits(self, obs, text_ids=None, text_mask=None, null=None):
         """(B, n^3, PATCH^3, 27)."""
@@ -129,11 +133,13 @@ def tokens(tokenizer, texts, device):
 
 
 def world_at(store, rows):
-    """VoxelWorld (CPU) of the store's (e, t) rows."""
+    """VoxelWorld (CPU) of the store's (e, t) rows, with the object fields when the store has them
+    (demos --objects; README "Objects"); an older store gives a world without them."""
     e = torch.tensor([r[0] for r in rows])
     t = torch.tensor([r[1] for r in rows])
     mass = torch.stack([torch.from_numpy(np.asarray(store["mass"][i, j])) for i, j in zip(e.tolist(), t.tolist())]).float()
-    return VoxelWorld(mass, store["walls"][e], store["cheese_pos"][e, t].long(), store["cheese_alive"][e, t], store["cheese_color"][e], store["gravity"][e])
+    extra = {name: store[name][e] for name in ("form", "colour2", "pattern", "friction", "food", "zones") if name in store}
+    return VoxelWorld(mass, store["walls"][e], store["cheese_pos"][e, t].long(), store["cheese_alive"][e, t], store["cheese_color"][e], store["gravity"][e], **extra)
 
 
 def batch_of(store, labels, n, rng, device):
