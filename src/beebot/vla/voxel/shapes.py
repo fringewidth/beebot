@@ -123,13 +123,13 @@ def square_glyph(rows):
     return out
 
 
-def _ellipse(d, w, filled=True):
+def _ellipse(d, w, solid_fill=True):
     yy, xx = np.mgrid[0:d, 0:w]
     inside = ((yy - (d - 1) / 2) / (d / 2)) ** 2 + ((xx - (w - 1) / 2) / (w / 2)) ** 2 <= 1.0
-    if filled:
+    if solid_fill:
         return inside
-    padded = np.pad(inside, 1)
-    core = padded[1:-1, 1:-1] & padded[:-2, 1:-1] & padded[2:, 1:-1] & padded[1:-1, :-2] & padded[1:-1, 2:]
+    pad_grid = np.pad(inside, 1)
+    core = pad_grid[1:-1, 1:-1] & pad_grid[:-2, 1:-1] & pad_grid[2:, 1:-1] & pad_grid[1:-1, :-2] & pad_grid[1:-1, 2:]
     return inside & ~core
 
 
@@ -196,8 +196,8 @@ def part_grid(part):
         solid = ((zz + 0.5) / h) ** 2 + ((yy - (d - 1) / 2) / (d / 2)) ** 2 + ((xx - (w - 1) / 2) / (w / 2)) ** 2 <= 1.0
         for z in range(h):
             above = solid[z + 1] if z + 1 < h else np.zeros((d, w), bool)
-            padded = np.pad(above, 1)
-            inner = padded[1:-1, 1:-1] & padded[:-2, 1:-1] & padded[2:, 1:-1] & padded[1:-1, :-2] & padded[1:-1, 2:]
+            pad_grid = np.pad(above, 1)
+            inner = pad_grid[1:-1, 1:-1] & pad_grid[:-2, 1:-1] & pad_grid[2:, 1:-1] & pad_grid[1:-1, :-2] & pad_grid[1:-1, 2:]
             g[z] = solid[z] & ~inner if z + 1 < h else solid[z]
     elif prim == "glyph":
         glyph = square_glyph(GLYPHS[part.char])[::-1]  # row 0 at the bottom
@@ -245,11 +245,11 @@ def groups(parts):
 def group_cells(parts):
     """[(label, (n, 3) cells new in this group)] in program order: a voxel belongs to the first
     group that has it."""
-    seen = set()
+    known = set()
     out = []
     for label, members in groups(parts):
-        cells = [tuple(c) for c in program_cells(members).tolist() if tuple(c) not in seen]
-        seen.update(cells)
+        cells = [tuple(c) for c in program_cells(members).tolist() if tuple(c) not in known]
+        known.update(cells)
         out.append((label, np.array(cells, int).reshape(-1, 3)))
     return out
 
@@ -281,12 +281,12 @@ def rotate(parts, k=1):
     parts = normalise(parts)
     for _ in range(k % 4):
         extent = program_cells(parts).max(axis=0) + 1
-        turned = []
+        turn_parts = []
         for p in parts:
             z, y, x = p.at
             h, d, w = p.size
-            turned.append(replace(p, at=(z, x, int(extent[1]) - y - d), size=(h, w, d), axis=ROTATE_AXIS[p.axis]))
-        parts = normalise(turned)
+            turn_parts.append(replace(p, at=(z, x, int(extent[1]) - y - d), size=(h, w, d), axis=ROTATE_AXIS[p.axis]))
+        parts = normalise(turn_parts)
     return parts
 
 
@@ -353,8 +353,8 @@ def group_sentence(label, members):
     h, d, w = first.size
     n = len(members)
     alike = all(m.prim == first.prim and m.size == first.size for m in members)
-    raised = min(m.at[0] for m in members) > 0
-    on_top = " on top" if raised else ""
+    high_part = min(m.at[0] for m in members) > 0
+    on_top = " on top" if high_part else ""
     lead = count_word(n) if n > 1 else "a"
     if alike and first.prim == "col":
         return f"{count_word(n) if n > 1 else 'a'} {label} {h} tall" + ("" if (d, w) == (1, 1) else f", {d} by {w}")
@@ -443,25 +443,25 @@ def build_order(groups_of_cells, walls=None, limit=CANTILEVER, base=()):
     """[[cells in placing order] per group] such that every partial structure stands (on top of
     `base`, cubes already standing), lowest first, or None if a group cannot be completed on the
     groups before it. groups_of_cells: [(n, 3) cells] in build order."""
-    placed = [tuple(int(v) for v in c) for c in base]
-    lever = levers(placed, walls, limit)
+    structure_cells = [tuple(int(v) for v in c) for c in base]
+    lever = levers(structure_cells, walls, limit)
     out = []
     for group in groups_of_cells:
-        left = {tuple(int(v) for v in c) for c in group} - set(placed)
+        remaining = {tuple(int(v) for v in c) for c in group} - set(structure_cells)
         order = []
-        while left:
+        while remaining:
             options = []
-            for c in left:
+            for c in remaining:
                 value = placeable(c, lever, walls, limit)
                 if value is not None:
                     options.append((c[0], value, c))
             if not options:
                 return None
             _, _, c = min(options)
-            left.discard(c)
+            remaining.discard(c)
             order.append(c)
-            placed.append(c)
-            lever = levers(placed, walls, limit)
+            structure_cells.append(c)
+            lever = levers(structure_cells, walls, limit)
         out.append(order)
     return out
 
@@ -485,20 +485,20 @@ def reach(structure, rule="switch_cube"):
     cubes = torch.from_numpy(structure).unsqueeze(0)
     nothing = torch.zeros_like(cubes)
     paths = pivot_moves(cubes, nothing, nothing, release=rule == "switch_cube")[0]
-    got = torch.zeros_like(cubes[0])
-    got[0, 0, :] = got[0, -1, :] = got[0, :, 0] = got[0, :, -1] = True
-    got &= ~cubes[0]
+    reachable = torch.zeros_like(cubes[0])
+    reachable[0, 0, :] = reachable[0, -1, :] = reachable[0, :, 0] = reachable[0, :, -1] = True
+    reachable &= ~cubes[0]
     codes = [c for c in range(len(DIRS)) if bool(paths[c].any())]
     while True:
-        ahead = got.clone()
+        ahead = reachable.clone()
         for code in codes:
-            moved = _padded((got & paths[code]).unsqueeze(0), False)
+            moving = _padded((reachable & paths[code]).unsqueeze(0), False)
             back = tuple(-v for v in DIRS[code])
-            ahead |= _at(moved, back)[0]
+            ahead |= _at(moving, back)[0]
         ahead &= ~cubes[0]
-        if bool((ahead == got).all()):
-            return got.numpy()
-        got = ahead
+        if bool((ahead == reachable).all()):
+            return reachable.numpy()
+        reachable = ahead
 
 
 SWEEPS = tuple((major, sign_major, sign_minor) for major in (1, 2) for sign_major in (1, -1) for sign_minor in (1, -1))  # raster orders over a layer
@@ -510,13 +510,13 @@ def sweep_key(cell, sweep):
     return (cell[0], sign_major * cell[major], sign_minor * cell[minor])
 
 
-def makes_slot(cell, left, structure, shift):
+def makes_slot(cell, remaining, structure, shift):
     """Whether placing cell leaves a voxel still to fill with placed cubes on two opposite sides
     in its layer (a slot no pivot can enter)."""
     z, y, x = cell
     for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
         gap = (z, y + dy, x + dx)
-        if gap not in left or gap == cell:
+        if gap not in remaining or gap == cell:
             continue
         far = np.array((z, y + 2 * dy, x + 2 * dx)) - shift
         if (far >= 0).all() and (far < np.array(structure.shape)).all() and structure[tuple(far)]:
@@ -536,25 +536,25 @@ def climb_order(groups_of_cells, rule="switch_cube", limit=CANTILEVER):
     dims = tuple(int(v) for v in every.max(axis=0) - shift + np.array([3, CLIMB_MARGIN + 1, CLIMB_MARGIN + 1]))
     for sweep in SWEEPS:
         structure = np.zeros(dims, bool)
-        placed = []
+        structure_cells = []
         lever = {}
         out = []
         for group in groups_of_cells:
-            left = {tuple(int(v) for v in c) for c in group} - set(placed)
+            remaining = {tuple(int(v) for v in c) for c in group} - set(structure_cells)
             order = []
-            while left:
-                options = sorted((sweep_key(c, sweep), c) for c in left if placeable(c, lever, None, limit) is not None)
-                got = reach(structure, rule) if options else None
-                ready = [c for _, c in options if got[tuple(np.array(c) - shift)]]
-                pick = next((c for c in ready if not makes_slot(c, left, structure, shift)), ready[0] if ready else None)
+            while remaining:
+                options = sorted((sweep_key(c, sweep), c) for c in remaining if placeable(c, lever, None, limit) is not None)
+                reachable = reach(structure, rule) if options else None
+                reachable_options = [c for _, c in options if reachable[tuple(np.array(c) - shift)]]
+                pick = next((c for c in reachable_options if not makes_slot(c, remaining, structure, shift)), reachable_options[0] if reachable_options else None)
                 if pick is None:
                     break
-                left.discard(pick)
+                remaining.discard(pick)
                 order.append(pick)
-                placed.append(pick)
+                structure_cells.append(pick)
                 structure[tuple(np.array(pick) - shift)] = True
-                lever = levers(placed, None, limit)
-            if left:
+                lever = levers(structure_cells, None, limit)
+            if remaining:
                 break
             out.append(order)
         if len(out) == len(groups_of_cells):
@@ -571,24 +571,24 @@ def climbable(parts, rule="switch_cube"):
 # Functions: what a structure is good for, on an occupancy grid (D, H, W) bool
 
 
-def held_mask(occupied, walls=None):
+def held_mask(occupancy, walls=None):
     """(D, H, W) bool: occupied voxels face-connected to the floor or terrain (the world's rule)."""
-    held = np.zeros_like(occupied)
-    held[0] = occupied[0]
+    hold = np.zeros_like(occupancy)
+    hold[0] = occupancy[0]
     if walls is not None:
-        held[1:] |= occupied[1:] & walls[:-1]
+        hold[1:] |= occupancy[1:] & walls[:-1]
     while True:
-        grown = held.copy()
-        grown[1:] |= held[:-1]
-        grown[:-1] |= held[1:]
-        grown[:, 1:] |= held[:, :-1]
-        grown[:, :-1] |= held[:, 1:]
-        grown[:, :, 1:] |= held[:, :, :-1]
-        grown[:, :, :-1] |= held[:, :, 1:]
-        grown &= occupied
-        if (grown == held).all():
-            return held
-        held = grown
+        step_mask = hold.copy()
+        step_mask[1:] |= hold[:-1]
+        step_mask[:-1] |= hold[1:]
+        step_mask[:, 1:] |= hold[:, :-1]
+        step_mask[:, :-1] |= hold[:, 1:]
+        step_mask[:, :, 1:] |= hold[:, :, :-1]
+        step_mask[:, :, :-1] |= hold[:, :, 1:]
+        step_mask &= occupancy
+        if (step_mask == hold).all():
+            return hold
+        hold = step_mask
 
 
 def _windows(layer):
@@ -597,31 +597,31 @@ def _windows(layer):
     return a[:-1, :-1] + a[1:, :-1] + a[:-1, 1:] + a[1:, 1:]
 
 
-def _top(occupied, held, z):
-    above = occupied[z + 1] if z + 1 < occupied.shape[0] else np.zeros_like(occupied[z])
-    return held[z] & ~above
+def _top(occupancy, hold, z):
+    above = occupancy[z + 1] if z + 1 < occupancy.shape[0] else np.zeros_like(occupancy[z])
+    return hold[z] & ~above
 
 
-def sit(occupied, walls=None):
+def sit(occupancy, walls=None):
     """A supported flat surface of at least 2 x 2 at height 2 to 4 (its cubes' tops two to four
     cubes above the floor: z 1 to 3) with nothing on it: the share of the best 2 x 2 window."""
-    held = held_mask(occupied, walls)
+    hold = held_mask(occupancy, walls)
     best = 0
-    for z in range(1, min(4, occupied.shape[0])):
-        best = max(best, int(_windows(_top(occupied, held, z)).max(initial=0)))
+    for z in range(1, min(4, occupancy.shape[0])):
+        best = max(best, int(_windows(_top(occupancy, hold, z)).max(initial=0)))
     return best / 4
 
 
-def table(occupied, walls=None):
+def table(occupancy, walls=None):
     """A supported flat top at height 3 or more (z >= 2): a clear 2 x 2 window of it with open
     space under at least half of its cells. 1.0 when found, else the best share of such a window."""
-    held = held_mask(occupied, walls)
+    hold = held_mask(occupancy, walls)
     best = 0.0
-    for z in range(2, occupied.shape[0]):
-        top = _top(occupied, held, z)
+    for z in range(2, occupancy.shape[0]):
+        top = _top(occupancy, hold, z)
         if not top.any():
             continue
-        under = ~occupied[z - 1] & (~walls[z - 1] if walls is not None else True)
+        under = ~occupancy[z - 1] & (~walls[z - 1] if walls is not None else True)
         both = _windows(top) == 4
         if (both & (_windows(top & under) >= 2)).any():
             return 1.0
@@ -629,58 +629,58 @@ def table(occupied, walls=None):
     return best
 
 
-def _roofed(occupied):
+def _roofed(occupancy):
     """(D, H, W) bool: voxels with an occupied voxel somewhere above them in their column."""
-    above = np.zeros_like(occupied)
-    for z in range(occupied.shape[0] - 2, -1, -1):
-        above[z] = above[z + 1] | occupied[z + 1]
+    above = np.zeros_like(occupancy)
+    for z in range(occupancy.shape[0] - 2, -1, -1):
+        above[z] = above[z + 1] | occupancy[z + 1]
     return above
 
 
-def _walled(occupied, axis, sign, reach=8):
+def _walled(occupancy, axis, sign, reach=8):
     """(D, H, W) bool: an occupied voxel within reach along a floor axis (1 or 2) and sign."""
-    out = np.zeros_like(occupied)
-    shifted = occupied.copy()
+    out = np.zeros_like(occupancy)
+    moving = occupancy.copy()
     for _ in range(reach):
-        shifted = np.roll(shifted, -sign, axis=axis)
+        moving = np.roll(moving, -sign, axis=axis)
         edge = [slice(None)] * 3
         edge[axis] = slice(-1, None) if sign > 0 else slice(0, 1)
-        shifted[tuple(edge)] = False
-        out |= shifted
+        moving[tuple(edge)] = False
+        out |= moving
     return out
 
 
 SHELTER_REACH = 3  # a shelter's walls stand within this many cells of the space they keep
 
 
-def shelter(occupied, walls=None, need=2):
+def shelter(occupancy, walls=None, need=2):
     """Roofed space: empty voxels with structure above them and, within SHELTER_REACH cells at
     their height, on at least two of their four sides; min(1, count / need)."""
-    free = ~occupied & (~walls if walls is not None else True)
-    sides = sum(_walled(occupied, axis, sign, SHELTER_REACH).astype(int) for axis in (1, 2) for sign in (-1, 1))
-    count = int((free & _roofed(occupied) & (sides >= 2)).sum())
+    free = ~occupancy & (~walls if walls is not None else True)
+    sides = sum(_walled(occupancy, axis, sign, SHELTER_REACH).astype(int) for axis in (1, 2) for sign in (-1, 1))
+    count = int((free & _roofed(occupancy) & (sides >= 2)).sum())
     return min(1.0, count / need)
 
 
-def span(occupied, walls=None):
+def span(occupancy, walls=None):
     """A straight horizontal run (z >= 1) with two cells carried by unbroken columns down to the
     floor and, between them, a cell with open space all the way down: 1.0 or 0.0."""
-    solid = occupied | (walls if walls is not None else False)
+    solid = occupancy | (walls if walls is not None else False)
     column = np.cumprod(solid, axis=0).astype(bool)  # solid from the floor up to here
     below = np.zeros(solid.shape, int)
     below[1:] = np.cumsum(solid, axis=0)[:-1]  # solid voxels under each voxel
-    carried = np.zeros_like(occupied)
-    carried[1:] = column[:-1]
-    for z in range(1, occupied.shape[0]):
-        for layer, hold, gap in ((occupied[z], carried[z], below[z] == 0), (occupied[z].T, carried[z].T, (below[z] == 0).T)):
-            for row, held_row, gap_row in zip(layer, hold, gap):
+    prop_grid = np.zeros_like(occupancy)
+    prop_grid[1:] = column[:-1]
+    for z in range(1, occupancy.shape[0]):
+        for layer, hold, gap in ((occupancy[z], prop_grid[z], below[z] == 0), (occupancy[z].T, prop_grid[z].T, (below[z] == 0).T)):
+            for row, hold_row, gap_row in zip(layer, hold, gap):
                 start = None
                 for j in range(len(row) + 1):
                     if j < len(row) and row[j]:
                         start = j if start is None else start
                         continue
                     if start is not None:
-                        props = np.nonzero(held_row[start:j])[0]
+                        props = np.nonzero(hold_row[start:j])[0]
                         if len(props) >= 2 and gap_row[start:j][props[0] : props[-1]].any():
                             return 1.0
                         start = None
@@ -694,25 +694,25 @@ def enclosed(layer):
     outside[0], outside[-1], outside[:, 0], outside[:, -1] = True, True, True, True
     outside &= ~layer
     while True:
-        grown = outside.copy()
-        grown[1:] |= outside[:-1]
-        grown[:-1] |= outside[1:]
-        grown[:, 1:] |= outside[:, :-1]
-        grown[:, :-1] |= outside[:, 1:]
-        grown &= ~layer
-        if (grown == outside).all():
+        step_mask = outside.copy()
+        step_mask[1:] |= outside[:-1]
+        step_mask[:-1] |= outside[1:]
+        step_mask[:, 1:] |= outside[:, :-1]
+        step_mask[:, :-1] |= outside[:, 1:]
+        step_mask &= ~layer
+        if (step_mask == outside).all():
             return ~layer & ~outside
-        outside = grown
+        outside = step_mask
 
 
-def contain(occupied, walls=None, need=1):
+def contain(occupancy, walls=None, need=1):
     """A cavity open at the top: empty voxels walled in all round within their layer, resting on
     a solid voxel (a bottom of its own: the bare floor is not one), with nothing above them; min(1, count / need)."""
-    solid = occupied | (walls if walls is not None else False)
-    bottom = np.zeros_like(occupied)
+    solid = occupancy | (walls if walls is not None else False)
+    bottom = np.zeros_like(occupancy)
     bottom[1:] = solid[:-1]
     inside = np.stack([enclosed(layer) for layer in solid])
-    count = int((inside & bottom & ~_roofed(occupied)).sum())
+    count = int((inside & bottom & ~_roofed(occupancy)).sum())
     return min(1.0, count / need)
 
 
@@ -734,12 +734,12 @@ def yaw_cells(cells):
     return out
 
 
-def placement_iou(occupied, cells, margin=1):
+def placement_iou(occupancy, cells, margin=1):
     """(best IoU, (dz, dy, dx)) of the target cells (n, 3, at the origin) moved anywhere on the
     grid: hits / (target + robots inside the target's box grown by margin across the floor and
     one cell up - hits). Robots far from the target do not count, so idle robots elsewhere cost
     nothing."""
-    occ = occupied.astype(np.int32)
+    occ = occupancy.astype(np.int32)
     dims = np.array(occ.shape)
     extent = cells.max(axis=0) + 1
     shifts = dims - extent + 1
@@ -761,12 +761,12 @@ def placement_iou(occupied, cells, margin=1):
     return float(iou[best]), tuple(int(v) for v in best)
 
 
-def object_iou(occupied, cells, turns=True):
+def object_iou(occupancy, cells, turns=True):
     """The best placement_iou of the target over its four quarter turns (or as given)."""
     cells = np.asarray(cells, int)
     cells = cells - cells.min(axis=0)
     options = yaw_cells(cells) if turns else [cells]
-    return max(placement_iou(occupied, c)[0] for c in options)
+    return max(placement_iou(occupancy, c)[0] for c in options)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -869,8 +869,8 @@ def gen_door_wall(rng):
     length, h = _ri(rng, 5, 9), _ri(rng, 3, 5)
     door = _ri(rng, 1, 2)
     tall = _ri(rng, 2, h - 1)
-    left = _ri(rng, 1, length - door - 1)
-    return [P("wall", (0, 0, 0), (h, 1, left), "left wall"), P("wall", (tall, 0, left), (h - tall, 1, door), "lintel"), P("wall", (0, 0, left + door), (h, 1, length - left - door), "right wall")]  # the lintel before the wall it meets: no cube can enter a slot
+    remaining = _ri(rng, 1, length - door - 1)
+    return [P("wall", (0, 0, 0), (h, 1, remaining), "left wall"), P("wall", (tall, 0, remaining), (h - tall, 1, door), "lintel"), P("wall", (0, 0, remaining + door), (h, 1, length - remaining - door), "right wall")]  # the lintel before the wall it meets: no cube can enter a slot
 
 
 def gen_fence(rng):
@@ -1174,14 +1174,14 @@ def fit_variant(name, rng, robots, tries=24, low=0.4, climb=True, checks=4):
     1.0 times the swarm; with climb, also climbable (cubes can walk to every voxel as it is
     placed; the `checks` closest are tried in turn). None when none fits."""
     want = rng.uniform(low, 1.0) * robots
-    found = []
+    options = []
     for k in range(tries):
         shape = variant(name, rng)
         cells = shape.cells()
         if len(cells) > robots or not fits_grid(cells) or not buildable(shape.parts):
             continue
-        found.append((abs(len(cells) - want), k, shape))
-    for _, _, shape in sorted(found, key=lambda item: item[:2])[: checks if climb else 1]:
+        options.append((abs(len(cells) - want), k, shape))
+    for _, _, shape in sorted(options, key=lambda item: item[:2])[: checks if climb else 1]:
         if not climb or climbable(shape.parts):
             return shape
     return None
@@ -1210,17 +1210,17 @@ def survey(draws=64, seed=0):
     rng = np.random.default_rng(seed)
     out = {}
     for name, entry in LIBRARY.items():
-        standing, ok, climbing, sizes = 0, 0, 0, []
+        stand_count, ok, climbing, sizes = 0, 0, 0, []
         for _ in range(draws):
             shape = variant(name, rng)
             cells = shape.cells()
-            standing += stands(cells)
+            stand_count += stands(cells)
             if fits_grid(cells) and buildable(shape.parts):
                 ok += 1
                 if climbable(shape.parts):
                     climbing += 1
                     sizes.append(len(cells))
-        out[name] = {"category": entry.category, "held_out": entry.held_out, "draws": draws, "stand": standing / draws, "buildable": ok / draws, "climbable": climbing / draws, "sizes": [int(min(sizes)), int(np.median(sizes)), int(max(sizes))] if sizes else []}
+        out[name] = {"category": entry.category, "held_out": entry.held_out, "draws": draws, "stand": stand_count / draws, "buildable": ok / draws, "climbable": climbing / draws, "sizes": [int(min(sizes)), int(np.median(sizes)), int(max(sizes))] if sizes else []}
     return out
 
 
@@ -1287,22 +1287,22 @@ def voxelise(vertices, faces, resolution, up=1, fill=True, samples=12):
     grid[tuple(cells.T)] = True
     if fill:
         outside = np.zeros_like(grid)
-        padded = np.pad(grid, 1)
-        reach = np.zeros_like(padded)
+        pad_grid = np.pad(grid, 1)
+        reach = np.zeros_like(pad_grid)
         reach[0], reach[-1], reach[:, 0], reach[:, -1], reach[:, :, 0], reach[:, :, -1] = True, True, True, True, True, True
-        reach &= ~padded
+        reach &= ~pad_grid
         while True:
-            grown = reach.copy()
-            grown[1:] |= reach[:-1]
-            grown[:-1] |= reach[1:]
-            grown[:, 1:] |= reach[:, :-1]
-            grown[:, :-1] |= reach[:, 1:]
-            grown[:, :, 1:] |= reach[:, :, :-1]
-            grown[:, :, :-1] |= reach[:, :, 1:]
-            grown &= ~padded
-            if (grown == reach).all():
+            step_mask = reach.copy()
+            step_mask[1:] |= reach[:-1]
+            step_mask[:-1] |= reach[1:]
+            step_mask[:, 1:] |= reach[:, :-1]
+            step_mask[:, :-1] |= reach[:, 1:]
+            step_mask[:, :, 1:] |= reach[:, :, :-1]
+            step_mask[:, :, :-1] |= reach[:, :, 1:]
+            step_mask &= ~pad_grid
+            if (step_mask == reach).all():
                 break
-            reach = grown
+            reach = step_mask
         outside = reach[1:-1, 1:-1, 1:-1]
         grid = ~outside
     return grid
@@ -1310,9 +1310,9 @@ def voxelise(vertices, faces, resolution, up=1, fill=True, samples=12):
 
 def hollow(grid):
     """The voxels of a solid on its surface (a face toward empty space; the floor does not count)."""
-    padded = np.pad(grid, 1)
-    padded[0] = padded[1]
-    core = padded[1:-1, 1:-1, 1:-1] & padded[:-2, 1:-1, 1:-1] & padded[2:, 1:-1, 1:-1] & padded[1:-1, :-2, 1:-1] & padded[1:-1, 2:, 1:-1] & padded[1:-1, 1:-1, :-2] & padded[1:-1, 1:-1, 2:]
+    pad_grid = np.pad(grid, 1)
+    pad_grid[0] = pad_grid[1]
+    core = pad_grid[1:-1, 1:-1, 1:-1] & pad_grid[:-2, 1:-1, 1:-1] & pad_grid[2:, 1:-1, 1:-1] & pad_grid[1:-1, :-2, 1:-1] & pad_grid[1:-1, 2:, 1:-1] & pad_grid[1:-1, 1:-1, :-2] & pad_grid[1:-1, 1:-1, 2:]
     return grid & ~core
 
 
@@ -1320,20 +1320,20 @@ def boxes_of(grid, label_by_layer=True):
     """A parts program covering a voxel grid exactly with boxes: greedy, lowest layer first, each
     box grown along x, then y, then up while it stays inside the grid's voxels. Groups are layers
     ("layer 1", ...) of the box's lowest voxel."""
-    left = grid.copy()
+    remaining = grid.copy()
     parts = []
-    while left.any():
-        z, y, x = (int(v) for v in np.argwhere(left)[0])
+    while remaining.any():
+        z, y, x = (int(v) for v in np.argwhere(remaining)[0])
         w = 1
-        while x + w < grid.shape[2] and left[z, y, x + w]:
+        while x + w < grid.shape[2] and remaining[z, y, x + w]:
             w += 1
         d = 1
-        while y + d < grid.shape[1] and left[z, y + d, x : x + w].all():
+        while y + d < grid.shape[1] and remaining[z, y + d, x : x + w].all():
             d += 1
         h = 1
-        while z + h < grid.shape[0] and left[z + h, y : y + d, x : x + w].all():
+        while z + h < grid.shape[0] and remaining[z + h, y : y + d, x : x + w].all():
             h += 1
-        left[z : z + h, y : y + d, x : x + w] = False
+        remaining[z : z + h, y : y + d, x : x + w] = False
         prim = "col" if (d, w) == (1, 1) and h > 1 else "slab" if h == 1 and min(d, w) > 1 else "beam" if h == 1 else "box"
         parts.append(P(prim, (z, y, x), (h, d, w), f"layer {z + 1}" if label_by_layer else "part"))
     return tuple(parts)

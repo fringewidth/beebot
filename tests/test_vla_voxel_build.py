@@ -47,8 +47,8 @@ def test_the_text_form_is_compact_and_refuses_what_it_cannot_read():
     for bad in ("legs col 0 0 0 3 1 1", "legs: tower 0 0 0 3 1 1", "legs: col 0 0 3 1 1", "letter: glyph 0 0 0 7 1 5 +x", ""):
         with pytest.raises(ValueError):
             H.parse_program(bad)
-    written = "back: wall 0 0 0 3 1 4; seat: slab 0 1 0 1 3 4"  # a new object written as parts
-    assert H.program_mask(written).sum() == 12 + 12 - 0
+    new_program = "back: wall 0 0 0 3 1 4; seat: slab 0 1 0 1 3 4"  # a new object written as parts
+    assert H.program_mask(new_program).sum() == 12 + 12 - 0
 
 
 def test_primitives_render_inside_their_box():
@@ -71,8 +71,8 @@ def test_turning_a_program_turns_its_voxels(k):
     for name in ("chair", "slide", "letter J", "house", "igloo"):
         shape = draws_of(name, 1, seed=k)[0]
         grid = H.to_grid(shape.cells())
-        turned = H.to_grid(H.program_cells(H.rotate(shape.parts, k)))
-        assert (turned == np.rot90(grid, -k, axes=(1, 2))).all(), name
+        turn_cells = H.to_grid(H.program_cells(H.rotate(shape.parts, k)))
+        assert (turn_cells == np.rot90(grid, -k, axes=(1, 2))).all(), name
 
 
 # ---------------------------------------------------------------------------------------------
@@ -87,8 +87,8 @@ def test_a_bond_holds_an_overhang_up_to_the_cantilever_limit():
     assert H.stands(arm(4), limit=4)
     lamp = arm(2) + [(0, 0, 2)]  # hanging under the arm's end
     assert H.levers(lamp)[(0, 0, 2)] == 0  # it rests on the floor: grounded
-    hanging = column + [(2, 0, 0), (2, 0, 1), (2, 0, 2), (1, 0, 2)]
-    assert H.levers(hanging)[(1, 0, 2)] == 3 and not H.stands(hanging, limit=2)
+    hang_cells = column + [(2, 0, 0), (2, 0, 1), (2, 0, 2), (1, 0, 2)]
+    assert H.levers(hang_cells)[(1, 0, 2)] == 3 and not H.stands(hang_cells, limit=2)
     span = [(0, 0, 0), (1, 0, 0)] + [(1, 0, x) for x in range(1, 7)] + [(0, 0, 7), (1, 0, 7)]
     assert H.stands(span)  # 6 cells between two columns: never more than 3 from one
     assert not H.stands([(0, 0, 0), (2, 0, 0)])  # a gap
@@ -101,18 +101,18 @@ def test_the_build_order_keeps_every_partial_structure_standing():
             order = H.build_order(groups)
             if order is None:
                 continue
-            placed = []
+            structure_cells = []
             for cell in [c for group in order for c in group]:
-                placed.append(cell)
-                assert H.stands(placed), (name, cell)
-            assert sorted(placed) == sorted(map(tuple, shape.cells().tolist()))
+                structure_cells.append(cell)
+                assert H.stands(structure_cells), (name, cell)
+            assert sorted(structure_cells) == sorted(map(tuple, shape.cells().tolist()))
 
 
 def test_a_cube_climbs_a_column_but_not_under_an_overhang():
     structure = np.zeros((5, 7, 7), bool)
     structure[0:2, 3, 3] = True
-    got = H.reach(structure)
-    assert got[2, 3, 3] and got[1, 3, 4] and not got[3, 3, 3]
+    reachable = H.reach(structure)
+    assert reachable[2, 3, 3] and reachable[1, 3, 4] and not reachable[3, 3, 3]
     mushroom = H.parse_program("stem: col 0 2 2 3 1 1; cap: disc 3 0 0 1 5 5")
     assert H.buildable(mushroom) and not H.climbable(mushroom)
 
@@ -194,14 +194,14 @@ def test_the_score_finds_the_object_wherever_and_however_it_was_built():
 
 
 def test_held_out_objects_are_built_from_trained_parts():
-    trained = {p.prim for name in H.TRAIN_NAMES for s in draws_of(name, 6) for p in s.parts}
+    trained_prims = {p.prim for name in H.TRAIN_NAMES for s in draws_of(name, 6) for p in s.parts}
     for name in H.HELD_NAMES:
-        used = {p.prim for s in draws_of(name, 6) for p in s.parts}
-        assert used <= trained, (name, used - trained)
+        prims_used = {p.prim for s in draws_of(name, 6) for p in s.parts}
+        assert prims_used <= trained_prims, (name, prims_used - trained_prims)
     assert all(H.LIBRARY[n].held_out for n in H.LIBRARY if H.LIBRARY[n].category in H.HELD_CATEGORIES)
     drawable = [n for n in H.LIBRARY if B.min_sizes()[n] <= S.ROBOTS[1]]
-    held = [n for n in drawable if n in H.HELD_NAMES]
-    assert 0.15 <= len(held) / len(drawable) <= 0.3
+    held_names = [n for n in drawable if n in H.HELD_NAMES]
+    assert 0.15 <= len(held_names) / len(drawable) <= 0.3
     assert {"pyramid", "staircase", "letter K", "letter Q"} <= set(H.HELD_NAMES)  # the suite's held-out shape, construction and letters stay held out
 
 
@@ -300,8 +300,8 @@ def test_the_build_draw_is_pinned():
 
 def test_build_tasks_come_after_the_other_draws_and_leave_them_alone():
     plain = [[S.task_kind(t) for t in tasks] for _, _, _, tasks, _ in demos.draws(12, 5, 12, robots=S.ROBOTS, check=True, coverage=0.5)]
-    mixed = [[S.task_kind(t) for t in tasks] for _, _, _, tasks, _ in demos.draws(12, 5, 12, robots=S.ROBOTS, check=True, coverage=0.5, build=0.25)]
-    for a, b in zip(plain, mixed):
+    together = [[S.task_kind(t) for t in tasks] for _, _, _, tasks, _ in demos.draws(12, 5, 12, robots=S.ROBOTS, check=True, coverage=0.5, build=0.25)]
+    for a, b in zip(plain, together):
         assert b[: len(a)] == a and len(b) == len(a) + 3 and all(kind.startswith("build:") for kind in b[len(a) :])
 
 
@@ -333,7 +333,7 @@ def test_a_mixed_batch_plays_the_other_tasks_as_without_builds():
     make_other = lambda some: S.Expert(some, moves=B.CUBE_MOVES, seed=3, rule="switch_cube")  # noqa: E731
     alone, alone_arrays = S.run(alone_world, metas, tasks, make_other(tasks), steps=1, seed=3, record=True, rule="switch_cube")
     player = B.Mixed(tasks + more_tasks, make_other, lambda some: B.make_expert(some, seed=3))
-    mixed, mixed_arrays = S.run(both, metas + more_metas, tasks + more_tasks, player, steps=1, seed=3, record=True, rule="switch_cube")
+    together, mixed_arrays = S.run(both, metas + more_metas, tasks + more_tasks, player, steps=1, seed=3, record=True, rule="switch_cube")
     assert (mixed_arrays["actions"][:3] == alone_arrays["actions"]).all()
     assert len(player.subgoals) == 5 and all(player.subgoals)
 
