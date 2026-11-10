@@ -50,8 +50,9 @@ import torch
 import torch.distributed as dist
 
 from beebot.train import parse_config
+from beebot.vla import tpu
 from beebot.vla.lm_train import distill_loss, general_text, setup_distributed
-from beebot.vla.voxel.think import ThinkVoxelPolicy, checkpoint_meta, linear_attention_kernels, load_lm, trainable_state
+from beebot.vla.voxel.think import ThinkVoxelPolicy, checkpoint_meta, linear_attention_kernels, load_lm, trainable_state, use_matmul_linear_attention
 from beebot.vla.voxel.world import N_CHANNELS
 
 
@@ -99,14 +100,16 @@ class ThinkConfig:
     save_every_minutes: float = 60.0
     save_resume: bool = True
     prefetch: int = 4  # steps of examples made ahead by a background thread; 0: in the training loop
-    device: str = "cuda"
+    device: str = "cuda"  # cuda, mps, cpu, or xla (a TPU through torch_xla)
+    chips: int = 1  # xla: processes, one per TPU chip, data-parallel (torch_xla.launch)
+    widths: str = "384,512"  # xla: the row widths batches are padded to (fixed shapes; think.ThinkVoxelPolicy.pack)
     seed: int = 0
 
 
 def precision_of(name, device):
     """(precision name, autocast dtype or None) for --precision on this device."""
     if name == "auto":
-        name = ("bf16" if torch.cuda.get_device_capability(device)[0] >= 8 else "fp16") if device.type == "cuda" else "fp32"
+        name = ("bf16" if torch.cuda.get_device_capability(device)[0] >= 8 else "fp16") if device.type == "cuda" else "bf16" if device.type == "xla" else "fp32"
     return name, {"fp32": None, "bf16": torch.bfloat16, "fp16": torch.float16}[name]
 
 
@@ -131,16 +134,18 @@ def make_data(cfg, tokenizer):
 
 class Prefetch:
     """Each step's examples (count of them) as prepared rows, made by a background thread depth
-    steps ahead (depth 0: made on demand). Tokenizing and image processing happen there too."""
+    steps ahead (depth 0: made on demand). Tokenizing and image processing happen there too, and
+    finish(rows) when given (XLA: the step's micro-batches packed in fixed shapes)."""
 
-    def __init__(self, data, prepare, count, rng, depth):
-        self.data, self.prepare, self.count, self.rng = data, prepare, count, rng
+    def __init__(self, data, prepare, count, rng, depth, finish=None):
+        self.data, self.prepare, self.count, self.rng, self.finish = data, prepare, count, rng, finish
         self.queue = queue.Queue(depth) if depth else None
         if depth:
             threading.Thread(target=self.fill, daemon=True).start()
 
     def make(self):
-        return [self.prepare(self.data.sample(self.rng)) for _ in range(self.count)]
+        rows = [self.prepare(self.data.sample(self.rng)) for _ in range(self.count)]
+        return self.finish(rows) if self.finish else rows
 
     def fill(self):
         try:
@@ -177,9 +182,9 @@ def average_gradients(params, world, bucket=1 << 25):
 
 
 def memory_gb(device):
-    """Peak allocated CUDA memory, or the MPS driver's current allocation, in GB."""
-    used = torch.cuda.max_memory_allocated(device) if device.type == "cuda" else torch.mps.driver_allocated_memory() if device.type == "mps" else 0
-    return round(used / 1e9, 2)
+    """Peak allocated CUDA memory, the MPS driver's current allocation, or the TPU chip's HBM in use, in GB."""
+    used = torch.cuda.max_memory_allocated(device) / 1e9 if device.type == "cuda" else torch.mps.driver_allocated_memory() / 1e9 if device.type == "mps" else tpu.xla_memory_gb(device) if device.type == "xla" else 0
+    return round(used, 2)
 
 
 def lr_factor(step, cfg):
@@ -188,11 +193,15 @@ def lr_factor(step, cfg):
     return warm * (cfg.min_lr_ratio + (1 - cfg.min_lr_ratio) * 0.5 * (1 + math.cos(math.pi * progress)))
 
 
-def run():
+def run(cfg=None, index=0):
+    """One training session (cfg: from the command line when None; index: the process's TPU chip under --chips)."""
     t_start = time.time()
-    cfg = parse_config(ThinkConfig)
-    rank, world, device = setup_distributed(cfg)
+    cfg = cfg or parse_config(ThinkConfig)
+    xla = tpu.is_xla(cfg.device)
+    rank, world, device = tpu.xla_setup(index) if xla else setup_distributed(cfg)
     lead = rank == 0
+    if xla:
+        use_matmul_linear_attention()
     torch.manual_seed(cfg.seed)  # the same on every process: identical new weights
     run_dir = Path("runs") / cfg.name
     precision, amp_dtype = precision_of(cfg.precision, device)
@@ -224,22 +233,27 @@ def run():
         stage(f"init from {cfg.init}: {len(matching)} of {len(weights)} tensors")
     policy = policy.to(device)
     if cfg.checkpointing:
-        policy.lm.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        if xla:  # torch_xla's checkpoint, so XLA does not fold the recomputation back into the forward pass
+            import transformers.modeling_utils
+
+            transformers.modeling_utils.checkpoint = tpu.xla_checkpoint_function()
+        policy.lm.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": xla})
         policy.lm.config.use_cache = False
     groups = [{"params": policy.lm_parameters(), "lr": cfg.lr_lm}, {"params": policy.new_parameters(), "lr": cfg.lr_new}]
     base_lrs = [g["lr"] for g in groups]
     optimizer = torch.optim.AdamW(groups, weight_decay=cfg.weight_decay)
-    scaler = torch.amp.GradScaler(device.type, enabled=amp_dtype == torch.float16)
+    assert not (xla and amp_dtype == torch.float16), "xla: bf16 or fp32"
+    scaler = torch.amp.GradScaler("cpu" if xla else device.type, enabled=amp_dtype == torch.float16)
     params = [p for g in groups for p in g["params"]]
     step = 0
     if cfg.resume:
-        saved = torch.load(cfg.resume, map_location=device)
+        saved = torch.load(cfg.resume, map_location="cpu" if xla else device)
         policy.load_state_dict(saved["weights"], strict=False)
         optimizer.load_state_dict(saved["optimizer"])
         scaler.load_state_dict(saved["scaler"])
         step = saved["step"]
         stage(f"resumed from {cfg.resume} at step {step}")
-    if world > 1:
+    if world > 1 and not xla:  # on XLA every process starts from the same file and seed
         for p in params:
             dist.broadcast(p.data, 0)
     stage(f"trainable: {sum(p.numel() for p in groups[1]['params']) / 1e6:.2f}M new, {sum(p.numel() for p in groups[0]['params']) / 1e6:.1f}M in the LM; precision {precision}, LM weights {cfg.weights_dtype}; {world} process(es) x {cfg.batch} x {cfg.accumulate} examples per step")
@@ -248,8 +262,18 @@ def run():
         stage(f"linear-attention kernels: {json.dumps(kernels)}")
 
     data = make_data(cfg, tokenizer)
-    batches = Prefetch(data, policy.prepare_example, cfg.batch * cfg.accumulate, np.random.default_rng((cfg.seed, rank, step)), cfg.prefetch)
+    finish = None
+    if xla:  # each step's micro-batches packed in fixed shapes on the CPU, in the prefetch thread
+        widths = [int(w) for w in cfg.widths.split(",")]
+
+        def finish(rows):
+            rows = sorted(rows, key=lambda p: p.length) if cfg.bucket else rows
+            return [policy.pack(rows[k * cfg.batch : (k + 1) * cfg.batch], widths) for k in range(cfg.accumulate)]
+
+    batches = Prefetch(data, policy.prepare_example, cfg.batch * cfg.accumulate, np.random.default_rng((cfg.seed, rank, step)), cfg.prefetch, finish)
     val_set = sorted((policy.prepare_example(e) for e in data.validation(cfg.val_examples, cfg.val_seed)), key=lambda p: p.length) if lead else None
+    if lead and xla:
+        val_set = [policy.pack(val_set[i : i + cfg.batch], widths) for i in range(0, len(val_set), cfg.batch)]
     text_stream = None
     if cfg.distill_weight > 0:
         text_cfg = SimpleNamespace(general=cfg.general, lm_length=cfg.lm_length, gsm8k_share=0.1, instruct_share=0.3, seed=cfg.seed, gsm8k_problems=0)
@@ -274,9 +298,10 @@ def run():
         """Held-out losses over the whole validation list: text per reply token, action per robot voxel."""
         policy.eval()
         text = action = tokens = robots = 0.0
-        for i in range(0, len(val_set), cfg.batch):
+        groups = val_set if xla else [val_set[i : i + cfg.batch] for i in range(0, len(val_set), cfg.batch)]  # xla: packed already
+        for group in groups:
             with autocast():
-                out = policy(val_set[i : i + cfg.batch])
+                out = policy(group.to(device) if xla else group)
             text += out["text"].item() * out["text_tokens"]
             action += out["action"].item() * out["robots"]
             tokens += out["text_tokens"]
@@ -287,9 +312,10 @@ def run():
 
     def save(step):
         meta = {**checkpoint_meta(policy, cfg.model), "step": step}
-        torch.save({"weights": trainable_state(policy, torch.bfloat16), "meta": meta}, run_dir / f"policy_step{step}.pt")
+        host = tpu.to_cpu if xla else (lambda value: value)
+        torch.save({"weights": host(trainable_state(policy, torch.bfloat16)), "meta": meta}, run_dir / f"policy_step{step}.pt")
         if cfg.save_resume:
-            torch.save({"weights": trainable_state(policy), "optimizer": optimizer.state_dict(), "scaler": scaler.state_dict(), "step": step, "meta": meta}, run_dir / "resume.pt.tmp")
+            torch.save({"weights": host(trainable_state(policy)), "optimizer": host(optimizer.state_dict()), "scaler": scaler.state_dict(), "step": step, "meta": meta}, run_dir / "resume.pt.tmp")
             (run_dir / "resume.pt.tmp").replace(run_dir / "resume.pt")
         stage(f"saved policy_step{step}.pt")
 
@@ -304,7 +330,9 @@ def run():
     while True:
         elapsed = time.time() - t0 - paused
         flags = [step >= cfg.steps or bool(cfg.minutes and elapsed >= cfg.minutes * 60) or bool(cfg.wall_minutes and time.time() - t_start >= cfg.wall_minutes * 60), elapsed >= next_val, elapsed >= next_save]
-        if world > 1:  # process 0's clock for everyone
+        if world > 1 and xla:  # the processes agree at log steps only (a host sync); in between only the step count stops
+            flags = tpu.xla_agree(flags, device) if step % cfg.log_every == 0 else [step >= cfg.steps, False, False]
+        elif world > 1:  # process 0's clock for everyone
             clock = torch.tensor([float(f) for f in flags], device=device)
             dist.broadcast(clock, 0)
             flags = [bool(f) for f in clock.tolist()]
@@ -317,7 +345,9 @@ def run():
                 log({"step": step, "minutes": round(elapsed / 60, 2), **validate()})
             if lead and do_save:
                 save(step)
-            if world > 1:
+            if world > 1 and xla:
+                tpu.xla_barrier("pause")
+            elif world > 1:
                 dist.barrier()
             next_val = elapsed + cfg.val_every_minutes * 60 if do_val else next_val
             next_save = elapsed + cfg.save_every_minutes * 60 if do_save else next_save
@@ -328,14 +358,14 @@ def run():
         t_wait = time.time()
         rows = batches.next()
         counts["wait"] += time.time() - t_wait
-        if cfg.bucket:
+        if cfg.bucket and not xla:  # xla: sorted and packed in the prefetch thread
             rows = sorted(rows, key=lambda p: p.length)
         for k in range(cfg.accumulate):
             with autocast():
-                out = policy(rows[k * cfg.batch : (k + 1) * cfg.batch])
+                out = policy(rows[k].to(device) if xla else rows[k * cfg.batch : (k + 1) * cfg.batch])
             scaler.scale(out["loss"] / cfg.accumulate).backward()
             for key in ("loss", "text", "action"):
-                window[key].append(out[key].item())
+                window[key].append(out[key].detach() if xla else out[key].item())  # xla: read at log time
             counts["tokens"] += out["tokens"]
             counts["examples"] += out["examples"]
         if text_stream is not None:
@@ -343,18 +373,25 @@ def run():
             with autocast():
                 kl = distill_loss(policy.lm, teacher, chunk)
             scaler.scale(cfg.distill_weight * kl).backward()
-            window["distill_kl"].append(kl.item())
-        if world > 1:
+            window["distill_kl"].append(kl.detach() if xla else kl.item())
+        if world > 1 and xla:
+            tpu.xla_average_gradients(params, world)
+        elif world > 1:
             average_gradients(params, world)
         scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(params, 1.0)
         scaler.step(optimizer)
         scaler.update()
+        if xla:
+            tpu.xla_mark_step()
         step += 1
         if lead and (step % cfg.log_every == 0 or step - first_step in (1, 10)):
+            values = {k: [float(x) for x in v] for k, v in window.items() if v}  # xla: waits for the step to finish
             seconds = time.time() - t_window
-            row = {"step": step, "minutes": round((time.time() - t0 - paused) / 60, 2), **{k: round(float(np.mean(v)), 5) for k, v in window.items() if v}}
+            row = {"step": step, "minutes": round((time.time() - t0 - paused) / 60, 2), **{k: round(float(np.mean(v)), 5) for k, v in values.items()}}
             row.update({"lr_lm": optimizer.param_groups[0]["lr"], "tokens_per_s": round(counts["tokens"] * world / seconds, 1), "examples_per_s": round(counts["examples"] * world / seconds, 2), "data_wait": round(counts["wait"] / seconds, 3), "gpu_gb": memory_gb(device)})
+            if xla:
+                row.update({"step_s": round(seconds * cfg.accumulate / len(values["loss"]), 3), **tpu.xla_report()})
             log(row)
             window = {k: [] for k in window}
             counts = {"tokens": 0, "examples": 0, "wait": 0.0}
@@ -362,22 +399,38 @@ def run():
     if lead:
         log({"step": step, "minutes": round((time.time() - t0 - paused) / 60, 2), **validate()})
         save(step)
-    if world > 1:
+    if world > 1 and xla:
+        tpu.xla_barrier("done")
+    elif world > 1:
         dist.barrier()
         print(f"process {rank}: weight checksum {sum(p.detach().double().sum().item() for p in params):.10e}", flush=True)
         dist.destroy_process_group()
     stage(f"done at step {step}")
 
 
-def main():
-    run()
-    # Exit hard once done, as lm_train does: the streamed text datasets' threads can hold the
-    # interpreter open (Kaggle kernels sat for hours after their last line).
+def finish_process(*_):
+    """Exit hard once done, as lm_train does: the streamed text datasets' threads can hold the
+    interpreter open (Kaggle kernels sat for hours after their last line)."""
     import sys
 
     sys.stdout.flush()
     sys.stderr.flush()
     os._exit(0)
+
+
+def xla_worker(index, cfg):
+    """One TPU chip's process (--device xla --chips N)."""
+    run(cfg, index)
+    finish_process()
+
+
+def main():
+    cfg = parse_config(ThinkConfig)
+    if tpu.is_xla(cfg.device) and cfg.chips > 1:
+        tpu.xla_launch(xla_worker, (cfg,))
+    else:
+        run(cfg)
+    finish_process()
 
 
 if __name__ == "__main__":
