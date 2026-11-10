@@ -123,8 +123,8 @@ def test_multi_group_scenes_hold_separate_groups_of_different_sizes():
         sizes = sorted(len(g) for g in found)
         assert len(found) in (2, 3) and sum(sizes) == 40
         assert all(b >= 1.4 * a for a, b in zip(sizes, sizes[1:]))
-        summary = S.scene_summary(world, i)
-        assert len(summary["groups"]) == len(found) and summary["scattered"] == 0
+        robots = S.scene_summary(world, i)["robots"]
+        assert len(robots["groups"]) == len(found) and robots["alone"] == 0 and sorted(g["size"] for g in robots["groups"]) == sizes
         assert S.shells_of(world, i)[world.mass[i].numpy() > 0.5].sum() == 0  # no robot starts on a cheese's shell
 
 
@@ -156,7 +156,7 @@ def test_every_old_task_has_a_record():
     for task in tasks:
         record = S.canonical_record(task)
         json.dumps(record)
-        assert record["plain"] == W.canonical(W.slots_of(task)) and record["subgoals"]
+        assert record["plain"] == W.canonical(W.slots_of(task)) and len(record["subgoals"]) == len(task.plan)
     eat = [t for t in S.sample_tasks(rng, 30, "train", "logic")[2] if t.spec["order"]]
     assert eat and all(S.canonical_record(t)["subgoals"] == [f"eat the {c} cheese" for c in t.spec["order"]] for t in eat)
 
@@ -167,12 +167,28 @@ def test_scene_summary_names_the_terrain_and_cheeses():
     for i in range(6):
         summary = S.scene_summary(world, i)
         axis, start, width, top = S.trench(metas[i])
-        assert summary["terrain"]["kind"] == "trench" and summary["terrain"]["width"] == width and summary["terrain"]["depth"] == top
-        assert summary["terrain"]["plateaus"] == (["left", "right"] if axis == 2 else ["back", "front"])
+        trench = summary["terrain"]["trench"]
+        assert summary["terrain"]["layout"] == "trench between two plateaus" and trench["width"] == width and trench["depth"] == top
+        assert trench["runs"] == ("back to front" if axis == 2 else "left to right") and trench["from_x" if axis == 2 else "from_y"] == start
         assert sorted(c["colour"] for c in summary["cheeses"]) == sorted(c for _, c in S.present(world, i))
-        assert summary["robots"] == int(world.mass[i].sum())
+        assert summary["robots"]["count"] == int(world.mass[i].sum())
     flat, _ = S.scenes(rng, 1, layout="flat")
-    assert S.scene_summary(flat, 0)["terrain"] == {"kind": "flat"}
+    assert S.scene_summary(flat, 0)["terrain"] == {"layout": "flat floor"}
+
+
+def test_records_and_summaries_match_the_haiku_stand_ins():
+    """suite.canonical_record and scene_summary give what haiku.local_canonical_record and
+    local_scene_summary gave for the six families; the summary only adds fields."""
+    from beebot.vla.voxel import haiku
+
+    rng = np.random.default_rng(15)
+    world, _, tasks = S.sample_tasks(rng, 60, "train", robots=S.ROBOTS, counts="log")
+    for i, task in enumerate(tasks):
+        assert S.canonical_record(task) == haiku.local_canonical_record(task)
+        mine, theirs = S.scene_summary(world, i), haiku.local_scene_summary(world, i)
+        assert {k: v for k, v in mine.items() if k != "robots"} == {k: v for k, v in theirs.items() if k != "robots"}
+        assert {k: mine["robots"][k] for k in theirs["robots"]} == theirs["robots"]
+    assert set(haiku.LOCAL_NOTES.items()) <= set(S.SPEC_NOTES.items())
 
 
 def test_a_switch_changes_the_expert_at_its_step_and_is_scored_from_there():
