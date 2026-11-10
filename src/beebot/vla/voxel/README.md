@@ -1261,6 +1261,11 @@ docstrings hold the details; in short:
    training stores (seeds 0..7 and their (k, 7), (k, 11), (k, 13) streams), the Haiku test set
    (900001) and the menu (4242). An episode's own seed drives its world noise, failures, action
    sampling and views in every arm, so arms and checkpoints are paired episode by episode.
+1. **Live numbers for ops.** While it runs, `rollout_success` lines (arm model, oracle_thought,
+   expert, plain, shuffled, still; per group and per arm) go to `--rollout-log`
+   (`logs/think_act_loop.jsonl`), and `scorecard3d_mean` per arm and split, then
+   `scorecard3d_noise` (the standard deviation of the mean across `--repeats` cards on fresh scenes
+   and seeds, or the macro standard error of a single card) to `--log` (`logs/scorecard3d.jsonl`).
 1. **Stand-ins until ThinkData and views land.** `rollout.build_context` (for
    `think_data.context`), `rollout.canonical_thought` (for `think_data.template_thought`) and
    `rollout.stand_in_views` (for `views.scene_views`, `--views scene`).
