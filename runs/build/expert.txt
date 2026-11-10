@@ -1,0 +1,143 @@
+1 / 272 episodes (36 steps, 1 scenes, 1 s)
+2 / 272 episodes (40 steps, 1 scenes, 1 s)
+4 / 272 episodes (44 steps, 2 scenes, 2 s)
+6 / 272 episodes (48 steps, 2 scenes, 2 s)
+12 / 272 episodes (52 steps, 6 scenes, 4 s)
+17 / 272 episodes (56 steps, 5 scenes, 4 s)
+21 / 272 episodes (60 steps, 4 scenes, 4 s)
+27 / 272 episodes (64 steps, 6 scenes, 5 s)
+31 / 272 episodes (68 steps, 4 scenes, 4 s)
+38 / 272 episodes (72 steps, 7 scenes, 8 s)
+44 / 272 episodes (76 steps, 6 scenes, 7 s)
+51 / 272 episodes (80 steps, 7 scenes, 8 s)
+56 / 272 episodes (84 steps, 5 scenes, 7 s)
+63 / 272 episodes (88 steps, 7 scenes, 7 s)
+79 / 272 episodes (92 steps, 16 scenes, 24 s)
+87 / 272 episodes (92 steps, 8 scenes, 7 s)
+88 / 272 episodes (96 steps, 1 scenes, 2 s)
+99 / 272 episodes (100 steps, 11 scenes, 17 s)
+104 / 272 episodes (104 steps, 5 scenes, 6 s)
+114 / 272 episodes (108 steps, 10 scenes, 14 s)
+123 / 272 episodes (112 steps, 9 scenes, 20 s)
+126 / 272 episodes (116 steps, 3 scenes, 5 s)
+130 / 272 episodes (120 steps, 4 scenes, 5 s)
+139 / 272 episodes (124 steps, 9 scenes, 18 s)
+142 / 272 episodes (128 steps, 3 scenes, 3 s)
+148 / 272 episodes (132 steps, 6 scenes, 7 s)
+157 / 272 episodes (136 steps, 9 scenes, 29 s)
+163 / 272 episodes (140 steps, 6 scenes, 6 s)
+166 / 272 episodes (144 steps, 3 scenes, 5 s)
+177 / 272 episodes (148 steps, 11 scenes, 21 s)
+184 / 272 episodes (156 steps, 7 scenes, 8 s)
+187 / 272 episodes (160 steps, 3 scenes, 4 s)
+193 / 272 episodes (164 steps, 6 scenes, 8 s)
+194 / 272 episodes (168 steps, 1 scenes, 3 s)
+202 / 272 episodes (172 steps, 8 scenes, 9 s)
+203 / 272 episodes (176 steps, 1 scenes, 3 s)
+205 / 272 episodes (180 steps, 2 scenes, 4 s)
+207 / 272 episodes (184 steps, 2 scenes, 5 s)
+214 / 272 episodes (192 steps, 7 scenes, 12 s)
+218 / 272 episodes (196 steps, 4 scenes, 9 s)
+221 / 272 episodes (200 steps, 3 scenes, 5 s)
+228 / 272 episodes (204 steps, 7 scenes, 11 s)
+229 / 272 episodes (208 steps, 1 scenes, 3 s)
+235 / 272 episodes (212 steps, 6 scenes, 10 s)
+238 / 272 episodes (216 steps, 3 scenes, 7 s)
+240 / 272 episodes (220 steps, 2 scenes, 6 s)
+244 / 272 episodes (228 steps, 4 scenes, 9 s)
+245 / 272 episodes (236 steps, 1 scenes, 3 s)
+247 / 272 episodes (240 steps, 2 scenes, 6 s)
+249 / 272 episodes (248 steps, 2 scenes, 6 s)
+252 / 272 episodes (252 steps, 3 scenes, 7 s)
+253 / 272 episodes (256 steps, 1 scenes, 4 s)
+254 / 272 episodes (260 steps, 1 scenes, 5 s)
+256 / 272 episodes (264 steps, 2 scenes, 5 s)
+260 / 272 episodes (280 steps, 4 scenes, 9 s)
+261 / 272 episodes (284 steps, 1 scenes, 5 s)
+262 / 272 episodes (288 steps, 1 scenes, 4 s)
+263 / 272 episodes (292 steps, 1 scenes, 4 s)
+265 / 272 episodes (304 steps, 2 scenes, 7 s)
+266 / 272 episodes (312 steps, 1 scenes, 5 s)
+267 / 272 episodes (316 steps, 1 scenes, 6 s)
+268 / 272 episodes (320 steps, 1 scenes, 6 s)
+269 / 272 episodes (340 steps, 1 scenes, 7 s)
+270 / 272 episodes (344 steps, 1 scenes, 6 s)
+271 / 272 episodes (408 steps, 1 scenes, 8 s)
+272 / 272 episodes (428 steps, 1 scenes, 8 s)
+| object | held out | n | voxels | score | passed | steps given | steps to pass (median) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| arch |  | 4 | 10 | 1.00 | 1.00 | 50 | 30.0 |
+| bed |  | 4 | 36 | 0.97 | 1.00 | 178 | 60.0 |
+| bench |  | 4 | 13 | 0.98 | 1.00 | 76 | 46.0 |
+| bridge |  | 4 | 22 | 1.00 | 1.00 | 120 | 52.0 |
+| castle tower |  | 4 | 39 | 0.93 | 1.00 | 180 | 44.0 |
+| chair |  | 4 | 22 | 0.98 | 1.00 | 124 | 46.0 |
+| crate |  | 4 | 40 | 0.96 | 1.00 | 182 | 46.0 |
+| cross |  | 4 | 13 | 0.93 | 1.00 | 76 | 44.0 |
+| cup |  | 4 | 25 | 0.99 | 1.00 | 124 | 46.0 |
+| dog |  | 4 | 21 | 1.00 | 1.00 | 144 | 44.0 |
+| fence |  | 4 | 14 | 1.00 | 1.00 | 82 | 38.0 |
+| gate |  | 4 | 10 | 1.00 | 1.00 | 64 | 40.0 |
+| giraffe |  | 4 | 27 | 0.99 | 1.00 | 156 | 70.0 |
+| house |  | 4 | 53 | 0.94 | 1.00 | 236 | 90.0 |
+| hut |  | 4 | 56 | 0.95 | 1.00 | 248 | 114.0 |
+| igloo |  | 4 | 29 | 1.00 | 1.00 | 134 | 30.0 |
+| ladder |  | 4 | 18 | 0.80 | 0.50 | 110 | 78.0 |
+| lamp post |  | 4 | 9 | 1.00 | 1.00 | 72 | 34.0 |
+| letter A |  | 4 | 30 | 0.73 | 0.25 | 132 | 48.0 |
+| letter B |  | 4 | 48 | 0.99 | 1.00 | 204 | 60.0 |
+| letter D |  | 4 | 30 | 1.00 | 1.00 | 132 | 46.0 |
+| letter H |  | 4 | 34 | 0.97 | 1.00 | 148 | 46.0 |
+| letter I |  | 4 | 30 | 0.95 | 1.00 | 132 | 62.0 |
+| letter J |  | 4 | 20 | 1.00 | 1.00 | 90 | 40.0 |
+| letter L |  | 4 | 22 | 0.99 | 1.00 | 100 | 24.0 |
+| letter N |  | 4 | 28 | 0.96 | 1.00 | 126 | 58.0 |
+| letter O |  | 4 | 20 | 0.98 | 1.00 | 92 | 36.0 |
+| letter T |  | 4 | 22 | 0.97 | 1.00 | 100 | 60.0 |
+| letter U |  | 4 | 34 | 0.98 | 1.00 | 148 | 32.0 |
+| letter V |  | 4 | 34 | 0.96 | 1.00 | 148 | 42.0 |
+| letter W |  | 4 | 28 | 0.91 | 1.00 | 126 | 42.0 |
+| letter X |  | 4 | 20 | 0.69 | 0.00 | 92 | - |
+| letter Y |  | 4 | 28 | 0.97 | 1.00 | 124 | 54.0 |
+| number 0 |  | 4 | 38 | 0.84 | 1.00 | 162 | 64.0 |
+| number 1 |  | 4 | 15 | 1.00 | 1.00 | 72 | 30.0 |
+| number 6 |  | 4 | 40 | 0.93 | 1.00 | 172 | 52.0 |
+| number 8 |  | 4 | 25 | 0.91 | 0.75 | 112 | 56.0 |
+| obelisk |  | 4 | 18 | 1.00 | 1.00 | 108 | 46.0 |
+| podium |  | 4 | 9 | 0.98 | 1.00 | 72 | 20.0 |
+| pot |  | 4 | 24 | 1.00 | 1.00 | 120 | 36.0 |
+| shelf |  | 4 | 44 | 0.90 | 1.00 | 212 | 124.0 |
+| slide |  | 4 | 30 | 0.91 | 1.00 | 146 | 50.0 |
+| snowman |  | 4 | 61 | 0.91 | 1.00 | 280 | 156.0 |
+| sofa |  | 4 | 62 | 0.88 | 1.00 | 286 | 202.0 |
+| standing ring |  | 4 | 22 | 0.98 | 1.00 | 100 | 38.0 |
+| stool |  | 4 | 16 | 1.00 | 1.00 | 88 | 32.0 |
+| table |  | 4 | 36 | 1.00 | 1.00 | 168 | 50.0 |
+| tent |  | 4 | 36 | 1.00 | 1.00 | 156 | 30.0 |
+| wall with a door |  | 4 | 20 | 0.92 | 1.00 | 118 | 52.0 |
+| boat | yes | 4 | 45 | 0.91 | 1.00 | 228 | 52.0 |
+| cactus | yes | 4 | 14 | 0.92 | 1.00 | 80 | 50.0 |
+| car | yes | 4 | 16 | 1.00 | 1.00 | 100 | 36.0 |
+| doghouse | yes | 4 | 28 | 0.90 | 1.00 | 136 | 98.0 |
+| letter K | yes | 4 | 20 | 0.72 | 0.25 | 92 | 56.0 |
+| letter Q | yes | 4 | 46 | 0.94 | 1.00 | 196 | 50.0 |
+| number 4 | yes | 4 | 32 | 0.80 | 0.50 | 140 | 72.0 |
+| plane | yes | 4 | 18 | 0.99 | 1.00 | 122 | 50.0 |
+| pyramid | yes | 4 | 15 | 1.00 | 1.00 | 72 | 24.0 |
+| rocket | yes | 4 | 15 | 1.00 | 1.00 | 96 | 34.0 |
+| staircase | yes | 4 | 22 | 0.98 | 1.00 | 102 | 28.0 |
+| throne | yes | 4 | 49 | 0.98 | 1.00 | 244 | 98.0 |
+| train | yes | 4 | 41 | 0.79 | 0.75 | 200 | 52.0 |
+| truck | yes | 4 | 44 | 0.95 | 1.00 | 222 | 96.0 |
+| use:contain |  | 4 | 40 | 1.00 | 1.00 | 182 | 66.0 |
+| use:shelter |  | 4 | 42 | 1.00 | 1.00 | 180 | 16.0 |
+| use:sit |  | 4 | 12 | 1.00 | 1.00 | 72 | 40.0 |
+| use:span |  | 4 | 16 | 1.00 | 1.00 | 80 | 48.0 |
+| use:table |  | 4 | 33 | 1.00 | 1.00 | 156 | 46.0 |
+
+named, training: n 196, mean score 0.95, passed 0.95
+named, held out: n 56, mean score 0.92, passed 0.89
+uses: n 20, mean score 1.00, passed 1.00
+voxels 0 to 14: n 53, passed 0.96, steps given (median) 64, steps to pass (median, 90th percentile) 32.0, 44.0
+voxels 15 to 40: n 158, passed 0.91, steps given (median) 124, steps to pass (median, 90th percentile) 48.0, 74.39999999999998
+voxels 41 to 999: n 61, passed 1.00, steps given (median) 228, steps to pass (median, 90th percentile) 68.0, 172.0
