@@ -1222,6 +1222,53 @@ printed, nothing written under `data/vla/haiku`.
    own `canonical_record` and `scene_summary`; one line switches. A suite task whose colour is
    not in the scene (`eat:absent`) has the spec `{"kind": "refuse"}`.
 
+## Think-then-act training examples (`think_data.py`)
+
+`ThinkData(stores, haiku_dirs, tokenizer)` turns demo stores and verified Haiku labels into one
+example per sampled step: the scene at step t (the voxel observation, and images of it from a
+pluggable `views(obs, rng)`, rendered at sample time), the text before the reply (memory, then the
+user turn with `<IMAGES>` and the instruction in force), the reply (a thought in Qwen3.5's
+`<think>` tags, empty on most steps, then `<tool_call>`, or a text answer for a refusal) and the
+expert's action codes. The module docstring has the interface and the exact
+text layout; `python -m beebot.vla.voxel.think_data --stores ... --haiku ... --show` prints the
+counts, one rendered example of each kind and the sampling speed.
+
+1. **Thought steps.** The first step ("you asked: ... i see ... first: ..."), each instruction
+   change of a switch task (the new part's first thought), each sub-goal switch (a short line) and
+   "done." where the expert records an eat or push task as finished. Switches are read from
+   `small.pt["subgoals"]` (`Expert.subgoals`: an entry whenever the segment index or its goal
+   changes; a switch is a rise of the segment index within one instruction), so no store needs
+   rewriting and no draw changes.
+1. **Memory.** An earlier assistant turn with the latest first thought before step t and the
+   latest line after it: fixed size, never the whole history. On the step an instruction changes
+   it still holds the old instruction's thought.
+1. **Labels.** Haiku choices where verified pairs exist (one rung drawn per sample; a switch
+   episode only when every part is verified), otherwise the store's template instruction with a
+   templated thought from `canonical_record` and `scene_summary` at the part's first step. The join
+   is by (seed, index) through `attempts.jsonl`; a label directory drawn with other options than
+   the store is an error, and so is a label that does not belong to its episode: its family, kind
+   and spec must be the store's record of the instruction it labels, and its exported item's
+   family, kind and robot count the attempt's (`mismatch="drop"` drops such labels and counts
+   them instead).
+1. **What images show.** The policy sees images, so `visible` cuts every thought to what a viewer
+   can read off them: robot counts, coordinates and measured heights go unless the instruction or
+   the task states the number; colours, kinds, sizes and coarse places stay. On the 2026-11-10
+   labels it changed 8,402 of 31,184 Haiku thoughts and 261 of 20,761 template thoughts.
+1. **The user's frame.** The camera can stand anywhere round the arena (the views report its
+   azimuth), and the user stands behind it, to its left, to its right or opposite it, said in the
+   user turn ("(i'm standing to the left of the camera)"). Every direction word in the instruction,
+   thoughts, memory and answers is turned into that user's frame (`in_user_frame`, quarter turns);
+   wording that cannot be turned reliably (near/far side, north, toward me, ...: about 1.6% of the
+   Haiku choices) is used only when the user's frame is the world's. Observations and action codes
+   stay in the world's frame.
+1. **Known problem.** In `voxel_full` s0, s1, s2 and s7 the stores' object-task draws part from
+   the Haiku export at one index per seed (s0 715, s1 816, s2 783, s7 2745); `demos.draws` alone
+   reproduces the export, `demos.write` does not. 894 of 30,905 episodes have labels that fail the
+   check; load these stores with `mismatch="drop"` until the writer is fixed.
+1. **Sampling.** `thought_share` (default 1/3) of act examples at a thought step; `refusal_share`
+   (default 0.05) refusal examples; `haiku_share` None draws episodes uniformly. 5% of episodes
+   (a hash of (seed, index)) are held out for `validation(n, seed)`.
+
 ## Left out, and extension points
 
 1. **Simple machines** (a lever: a rigid bar on a pivot) are not implemented. The natural place
