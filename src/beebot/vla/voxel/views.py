@@ -84,8 +84,9 @@ materials (episode-level)
                       p 0.3 faint graph lines), noise (two-colour fractal), tiles (rotated,
                       grout); colour drawn per type, low saturation; resampled until its mean is
                       at least 20 Lab units from every object colour and 15 from the robots
-    table             the surface beyond the sheet (same types, any colour, fading to the
-                      background with distance); sheet margin 0.6-3 cells (clean 1.2)
+    table             the surface beyond the sheet (same types, colours at least 25 Lab units
+                      from every named colour, fading to the background with distance); sheet
+                      margin 0.6-3 cells (clean 1.2)
     terrain           sand, wood, stone, concrete, cardboard, foam; side faces 0.75-1 of the
                       top; faint cell edges; at least 15 Lab units from every object colour
     robots            base grey 0.12-0.85 (tint up to 0.08 saturation), at least 15 Lab units
@@ -104,10 +105,14 @@ colour (episode-level)
                       value factors within COLOUR_JITTER[name] x s, so the jittered colour's
                       nearest named colour (CIE Lab) is still its own (tested)
 distractors
-    clutter           Poisson(4 s) boxes (0.5-4 cells, up to 4 high, any colour with saturation
-                      up to 0.6) on the table outside the sheet; they cast shadows
+    clutter           Poisson(4 s) things on the table outside the sheet, never cube-like: papers
+                      (1-4 cells, 0.02-0.08 high), books (0.2-0.6 high), cable- or pen-like bars
+                      (2-7 long, 0.15-0.45 thick); they cast shadows
     stickers          Poisson(5 s) flat ellipses, rectangles and stripes on the table
     background        procedural backdrop where rays miss the floor: gradient plus fractal blobs
+                      Every distractor, table and backdrop colour has saturation up to 0.3-0.4 and
+                      is at least DISTRACTOR_GAP (25) Lab units from every named colour, so nothing
+                      outside the arena looks like an object an instruction can name.
     hand_shadow       per image, p 0.3: a soft hand shadow (palm and fingers) entering from an
                       edge, darkening by 0.25-0.5
     cable_shadow      per image, p 0.3: a soft curved cable shadow, darkening by 0.25-0.5
@@ -122,9 +127,9 @@ corruptions (per image)
     white_balance     p 0.6: per-channel gains U(1 - 0.1 s, 1 + 0.1 s)
     gamma             p 0.6: U(1 - 0.25 s, 1 + 0.25 s)
     chromatic         p 0.4: red and blue sampled at radial scales 1 +- U(0, 0.006 s)
-    cutout            p 0.4: 1-3 patches of 4-12% of the side, filled with a flat colour or
-                      noise, placed only where they cover no object or zone pixel (so a target
-                      is never erased from any view)
+    cutout            p 0.4: 1-3 patches of 4-12% of the side, filled with noise or a flat
+                      unnameable colour (as distractors), placed only where they cover no
+                      object or zone pixel (so a target is never erased from any view)
 
 State noise (perturb_state, a separate function on the voxel observation, default off: nothing
 calls it unless the caller does): each robot is removed with probability `drop` (default
@@ -669,6 +674,8 @@ class Surface:
 
 SURFACE_TYPES = ("steel", "brushed", "wood", "paper", "noise", "tiles")
 TERRAIN_TYPES = ("sand", "wood", "stone", "concrete", "cardboard", "foam")
+CLUTTER_SHAPES = ("paper", "book", "bar")  # flat sheets, low slabs, cable- or pen-like bars: never cube-like
+DISTRACTOR_GAP = 25.0  # Lab distance of every distractor, table and backdrop colour from every named colour
 
 
 @dataclass
@@ -754,6 +761,16 @@ def _neutral(rng, low, high, tint):
 
 def _far_from_palette(rgb, gap):
     return bool((lab_distance(rgb[None], PALETTE) >= gap).all())
+
+
+def unnameable_colour(rng, saturation=0.3):
+    """A distractor colour: low saturation and at least DISTRACTOR_GAP Lab units from every named
+    colour, so nothing outside the arena looks like an object an instruction can name."""
+    for _ in range(60):
+        rgb = hsv_to_rgb(np.array([rng.random(), rng.uniform(0, saturation), rng.uniform(0.1, 0.95)])).astype(np.float32)
+        if _far_from_palette(rgb, DISTRACTOR_GAP):
+            return rgb
+    return np.full(3, 0.45, np.float32)
 
 
 def _surface(rng, s, kinds=SURFACE_TYPES, any_colour=False):
@@ -925,7 +942,11 @@ def sample_look(rng, spec=None):
                 break
     table = Surface("plain", CLEAN_TABLE.copy(), CLEAN_TABLE.copy(), amp=0.0, scale=1.0)
     if spec.amount("table") > 0:
-        table = _surface(rng, mat, any_colour=True)
+        for _ in range(30):
+            option = _surface(rng, mat, any_colour=True)
+            if _far_from_palette(option.rgb, DISTRACTOR_GAP) and _far_from_palette(option.rgb2, DISTRACTOR_GAP):
+                table = option
+                break
     terrain = Surface("sand", CLEAN_TERRAIN.copy(), CLEAN_TERRAIN * 0.8, amp=0.08, scale=1.0)
     if spec.amount("terrain") > 0:
         for _ in range(30):
@@ -967,27 +988,30 @@ def sample_look(rng, spec=None):
     margin = _between(rng, 1.2, 0.6, 3.0, spec.amount("table") if spec.amount("table") > 0 else 0.0) if mat > 0 else 1.2
     reach = 16.0 + margin
     for _ in range(int(rng.poisson(4 * spec.amount("clutter")))):
-        sx, sy, sz = rng.uniform(0.5, 4, 2).tolist() + [rng.uniform(0.3, 4)]
+        shape = CLUTTER_SHAPES[int(rng.integers(len(CLUTTER_SHAPES)))]
+        if shape == "paper":
+            sx, sy, sz = rng.uniform(1, 4), rng.uniform(1, 3), rng.uniform(0.02, 0.08)
+        elif shape == "book":
+            sx, sy, sz = rng.uniform(1.5, 4), rng.uniform(1, 3), rng.uniform(0.2, 0.6)
+        else:
+            sx, sy, sz = rng.uniform(2, 7), rng.uniform(0.15, 0.45), rng.uniform(0.15, 0.45)
+        if rng.random() < 0.5:
+            sx, sy = sy, sx
         side = int(rng.integers(4))
         along = rng.uniform(-margin - 6, 16 + margin + 6)
         out = rng.uniform(0.3, 8)
         x0, y0 = {0: (along, -margin - out - sy), 1: (along, reach + out), 2: (-margin - out - sx, along), 3: (reach + out, along)}[side]
         clutter.append((x0, x0 + sx, y0, y0 + sy, 0.0, sz))
-        clutter_rgb.append(hsv_to_rgb(np.array([rng.random(), rng.uniform(0, 0.6), rng.uniform(0.15, 0.95)])))
+        clutter_rgb.append(unnameable_colour(rng))
     for _ in range(int(rng.poisson(5 * spec.amount("stickers")))):
         shape = ("ellipse", "rect", "stripe")[int(rng.integers(3))]
         side = int(rng.integers(4))
         along = rng.uniform(-margin - 4, 16 + margin + 4)
         out = rng.uniform(0.5, 6)
         cx, cy = {0: (along, -margin - out), 1: (along, reach + out), 2: (-margin - out, along), 3: (reach + out, along)}[side]
-        stickers.append((shape, cx, cy, rng.uniform(0.3, 2.5), rng.uniform(0.2, 1.5), rng.uniform(0, math.pi), hsv_to_rgb(np.array([rng.random(), rng.uniform(0, 0.8), rng.uniform(0.2, 1.0)])).astype(np.float32)))
+        stickers.append((shape, cx, cy, rng.uniform(0.3, 2.5), rng.uniform(0.2, 1.5), rng.uniform(0, math.pi), unnameable_colour(rng)))
     if spec.amount("background") > 0:
-        background = (
-            hsv_to_rgb(np.array([rng.random(), rng.uniform(0, 0.4), rng.uniform(0.3, 1.0)])).astype(np.float32),
-            hsv_to_rgb(np.array([rng.random(), rng.uniform(0, 0.4), rng.uniform(0.1, 0.8)])).astype(np.float32),
-            hsv_to_rgb(np.array([rng.random(), rng.uniform(0, 0.7), rng.uniform(0.1, 1.0)])).astype(np.float32),
-            rng.uniform(0, 0.6),
-        )
+        background = (unnameable_colour(rng, 0.4), unnameable_colour(rng, 0.4), unnameable_colour(rng, 0.4), rng.uniform(0, 0.6))
     else:
         background = (np.array([0.9, 0.9, 0.88], np.float32), np.array([0.7, 0.7, 0.68], np.float32), np.zeros(3, np.float32), 0.0)
     seed = int(rng.integers(1 << 30))
@@ -1603,7 +1627,7 @@ def corrupt(rgb, protect, rng, spec):
             for _ in range(12):
                 y0, x0 = int(rng.integers(0, size - side)), int(rng.integers(0, size - side))
                 if not protect[y0 : y0 + side, x0 : x0 + side].any():
-                    rgb[y0 : y0 + side, x0 : x0 + side] = rng.random(3) if rng.random() < 0.5 else rng.random((side, side, 3))
+                    rgb[y0 : y0 + side, x0 : x0 + side] = unnameable_colour(rng) if rng.random() < 0.5 else rng.random((side, side, 3))  # a flat patch must not look like a named object
                     break
     image = Image.fromarray((rgb * 255 + 0.5).astype(np.uint8))
     if chance("jpeg", 0.6):
