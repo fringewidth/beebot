@@ -12,6 +12,7 @@ modules.
 | `suite.py` | instruction families, checkers, the expert that demonstrates them |
 | `demos.py` | expert demonstrations as a store, also for pivoting cubes |
 | `free_cube.py` | the planner for cubes that cannot leave a bond, and the comparison of rules and experts |
+| `haiku.py` | open-vocabulary instructions and thought labels written by Haiku, verified by a second call, joined to demo stores |
 | `facts.py` | window facts as hashable atoms |
 | `render.py` | isometric PNG/GIF |
 
@@ -441,6 +442,44 @@ Measured on the 875-episode cube sample (M4 Pro, 3 threads, both stores in the p
 The trainer draws 30 to 60 batches of 16 a second (480 to 960 rows); most of a `batch_of` call is `observe`, not the read, and the same rows gave the same checksum from both stores. A
 compact store of 30,000 episodes fits in memory many times over; the dense one does not, and
 every random row would then be a disk read.
+
+## Haiku instructions and thoughts (`haiku.py`)
+
+Training text written by Claude Haiku for the expert's demonstrations: per task three
+instructions on a ladder of indirection (`close`, `indirect`, `casual`), each with a first
+thought ("you asked: ... i see ... <resolved targets>. first: <first sub-goal>."), one line per
+later sub-goal and a final "done."; about 10% of tasks also get an instruction that cannot or
+should not be followed (`refuse` or `clarify`, with the reply). A second call sees only an
+instruction and the scene and writes the task back as JSON; a pair is kept only if that equals the
+task's spec. The module docstring lists the commands and files; in short:
+
+    PYTHONPATH=src python -m beebot.vla.voxel.haiku pilot                 # 50 items end to end, review.txt
+    PYTHONPATH=src python -m beebot.vla.voxel.haiku export --name g1 --items 5000 [--store DIR]
+    PYTHONPATH=src python -m beebot.vla.voxel.haiku generate --name g1    # resumable
+    PYTHONPATH=src python -m beebot.vla.voxel.haiku verify --name g1      # keep rates in report.json
+    PYTHONPATH=src python -m beebot.vla.voxel.haiku testset               # frozen, held-out words only
+
+Every command takes `--dry-run`: a fake provider, the exact prompts and the parsed fake outputs
+printed, nothing written under `data/vla/haiku`.
+
+1. **Join.** Items are keyed by (seed, index): index n is the n-th task `demos.draws` yields for
+   the seed, which is line n of a store's `attempts.jsonl` written with the same seed and draw
+   options (`--chunk`, `--robots`, `--counts`, `--fit`, `--rule`, `--apart`); that line's `e` is
+   the store row. `export --store DIR` reads the options from the store, exports only its kept
+   episodes and checks every family and kind; `Labels(name).by_episode(DIR)` returns
+   `{e: choices}`.
+1. **Checks before verification.** No held-out word, category, frame or language in training
+   text (wordings.json splits); a thought names only colours and terrain the scene has (or the
+   task's sentence names), names each sub-goal's colours in order, and stays under 45 words
+   besides the quoted instruction; one switch line per later sub-goal.
+1. **Test set.** Its own seed, a separately worded prompt that offers only held-out expressions
+   for the task's words and keeps the plain and training words out, verified the same way, in
+   `data/vla/haiku/test` with a `HELD_OUT` marker. `Labels` refuses it and asserts no training
+   pair shares an episode or an instruction with it.
+1. **Records.** The pipeline reads only `{family, kind, plain, spec, subgoals}` records and scene
+   summaries. `local_canonical_record` and `local_scene_summary` stand in until the suite has its
+   own `canonical_record` and `scene_summary`; one line switches. A suite task whose colour is
+   not in the scene (`eat:absent`) has the spec `{"kind": "refuse"}`.
 
 ## Left out, and extension points
 
