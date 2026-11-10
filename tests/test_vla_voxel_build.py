@@ -305,6 +305,19 @@ def test_build_tasks_come_after_the_other_draws_and_leave_them_alone():
         assert b[: len(a)] == a and len(b) == len(a) + 3 and all(kind.startswith("build:") for kind in b[len(a) :])
 
 
+def test_drawing_only_build_tasks_draws_the_build_part_of_the_full_draw():
+    def build_part(**kw):
+        out = []
+        for c, world, metas, tasks, run_seed in demos.draws(24, 3, 12, robots=S.ROBOTS, counts="log", check=True, rule="switch_cube", coverage=0.5, build=0.25, **kw):
+            out += [(c, run_seed, S.task_kind(t), t.text, t.spec["program"]) for t in tasks if t.family == "build"]
+        return out
+
+    full, alone = build_part(), build_part(only="build")
+    assert alone == full and len(alone) == 6
+    with pytest.raises(ValueError):
+        next(demos.draws(12, 3, 12, only="build"))
+
+
 # ---------------------------------------------------------------------------------------------
 # The expert
 
