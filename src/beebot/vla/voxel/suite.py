@@ -984,6 +984,22 @@ class Expert:
             segs.append(seg)
         return lists, presses, caps, segs
 
+    def detours(self, world, codes, allowed, generator=None):
+        """Robots a coverage job sends another way first (JobSetup.detour) get the actions toward
+        those targets instead (in place)."""
+        counts = (world.mass > 0.5).flatten(1).sum(dim=1).tolist()
+        for i, entry in self.jobs.items():
+            detour = entry[1].detour(world, i) if self.frozen[i] is not None else None
+            if detour is None:
+                continue
+            mask, pts = detour
+            start = sum(counts[:i])
+            rows = None if allowed is None else allowed[start : start + counts[i]]
+            targets = torch.tensor(pts).long().unsqueeze(0)
+            other = act(world.index(i), targets, torch.ones(1, len(pts), dtype=torch.bool), generator=self.generator if generator is None else generator, allowed=rows)[0]
+            mask = torch.from_numpy(mask)
+            codes[i][mask] = other[mask]
+
     def tensors(self, lists, presses):
         """The controller's inputs from per-scene target lists and presses: targets (B, S, 3),
         valid (B, S), press_cheese (B,), press_dir (B, 3)."""
@@ -1009,6 +1025,7 @@ class Expert:
         if self.rule is not None:
             allowed = rule_moves(world, self.rule) if allowed is None else rule_moves(world, self.rule) & allowed
         codes = act(world, targets, valid, press_cheese, press_dir, generator=self.generator if generator is None else generator, allowed=allowed)
+        self.detours(world, codes, allowed, generator)
         for i, (pts, cap) in enumerate(zip(lists, caps)):
             if cap is None or not pts:
                 continue
@@ -1021,7 +1038,7 @@ class Expert:
         for i, frozen in enumerate(self.frozen):  # robots a coverage job leaves out stay, jitter or not, and so do its robots on a target
             if frozen is not None:
                 codes[i][torch.from_numpy(frozen)] = STAY
-                if lists[i]:
+                if lists[i] and self.jobs[i][1].job["kind"] in HOLD_STILL:
                     pts = torch.tensor(lists[i]).long()
                     codes[i, pts[:, 0], pts[:, 1], pts[:, 2]] = STAY
         if self.rule is not None:  # of a cube and the cube it pivots on, one waits
@@ -1118,6 +1135,8 @@ MOVE_STEPS = 3
 LINE_MAX = 14
 LAYER_COST = 3.0  # target piles: one layer up costs as much as this squared distance on the floor
 GROUP_GAP = 2  # cells between the groups of a multi-group scene
+CLIFF = 3  # raised ground this high is climbed from the foot of its wall (JobSetup.detour)
+HOLD_STILL = ("line", "spread")  # jobs whose robots on a target do not jitter (a row or a spacing undone by one step); elsewhere jitter lets the last robots into a pile or ring
 GROUP_PAIRS = {2: (("left", "right"), ("back", "front"), ("back left", "front right"), ("back right", "front left")), 3: (("back left", "back right", "front"), ("front left", "front right", "back"), ("back left", "front left", "right"), ("back right", "front right", "left"))}
 COVERAGE_WORDINGS = {
     "stay": ["stay where you are", "stop moving", "freeze", "everyone hold still", "don't move"],
@@ -1636,7 +1655,7 @@ class JobSetup:
         self.avoid = self.solid | self.frozen | (shells_of(world, i) if job["kind"] != "eat" else False)
         if job["who"]["select"] in ("count", "half"):  # the checker counts the robots off their start voxels, so no target is one
             self.avoid = self.avoid | occupied
-        self.fixed = None if job["kind"] == "follow" else self.compute(world, i)
+        self.fixed = None if job["kind"] in ("follow", "spread") else self.compute(world, i)  # these two follow the scene
 
     def anchor(self, world, i, occupied):
         """The floor point (y, x) a job heads for, for choosing which robots take part."""
@@ -1653,6 +1672,57 @@ class JobSetup:
 
     def points(self, world, i):
         return self.compute(world, i) if self.fixed is None else self.fixed
+
+    def detour(self, world, i):
+        """(robots (D, H, W) bool, targets) for robots that have to go another way first, or None.
+        When a job's targets stand on raised ground at least CLIFF high (a plateau), every robot
+        taking part that is neither up there nor at the foot of its cliff heads for the foot first:
+        the greedy controller never steps down a cliff of its own, and from the foot the climb is
+        straight up the wall."""
+        job = self.job
+        if job["kind"] in ("stay", "eat", "follow", "spread"):
+            return None
+        occupied = world.mass[i].numpy() > 0.5
+        if job["kind"] == "climb":
+            y0, y1, x0, x1 = job["plateau"]
+            yy, xx = np.mgrid[0:SIZE, 0:SIZE]
+            side = (yy >= y0) & (yy < y1) & (xx >= x0) & (xx < x1)
+            top = job["top"]
+        else:
+            pts = self.points(world, i)
+            if not pts:
+                return None
+            cells = np.array(pts)
+            top = int(self.heights[cells[:, 1], cells[:, 2]].min())
+            if top < CLIFF:
+                return None
+            side = np.zeros((SIZE, SIZE), bool)
+            side[cells[:, 1], cells[:, 2]] = True
+            high = self.heights >= top
+            while True:  # the raised ground the targets stand on, 4-connected
+                grown = side.copy()
+                grown[1:] |= side[:-1]
+                grown[:-1] |= side[1:]
+                grown[:, 1:] |= side[:, :-1]
+                grown[:, :-1] |= side[:, 1:]
+                grown &= high
+                if (grown == side).all():
+                    break
+                side = grown
+        beside = np.zeros_like(side)
+        beside[1:] |= side[:-1]
+        beside[:-1] |= side[1:]
+        beside[:, 1:] |= side[:, :-1]
+        beside[:, :-1] |= side[:, 1:]
+        foot = beside & ~side & (self.heights <= top - CLIFF)
+        zz = np.arange(SIZE)[:, None, None]
+        up_there = side[None] & (zz >= self.heights[None])
+        away = occupied & ~self.frozen & ~up_there & ~foot[None]
+        if not away.any():
+            return None
+        ys, xs = np.nonzero(foot)
+        pts = [(int(self.heights[y, x]), int(y), int(x)) for y, x in zip(ys, xs) if not self.avoid[self.heights[y, x], y, x]]
+        return (away, pts) if pts else None
 
     def centroid(self):
         return np.argwhere(self.pick)[:, 1:].mean(axis=0) if self.n else np.array([SIZE / 2, SIZE / 2])
@@ -1687,10 +1757,7 @@ class JobSetup:
         if kind == "gather":
             return stack_targets(self.heights, self.avoid, self.centroid(), n)
         if kind == "spread":
-            mine = self.centroid()
-            options = spread_cells(world, i, self.frozen)
-            options.sort(key=lambda p: (p[1] - mine[0]) ** 2 + (p[2] - mine[1]) ** 2)
-            return options[:n]
+            return self.spread_points(world, i)
         if kind == "groups":
             return self.group_points(job["count"])
         if kind == "line":
@@ -1700,6 +1767,40 @@ class JobSetup:
         if kind == "tower":
             return self.tower_points(job["height"])
         raise ValueError(kind)
+
+    def spread_points(self, world, i):
+        """Recomputed every step: the robots taking part that touch no robot face to face hold
+        where they are; for each of the others, a free ground voxel with no staying robot on its
+        faces, no two of them face to face, nearest the robots that still touch first."""
+        occupied = world.mass[i].numpy() > 0.5
+        mine = occupied & ~self.frozen
+        alone = face_alone(occupied) & mine
+        out = [tuple(p) for p in np.argwhere(alone).tolist()]
+        crowded = np.argwhere(mine & ~alone)
+        if not len(crowded):
+            return out
+        settled = occupied & ~(mine & ~alone)  # robots that stay: alone ones and frozen ones; the crowded ones will move
+        near = occupied.copy()
+        for axis in range(3):
+            for sign in (-1, 1):
+                near |= np.roll(settled, sign, axis=axis)
+        avoid = self.solid | shells_of(world, i) | near
+        yy, xx = np.mgrid[0:SIZE, 0:SIZE]
+        ok = self.heights < SIZE
+        ok[ok] &= ~avoid[self.heights[ok], yy[ok], xx[ok]]
+        ys, xs = np.nonzero(ok)
+        centre = crowded[:, 1:].mean(axis=0)
+        order = np.argsort((ys - centre[0]) ** 2 + (xs - centre[1]) ** 2, kind="stable")
+        taken = np.zeros((SIZE, SIZE), bool)
+        for j in order:
+            y, x = int(ys[j]), int(xs[j])
+            if taken[max(y - 1, 0) : y + 2, x].any() or taken[y, max(x - 1, 0) : x + 2].any():
+                continue
+            taken[y, x] = True
+            out.append((int(self.heights[y, x]), y, x))
+            if len(out) >= self.n:
+                break
+        return out
 
     def group_points(self, m):
         """n targets as m piles around the centres of far-apart floor regions (GROUP_PAIRS), the
