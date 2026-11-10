@@ -1254,7 +1254,7 @@
     "split in two: the first group should {a}, the second should {b}",
     "one team has to {a}; the other has to {b}",
     "hey, split up, half {a} and half {b}",
-    "would one group {a} while the other group {b}?",
+    "one group, {a}; the other group, {b}",
     "the swarm should split: one part should {a}, the other part should {b}",
     "at the same time, {a} and {b}, as two groups",
     "{a} with half the swarm, and {b} with the other half",
@@ -1271,7 +1271,7 @@
     "get one group to {a} and the other to {b}",
     "separate into two groups and, at once, {a} and {b}",
     "go in two groups: one will {a}, the other will {b}",
-    "while one group works to {a}, the other should {b}",
+    "one group is to {a} while the other is to {b}",
     "one half should {a}; meanwhile the other half should {b}",
     "share the work between two groups: {a}, and {b}",
     "first group, {a}; second group, {b}",
@@ -1300,7 +1300,7 @@
     "meet at the {x} of the floor",
     "travel to the {x}",
     "collect at the {x}",
-    "make your way to the {x}",
+    "move over to the {x}",
     "get over to the {x}"
    ],
    "held_out": [
@@ -1607,7 +1607,6 @@
       "spanish": "rojo",
       "french": "rouge",
       "chinese": "红色",
-      "german": "rot",
       "hindi": "laal",
       "japanese": "赤い"
      }
@@ -2114,9 +2113,8 @@
       "very middle"
      ],
      "held_out": [
-      "heart",
-      "midpoint",
-      "core"
+      "central part",
+      "midpoint"
      ]
     },
     "right": {
@@ -2189,8 +2187,7 @@
      ],
      "held_out": [
       "bubble",
-      "globe",
-      "orb"
+      "globe"
      ]
     },
     "ring": {
@@ -2379,9 +2376,7 @@
     "pink"
    ],
    "why": "the named rainbow colours are red, orange, yellow, green, blue, indigo, violet; white is not one; cyan sits in the spectrum unnamed and pink is debatable, so scenes with either are skipped",
-   "adjective": [
-    "rainbow-coloured"
-   ],
+   "adjective": [],
    "predicate": [
     "a colour of the rainbow",
     "one of the colours of the rainbow",
@@ -2627,9 +2622,7 @@
     "green"
    ],
    "why": "a candy cane is striped red and white; some have a green stripe, so scenes with green are skipped",
-   "adjective": [
-    "candy-cane-coloured"
-   ],
+   "adjective": [],
    "predicate": [
     "a candy cane colour",
     "one of the colours of a candy cane",
@@ -2662,6 +2655,9 @@
   "anything but the dark ones, light colours, bright colours": "out: no agreed membership",
   "donut, torus (ring)": "out: a torus is thick; the ring is one voxel thin",
   "box (cube)": "held out only as 'box that is empty inside'; a bare box is not hollow",
+  "rot (German red), Hindi numerals (teen, chaar), Chinese 青色": "out: rot and teen read as English words, romanised numerals have no settled spelling, 青 is blue in Japanese and cyan in Chinese",
+  "rainbow-coloured, candy-cane-coloured, bare warm or cool": "out as adjectives: they read as multicoloured, or as temperature; the categories are used as \"a rainbow colour\", \"warm-coloured\"",
+  "heart, core (centre)": "out: they need \"of the floor\" after them; \"central part\" and \"midpoint\" stand alone",
   "far corner on the left": "out: cannot be followed by 'of the floor'; 'far left corner' says the same"
  }
 }

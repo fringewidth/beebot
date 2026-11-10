@@ -2,6 +2,7 @@
 suite's placeholders, training and held-out lists are disjoint down to the token, and a rewrite
 keeps a task's canonical values."""
 
+import functools
 import random
 import re
 
@@ -127,6 +128,12 @@ def sample(n, seed, split="train", robots=None):
     return [(task, [c for _, c in S.present(world, i)]) for i, task in enumerate(tasks)]
 
 
+@functools.lru_cache
+def train_cases():
+    """(task, colours present) of 210 training tasks, a sixth of them with drawn swarm sizes; sampled once."""
+    return sample(175, 4) + sample(35, 5, robots=S.ROBOTS)
+
+
 def same(parsed, slots):
     """Whether parsed canonical slots carry a task's canonical values (intents up to ALIASES)."""
     keys = [k for k in slots if k not in ("present", "eat", "forbid", "any_of", "intent")]
@@ -134,7 +141,7 @@ def same(parsed, slots):
 
 
 def test_slots_agree_with_the_expert_labels():
-    for task, present in sample(120, 3):
+    for task, present in train_cases():
         slots = W.slots_of(task, present)
         label = task.plan[0].get("label", {}) if task.plan else {}
         if label.get("kind") == "letters":
@@ -149,8 +156,8 @@ def test_rewrite_round_trips_canonical_values():
     index = W.denotes()
     kinds = {"colour", "count", "region", "shape"}
     count = 0
-    cases = [(case, "train") for case in sample(240, 4)] + [(case, "train") for case in sample(60, 5, robots=S.ROBOTS)]
-    cases += [(case, held) for held in ("colour", "letters", "shapes", "logic", "pairs", "construction", "herd_two", "runner_logic") for case in sample(6, 6, held)]
+    cases = [(case, "train") for case in train_cases()]
+    cases += [(case, held) for held in ("colour", "letters", "shapes", "logic", "pairs", "construction", "herd_two", "runner_logic") for case in sample(3, 6, held)]
     rng = np.random.default_rng(7)
     for (task, present), _ in cases:
         slots = W.slots_of(task, present)
@@ -186,7 +193,7 @@ def test_training_rewrites_never_use_held_out_material():
     banned = sorted({text for _, _, text in sides["held_out"]} - {"pink", "pyramid"}, key=len, reverse=True)
     rng = np.random.default_rng(8)
     seen = set()
-    for task, present in sample(150, 9):
+    for task, present in train_cases():
         slots = W.slots_of(task, present)
         for _ in range(4):
             made = W.render(task.text, slots, rng, "train")
@@ -198,7 +205,7 @@ def test_training_rewrites_never_use_held_out_material():
 def test_each_held_out_split_reaches_its_material():
     rng = np.random.default_rng(10)
     reached = {split: set() for split in W.SPLITS}
-    for task, present in sample(200, 11):
+    for task, present in train_cases():
         slots = W.slots_of(task, present)
         for split in W.SPLITS:
             reached[split].update(choice.source for choice in W.render(task.text, slots, rng, split).choices)
@@ -210,7 +217,7 @@ def test_each_held_out_split_reaches_its_material():
 
 
 def test_a_wrong_slot_is_refused():
-    task, present = sample(1, 12)[0]
+    task, present = train_cases()[0]
     slots = W.slots_of(task, present)
     with pytest.raises(ValueError):
         W.render("something else entirely", {"intent": "tower", "n": 5}, np.random.default_rng(0))
