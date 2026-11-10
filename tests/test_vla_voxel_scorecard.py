@@ -152,7 +152,8 @@ def test_summary_and_table(motion, tmp_path):
                 rows += C.run_arm(arm, C.arm_episodes(arm, base), policy, batch=2, emit=lambda row: None)
     summary = C.summarize(rows)
     groups = {(g["split"], g["arm"]): g for g in summary["groups"]}
-    assert set(groups) == {("test", a) for a in ("policy", "shuffled", "oracle", "expert")} | {("wording", a) for a in ("policy", "plain", "oracle", "expert")}
+    assert set(groups) == {("test", a) for a in ("policy", "shuffled", "oracle", "expert", "still")} | {("wording", a) for a in ("policy", "plain", "oracle", "expert", "still")}
+    assert all(r["moved"] == 0.0 for r in rows if r["arm"] == "still")
     for g in groups.values():
         assert {"n", "score", "score_se", "pass", "pass_se", "unasked", "spoke", "unfinished", "seconds_per_episode"} <= set(g)
     assert {"thought_parse", "thought_first", "thought_resolves"} <= set(groups[("test", "policy")])

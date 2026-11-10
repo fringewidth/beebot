@@ -30,6 +30,8 @@ Arms (--arms; ARM_SPLITS says which splits each runs on):
             instruction (rollout.canonical_thought); gate b's numerator on the held-out splits
   expert    the scripted expert (rollout.ExpertActor) on the same scenes: the ceiling; held-out
             compositions have no plan, so there it is the robots staying still
+  still     no robot ever moves: the floor. Some tasks pass so (a switch to "stay", "eat no
+            cheese"), so read every arm, and gate b's ratio, against it
 Metrics per (split, family, arm), each with its standard error (std / sqrt(n)):
   score     the suite's checker score at the episode's end (suite.score; a switch task on its last
             instruction), 0 when the swarm ate a cheese the instruction forbids (unasked)
@@ -80,6 +82,7 @@ import re
 import sys
 import time
 import zlib
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -92,9 +95,9 @@ from beebot.vla.voxel.world import COLOUR_NAMES
 SEED = 700_001
 FAMILIES = ("formation", "construction", "logic", "parallel", "herd", "runner", "motion", "subset", "switch", "things", "blocks", "zones", "reasoning", "build")
 TESTSET = Path("data/vla/haiku/test")
-ARMS = ("policy", "shuffled", "plain", "oracle", "expert")
+ARMS = ("policy", "shuffled", "plain", "oracle", "expert", "still")
 SPLIT_GROUPS = ("test", "wording", "held", "testset")
-ARM_SPLITS = {"policy": SPLIT_GROUPS, "shuffled": ("test",), "plain": ("wording", "held", "testset"), "oracle": SPLIT_GROUPS, "expert": SPLIT_GROUPS}
+ARM_SPLITS = {"policy": SPLIT_GROUPS, "shuffled": ("test",), "plain": ("wording", "held", "testset"), "oracle": SPLIT_GROUPS, "expert": SPLIT_GROUPS, "still": SPLIT_GROUPS}
 THINKING_ARMS = ("policy", "plain")  # arms whose thoughts are checked
 GATE = 0.9
 
@@ -397,8 +400,6 @@ def donors(episodes):
 
 def arm_episodes(arm, episodes):
     """The episodes of one arm from a (split, family) group's base episodes."""
-    from dataclasses import replace
-
     if arm == "shuffled":
         out = [replace(e, texts=[d.texts[min(j, len(d.texts) - 1)] for j in range(len(e.texts))], key={**e.key, "donor": d.key["i"]}) for e, d in zip(episodes, donors(episodes))]
     elif arm == "plain":
@@ -442,12 +443,14 @@ def episode_row(arm, episode, played, seconds, thinking):
 def run_arm(arm, episodes, policy=None, batch=8, expert_batch=48, views=R.stand_in_views, sample=False, max_new_tokens=R.MAX_NEW_TOKENS, emit=print):
     """Rows of one arm's episodes, emitted batch by batch."""
     rows = [None] * len(episodes)
-    size = expert_batch if arm == "expert" else batch
+    size = expert_batch if arm in ("expert", "still") else batch
     for indices in R.batches(episodes, size):
         part = [episodes[i] for i in indices]
         t0 = time.time()
         if arm == "expert":
             played = R.play_expert(part, seed=part[0].seed)
+        elif arm == "still":
+            played = R.play(part, lambda world, t: torch.full(world.mass.shape, R.STAY, dtype=torch.long))
         else:
             played = R.play_policy(policy, part, views, sample, max_new_tokens)
         seconds = (time.time() - t0) / len(part)
@@ -552,7 +555,11 @@ def summarize(rows):
             "pass_wrong_thought": mean_se(wrong) if wrong else None,
             "passes": bool((test["policy"].get("thought_parse") or 0) >= GATE and (test["policy"].get("thought_first") or 0) >= GATE),
         }
-    gates["b"] = {split: {**values["oracle_ratio"], "passes": bool(values["oracle_ratio"]["mean"] >= GATE)} for split, values in macros.items() if "oracle_ratio" in values and not np.isnan(values["oracle_ratio"]["mean"])}
+    gates["b"] = {}
+    for split, values in macros.items():
+        if "oracle_ratio" in values and not np.isnan(values["oracle_ratio"]["mean"]):
+            context = {f"{arm}_pass": values[arm]["pass"] for arm in ("plain", "oracle", "still") if arm in values}  # read the ratio against the floor (still)
+            gates["b"][split] = {**values["oracle_ratio"], **context, "passes": bool(values["oracle_ratio"]["mean"] >= GATE)}
     return {"groups": entries, "paired": paired, "macro": macros, "gates": gates}
 
 
@@ -608,7 +615,7 @@ def markdown(summary):
             a = gates["a"]
             lines.append(f"1. a) thoughts parse {fmt(a['thought_parse'])} and match their sub-goal {fmt(a['thought_first'])} (need >= {GATE}); shuffled gap {fmt((a['gap_score'] or {}).get('mean'), (a['gap_score'] or {}).get('se'))}; pass with a right first thought {fmt(*(a['pass_right_thought'] or (None, None)))}, with a wrong one {fmt(*(a['pass_wrong_thought'] or (None, None)))}: {'passes' if a['passes'] else 'fails'}")
         for split, b in gates.get("b", {}).items():
-            lines.append(f"1. b) {split}: pass(oracle thought) / pass(plain instruction) = {fmt(b['mean'], b['se'])} (need >= {GATE}): {'passes' if b['passes'] else 'fails'}")
+            lines.append(f"1. b) {split}: pass(oracle thought) / pass(plain instruction) = {fmt(b['mean'], b['se'])} (need >= {GATE}; pass shares: plain {fmt(b.get('plain_pass'))}, oracle {fmt(b.get('oracle_pass'))}, no moves {fmt(b.get('still_pass'))}): {'passes' if b['passes'] else 'fails'}")
         lines.append("")
     return "\n".join(lines)
 
@@ -768,21 +775,24 @@ def card(argv):
     parser.add_argument("--max-new-tokens", type=int, default=R.MAX_NEW_TOKENS)
     parser.add_argument("--views", choices=("stand_in", "scene"), default="stand_in")
     parser.add_argument("--threads", type=int, default=None)
+    parser.add_argument("--steps", type=int, default=None, help="cap every episode at this many steps (smoke runs; the card then differs from the default one)")
     args = parser.parse_args(argv)
     args.arms = [a for a in args.arms.split(",") if a]
     args.splits = [s for s in args.splits.split(",") if s]
     args.families = [f for f in args.families.split(",") if f]
     if args.threads:
         torch.set_num_threads(args.threads)
-    needs_model = any(a != "expert" for a in args.arms)
+    needs_model = any(a not in ("expert", "still") for a in args.arms)
     if needs_model and not (args.checkpoint or args.model or args.tiny):
-        parser.error("arms other than expert need --checkpoint, --model or --tiny")
+        parser.error("arms other than expert and still need --checkpoint, --model or --tiny")
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     policy = load_model(args) if needs_model else None
     views = views_of(args.views)
     t0 = time.time()
     groups = base_episodes(args)
+    if args.steps:
+        groups = {key: [replace(e, steps=min(e.steps, args.steps)) for e in episodes] for key, episodes in groups.items()}
     print(json.dumps({"drawn": {f"{s}/{f}": len(v) for (s, f), v in groups.items()}, "seconds": round(time.time() - t0, 1)}), flush=True)
     rows = []
     with open(out / "episodes.jsonl", "w") as sink:

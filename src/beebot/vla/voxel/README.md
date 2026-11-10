@@ -1242,7 +1242,8 @@ docstrings hold the details; in short:
 1. **Arms.** policy; shuffled (another episode's instruction, same scene and seed: the gap says
    whether the policy acts on the instruction); plain (the canonical sentence); oracle (the
    canonical first thought fed on each instruction's first step); expert (the suite's expert, the
-   ceiling; it stays still on held-out compositions, which have no plan).
+   ceiling; it stays still on held-out compositions, which have no plan); still (no robot moves:
+   the floor; a switch to "stay" or "eat no cheese" passes so, so read every arm and gate b against it).
 1. **Splits.** test (48 per family, training templates), wording (held-out templates), held (the
    held-out compositions of suite, objects and build), testset (the frozen Haiku test set, scenes
    redrawn from its config and checked against each item's record).
