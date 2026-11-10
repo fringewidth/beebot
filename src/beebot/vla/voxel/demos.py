@@ -23,7 +23,9 @@ Demonstrations real cubes can carry out (--free-cube): --cube, and the world enf
 free-cube rule (--rule free_cube, world.pivot_moves: a cube pivots on a support and moves only
 when no other cube touches it face to face), gravity is on in every scene, and the expert is the
 planner for lone cubes (--expert planner, voxel/free_cube.py). --rule switch_cube is the same for
-cubes that can release their bonds. No recorded action breaks the rule.
+cubes that can release their bonds. No recorded action breaks the rule. --apart sets every
+swarm down again before the episode so that no two robots touch (free_cube.apart): under the rule
+a cube that starts in a group can never leave it.
 
     OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_free_cube --scenes 6000 --free-cube --counts log --compact
 
@@ -44,7 +46,7 @@ import torch
 
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel.play_store import CompactWriter, DenseWriter
-from beebot.vla.voxel.free_cube import FreeCubeExpert
+from beebot.vla.voxel.free_cube import FreeCubeExpert, apart
 from beebot.vla.voxel.world import CUBE_MOVES, FAILURE_RATE, RULES, VoxelWorld, failure_rates
 
 SUCCESS = S.SUCCESS  # checker score an episode needs to count as a demonstration
@@ -76,7 +78,7 @@ def contrast(rng, world, metas, tasks, check=False):
     return VoxelWorld(*(torch.cat([getattr(x, f) for x in worlds]) for f in FIELDS)), out_metas, out
 
 
-def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor"):
+def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False):
     """Write the store. moves: "all" or "cube" (MOVES). robots: (low, high) robot counts, with
     tasks fitted to the swarm (None: the world's density range). failure: (27,) per-action
     failure probabilities (world.failure_rates) or None. compact: write mass and actions in
@@ -85,7 +87,8 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     the swarm can do also when robots is None (with robots that is always so). rule: a pivot
     rule (world.RULES) that the world enforces and the expert chooses within, with gravity on in
     every scene; None: the voxel world's own moves. expert: "attractor", or with a rule
-    "planner" (free_cube.FreeCubeExpert). Returns the number of demonstrations."""
+    "planner" (free_cube.FreeCubeExpert). spaced: every swarm is set down again with no two
+    robots touching before it is played (free_cube.apart). Returns the number of demonstrations."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
@@ -104,6 +107,8 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         run_seed = seed * 1_000_003 + c
         if rule is not None:
             world = replace(world, gravity=torch.ones_like(world.gravity))
+        if spaced:
+            world = apart(world, np.random.default_rng(run_seed))
         player = FreeCubeExpert(tasks, seed=run_seed, rule=rule) if expert == "planner" else S.Expert(tasks, moves=MOVES[moves], seed=run_seed, rule=rule)
         results, arrays = S.run(world, metas, tasks, player, steps=steps, seed=run_seed, record=True, failure=failure, rule=rule)
         for i, ((score, unasked), task) in enumerate(zip(results, tasks)):
@@ -128,7 +133,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         attempts.flush()
         print(f"{min(c + chunk, n_scenes)} scenes, {row} demos, {time.time() - t0:.0f} s; kept/tried {json.dumps({f: f'{kept.get(f, 0)}/{tried[f]}' for f in sorted(tried)})}", flush=True)
     writer.close()
-    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert}
+    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced}
     torch.save({**{k: torch.stack(v) for k, v in small.items()}, "phases": [[] for _ in range(row)], "count": row, "robots": torch.tensor(swarm), "subgoals": subgoals, "config": config}, out / "small.pt")
     (out / "done").write_text(str(row))
     return row
@@ -153,6 +158,7 @@ def main():
     parser.add_argument("--free-cube", action="store_true", help="demonstrations real cubes can carry out: --cube with --rule free_cube --expert planner, each unless given")
     parser.add_argument("--rule", choices=RULES, default=None, help="a pivot rule the world enforces and the expert chooses within (gravity on in every scene)")
     parser.add_argument("--expert", choices=EXPERTS, default=None, help="planner needs --rule")
+    parser.add_argument("--apart", action="store_true", help="set every swarm down again so that no two robots touch at the start")
     parser.add_argument("--steps", type=int, default=None)
     parser.add_argument("--moves", choices=sorted(MOVES), default=None)
     parser.add_argument("--robots", type=int, nargs=2, default=None, metavar=("LOW", "HIGH"))
@@ -171,7 +177,7 @@ def main():
     expert = args.expert or ("planner" if args.free_cube else "attractor")
     if expert == "planner" and rule is None:
         parser.error("--expert planner needs --rule")
-    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert)
+    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart)
 
 
 if __name__ == "__main__":
