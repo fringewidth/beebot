@@ -12,6 +12,14 @@ Kaggle GPU quota is the scarcest resource. Every Kaggle minute should be a gradi
 
 Several Claude sessions run experiments in this repo at once. The plan (goals, tasks, dependencies), who runs what on the Mac GPU and Kaggle, the queues and messages between sessions live in the `ops` repo (`~/ops`, project `beebot`), shown at https://hrishik.me/ops. Read `~/ops/README.md` once per session; it is short. `BOARD.md` is retired.
 
+`ops` is the one progress tracker for this repo; everything goes through it. Nothing about the state of the work lives only in a chat, a scratch file or a markdown roadmap:
+
+1. Before starting a piece of work, find its node or add one (`ops add`), with its dependencies. Work without a node does not exist for the user or for other sessions.
+1. Record every outcome there as it happens: `ops done` with the result and where the output is, failures as failed nodes with the node that works around them (`--mitigates`), decisions the user owes as nodes of kind `decision`, pass criteria and risks in a node's `notes`.
+1. Every run's numbers go to `ops` (the `runs` collector follows the log links of a running node; `ops tail` or `ops push` otherwise), and spending goes there too (`vultr_remaining_usd`, `kaggle_gpu_hours_left`).
+1. Subagents do not write to `ops`; the session that spawned them records their task as a running node when it starts them and closes it after checking their work.
+1. Do not keep a parallel plan file. `ROADMAP.md` and `BOARD.md` are retired; documents in the repo describe results and designs, not status.
+
 1. Identify yourself by your session name (the one ListAgents reports as "This session is ...", e.g. `beebot-b3`) plus a 1-3 word topic: `--as "beebot-b3 compute"` on every `ops` write. The name is also your address for SendMessage.
 1. Run `ops board` before starting anything on the Mac GPU or Kaggle, and `ops claim <id> --pid <pid> --needs mac-gpu --cmd .. --ends ..` before you launch (Kaggle: `--needs kaggle-<account> --kaggle <owner/slug>`). A queued node (`--status queued`) is a reservation.
 1. Every task has a title, a one-sentence summary and a why of at most two sentences, and reduces to one number (`--metric`, `--direction`). Push run numbers with `ops tail logs/<run>.out --label run=<run>` (it follows the JSON lines the trainers print) or `ops push`.
