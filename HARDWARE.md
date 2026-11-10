@@ -434,3 +434,89 @@ Tuned flywheel speeds per move (rpm):
 | traverse / wall crawl | 10,600 to 11,500 |
 | convex up | 17,000 to 19,000 |
 | concave up | 20,000 |
+
+### Ten cubes in one scene (2026-11-10)
+
+`hardware/cube_swarm.py` puts N of the round 2b cubes in one persistent scene on steel. Any cube
+can be the mover; `move(cube, direction)` picks the primitive from the cube's surroundings and
+runs it with cube.py's mechanism, and `lattice()` reads the grid back from the poses, so a caller
+can re-plan after a failed pivot. Tests: `tests/test_cube_swarm.py`.
+
+    python -m beebot.hardware.cube_swarm demo --seed 14 --video runs/cube_swarm/demo.mp4
+    python -m beebot.hardware.cube_swarm mixed --moves 240 --seed 100
+
+What differs from cube.py:
+
+1. **Flywheel.** One body of isotropic inertia on a ball joint, spun about whichever world axis the
+   pivot needs. About one axis it is cube.py's ring, so the calibrated speeds carry over. A build
+   needs three flywheels (or one that can be turned); the mass of the idle two is not modelled.
+1. **Magnet pairs.** Only cube pairs with centres closer than sqrt(3) L + 6 d0 (1.91 L) are
+   searched. No magnet pair within cube.py's 6 d0 cut-off can be further apart, so the forces are
+   the same (tested against cube.py's search).
+1. **Variation.** Friction is drawn once per scene, magnet strength and mass once per cube, brake
+   and speed once per move. Cubes start with cube.py's placement error and poses are never reset,
+   so errors carry from move to move.
+1. **Speeds.** cube_search's speeds for round 2b with anchored neighbours, except three measured
+   in this scene on 10 to 12 jittered trials per speed: concave up 17,800 rpm (20,000 reached 9
+   of 12; 17,083 and 18,500 reached 12 of 12), convex down 12,500 (9,838 reached 7 of 10 off the
+   end of a row; 11,500 to 13,500 reached 10 of 10), and convex up from hanging on a wall 14,500
+   (8 of 10; cube.py only climbs from the floor).
+
+**A cube moves only when nothing but its support holds it.** Outcomes of 207 single moves drawn
+at random by kind from five ten-cube layouts (`runs/cube_swarm/mixed.jsonl`):
+
+| mover | moves | reached | stayed | harmful |
+| --- | --- | --- | --- | --- |
+| free: touches only its support and the cube it pivots on | 63 | 55 | 2 | 6 |
+| bonded: another cube face to face (side, behind, or below when climbing) | 121 | 0 | 121 | 0 |
+| hinged: another cube touching by an edge | 23 | 16 | 6 | 1 |
+
+By primitive, free movers: floor roll 34 of 34, concave up 12 of 14, concave down 5 of 5,
+traverse 1 of 1, convex up 3 of 9 (5 off the lattice, 1 knock). Hinged: convex up from hanging 5
+of 8, convex down 3 of 3, concave down 3 of 3, concave up 3 of 4, wall crawl 2 of 3, floor roll 0
+of 1, convex up from the floor 0 of 1. Every bonded move failed harmlessly at every primitive: floor peel 42, convex up 46, convex
+down 19, traverse 12, wall crawl 2. A packed 2 x 5 patch is therefore frozen: 48 of 48 moves
+stayed, and separate speed sweeps up to 20,000 rpm did not free a patch cube.
+
+Two more ways a cube is held, found while scripting:
+
+1. **Sliding into a slot.** A roll into a cell with a cube beside it along the flywheel's axis
+   (the mover's face slides down that cube's face): in an earlier script, of 22 runs that tried
+   it 3 got in, 13 stayed through four tries and 6 ended leaning, off the lattice. Meeting a cube
+   head on works (6 of 6, and every such roll in the final script).
+1. **Edge contact.** A cube touching another only by a vertical edge is held by the edge magnets.
+   In an earlier script a floor roll away from such a cube at the calibrated 4,839 rpm stayed
+   through four tries in 18 of 22 runs, and the 4 that passed stayed at the next such roll. One
+   trial at 7,000 rpm broke free.
+
+   Both counts are from runs of earlier scripts whose logs were not kept; `plan` reports the
+   three hindrances for every move as `bonds`, `hinges` and `rubs`.
+
+**Scripted demonstration.** A row of five and five loose cubes; 20 moves build a three-high
+tower with a step on either side (`DEMO_SCRIPT`). The loose cubes are routed so that they touch
+nothing until they meet the structure head on. After each move the grid is read back, a harmless
+failure is retried up to three times and a harmful one stops the script. Over seeds 0 to 23
+(`runs/cube_swarm/demo-seeds.jsonl`): 11 runs finished all 20 moves, 13 stopped at a harmful
+move (2 at the first convex up, 6 at the convex up from hanging, 4 at the second convex up, 1 at
+the last). Per attempt: 293 reached, 5 stayed, 13 harmful of 311; floor roll 198 of 199, concave
+up 22 of 22, traverse 12 of 12, convex up 45 of 53, convex up from hanging 16 of 25. Video of
+seed 14 (one retry): `runs/cube_swarm/demo.mp4`.
+
+**Cost.** A move takes 0.40 s of simulated time (0.05 s before the brake, 0.25 s of brake, 0.1 s
+of stillness; the longest seen was 0.63 s). Ten cubes: 0.25 s of wall clock per move in one
+process on the M4 Pro, 0.42 s with three processes side by side. Per time step, measured on a loaded machine: 40 us for one cube, 270
+us for ten packed, 790 us for twenty packed, 1,370 us for forty packed, 205 us for twenty spread
+out. Contacts and magnet pairs grow with the number of touching faces, not with N^2.
+
+What this asks of the policy and the hardware:
+
+1. The voxel expert moves cubes out of packed groups all the time. With permanent magnets those
+   moves do nothing. Either the planner only moves free cubes (ends of rows, loose cubes, cubes
+   hanging on a wall) and approaches head on, or the hardware can release a bond (an
+   electropermanent face), which is the same conclusion as round 2.
+1. Convex up is the weak move: about one in five ends off the lattice or knocks a cube (13 of 62
+   from the floor and 6 of 33 from a wall, both runs together). A closed loop needs a recovery for a cube lying off the lattice,
+   which this file does not have: `move` refuses such a cube.
+1. Not modelled: chamfered edges, which may ease sliding into a slot; a harmful outcome that
+   leaves the mover aligned in a third cell ("strayed") is counted as harmful, as in cube.py,
+   though a planner could carry on from it.
