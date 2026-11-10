@@ -141,6 +141,23 @@ def test_clean_colours_contrast():
         assert V.lab_distance(look.marker_rgb, look.floor.rgb) > 20
 
 
+def test_distractors_are_unnameable():
+    """Clutter, stickers, the table and the backdrop never take a colour near a named one, and
+    clutter is never cube-like (a flat paper or book, or a thin bar)."""
+    rng = np.random.default_rng(0)
+    colours, boxes = [], []
+    for _ in range(40):
+        look = V.sample_look(rng, V.ViewSpec(strength=1.0))
+        colours += list(look.clutter_rgb) + [s[-1] for s in look.stickers] + list(look.background[:3]) + [look.table.rgb, look.table.rgb2]
+        boxes += look.clutter
+    assert len(boxes) > 50 and len(colours) > 200
+    colours = np.stack(colours)
+    assert (V.lab_distance(colours[:, None], V.PALETTE[None]) >= V.DISTRACTOR_GAP).all()
+    for x0, x1, y0, y1, z0, z1 in boxes:
+        sides = sorted((x1 - x0, y1 - y0, z1 - z0))
+        assert sides[0] <= 0.6 and sides[0] < 0.5 * sides[2]
+
+
 def test_cutout_spares_protected_pixels():
     spec = V.ViewSpec(strength=1.0, off=frozenset(i for g in V.ITEMS.values() for i in g if i != "cutout"))
     rgb = np.full((64, 64, 3), 0.5, np.float32)
