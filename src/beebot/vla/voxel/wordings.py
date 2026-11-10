@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from beebot.vla import tasks as T2
+from beebot.vla.voxel import shapes as H
 from beebot.vla.voxel import suite as S
 
 PATH = Path(__file__).with_name("wordings.json")
@@ -103,6 +104,10 @@ def suite_held(entry):
 
 def plain(kind, value):
     """The canonical word of a slot value, as the canonical sentence spells it."""
+    if kind == "object":
+        return H.phrase(value)
+    if kind == "use":
+        return H.USES[value]
     return SLOTS["shape"]["values"][value]["canonical"] if kind == "shape" else str(value)
 
 
@@ -150,6 +155,8 @@ def entries(kind, value, split):
     elif kind in LEXICAL:
         if split in ("train", "words"):
             out += [("synonym", [(word, False)]) for word in LEXICAL[kind]["train" if split == "train" else "held_out"]]
+    elif kind in ("object", "use"):
+        pass  # no synonym bank: Haiku writes the open phrasings of objects and uses
     else:
         raise ValueError(kind)
     return out
@@ -244,6 +251,10 @@ def vocabulary(kind):
         options = [r"\d+"]
     elif kind == "letter":
         options = ["[A-Z]{1,2}"]
+    elif kind == "object":
+        options = [H.phrase(name) for name in H.LIBRARY]
+    elif kind == "use":
+        options = list(H.USES.values())
     else:
         options = [".+"]
     return "|".join(sorted((o if kind in ("count", "letter", "job", "who", "do") else re.escape(o) for o in options), key=len, reverse=True))
@@ -257,6 +268,10 @@ def pattern(template, kinds):
 
 
 def typed(kind, word):
+    if kind == "object":
+        return next(name for name in H.LIBRARY if H.phrase(name) == word)
+    if kind == "use":
+        return next(key for key, words in H.USES.items() if words == word)
     return int(word) if kind == "count" else SHAPE_NAMES[word] if kind == "shape" else word
 
 
@@ -328,6 +343,8 @@ def slots_of(task, present=None):
         raise ValueError("a switch task has one instruction per part: slots_of(part) for each of task.parts")
     if "who" in spec:
         out = coverage_slots(spec)
+    elif kind == "build":
+        out = {"intent": "build.use", "f": spec["use"]} if spec.get("use") else {"intent": "build", "o": spec["object"]}
     elif kind == "mask":
         key, words = invert(task.text, ("letter_floor", "letter_stand", "shape"))
         out = {"intent": key, "s": SHAPE_NAMES[words["s"]]} if key == "shape" else {"intent": key, "w": words["w"]}

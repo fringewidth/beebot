@@ -95,7 +95,7 @@ LOG_EVERY = 60.0
 MENU_SEED = 4_242  # the draw the verifier's menu is read from (not the items')
 MENU_SCENES = 200
 ORDERED_KEYS = frozenset({"order", "sequence", "steps"})  # spec lists whose order matters; every other list is a set
-IGNORED_KEYS = frozenset({"note"})  # spec keys same_spec does not compare
+IGNORED_KEYS = frozenset({"note", "program", "voxels"})  # spec keys same_spec does not compare (a build task's plan is not in its instruction)
 EXTRA_COLOURS = ("black", "brown", "grey", "gray", "magenta", "indigo", "gold", "golden", "silver", "teal", "turquoise", "maroon", "beige", "violet", "lavender", "crimson", "scarlet", "pink")
 TERRAIN_WORDS = {"trench": ("trench", "trenches", "gap", "ditch", "channel", "chasm", "ravine", "canyon", "gorge"), "plateau": ("plateau", "plateaus", "platform", "platforms", "mesa", "terrace"), "hill": ("hill", "hills", "hilly", "bump", "bumps", "mound")}
 SCRIPTS = re.compile(r"[ऀ-ॿ぀-ヿ㐀-䶿一-鿿가-힯]")  # Devanagari, kana, CJK, Hangul: held-out languages
@@ -241,7 +241,7 @@ def store_options(store):
 
     config = torch.load(Path(store) / "small.pt", map_location="cpu", weights_only=False)["config"]
     attempts = [json.loads(line) for line in (Path(store) / "attempts.jsonl").read_text().splitlines() if line.strip()]
-    options = {"seed": config["seed"], "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart")), "coverage": float(config.get("coverage", 0.0))}
+    options = {"seed": config["seed"], "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart")), "coverage": float(config.get("coverage", 0.0)), "build": float(config.get("build", 0.0))}
     return options, attempts
 
 
@@ -254,7 +254,7 @@ def drawn_items(options, limit, attempts=None, keep=None):
     scenes = 10**9  # full chunks until the limit or the store's attempts run out
     index = 0
     out = []
-    for _, world, _, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart")), float(options.get("coverage", 0.0))):
+    for _, world, _, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart")), float(options.get("coverage", 0.0)), float(options.get("build", 0.0))):
         for i, task in enumerate(tasks):
             e = None
             if attempts is not None:
@@ -302,7 +302,7 @@ def menu_from(records):
         if record.get("plain") and spec["kind"] not in REFUSAL_KINDS and (entry["example"] is None or fullness(spec) > fullness(entry["example"][1])):  # the fullest example
             entry["example"] = [record["plain"], spec]
         for key, value in spec.items():
-            if key == "kind":
+            if key == "kind" or key in IGNORED_KEYS:
                 continue
             field = entry["fields"].setdefault(key, {"list": isinstance(value, list), "pair": False, "values": []})
             if isinstance(value, list) and value and isinstance(value[0], list):
@@ -1196,6 +1196,7 @@ def options_of(args):
         "rule": args.rule or ("free_cube" if args.free_cube else None),
         "apart": args.apart,
         "coverage": getattr(args, "coverage", 0.0),
+        "build": getattr(args, "build", 0.0),
     }
 
 
@@ -1253,6 +1254,7 @@ def main(argv=None):
     parser.add_argument("--rule", default=None)
     parser.add_argument("--apart", action="store_true")
     parser.add_argument("--coverage", type=float, default=0.0, help="as demos --coverage: coverage tasks (suite.sample_coverage) per scene, after the suite's own")
+    parser.add_argument("--build", type=float, default=0.0, help="as demos --build: build tasks (voxel/build.py) per scene, after the coverage tasks")
     parser.add_argument("--cube", action="store_true", help="as demos --cube: robots in suite.ROBOTS")
     parser.add_argument("--free-cube", action="store_true", help="as demos --free-cube: --cube and --rule free_cube")
     parser.add_argument("--store", default=None, help="export: a demo store to join to; its options are read from small.pt and only its kept episodes exported")
