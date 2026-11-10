@@ -987,10 +987,10 @@ p * s. Any item can be turned off by name: `ViewSpec(off={"jpeg"})`.
 | | white_balance | p 0.6: per-channel gains 1 +- 0.1 s |
 | | gamma | p 0.6: 1 +- 0.25 s |
 | | chromatic | p 0.4: red and blue at radial scales 1 +- U(0, 0.006 s) |
-| | cutout | p 0.4: 1-3 patches of 4-12% of the side, flat colour or noise, placed only where they cover no object or zone pixel, so a target is never erased from any view |
+| | cutout | p 0.4: 1-3 patches of 4-12% of the side, noise or a flat colour as unnameable as the distractors, placed only where they cover no object or zone pixel, so a target is never erased from any view |
 
 Nothing outside the arena may look like an object an instruction can name. So every clutter,
-sticker, table and backdrop colour has saturation of at most 0.3-0.4 and lies at least
+sticker, table, backdrop and flat cutout colour has saturation of at most 0.3-0.4 and lies at least
 `DISTRACTOR_GAP` (25) Lab units from every named colour (`test_distractors_are_unnameable`).
 
 Camera, lighting, style, materials, colour and clutter are drawn once per look, which is one

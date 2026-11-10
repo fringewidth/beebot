@@ -127,9 +127,9 @@ corruptions (per image)
     white_balance     p 0.6: per-channel gains U(1 - 0.1 s, 1 + 0.1 s)
     gamma             p 0.6: U(1 - 0.25 s, 1 + 0.25 s)
     chromatic         p 0.4: red and blue sampled at radial scales 1 +- U(0, 0.006 s)
-    cutout            p 0.4: 1-3 patches of 4-12% of the side, filled with a flat colour or
-                      noise, placed only where they cover no object or zone pixel (so a target
-                      is never erased from any view)
+    cutout            p 0.4: 1-3 patches of 4-12% of the side, filled with noise or a flat
+                      unnameable colour (as distractors), placed only where they cover no
+                      object or zone pixel (so a target is never erased from any view)
 
 State noise (perturb_state, a separate function on the voxel observation, default off: nothing
 calls it unless the caller does): each robot is removed with probability `drop` (default
@@ -1627,7 +1627,7 @@ def corrupt(rgb, protect, rng, spec):
             for _ in range(12):
                 y0, x0 = int(rng.integers(0, size - side)), int(rng.integers(0, size - side))
                 if not protect[y0 : y0 + side, x0 : x0 + side].any():
-                    rgb[y0 : y0 + side, x0 : x0 + side] = rng.random(3) if rng.random() < 0.5 else rng.random((side, side, 3))
+                    rgb[y0 : y0 + side, x0 : x0 + side] = unnameable_colour(rng) if rng.random() < 0.5 else rng.random((side, side, 3))  # a flat patch must not look like a named object
                     break
     image = Image.fromarray((rgb * 255 + 0.5).astype(np.uint8))
     if chance("jpeg", 0.6):
