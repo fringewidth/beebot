@@ -18,6 +18,7 @@ Several Claude sessions run experiments in this repo at once. The plan (goals, t
 1. Before starting a piece of work, find its node or add one (`ops add`), with its dependencies. Work without a node does not exist for the user or for other sessions.
 1. Record every outcome there as it happens: `ops done` with the result and where the output is, failures as failed nodes with the node that works around them (`--mitigates`), decisions the user owes as nodes of kind `decision`, pass criteria and risks in a node's `notes`.
 1. Every run's numbers go to `ops` (the `runs` collector follows the log links of a running node; `ops tail` or `ops push` otherwise), and spending goes there too (`vultr_remaining_usd`, `kaggle_gpu_hours_left`).
+1. Any task that has a number in it goes into `ops` live, from the moment it starts: training and evaluation, but also data generation, exports, API runs (items done, keep rates, failures), probes and agents' measurements. Before launching, give its node a `--metric` and either a `--link` to a log the `runs` collector can follow or a loop that runs `ops push` every few minutes until the job ends. The user monitors the work on the dashboard, so a number that only exists in a log file or a chat message is invisible to them.
 1. Subagents do not write to `ops`; the session that spawned them records their task as a running node when it starts them and closes it after checking their work.
 1. Do not keep a parallel plan file. `ROADMAP.md` and `BOARD.md` are retired; documents in the repo describe results and designs, not status.
 
