@@ -1135,6 +1135,7 @@ MOVE_STEPS = 3
 LINE_MAX = 14
 LAYER_COST = 3.0  # target piles: one layer up costs as much as this squared distance on the floor
 GROUP_GAP = 2  # cells between the groups of a multi-group scene
+CLIFF = 3  # raised ground this high is climbed from the foot of its wall (JobSetup.detour)
 HOLD_STILL = ("line", "spread")  # jobs whose robots on a target do not jitter (a row or a spacing undone by one step); elsewhere jitter lets the last robots into a pile or ring
 GROUP_PAIRS = {2: (("left", "right"), ("back", "front"), ("back left", "front right"), ("back right", "front left")), 3: (("back left", "back right", "front"), ("front left", "front right", "back"), ("back left", "front left", "right"), ("back right", "front right", "left"))}
 COVERAGE_WORDINGS = {
@@ -1673,26 +1674,54 @@ class JobSetup:
         return self.compute(world, i) if self.fixed is None else self.fixed
 
     def detour(self, world, i):
-        """(robots (D, H, W) bool, targets) for robots that have to go another way first, or None:
-        climbing onto a plateau, every robot taking part that is neither on it nor at the foot of
-        its cliff heads for the foot first (the greedy controller never steps down a cliff of its
-        own, and from the foot the climb is straight up the wall)."""
+        """(robots (D, H, W) bool, targets) for robots that have to go another way first, or None.
+        When a job's targets stand on raised ground at least CLIFF high (a plateau), every robot
+        taking part that is neither up there nor at the foot of its cliff heads for the foot first:
+        the greedy controller never steps down a cliff of its own, and from the foot the climb is
+        straight up the wall."""
         job = self.job
-        if job["kind"] != "climb":
+        if job["kind"] in ("stay", "eat", "follow", "spread"):
             return None
         occupied = world.mass[i].numpy() > 0.5
-        y0, y1, x0, x1 = job["plateau"]
-        yy, xx = np.mgrid[0:SIZE, 0:SIZE]
-        target_side = (yy >= y0) & (yy < y1) & (xx >= x0) & (xx < x1)
-        foot = (self.heights == 0) & ~target_side  # the trench cells beside the target plateau
-        foot &= np.roll(target_side, 1, 0) | np.roll(target_side, -1, 0) | np.roll(target_side, 1, 1) | np.roll(target_side, -1, 1)
+        if job["kind"] == "climb":
+            y0, y1, x0, x1 = job["plateau"]
+            yy, xx = np.mgrid[0:SIZE, 0:SIZE]
+            side = (yy >= y0) & (yy < y1) & (xx >= x0) & (xx < x1)
+            top = job["top"]
+        else:
+            pts = self.points(world, i)
+            if not pts:
+                return None
+            cells = np.array(pts)
+            top = int(self.heights[cells[:, 1], cells[:, 2]].min())
+            if top < CLIFF:
+                return None
+            side = np.zeros((SIZE, SIZE), bool)
+            side[cells[:, 1], cells[:, 2]] = True
+            high = self.heights >= top
+            while True:  # the raised ground the targets stand on, 4-connected
+                grown = side.copy()
+                grown[1:] |= side[:-1]
+                grown[:-1] |= side[1:]
+                grown[:, 1:] |= side[:, :-1]
+                grown[:, :-1] |= side[:, 1:]
+                grown &= high
+                if (grown == side).all():
+                    break
+                side = grown
+        beside = np.zeros_like(side)
+        beside[1:] |= side[:-1]
+        beside[:-1] |= side[1:]
+        beside[:, 1:] |= side[:, :-1]
+        beside[:, :-1] |= side[:, 1:]
+        foot = beside & ~side & (self.heights <= top - CLIFF)
         zz = np.arange(SIZE)[:, None, None]
-        on_top = target_side[None] & (zz >= job["top"])
-        away = occupied & ~self.frozen & ~on_top & ~foot[None]
+        up_there = side[None] & (zz >= self.heights[None])
+        away = occupied & ~self.frozen & ~up_there & ~foot[None]
         if not away.any():
             return None
         ys, xs = np.nonzero(foot)
-        pts = [(0, int(y), int(x)) for y, x in zip(ys, xs) if not self.solid[0, y, x]]
+        pts = [(int(self.heights[y, x]), int(y), int(x)) for y, x in zip(ys, xs) if not self.avoid[self.heights[y, x], y, x]]
         return (away, pts) if pts else None
 
     def centroid(self):
