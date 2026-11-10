@@ -261,13 +261,13 @@ def describe(rng, things, slot, groups=SEEN):
     thing = by_slot(things)[slot]
     names = [g for g in groups if word(thing, g) is not None]
     for n in range(len(names) + 1):
-        found = []
+        fits = []
         for combo in itertools.combinations(names, n):
             attrs = {g: word(thing, g) for g in combo}
             if resolve({"by": "attrs", "noun": thing["noun"], "attrs": attrs}, things, None) == slot:
-                found.append(attrs)
-        if found:
-            return found[int(rng.integers(len(found)))]
+                fits.append(attrs)
+        if fits:
+            return fits[int(rng.integers(len(fits)))]
     return None
 
 
@@ -301,7 +301,7 @@ def goal_centre(to, meta, thing):
     return out
 
 
-def placed(thing, to, meta):
+def in_place(thing, to, meta):
     """Whether a thing (thing_list) stands where a push asks."""
     cells = thing["cells"]
     if "region" in to:
@@ -325,7 +325,7 @@ def push_value(start_thing, end_thing, to, meta):
     """1 when placed, else 0.8 of the share of the way covered toward the goal."""
     if end_thing is None:
         return 0.0
-    if placed(end_thing, to, meta):
+    if in_place(end_thing, to, meta):
         return 1.0
     goal = goal_centre(to, meta, start_thing)
     d0 = np.linalg.norm(start_thing["centre"] - goal)
@@ -455,10 +455,10 @@ def job_value(spec, static, start, end):
     """How far the job of an object task was done, in [0, 1]."""
     meta = static["meta"]
     kind = spec["kind"]
-    gone = eaten_slots(start, end)
+    meals = eaten_slots(start, end)
     mass = end["mass"] > 0.5
     if kind in ("eat_thing", "catch_thing"):
-        return float(spec["target"] in gone)
+        return float(spec["target"] in meals)
     if kind == "surround_thing":
         thing = by_slot(things_at(static, end)).get(spec["target"])
         if thing is None:
@@ -610,10 +610,10 @@ class ObjectExpert(S.Expert):
             sign = 1 if offset[a] > 0 else -1
             if lead_clear(thing, solid, a + 1, sign) and team_cells(thing, solid, a + 1, sign):
                 return a + 1, sign
-        blocked = order[0]  # the way is blocked (another object, terrain): sidestep along the other floor axis, away from what blocks it
-        _, ahead = faces(thing, solid, blocked + 1, 1 if offset[blocked] > 0 else -1)
+        first = order[0]  # the way is blocked (another object, terrain): sidestep along the other floor axis, away from what blocks it
+        _, ahead = faces(thing, solid, first + 1, 1 if offset[first] > 0 else -1)
         stops = [c for c in ahead if not all(0 <= v < n for v, n in zip(c, solid.shape)) or solid[c]]
-        side = 1 - blocked
+        side = 1 - first
         away = thing["centre"][side] - (np.mean([c[side + 1] for c in stops]) + 0.5) if stops else offset[side]
         for sign in ((1, -1) if away >= 0 else (-1, 1)):
             if lead_clear(thing, solid, side + 1, sign) and team_cells(thing, solid, side + 1, sign):
@@ -624,7 +624,7 @@ class ObjectExpert(S.Expert):
     def shove_targets(self, world, i, k, to):
         thing = self.thing(world, i, k)
         meta = self.tasks[i].spec["meta_ref"]
-        if thing is None or placed(thing, to, meta):
+        if thing is None or in_place(thing, to, meta):
             return [], None, None
         axis, sign = self.heading(world, i, thing, to)
         pts = team_cells(thing, self.solid(world, i, k), axis, sign)
@@ -636,7 +636,7 @@ class ObjectExpert(S.Expert):
     def probe_state(self, world, i, seg):
         state = self.probes.get(i)
         if state is None:
-            state = self.probes[i] = {"queue": list(seg["candidates"]), "current": None, "start": None, "held": 0, "found": None, "tried": []}
+            state = self.probes[i] = {"queue": list(seg["candidates"]), "current": None, "start": None, "presses": 0, "found": None, "tried": []}
         return state
 
     def probe_targets(self, world, i, seg):
@@ -650,12 +650,12 @@ class ObjectExpert(S.Expert):
                     break
                 state["current"] = state["queue"].pop(0)
                 state["start"] = tuple(int(v) for v in world.cheese_pos[i, state["current"]])
-                state["held"] = 0
+                state["presses"] = 0
                 state["tried"].append(state["current"])
             k = state["current"]
-            moved = tuple(int(v) for v in world.cheese_pos[i, k]) != state["start"]
-            light = moved
-            heavy = not moved and state["held"] >= PROBE_HOLD
+            has_moved = tuple(int(v) for v in world.cheese_pos[i, k]) != state["start"]
+            light = has_moved
+            heavy = not has_moved and state["presses"] >= PROBE_HOLD
             if light or heavy:
                 if (heavy and seg["want"] == "heavy") or (light and seg["want"] == "light"):
                     state["found"] = k
@@ -669,7 +669,7 @@ class ObjectExpert(S.Expert):
             axis, sign, face = way
             occupied = world.mass[i].numpy() > 0.5
             if all(occupied[c] for c in face):
-                state["held"] += 1
+                state["presses"] += 1
             direction = [0, 0, 0]
             direction[axis] = sign
             self.teams[i] = (tuple(direction), face, k)
@@ -690,7 +690,7 @@ class ObjectExpert(S.Expert):
         kind = seg["kind"]
         if kind == "shove":
             thing = self.thing(world, i, seg["cheese"])
-            return thing is None or placed(thing, seg["to"], self.tasks[i].spec["meta_ref"])
+            return thing is None or in_place(thing, seg["to"], self.tasks[i].spec["meta_ref"])
         if kind in ("find", "fixed"):
             return False
         return super().done(i, seg, world)
@@ -757,22 +757,22 @@ class ObjectExpert(S.Expert):
 # Drawing tasks
 
 
-def say(rng, intent, held, **slots):
-    """An instruction from the wording bank's templates of an intent (held-out ones for held ==
+def say(rng, intent, holdout, **slots):
+    """An instruction from the wording bank's templates of an intent (held-out ones for holdout ==
     "wording"), its slots filled with their canonical words."""
     from beebot.vla.voxel import wordings as W
 
-    pool = W.templates(intent, "wording" if held == "wording" else "train")
+    pool = W.templates(intent, "wording" if holdout == "wording" else "train")
     template = pool[int(rng.integers(len(pool)))]
     words = {name: str(slots[name]) if name in slots else W.LEXICAL[name]["canonical"] for name in W.fields_of(template)}
     return template.format(**words)
 
 
-def object_task(family, text, spec, plan, held, meta, runners=()):
+def object_task(family, text, spec, plan, holdout, meta, runners=()):
     """A Task of an object family; spec gets "objects": True, "forbid" (unused) and "meta_ref",
     the scene's meta, which the expert reads (records leave it out)."""
     spec = {"objects": True, **spec, "forbid": set(), "meta_ref": meta}
-    return S.Task(family, text, spec, plan if held in ("", "wording") else [], held, tuple(runners))
+    return S.Task(family, text, spec, plan if holdout in ("", "wording") else [], holdout, tuple(runners))
 
 
 def pile_points(world, i, centre, n, cells=None, layers=None, avoid_objects=True):
@@ -819,7 +819,7 @@ def destination(rng, world, i, meta, thing, goal="region"):
         if thing["pos"][0] >= top and np.ptp(along) + 1 < width and not (along.min() >= start and along.max() < start + width) and pushable(world, i, thing, axis, sign):
             return {"trench": True}
         return None
-    options = [r for r in S.FLOOR_REGIONS if not placed(thing, {"region": r}, meta) and reachable(world, i, thing, {"region": r}, meta)]
+    options = [r for r in S.FLOOR_REGIONS if not in_place(thing, {"region": r}, meta) and reachable(world, i, thing, {"region": r}, meta)]
     return {"region": str(rng.choice(options))} if options else None
 
 
@@ -848,7 +848,7 @@ def push_slots(ref, to):
     return "thing.push_region", {"o": phrase(ref), "r": to["region"]}
 
 
-def job_task(rng, family, held, world, meta, i, job, ref, target, things, find=None, goal="region"):
+def job_task(rng, family, holdout, world, meta, i, job, ref, target, things, find=None, goal="region"):
     """A Task for a job (eat, push, surround, catch; a dict: push there) on the thing a reference
     picks out; goal: where a push goes (push_goal)."""
     thing = by_slot(things)[target]
@@ -884,7 +884,7 @@ def job_task(rng, family, held, world, meta, i, job, ref, target, things, find=N
             plan = [{"kind": "find", "candidates": find, "want": "heavy", "to": to}]
         else:
             plan = [{"kind": "shove", "cheese": target, "to": to, "name": name}]
-    task = object_task(family, say(rng, intent, held, **slots), spec, plan, held, meta, runners)
+    task = object_task(family, say(rng, intent, holdout, **slots), spec, plan, holdout, meta, runners)
     if already_done(task, world, meta, i):
         return None
     return task
@@ -906,7 +906,7 @@ def heavy_candidates(world, i, things, noun):
     return pool
 
 
-def make_things(rng, held, kind=None):
+def make_things(rng, holdout, kind=None):
     job = kind or str(rng.choice(["eat", "push", "surround", "catch", "heavy"], p=[0.3, 0.25, 0.2, 0.1, 0.15]))
     goal, ground = push_goal(rng) if job in ("push", "heavy") else (None, {})
 
@@ -922,7 +922,7 @@ def make_things(rng, held, kind=None):
             ref = {"by": "attrs", "noun": "cheese", "attrs": {"weight": "heavy"}}
             centre = world.mass[i].nonzero()[:, 1:].float().mean(dim=0).numpy() if world.mass[i].sum() else np.array([SIZE / 2, SIZE / 2])
             order = sorted(pool, key=lambda t: np.linalg.norm(t["centre"] - centre))
-            return job_task(rng, "things", held, world, meta, i, "push", ref, target, things, find=[t["slot"] for t in order], goal=goal)
+            return job_task(rng, "things", holdout, world, meta, i, "push", ref, target, things, find=[t["slot"] for t in order], goal=goal)
         options = cheeses if job != "eat" else [t for t in cheeses if eat_need(t, walls) < float("inf")]
         if not options:
             return None
@@ -930,7 +930,7 @@ def make_things(rng, held, kind=None):
         attrs = describe(rng, things, target)
         if attrs is None:
             return None
-        return job_task(rng, "things", held, world, meta, i, job, {"by": "attrs", "noun": "cheese", "attrs": attrs}, target, things, goal=goal)
+        return job_task(rng, "things", holdout, world, meta, i, job, {"by": "attrs", "noun": "cheese", "attrs": attrs}, target, things, goal=goal)
 
     needs = {"objects": (2, 6), "food": 0.7, "zones": (0, 1), **ground}
     if job in ("eat", "surround"):
@@ -942,7 +942,7 @@ def make_things(rng, held, kind=None):
     return needs, make
 
 
-def make_blocks(rng, held, kind=None):
+def make_blocks(rng, holdout, kind=None):
     job = kind or str(rng.choice(["push", "heavy", "line"], p=[0.5, 0.2, 0.3]))
     goal, ground = push_goal(rng) if job in ("push", "heavy") else (None, {})
 
@@ -957,16 +957,16 @@ def make_blocks(rng, held, kind=None):
             ref = {"by": "attrs", "noun": "block", "attrs": {"weight": "heavy"}}
             centre = world.mass[i].nonzero()[:, 1:].float().mean(dim=0).numpy() if world.mass[i].sum() else np.array([SIZE / 2, SIZE / 2])
             order = sorted(pool, key=lambda t: np.linalg.norm(t["centre"] - centre))
-            return job_task(rng, "blocks", held, world, meta, i, "push", ref, target, things, find=[t["slot"] for t in order], goal=goal)
+            return job_task(rng, "blocks", holdout, world, meta, i, "push", ref, target, things, find=[t["slot"] for t in order], goal=goal)
         if job == "line":
-            return line_task(rng, held, world, meta, i, blocks)
+            return line_task(rng, holdout, world, meta, i, blocks)
         if not blocks:
             return None
         target = blocks[int(rng.integers(len(blocks)))]["slot"]
         attrs = describe(rng, things, target)
         if attrs is None:
             return None
-        return job_task(rng, "blocks", held, world, meta, i, "push", {"by": "attrs", "noun": "block", "attrs": attrs}, target, things, goal=goal)
+        return job_task(rng, "blocks", holdout, world, meta, i, "push", {"by": "attrs", "noun": "block", "attrs": attrs}, target, things, goal=goal)
 
     needs = {"objects": (2, 5), "food": 0.3, "zones": (0, 1), **ground}
     if job == "line":
@@ -976,7 +976,7 @@ def make_blocks(rng, held, kind=None):
     return needs, make
 
 
-def line_task(rng, held, world, meta, i, blocks):
+def line_task(rng, holdout, world, meta, i, blocks):
     """Line the blocks up in one row (2 to 4 blocks whose spans along the row leave a cell between
     them, so they fit side by side; the row runs left to right or back to front, whichever fits,
     at random when both do): the plan pushes each block not yet on the row the most blocks already
@@ -1003,12 +1003,12 @@ def line_task(rng, held, world, meta, i, blocks):
         moves.sort(key=lambda t: min(abs(t["cells"][:, move - 1] - coord)))
         plan = [{"kind": "shove", "cheese": t["slot"], "to": {"line": [move, coord]}, "name": full_phrase(t)} for t in moves]
         spec = {"kind": "line_blocks", "axis": axis_name, "line": [move, coord], "moves": [t["slot"] for t in moves]}
-        task = object_task("blocks", say(rng, "blocks.line_" + axis_name, held), spec, plan, held, meta)
+        task = object_task("blocks", say(rng, "blocks.line_" + axis_name, holdout), spec, plan, holdout, meta)
         return None if already_done(task, world, meta, i) else task
     return None
 
 
-def make_zones(rng, held, kind=None):
+def make_zones(rng, holdout, kind=None):
     job = kind or str(rng.choice(["goto", "line", "push"], p=[0.35, 0.3, 0.35]))
 
     def make(world, meta, i):
@@ -1032,7 +1032,7 @@ def make_zones(rng, held, kind=None):
             if attrs is None:
                 return None
             ref = {"by": "attrs", "noun": by_slot(things)[target]["noun"], "attrs": attrs}
-            return job_task(rng, "zones", held, world, meta, i, {"zone": mark["colour"]}, ref, target, things)
+            return job_task(rng, "zones", holdout, world, meta, i, {"zone": mark["colour"]}, ref, target, things)
         if job == "goto":
             room = 2 * (y1 - y0 + 2) * (x1 - x0 + 2)
             if n > room:
@@ -1042,7 +1042,7 @@ def make_zones(rng, held, kind=None):
             pts = pile_points(world, i, ((y0 + y1 - 1) / 2, (x0 + x1 - 1) / 2), n, cells=cells, layers=2)
             spec = {"kind": "goto_zone", "zone": mark["colour"]}
             plan = [{"kind": "fixed", "points": pts, "cap": len(pts), "label": {"kind": "zone", "colour": mark["colour"]}}]
-            task = object_task("zones", say(rng, "zone.goto", held, c=mark["colour"]), spec, plan, held, meta)
+            task = object_task("zones", say(rng, "zone.goto", holdout, c=mark["colour"]), spec, plan, holdout, meta)
         else:
             if n < 3:
                 return None
@@ -1051,7 +1051,7 @@ def make_zones(rng, held, kind=None):
             pts = [(int(heights[y, x]), int(y), int(x)) for y, x in zip(ys, xs)][:n]
             spec = {"kind": "line_zone", "zone": mark["colour"]}
             plan = [{"kind": "fixed", "points": pts, "cap": len(pts), "label": {"kind": "stripe", "colour": mark["colour"]}}]
-            task = object_task("zones", say(rng, "zone.line", held, c=mark["colour"]), spec, plan, held, meta)
+            task = object_task("zones", say(rng, "zone.line", holdout, c=mark["colour"]), spec, plan, holdout, meta)
         return None if already_done(task, world, meta, i) else task
 
     needs = {"objects": (0, 4), "food": 0.5, "zones": (1, 3)}
@@ -1110,13 +1110,13 @@ def draw_ref(rng, by, things, meta):
     return ref if resolve(ref, things, meta) is not None else None
 
 
-def make_reasoning(rng, held, kind=None):
-    if held == "ref_job":
+def make_reasoning(rng, holdout, kind=None):
+    if holdout == "ref_job":
         by, job = HELD_OUT["ref_job"][int(rng.integers(len(HELD_OUT["ref_job"])))]
         mode = "ref"
-    elif held == "condition":
+    elif holdout == "condition":
         mode, form = "conditional", HELD_OUT["condition"][0]
-    elif held == "count":
+    elif holdout == "count":
         mode, count_job = "count", "groups"
     else:
         mode = kind or str(rng.choice(["ref", "conditional", "count"], p=[0.6, 0.25, 0.15]))
@@ -1141,10 +1141,10 @@ def make_reasoning(rng, held, kind=None):
             name = {"eat_thing": "eat", "push_thing": "push", "surround_thing": "surround"}[job]
             if name == "eat" and eat_need(by_slot(things)[target], world.walls[i].numpy()) == float("inf"):
                 return None
-            return job_task(rng, "reasoning", held, world, meta, i, name, ref, target, things, goal=goal)
+            return job_task(rng, "reasoning", holdout, world, meta, i, name, ref, target, things, goal=goal)
         if mode == "conditional":
-            return conditional_task(rng, held, world, meta, i, things, form)
-        return count_task(rng, held, world, meta, i, things, count_job)
+            return conditional_task(rng, holdout, world, meta, i, things, form)
+        return count_task(rng, holdout, world, meta, i, things, count_job)
 
     needs = {"objects": (3, 6), "food": 0.5, "zones": (0, 2), **ground}
     if mode == "ref" and job != "push_thing" and by != "near":
@@ -1156,7 +1156,7 @@ def make_reasoning(rng, held, kind=None):
     return needs, make
 
 
-def conditional_task(rng, held, world, meta, i, things, form):
+def conditional_task(rng, holdout, world, meta, i, things, form):
     """"eat (surround) the c cheese if there is one, otherwise build a tower (go to a region)":
     c names one cheese in the scene half the time and none of them otherwise."""
     cheeses = [t for t in things if t["noun"] == "cheese"]
@@ -1168,8 +1168,8 @@ def conditional_task(rng, held, world, meta, i, things, form):
         thing = options[int(rng.integers(len(options)))]
         colour = thing["colour"]
     else:
-        seen = {c for t in cheeses for c in (t["colour"], t["colour2"]) if c}
-        missing = [c for c in S.TRAIN_COLOURS if c not in seen]
+        colours_seen = {c for t in cheeses for c in (t["colour"], t["colour2"]) if c}
+        missing = [c for c in S.TRAIN_COLOURS if c not in colours_seen]
         colour = str(rng.choice(missing))
         thing = None
     then_job, else_job = {"eat_tower": ("eat", "tower"), "surround_goto": ("surround", "goto"), "eat_goto": ("eat", "goto")}[form]
@@ -1201,11 +1201,11 @@ def conditional_task(rng, held, world, meta, i, things, form):
         n = int(world.mass[i].sum())
         pts = pile_points(world, i, ((y0 + y1 - 1) / 2, (x0 + x1 - 1) / 2), n, cells=cells)
         plan = [{"kind": "fixed", "points": pts, "cap": None, "label": {"kind": "region", "region": else_spec["region"]}}]
-    task = object_task("reasoning", say(rng, "cond." + form, held, **slots), spec, plan, held, meta)
+    task = object_task("reasoning", say(rng, "cond." + form, holdout, **slots), spec, plan, holdout, meta)
     return None if already_done(task, world, meta, i) else task
 
 
-def count_task(rng, held, world, meta, i, things, job):
+def count_task(rng, holdout, world, meta, i, things, job):
     """"build a tower as tall as the number of cheeses (blocks, objects)", or (held out) "split into
     as many groups as there are ...": the count is 3 to 6 for a tower and 2 or 3 for groups."""
     noun = str(rng.choice(["cheese", "block", "object"]))
@@ -1219,7 +1219,7 @@ def count_task(rng, held, world, meta, i, things, job):
         if pts is None:
             return None
         plan = [{"kind": "fixed", "points": pts, "cap": len(pts) + 6, "label": {"kind": "tower", "height": count, "at": list(pts[0])}}]
-    task = object_task("reasoning", say(rng, "count." + job, held, k=PLURAL[noun]), spec, plan, held, meta)
+    task = object_task("reasoning", say(rng, "count." + job, holdout, k=PLURAL[noun]), spec, plan, holdout, meta)
     return None if already_done(task, world, meta, i) else task
 
 
@@ -1248,11 +1248,11 @@ def sample_objects(rng, n, family=None, split="train", robots=None, counts="unif
     (low, high) draws each scene's robot count (counts: "uniform" or "log"), None the world's
     density range; check keeps only tasks whose bound reaches the pass mark; kind: only that job
     of the family (for measuring)."""
-    held = split if split in HELD_OUT or split == "wording" else ""
+    holdout = split if split in HELD_OUT or split == "wording" else ""
     worlds, metas, out = [], [], []
     while len(out) < n:
-        fam = HELD_FAMILY.get(held) or family or str(rng.choice(OBJECT_FAMILIES))
-        needs, make = MAKERS[fam](rng, held, kind)
+        fam = HELD_FAMILY.get(holdout) or family or str(rng.choice(OBJECT_FAMILIES))
+        needs, make = MAKERS[fam](rng, holdout, kind)
         count = None if robots is None else S.draw_count(rng, robots[0], robots[1], counts)
         world, meta = object_scenes(rng, count, **needs)
         task = make(world, meta, 0)

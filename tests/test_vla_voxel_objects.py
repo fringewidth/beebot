@@ -110,8 +110,8 @@ def test_light_needs_two_pressers_and_heavy_six_with_robots_in_line():
     for cell in face[:2]:
         mass[cell] = 1
     light = one_object(cube, (0, 5, 5), mass=mass)
-    moved, info = step(light, press(light, face[:2], (0, 0, 1)), rule="switch_cube")
-    assert info.pushed[0, 0] and moved.cheese_pos[0, 0].tolist() == [0, 5, 6]
+    after, info = step(light, press(light, face[:2], (0, 0, 1)), rule="switch_cube")
+    assert info.pushed[0, 0] and after.cheese_pos[0, 0].tolist() == [0, 5, 6]
     mass = np.zeros((16, 16, 16))
     mass[0, 5, 4] = mass[0, 5, 3] = 1  # one presser and one robot in line behind it
     light = one_object(cube, (0, 5, 5), mass=mass)
@@ -127,8 +127,8 @@ def test_light_needs_two_pressers_and_heavy_six_with_robots_in_line():
     for cell in behind:
         mass[cell] = 1
     heavy = one_object(cube, (0, 5, 5), heavy=True, mass=mass)
-    moved, info = step(heavy, press(heavy, face + behind, (0, 0, 1)), rule="switch_cube")
-    assert info.pushed[0, 0] and moved.cheese_pos[0, 0].tolist() == [0, 5, 6]
+    after, info = step(heavy, press(heavy, face + behind, (0, 0, 1)), rule="switch_cube")
+    assert info.pushed[0, 0] and after.cheese_pos[0, 0].tolist() == [0, 5, 6]
 
 
 def test_any_shape_slides_falls_and_is_eaten_by_its_shell():
@@ -138,11 +138,11 @@ def test_any_shape_slides_falls_and_is_eaten_by_its_shell():
     for cell in behind:
         mass[cell] = 1
     world = one_object(ell, (0, 5, 4), mass=mass)
-    moved, info = step(world, press(world, behind, (0, 1, 0)))
-    assert info.pushed[0, 0] and moved.cheese_pos[0, 0].tolist() == [0, 6, 4]
-    floating = one_object(object_form("slab", 3), (4, 5, 5), gravity=True)
-    fallen, _ = step(floating, torch.full(floating.mass.shape, STAY, dtype=torch.long))
-    assert fallen.cheese_pos[0, 0, 0] == 3
+    after, info = step(world, press(world, behind, (0, 1, 0)))
+    assert info.pushed[0, 0] and after.cheese_pos[0, 0].tolist() == [0, 6, 4]
+    aloft = one_object(object_form("slab", 3), (4, 5, 5), gravity=True)
+    after_fall, _ = step(aloft, torch.full(aloft.mass.shape, STAY, dtype=torch.long))
+    assert after_fall.cheese_pos[0, 0, 0] == 3
     for side, need in ((1, 13), (2, 30), (3, 55), (4, 87)):  # three quarters of the open shell on the floor: 17, 40, 73, 116 voxels
         cube = object_form("cube", side)
         thing = O.things_of(one_object(cube, (0, 6, 6)), 0)[0]
@@ -327,9 +327,9 @@ def test_a_store_with_objects_round_trips(tmp_path):
     attempts = [json.loads(line) for line in open(tmp_path / "attempts.jsonl")]
     assert store["config"]["objects"] == 1.0 and count > 0 and any(a["family"] in O.OBJECT_FAMILIES for a in attempts)
     assert store["form"].shape == (count, MAX_OBJECTS, BOX, BOX, BOX) and store["cheese_pos"].shape[2] == MAX_OBJECTS
-    kept = [a for a in attempts if a["e"] >= 0 and a["family"] in O.OBJECT_FAMILIES]
-    if kept:
-        world = world_at(store, [(kept[0]["e"], 0)])
+    object_rows = [a for a in attempts if a["e"] >= 0 and a["family"] in O.OBJECT_FAMILIES]
+    if object_rows:
+        world = world_at(store, [(object_rows[0]["e"], 0)])
         assert world.form is not None and world.zones is not None
     obs, codes, texts = batch_of(store, labels, 4, random.Random(0), "cpu")
     assert obs.shape == (4, N_CHANNELS, 16, 16, 16) and len(texts) == 4
