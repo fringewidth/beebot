@@ -13,7 +13,7 @@ Kaggle GPU quota is the scarcest resource. Every Kaggle minute should be a gradi
 
 Several Claude sessions run experiments in this repo at once. The plan (goals, tasks, dependencies), who runs what on the Mac GPU and Kaggle, the queues and messages between sessions live in the `ops` repo (`~/ops`, project `beebot`), shown at https://hrishik.me/ops. Read `~/ops/README.md` once per session; it is short. `BOARD.md` is retired.
 
-`ops` is the one progress tracker for this repo; everything goes through it. Nothing about the state of the work lives only in a chat, a scratch file or a markdown roadmap:
+`ops` is the task manager and the reporting tool for this repo: the user adds and reorders tasks there and reads the state of the work there. Keep reading it to pick up new work: run `ops board` and `ops show` at the start of a session, after finishing each task, and at every check-in on a long job, and take up new or changed nodes and messages addressed to you. `ops` is also the one progress tracker; everything goes through it. Nothing about the state of the work lives only in a chat, a scratch file or a markdown roadmap:
 
 1. Before starting a piece of work, find its node or add one (`ops add`), with its dependencies. Work without a node does not exist for the user or for other sessions.
 1. Record every outcome there as it happens: `ops done` with the result and where the output is, failures as failed nodes with the node that works around them (`--mitigates`), decisions the user owes as nodes of kind `decision`, pass criteria and risks in a node's `notes`.
