@@ -10,6 +10,7 @@ modules.
 | `controller.py` | the attractor controller (target voxels to actions) |
 | `scripted.py` | random task sequences and the data store |
 | `suite.py` | instruction families, checkers, the expert that demonstrates them |
+| `objects.py` | objects with properties, blocks, zones and reasoning over them: four more families, their checkers and expert (section "Objects") |
 | `demos.py` | expert demonstrations as a store, also for pivoting cubes |
 | `free_cube.py` | the planner for cubes that cannot leave a bond, and the comparison of rules and experts |
 | `shapes.py` | named objects as parts programs (text form), the support and climbing rules, functions, the overlap score, a mesh loader |
@@ -54,8 +55,9 @@ by default, tested up to 32^3). Each voxel holds at most one robot.
    1. The rule is deliberately permissive, with no load or torque, so cantilevers and climbing
       on each other work. That is what makes towers and bridges buildable.
 1. **Step order.** Each step runs in this order: move, push, fall, eat.
-1. **Observation.** `observe(world)` returns (B, 6, D, H, W) with channels robot, wall, cheese
-   mask and cheese RGB.
+1. **Observation.** `observe(world)` returns (B, 10, D, H, W) with channels robot, wall, object
+   mask, object RGB, food and zone RGB (section "Objects"); the first six are the observation as
+   it was before objects (robot, wall, cheese mask, cheese RGB).
 1. **Scenes.** `sample_scenes` builds terrain as a heightmap of walls, in one of three layouts:
    flat, low hills, or a gap (two plateaus with a trench between them).
    1. Robots rest on the terrain at a density of 0.2 to 0.45 per floor cell.
@@ -588,14 +590,224 @@ These are the shapes of `haiku.py`'s former stand-ins (`local_canonical_record`,
 `local_scene_summary`), which `haiku.py` now replaces with the suite's own; the summary only adds
 fields to the `robots` entry. A test checks both against the stand-ins on the six families.
 
+## Objects
+
+Objects with properties, passive blocks, floor zones, and reasoning over them (`world.py`,
+`objects.py`). A world gets them through optional fields of `VoxelWorld`; a world without them
+(every draw of the six families and of the coverage families) is the world above, unchanged, bit
+for bit (`test_default_objects_step_and_observe_as_before`).
+
+### The world
+
+| field | shape | what |
+| --- | --- | --- |
+| `form` | (B, K, 4, 4, 4) bool | the object's voxels from `cheese_pos` (its lowest corner) |
+| `colour2` | (B, K) long | second colour of a pattern, -1 for none |
+| `pattern` | (B, K) long | `PATTERNS`: plain, striped, two-tone |
+| `friction` | (B, K) float | 2 (light, `FRICTION`) or 6 (heavy, `HEAVY_FRICTION`) |
+| `food` | (B, K) bool | a cheese; False for a passive block |
+| `zones` | (B, H, W) long | the colour painted on each floor cell, -1 for none |
+
+1. **Shapes** (`object_form`): a cube of side 1 to 4, a slab (side 2 to 4, one high), a rod
+   (length 2 to 4, one thick, along x or y), an L lying flat (arms 2 to 4). Size is the longest
+   side; "big" in a superlative is the voxel count.
+1. **Patterns** run along the longest side (ties: x, then y, then z): striped alternates the two
+   colours voxel layer by layer, two-tone gives each half its colour. Striped needs a side of 3.
+1. **Push.** As for cheeses: the press along the strongest axis must reach the object's friction
+   and the voxels it moves into must be clear; robots there are shoved on (all or none). A heavy
+   object also counts robots pushing in line behind a pressing robot with the same move, up to
+   `CHAIN_DEPTH` (3) behind it (`chain_press`), so six robots move it whatever the size of its
+   face; under the pivot rule such a move into a pressing robot is a press too. A light object
+   counts only the robots moving into it, as before.
+1. **Eat.** Food only: robots fill `EAT_SHARE` of the object's open shell and `EAT_MIN_SHARE` of
+   its full shell (every voxel touching it). On the open floor that is 13 robots for a side-1
+   cube, 30 for side 2 (the old cheese), 55 for side 3, 87 for side 4. Blocks are never eaten.
+1. **Fall.** An object falls when nothing (wall, object, robot, floor) is under any of its lowest
+   voxels. Runners (`suite.flee`) slide any form the same way.
+1. **Weight is not observed.** Nothing in the observation tells a light object from a heavy one.
+
+`sample_object_scenes` draws terrain as `sample_scenes` does (its terrain code is now
+`draw_terrain`, called by both), 0 to 3 zones (patches 3 to 4 cells a side, or stripes one cell
+wide and 6 to 10 long, on level ground, each its own colour), up to `MAX_OBJECTS` (6) objects on
+level ground off the zones and a voxel apart (shape cube 0.4, slab, rod, L 0.2 each; pattern plain
+0.6, striped 0.2, two-tone 0.2; heavy 0.35; food with a given probability), then the robots.
+
+### Observation channels
+
+| channel | content |
+| --- | --- |
+| 0 | robot |
+| 1 | wall |
+| 2 | object (any object voxel, cheese or block) |
+| 3, 4, 5 | object RGB, per voxel (patterns show) |
+| 6 | food (object voxels that can be eaten) |
+| 7, 8, 9 | zone RGB, on the voxel just above the ground of each painted cell (where a robot standing on the zone is) |
+
+`world.CHANNELS` names them; `N_CHANNELS` is 10 and `OLD_CHANNELS` 6. Channels 0 to 5 are the old
+observation, so an old world gives the old six, food equal to the cheese mask and no zones.
+`observe(world, channels)` cuts the list; `lm.VoxelLMPolicy(..., channels=OLD_CHANNELS)` builds a
+policy for a checkpoint trained before objects (it reads the first six of any observation).
+
+### Families
+
+`objects.OBJECT_FAMILIES`, drawn by `objects.sample_objects`, never by `sample_tasks` or
+`sample_coverage`:
+
+| family | kinds (`task_kind`) | example |
+| --- | --- | --- |
+| things | `eat_thing:attrs`, `push_thing:attrs>region` / `>trench`, `surround_thing:attrs`, `catch_thing:attrs`, `push_thing:weight>...` | "gobble up the striped cheese", "push the heavy cheese to the back left" |
+| blocks | `push_thing:attrs>...`, `push_thing:weight>...`, `line_blocks` | "push the long white block into the trench", "line the blocks up in one row from left to right" |
+| zones | `goto_zone`, `line_zone`, `push_thing:attrs>zone` | "go to the blue zone", "line up along the red stripe", "push the large block onto the green zone" |
+| reasoning | `{eat,push,surround}_thing:{super,compare,near,next_to}`, `conditional:{eat_tower,surround_goto}@{then,else}`, `count:tower` | "eat the biggest cheese", "push the smaller of the two blue blocks to the left", "surround the cheese furthest from the green zone", "push the cheese next to the yellow block into the trench", "eat the red cheese if there is one, otherwise build a tower 5 robots tall", "build a tower as tall as the number of blocks" |
+
+1. **References** (`spec["ref"]`, `objects.resolve`): `attrs` (properties among size word, pattern,
+   colour, shape word, weight word; a colour matches either colour of a patterned object), `super`
+   (biggest, smallest by voxels, 1.5 times the next), `compare` (the smaller or larger of exactly
+   two matching, 1.5 times apart), `near` (nearest the trench or a zone, furthest from it, 2 cells
+   clear of the next), `next_to` (within 3 cells of an anchor named by `attrs`, 2 cells clearer
+   than the next). A task is drawn only when its reference picks out exactly one object, and the
+   spec keeps that slot as `target`. Descriptions in `things` and `blocks` use the fewest
+   properties that pick the object out, at random among those.
+1. **Weight** is only named when the task is about it ("the heavy block"): exactly one of the
+   objects of that noun is heavy and each can be tested. The expert finds it by trying (below).
+1. **Conditionals** name a colour that one cheese has half the time and no cheese has otherwise;
+   the spec keeps which branch holds. **Counting** asks a tower as tall as the number of cheeses,
+   blocks or objects (3 to 6).
+1. **Feasible draws only.** A push goes to a floor region on a flat floor (terrain would block
+   the way, as for the suite's herd family) or into the trench of a gap scene with gravity; the
+   object must be pushable that way by the expert's team (`pushable`: two robots on its face if
+   light, six on its face and the rows behind if heavy) and the goal not already reached. Eat and
+   surround jobs are drawn on flat or hill scenes (`LOW_GROUND`: the greedy controller does not
+   climb a plateau's cliff). `bound` is the swarm check (eat_need for any form, a full team of
+   eight for a heavy push, four robots a tower level).
+
+### The expert (`objects.ObjectExpert`)
+
+`suite.Expert` with three more segment kinds; everything else is the suite's (eat and surround
+work on any form through the world's shells).
+
+1. `shove`: a pushing team stands behind the object, `team_cells`: the face and up to three rows
+   behind it, low and near first (twice the height plus the depth), eight cells at most. Each
+   step every robot in a team cell steps toward the object, overriding jitter; robots in the
+   object's way step aside, ahead or up, whichever is free (`adjust`, a hook `suite.Expert` calls
+   before the pivot rule). The heading is the floor axis with the larger offset to the goal whose
+   way is clear, else a sidestep away from what blocks it. The team is the same whatever the
+   object weighs: the expert does not use weight either.
+1. `find` ("the heavy block"): two probers press each candidate in turn, nearest first, along a
+   way whose ground face holds two and whose way ahead is clear (`probe_way`), with two spares. A
+   candidate that moves is light; one that has not moved after five steps of both pressing is
+   heavy (two robots move any light object). Then the shove of the one found. The sub-goal record
+   carries the candidates and, once known, `found`.
+1. `fixed`: target voxels with a cap on the robots taking part (zones, stripes, towers).
+
+Expert success on fresh seeds under the training set-up (`demos --cube --rule switch_cube`: 14
+cube moves, 72 steps, 6 to 115 robots log-uniform, failures 0.15, gravity on), seed 909, 144
+scenes per family; cells are mean score / share passed (score at least 0.75, nothing unasked
+eaten). Rows in `runs/objects/expert.{txt,jsonl}`:
+
+```
+PYTHONPATH=src OMP_NUM_THREADS=4 nice python scripts/vla_voxel_objects.py --scenes 144 --arms switch --out runs/objects/expert.jsonl
+```
+
+| family | score / passed (n) |
+| --- | --- |
+| things | 0.80 / 0.76 (144) |
+| blocks | 0.80 / 0.74 (144) |
+| zones | 0.86 / 0.83 (144) |
+| reasoning | 0.85 / 0.83 (144) |
+
+Per kind (n): things: eat 0.76 (38), catch 0.73 (22), surround 0.95 (38), push to a region 0.63
+(35), into the trench 0.71 (7), the heavy one to a region 0.00 (3), into the trench 1.00 (1).
+Blocks: push to a region 0.73 (92), into the trench 0.90 (10), the heavy one to a region 0.18
+(11), into the trench 1.00 (3), line up 0.93 (28). Zones: go to 0.94 (66), line up on a stripe
+0.77 (48), push onto 0.67 (30). Reasoning: conditionals 0.93 to 1.00 (4 to 28 per form and
+branch), count tower 0.89 (9), superlatives: eat 0.67 (3), push 0.67 (9) and 1.00 into the
+trench (4), surround 1.00 (9); comparisons: eat 0.33 (9), surround 1.00 (5); nearness: push 0.50
+(6), surround 1.00 (5); next to: eat 0.86 (7), push 0.45 (11), 0.33 into the trench (3). By swarm:
+under 15 robots 0.76, 15 to 40 0.80, over 40 0.79.
+
+Weak spots: pushing the heavy one to a floor region (in the episodes traced the probe found the
+right one; the push then moved it slowly, six of eight pressers must succeed in one step, and
+stalled on robots it could not shove, as in an L's notch); pushes that need a route around
+another object (the heading only sidesteps); eating in a comparison (3 of 9, not traced). A
+failed attempt costs nothing but its row: demos keeps passes only.
+
+### Drawing them into demonstrations and labels
+
+`demos --objects F` (and `haiku.py export --objects F`) adds round(F x scenes) object tasks to
+every chunk of `demos.draws`, after the suite's own and the coverage tasks, from a generator of
+their own seeded by `(seed, 11)`: the draws before them are unchanged
+(`test_objects_come_after_the_other_draws_and_leave_them_alone`). With `--objects` every world of
+the draw carries the object fields and `MAX_OBJECTS` slots (old scenes padded with empty slots and
+default fields, which play exactly as before), the expert is `ObjectExpert` (attractor only; the
+free-cube planner does not know the new segments), and `small.pt` holds per episode `form`,
+`colour2`, `pattern`, `friction`, `food` and `zones`. What is drawn depends on the makers, the
+sampler and the draw-time checks of `objects.py` (`describe`, `resolve`, `pushable`, `reachable`,
+`team_cells`, `probe_way`, `bound`), never on the expert's run or the checker: a digest test pins
+it (`test_the_object_draw_is_pinned`). Change those knowingly.
+
+**Old stores** read as before: `lm.world_at` passes the object fields only when the store has
+them, `observe` gives an old world's old six channels plus food and empty zone channels, and
+`batch_of` returns 10-channel observations from any store.
+
+### Records and wordings
+
+1. `canonical_record(task)`: `plain` from the wording bank's object intents (`thing.eat`,
+   `thing.push_region`, `thing.push_trench`, `thing.push_zone`, `thing.surround`, `thing.catch`,
+   `blocks.line_x`, `blocks.line_y`, `zone.goto`, `zone.line`, `cond.eat_tower`,
+   `cond.surround_goto`, `count.tower`; held out `cond.eat_goto`, `count.groups`), whose `thing`
+   slot is a canonical phrase ("the large striped red cheese", "the smaller of the two blue
+   blocks", "the cheese nearest the trench", "the block next to the yellow cheese";
+   `wordings.thing_pattern` reads it back). A phrase that is only a colour and "cheese" reads back
+   as the colour intent of the same sentence ("eat the red cheese"). `spec`: the job's kind and
+   `target`, the object's `id` in the scene summary, with where it goes (`region`, `trench`,
+   `zone`), `weight: heavy` when the instruction names the weight; a conditional `{"holds",
+   "do"}`; counting the number. `subgoals`: each segment with the object named by every visible
+   property ("push the huge striped purple flat block to the front right of the floor"), "find
+   the heavy block by pushing each block with two robots, then push it ..." for a find.
+1. `scene_summary(world, i, task)` adds `objects` (`id`, `kind` cheese or block, `colour`,
+   `second_colour`, `pattern`, `shape`, `size` word, `sides`, `voxels`, `area`, `on`, `x`, `y`,
+   `z`, and `weight` only when the task tells it) and `zones` (`colour`, `kind` zone or stripe,
+   `area`, `x0`, `x1`, `y0`, `y1`); in a world with objects `cheeses` lists food only.
+1. `SPEC_NOTES` has notes for every new spec kind (the verifier's menu).
+1. **Words** (`wordings.json` `properties`): per property a canonical word, training expressions
+   and held-out ones, which `slot_expressions` lists, so the token and leak tests cover them:
+   sizes (tiny, small, large, huge; held out minuscule, petite, sizeable, colossal), weights
+   (heavy, light; hefty, airy), patterns (striped, two-tone; banded, bicolour), shapes (cube-shaped,
+   flat, long, L-shaped; plate-like, elongated, angled), nouns and plurals (block: brick; crate),
+   superlatives and comparatives (biggest, smallest, smaller, larger; bulkiest, puniest, punier,
+   greater), nearness and relations (nearest, furthest from, next to; handiest to, most distant
+   from, alongside), zone and stripe (patch, strip; pad, streak). The "words" split rewrites a
+   thing phrase with the held-out words; training rewrites never use them. Shared tokens added:
+   to, from, two, l (rulings in the file).
+
+### Held out (`objects.HELD_OUT`, test splits of `sample_objects`, no plan)
+
+| split | what |
+| --- | --- |
+| `ref_job` | the compositions (compare, push) and (next_to, surround): each part is trained, the pair never |
+| `condition` | `cond.eat_goto`: "eat the c cheese if there is one, otherwise go to the r of the floor" (both branches are trained in other conditionals) |
+| `count` | `count.groups`: "split into as many groups as there are blocks" |
+| `wording` | the held-out templates of every object intent |
+| words | the held-out property words above, through the wordings' "words" split |
+
+### Assumed, not measured
+
+1. Weight as friction 6 with presses through robots in line: no hardware number behind it.
+1. Objects are rigid, never rotate, never tip, and an L or a rod does not pivot when pushed off
+   its middle; a rod pushed end on needs its one face voxel plus the rows behind it.
+1. A robot standing on an object is supported, and robots can climb objects (shells include
+   the top), as for cheeses.
+1. Zones are paint: they do not change physics. Pressure plates and gates are not implemented.
+
 ## Build: objects by name
 
 "build a chair", "make an arch", "build something you can sit on": the swarm builds a recognisable
 object of a library of named shapes, part by part, so a language model post-trained on the
 demonstrations can bring in what it knows of objects. `shapes.py` holds the library and the rules,
 `build.py` the family, its expert and its score. The family is drawn by `build.sample_build` and by
-`demos --build F` (F build tasks per scene, after the coverage tasks, from a generator seeded by
-`(seed, 11)`), never by `sample_tasks` or `sample_coverage`, so every other draw is unchanged
+`demos --build F` (F build tasks per scene, after the coverage and object tasks, from a generator seeded by
+`(seed, 13)`), never by `sample_tasks` or `sample_coverage`, so every other draw is unchanged
 (`tests/test_vla_voxel_build.py` pins the build draw's digest). Training set-up: `--cube --rule
 switch_cube`, flat floor, gravity on, 0 or 1 cheese, 6 to 115 robots.
 
@@ -1011,9 +1223,7 @@ printed, nothing written under `data/vla/haiku`.
    1. When the net torque reaches a threshold, the bar tilts one notch. Robots standing on the
       raised arm are lifted, with the same all-or-none shove rule as `push_cheeses`.
    1. A fact `("tilted", side)` would follow the pattern in `facts.py`.
-1. There are no boxes or zones (the 2D `box_rect`), no captions or text instructions, and no
-   policy, training or evaluation hookup. The store mirrors the 2D one, so `make_windows` or
-   phase-based windows can be built the same way.
+1. Zones and passive blocks exist now (section "Objects"); pressure plates and gates do not.
 1. Gravity has no load limits and no notion of stability beyond face connectivity.
 1. The controller is greedy with no path planning. Robots can stall behind terrain, and bridge
    segments succeed only part of the time.

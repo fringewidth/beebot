@@ -229,8 +229,8 @@ def scenes(rng, n, layout=None, gravity=None, cheeses=(0, 3), colours=TRAIN_COLO
 
 
 def present(world, i):
-    """[(slot, colour name)] of the scene's alive cheeses."""
-    return [(k, COLOUR_NAMES[int(world.cheese_color[i, k])]) for k in range(MAX_CHEESES) if world.cheese_alive[i, k] and world.cheese_color[i, k] >= 0]
+    """[(slot, colour name)] of the scene's alive cheeses (every object slot of a world with objects)."""
+    return [(k, COLOUR_NAMES[int(world.cheese_color[i, k])]) for k in range(world.cheese_alive.shape[1]) if world.cheese_alive[i, k] and world.cheese_color[i, k] >= 0]
 
 
 def region_box(name, size=SIZE):
@@ -595,6 +595,10 @@ def score(task, static, start, end, eaten):
     """(score in [0, 1], unasked) of an episode: static (walls, cheese_color, gravity, meta),
     start and end snapshots, eaten the colour names in the order eaten."""
     spec = task.spec
+    if spec.get("objects"):  # README "Objects"
+        from beebot.vla.voxel import objects as O
+
+        return O.score(task, static, start, end, eaten)
     if "who" in spec:
         return job_score(task, static, start, end, eaten)
     if spec["kind"] == "build":
@@ -688,6 +692,10 @@ def task_kind(task):
     spec = task.spec
     if task.parts:
         return "switch:" + ">".join(task_kind(part) for part in task.parts)
+    if spec.get("objects"):
+        from beebot.vla.voxel import objects as O
+
+        return O.task_kind(task)
     if "who" in spec:
         who = spec["who"]
         name = {"group": who.get("which", ""), "count": "count", "half": "half", "top": "top", "all": ""}[who["select"]]
@@ -736,6 +744,10 @@ def score_bound(task, world, i, n=None):
     spec = task.spec
     if task.parts:
         return min(score_bound(part, world, i, n) for part in task.parts)
+    if spec.get("objects"):
+        from beebot.vla.voxel import objects as O
+
+        return O.bound(task, world, i, n)
     if "who" in spec:
         return coverage_bound(task, world, i, n)
     n = int(world.mass[i].sum()) if n is None else n
@@ -779,6 +791,10 @@ def flee(world, runners):
     """Each alive runner cheese slides one voxel sideways (y or x) away from the robots within
     RUNNER_RADIUS, if it senses any and the 2 x 2 x 2 block it moves into is clear and (under
     gravity) supported. runners: (B, K) bool. Returns new cheese_pos (B, K, 3)."""
+    if world.form is not None:  # objects of any shape (README "Objects")
+        from beebot.vla.voxel import objects as O
+
+        return O.flee(world, runners)
     pos = world.cheese_pos.clone()
     mass = world.mass.numpy()
     walls = world.walls.numpy()
@@ -1006,7 +1022,7 @@ class Expert:
             mask = torch.from_numpy(mask)
             codes[i][mask] = other[mask]
 
-    def adjust(self, world, codes, segs, allowed, generator=None):
+    def adjust_build(self, world, codes, segs, allowed, generator=None):
         """A subclass's last say over the action codes before the rule's clean-up (build.BuildExpert)."""
         return codes
 
@@ -1027,6 +1043,11 @@ class Expert:
                 press_cheese[i] = press[0]
                 press_dir[i] = torch.tensor(press[1])
         return targets, valid, press_cheese, press_dir
+
+    def adjust(self, world, codes):
+        """Last changes to the chosen actions before the pivot rule's check (objects.ObjectExpert's
+        pushing teams); none here."""
+        return codes
 
     def __call__(self, world, t, generator=None):
         lists, presses, caps, segs = self.segments(world, t)
@@ -1051,7 +1072,8 @@ class Expert:
                 if lists[i] and self.jobs[i][1].job["kind"] in HOLD_STILL:
                     pts = torch.tensor(lists[i]).long()
                     codes[i, pts[:, 0], pts[:, 1], pts[:, 2]] = STAY
-        codes = self.adjust(world, codes, segs, allowed, generator)
+        codes = self.adjust(world, codes)
+        codes = self.adjust_build(world, codes, segs, allowed, generator)
         if self.rule is not None:  # of a cube and the cube it pivots on, one waits
             codes = refuse(world, codes, self.rule, priority=torch.rand(world.mass.shape, generator=self.generator if generator is None else generator))
         return codes
@@ -1577,6 +1599,11 @@ def place_groups(rng, world, count, total, layers=1):
 def shells_of(world, i):
     """(D, H, W) bool: the shell voxels (inside the grid) of scene i's alive cheeses."""
     out = np.zeros(world.mass.shape[1:], bool)
+    if world.form is not None:  # objects of any shape: the world's own shells
+        coords, open_ = shell(world.index(i))
+        cells = coords[0][open_[0]].numpy()
+        out[tuple(cells.T)] = True
+        return out
     for k in range(MAX_CHEESES):
         if world.cheese_alive[i, k]:
             coords = world.cheese_pos[i, k].numpy() + SHELL_OFFSETS.numpy()
@@ -2228,6 +2255,10 @@ def record_spec(task):
 
     spec = task.spec
     kind = spec["kind"]
+    if spec.get("objects"):  # README "Objects"
+        from beebot.vla.voxel import objects as O
+
+        return json_safe(O.record_spec(task))
     if "who" in spec:
         out = {"kind": kind}
         if kind == "eat":
@@ -2297,6 +2328,10 @@ def subgoal_sentences(task):
 
     if task.parts:
         return [s for part in task.parts for s in subgoal_sentences(part)]
+    if task.spec.get("objects"):
+        from beebot.vla.voxel import objects as O
+
+        return O.subgoal_sentences(task)
     plain = W.canonical(W.slots_of(task))
     spec = task.spec
     if spec["kind"] == "build":  # one sentence per group of parts, in build order
@@ -2345,14 +2380,16 @@ def terrain_summary(height):
     return {"layout": "low hills", "highest": int(height.max())}
 
 
-def scene_summary(world, i):
+def scene_summary(world, i, task=None):
     """Scene i as plain JSON (x left to right, y back to front, z up; areas are FLOOR_REGIONS):
     {"gravity", "terrain" (terrain_summary), "robots": {"count", "mostly_around" (the area of the
     centroid), "clumps" (facts.groups: groups of at least a tenth of the swarm), "groups" (every
     26-connected group of 2 or more robots, largest first: {"size", "area", "x", "y" (centre,
     rounded), "height"}), "alone" (robots touching no other), "on_top" (robots standing on
     robots), "towers" (vertical runs of 3 or more: {"height", "area"}, tallest first)}, "cheeses":
-    [{"colour", "area", "on" (floor, plateau or hill), "x", "y", "z" (lowest corner)}]}."""
+    [{"colour", "area", "on" (floor, plateau or hill), "x", "y", "z" (lowest corner)}]}.
+    A world with objects (README "Objects") lists only food under "cheeses" and adds "objects"
+    and "zones" (objects.summary); an object's weight only when `task` tells it."""
     walls = world.walls[i].numpy()
     occupied = world.mass[i].numpy() > 0.5
     terrain = terrain_summary(walls.sum(0))
@@ -2377,7 +2414,31 @@ def scene_summary(world, i):
         robots["towers"] = [{"height": h, "area": region_of(y, x)} for y, x, h in towers]
     cheeses = []
     for k, colour in present(world, i):
+        if world.food is not None and not bool(world.food[i, k]):
+            continue
         z, y, x = (int(v) for v in world.cheese_pos[i, k])
         on = "floor" if z == 0 else "plateau" if "trench" in terrain else "hill"
         cheeses.append({"colour": colour, "area": region_of(y + 1, x + 1), "on": on, "x": x, "y": y, "z": z})
-    return {"gravity": bool(world.gravity[i]), "terrain": terrain, "robots": robots, "cheeses": cheeses}
+    out = {"gravity": bool(world.gravity[i]), "terrain": terrain, "robots": robots, "cheeses": cheeses}
+    if world.form is not None:
+        from beebot.vla.voxel import objects as O
+
+        out.update(O.summary(world, i, O.told(task) if task is not None else ()))
+    return out
+
+
+# ---------------------------------------------------------------------------------------------
+# Objects (README "Objects"; voxel/objects.py): notes on their record specs for the verifier's menu
+
+SPEC_NOTES.update({
+    "eat_thing": "target: the id (in the scene's objects) of the cheese to eat; no other may be eaten.",
+    "catch_thing": "target: the id of the fleeing cheese to catch and eat.",
+    "surround_thing": "target: the id of the object to surround, without eating it.",
+    "push_thing": "target: the id of the object to push, without eating anything; region (a floor area), trench: true, or zone (a zone's colour): where it goes. weight: heavy when the instruction names the object by its weight (which is not visible).",
+    "line_blocks": "axis: x for one row of blocks from left to right, y for one row from back to front.",
+    "goto_zone": "zone: the colour of the floor zone to go to.",
+    "line_zone": "zone: the colour of the floor stripe to line up along.",
+    "conditional": "holds: whether the condition is true in this scene. do: the job that is done, as its own spec (eat_thing, surround_thing with a target; tower with a height; goto with a region).",
+    "count_tower": "of: what is counted (cheeses, blocks or objects). height: that number, the tower's height.",
+    "count_groups": "of: what is counted. count: that number, how many separate groups to form.",
+})
