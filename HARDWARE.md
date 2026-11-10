@@ -258,6 +258,7 @@ hill-climbs designs. Tests: `uv run pytest -q tests/test_cube.py`.
    ±40%, flywheel speed ±2%, mass ±5%, placement errors up to 0.03 L.
 1. **Control.** The only knob is the flywheel speed, tuned for each move as a real module would
    be calibrated: a speed grid with a refinement pass, then fresh trials at the chosen speed.
+   From round 3 on a move may also be retried after a harmless failure (see round 3).
 
 ### Moves
 
@@ -321,13 +322,31 @@ These are the moves the suite's expert issued to the best crawler of round 1
 
 Round 1 lets a crawler move along two horizontal axes at once (`physics.allowed_moves` only bans
 three-axis moves). A pivoting cube cannot: a diagonal takes two pivots. More than a third of
-the expert's moves are such diagonals, so round 1 flattered crawlers. The cube score counts a
+the expert's moves are such diagonals, so round 1 flattered crawlers. Rounds 2 and 2b counted a
 diagonal as the matching straight move squared.
+
+Since 2026-11-10 the policy issues single pivots only, so the score leaves the two diagonal rows
+out and renormalises the rest (`MOVE_MIX` in `cube_search.py`). The mix of an expert that plans
+without diagonals has not been measured; this is the old mix with two rows removed.
+
+| move | share without diagonals |
+| --- | --- |
+| convex up | 0.509 |
+| convex down | 0.169 |
+| wall crawl | 0.133 |
+| floor roll | 0.074 |
+| floor peel | 0.051 |
+| concave down | 0.031 |
+| concave up | 0.025 |
+| traverse | 0.008 |
+
+Half of all moves are convex up, so that one move decides the score.
 
 ### Score
 
 **Move score** is the sum, over moves, of each move's share in the mix times its validated
-success rate. Anchored and free neighbours are averaged. The score is in [0, 1].
+success rate. Anchored and free neighbours are averaged. The score is in [0, 1]. The scores in
+rounds 2 and 2b use the mix with diagonals; round 3 uses the mix without.
 
 The design space is scaled from the calibrated M-Blocks. Brake torque goes as L^3 and magnet
 pull as L^2. The flywheel radius stays at 0.38 L, and density is 1200 kg/m^3. The knobs are:
@@ -434,3 +453,110 @@ Tuned flywheel speeds per move (rpm):
 | traverse / wall crawl | 10,600 to 11,500 |
 | convex up | 17,000 to 19,000 |
 | concave up | 20,000 |
+
+### Round 3: retries for the 5 cm cube, single pivots only (2026-11-10)
+
+The build is fixed at the round 2b design (5 cm, 150 g, brake x 2.56, steel floor at grip 0.3), so
+this round changes only what a module does with it. Scores use the mix without diagonals. The
+policy will be trained with random move failures, so a harmless failure (the cube ends aligned
+where it started) costs a retry, and a harmful one (off the lattice, or a neighbour knocked) is
+what breaks a demo: harm first, then success.
+
+**What changed** (`cube.py`: `trial(..., retries=...)`; `cube_search.py`: `Control`):
+
+1. **Retry after a harmless failure.** A module that finds itself at rest with the same face down
+   (accelerometer) spins up and tries again, up to 6 attempts, at the same speed or 6% faster each
+   time. The retry runs in the same simulated scene: same friction, magnets and masses, the cubes
+   wherever the failed attempt left them, a new draw of brake torque and speed error. Knocks are
+   judged against where the neighbours first stood, so drift over attempts counts.
+1. **Harm-aware calibration.** The start speed and step are picked by success rate minus 3 x the
+   harmful rate, on up to 96 shared tuning trials for the best candidates (8 for all). Round 2b
+   picked by success alone on 5 trials per speed, which chose 17,100 rpm for convex up over a lone
+   cube, where a third of the moves knock it over.
+1. **Moves that never pay are not attempted.** If no speed has a positive value in calibration the
+   module does not try (floor peel; concave up against a lone two-cube stack, which topples).
+
+Nothing in the simulator changed: friction range, magnet model, tolerances and per-trial variation
+are as before.
+
+**Result.** Round 2b design throughout. "Before" is round 2b's control on its 40 test trials per
+row (`runs/cube/nodiag-baseline.jsonl`, reproducing 0.721 on the old mix). "After" is 120 test
+trials per row on seeds not used for anything else (`runs/cube/ladder-5cm-steel-fresh.jsonl`).
+Cells are success / harmless failure / harmful failure, per move including its retries.
+
+| move | share | neighbours | before | after | attempts |
+| --- | --- | --- | --- | --- | --- |
+| convex up | 0.509 | anchored | 0.63 / 0.35 / 0.03 | 0.77 / 0.20 / 0.03 | 2.7 |
+| | | free (lone cube) | 0.60 / 0.03 / 0.38 | 0.91 / 0.00 / 0.09 | 1.2 |
+| convex down | 0.169 | anchored | 0.95 / 0.05 / 0.00 | 1.00 / 0.00 / 0.00 | 1.2 |
+| | | free | 0.93 / 0.08 / 0.00 | 0.99 / 0.00 / 0.01 | 1.1 |
+| wall crawl | 0.133 | anchored | 1.00 / 0.00 / 0.00 | 1.00 / 0.00 / 0.00 | 1.0 |
+| | | free | 0.93 / 0.03 / 0.05 | 0.96 / 0.00 / 0.04 | 1.3 |
+| floor roll | 0.074 | none | 1.00 / 0.00 / 0.00 | 1.00 / 0.00 / 0.00 | 1.0 |
+| floor peel | 0.051 | anchored, free | 0.00 / 1.00 / 0.00 | 0.00 / 1.00 / 0.00 | not tried |
+| concave down | 0.031 | anchored | 1.00 / 0.00 / 0.00 | 1.00 / 0.00 / 0.00 | 1.0 |
+| | | free | 0.98 / 0.00 / 0.03 | 0.98 / 0.00 / 0.03 | 1.0 |
+| concave up | 0.025 | anchored | 0.90 / 0.10 / 0.00 | 1.00 / 0.00 / 0.00 | 1.4 |
+| | | free (lone stack) | 0.00 / 0.93 / 0.08 | 0.00 / 1.00 / 0.00 | not tried |
+| traverse | 0.008 | anchored, free | 1.00 / 0.00 / 0.00 | 1.00 / 0.00 / 0.00 | 1.0 |
+
+| control | move score | harm | harmful failures in 300 moves |
+| --- | --- | --- | --- |
+| round 2b: one attempt, speed picked by success | 0.722 | 0.107 | 32 |
+| one attempt, harm-aware calibration | 0.747 | 0.049 | 15 |
+| up to 6 attempts, harm-aware calibration | **0.850** | **0.036** | **11** |
+
+A first pass of the retry control on test seeds 0 to 119, before the last change to the
+calibration (a third round of tuning trials), gave 0.862 and 0.031
+(`runs/cube/ladder-5cm-steel.jsonl`); the two agree within noise. One row's rate at 120 trials is
+good to about +-0.05, the move score to about +-0.02. A move takes 1.5 attempts on average, so a
+300-move episode is about 460 flywheel spin-ups.
+
+**What limits it** (from traces, `runs/cube/sweep-convex-up-5cm.jsonl`):
+
+1. **Convex up is a throw, not a hinge.** At launch the mover is wedged between the floor and the
+   neighbour's face, and the brake's impulse (by a rigid-pivot estimate, about 140 N at the pivot
+   edge for 2.5 ms) is ten times what the edge magnets hold (12 N). The mover leaves the edge by 0.1 to 0.3 L, flies half a
+   turn and lands on top. Whether it lands depends on friction (0.3 to 0.7) and the brake draw:
+   over anchored neighbours the threshold speed runs from 15,000 rpm to above the motor's 20,000,
+   too slow falls back (harmless), too fast bounces off backward. Between 15,600 and 15,800 rpm, 6 of
+   40 identical scenes changed outcome, so no calibration finds a clean window; retries help because each
+   attempt draws again.
+1. **A lone cube cannot take the landing.** Over a free neighbour the remaining harm is the
+   neighbour: the launch shoves it (more with a hard brake draw), or the landing mover tips the
+   pair over its far edge. This is 0.09 of such moves and two thirds of all remaining harm.
+   A second cube behind the neighbour removes it: climbing onto the end of a free row of two, four
+   attempts at 15,900 or 16,600 rpm gave 40 of 40 with no harm at either speed, and one attempt at
+   17,400 rpm gave 39 of 40 (`runs/cube/convex-up-backed-5cm.jsonl`; fixed speeds, 40 trials, not
+   part of the score). A cube beside the neighbour instead of behind it does not help (0.63 at best, with
+   harm 0.08).
+1. **The design knobs do not buy a wider window.** One-knob and two-knob variations around the
+   design (brake x 1 to 3, magnets x 0.7 to 1.4, grip 0.2 to 0.6, flywheel share up to 0.25) all
+   gave narrower or dirtier convex-up windows than the round 2b design on 16 trials per speed. A
+   heavier flywheel only moves the same window to lower speed (share 0.22: 11,000 to 14,000 rpm
+   instead of 15,000 to 20,000), which is worth having if the motor cannot hold 20,000 rpm with
+   the flywheel on it, since convex up and concave up now run at the motor's limit.
+1. **Floor peel never moves.** With bonds on two faces and the floor, even 20,000 rpm leaves the
+   cube exactly in place over anchored neighbours, and knocks free ones (8 of 10). It is always
+   harmless when not forced, and 5% of the mix: the policy has to learn it fails.
+
+**Is 0.95 per move reachable?** In this model: yes already for traverse, floor roll, convex and
+concave down, wall crawl and concave up on a lattice (0.96 to 1.00 with retries); convex up
+reaches it only onto a backed neighbour; floor peel and concave up against a lone stack do not
+work at all. With convex up at 0.84 the mix cannot pass about 0.85. The cheapest gain left is in
+the policy, not the cube: do not climb a lone cube, climb the end of a row.
+
+**Where the model is probably wrong.** The magnet model was calibrated to M-Blocks success rates,
+not to their forces. With the calibrated magnets a face holds 53 N and a hinge edge 12 N
+(`Magnets.wrench` on two cubes, face to face and pivoted 45 degrees about a shared edge); the
+M-Blocks patents give about 23 N and 18 N. A face 2.3 times too strong and a hinge a third too
+weak both push the same way: the simulated convex up loses its hinge and is thrown, where the real
+one pivots and is measured at 0.95 to 1.00, and the simulated floor peel is glued in place. The
+model was left as it is. A bench test of one hinge (pull-off force at an edge and on a face) would
+say which way to correct it, and it is the first thing to measure on the prototype.
+
+For the build, beyond round 2b's targets: an accelerometer per cube (to detect a harmless
+failure), and calibration per move of start speed and step. Start speeds from this round (rpm):
+floor roll 4,800; concave down 8,400 to 9,100; convex down 9,100 (step 6%); wall crawl 9,800 to
+10,600; traverse 10,600; convex up 15,800 over a lone cube and 17,800 on a lattice; concave up
+17,100 (step 6%).

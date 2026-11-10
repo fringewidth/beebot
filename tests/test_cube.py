@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pytest
 
-from beebot.hardware.cube import G, NOMINAL, Cube, Magnets, magnet_sites, trial
-from beebot.hardware.cube_search import REF, Build
+from beebot.hardware.cube import G, NOMINAL, PRIMITIVES, Cube, Magnets, magnet_sites, trial
+from beebot.hardware.cube_search import MOVE_MIX, REF, Build
 
 
 def test_sites_and_twin_spacing():
@@ -49,3 +49,18 @@ def test_floor_roll_needs_the_right_speed():
     assert trial(cube, "floor_roll", rpm(1500), rng, NOMINAL)["outcome"] == "stay"
     assert trial(cube, "floor_roll", rpm(3400), rng, NOMINAL)["outcome"] == "success"
     assert trial(cube, "floor_roll", rpm(15000), rng, NOMINAL)["outcome"] == "off"
+
+
+def test_a_stay_is_retried_at_the_next_speed():
+    cube = Cube()
+    rng = np.random.default_rng(0)
+    after_retries = trial(cube, "floor_roll", rpm(1500), rng, NOMINAL, retries=(rpm(2000), rpm(3400), rpm(15000)))
+    assert after_retries["outcome"] == "success" and after_retries["attempts"] == 3
+    first = trial(cube, "floor_roll", rpm(3400), rng, NOMINAL, retries=(rpm(15000),))
+    assert first["outcome"] == "success" and first["attempts"] == 1
+
+
+def test_move_mix_is_single_pivots_only():
+    assert set(MOVE_MIX) <= set(PRIMITIVES)
+    assert sum(MOVE_MIX.values()) == pytest.approx(1.0)
+    assert MOVE_MIX["convex_up"] == pytest.approx(0.3319 / 0.6517)

@@ -205,13 +205,36 @@ class Jitter:
 NOMINAL = Jitter(friction=(0.5, 0.5), magnet=0.0, brake=0.0, speed=0.0, mass=0.0, offset=0.0)
 
 
-def trial(cube, primitive, omega, rng, jitter=Jitter(), anchored=False, trace=None, watch=None):
+def judge(final, rot, place, start, target, slack):
+    """Outcome of a move from where the cubes rest. final (n, 3) cells and rot (n, 3, 3), mover
+    last; place (n, 3) where the cubes were put (centres, in L); slack: the mover's placement
+    error allowed around its start cell."""
+    mover = len(final) - 1
+    knocked = any(np.abs(final[i] - (place[i] - np.array([0, 0, 0.5]))).max() > DISTURBED or not aligned(rot[i]) for i in range(mover))
+    upright = aligned(rot[mover])
+    outcome = "off"
+    if knocked:
+        outcome = "knock"
+    elif upright and np.abs(final[mover] - target).max() < LANDED:
+        outcome = "success"
+    elif upright and np.abs(final[mover] - start).max() < LANDED + slack:
+        outcome = "stay"
+    return outcome
+
+
+def trial(cube, primitive, omega, rng, jitter=Jitter(), anchored=False, trace=None, watch=None, retries=()):
     """Run one primitive at flywheel speed omega (rad/s, the policy's knob; capped at the motor's
     max). Returns a dict with outcome in {"success", "stay", "off", "knock"}:
     success: the mover sits aligned in the target cell and no neighbour moved;
     stay: the mover is aligned in its start cell and no neighbour moved (a harmless failure);
     knock: a neighbour was displaced or turned; off: anything else. watch(model, data), if given,
-    is called after every step (for rendering)."""
+    is called after every step (for rendering).
+
+    retries: flywheel speeds for further attempts. An attempt that ends in "stay" (a module can
+    tell from its accelerometer: at rest, same face down) is followed by the next speed, in the
+    same scene: the cubes keep their friction, magnets, mass and wherever the failed attempt left
+    them, the flywheel is spun up again, and the brake torque and speed error are drawn anew.
+    Knocks are judged against where the neighbours were first put, so drift over attempts counts."""
     spec = PRIMITIVES[primitive]
     cells = np.array(spec["substrate"] + [spec["mover"]], dtype=float)
     n = len(cells)
@@ -238,45 +261,44 @@ def trial(cube, primitive, omega, rng, jitter=Jitter(), anchored=False, trace=No
     data = mujoco.MjData(model)
     strength = 1 + rng.uniform(-jitter.magnet, jitter.magnet, size=n) if jitter.magnet > 0 else np.ones(n)
     magnets = Magnets(body, n, strength)
-    brake = cube.brake_torque * (1 + rng.uniform(-jitter.brake, jitter.brake) if jitter.brake > 0 else 1.0)
-    speed = spec["sign"] * min(abs(omega), cube.max_omega()) * (1 + rng.normal(0, jitter.speed) if jitter.speed > 0 else 1.0)
     fly = model.joint("fly")
     flywheel_inertia = body.flywheel_inertia()
-    data.qvel[fly.dofadr[0]] = speed
     body_ids = np.array([model.body(f"c{i}").id for i in range(n)])
-    still = 0.0
-    while data.time < HORIZON:
-        braking = BRAKE_AT <= data.time < BRAKE_AT + BRAKE_HOLD
-        stop = 0.5 * flywheel_inertia * data.qvel[fly.dofadr[0]] / DT  # torque that would halt the flywheel in about two steps
-        data.qfrc_applied[fly.dofadr[0]] = -np.clip(stop, -brake, brake) if braking else 0.0
-        pos = data.xpos[body_ids]
-        rot = data.xmat[body_ids].reshape(n, 3, 3)
-        data.xfrc_applied[body_ids] = magnets.wrench(pos, rot)
-        mujoco.mj_step(model, data)
-        if watch is not None:
-            watch(model, data)
-        if trace is not None and int(round(data.time / DT)) % 50 == 0:
-            trace.append((data.time, data.xpos[body_ids].copy() / cube.side, data.xmat[body_ids].reshape(n, 3, 3).copy()))
-        if data.time > BRAKE_AT + 0.05:
-            v = np.array([data.cvel[b] for b in body_ids])  # (n, 6): angular then linear
-            calm = np.abs(v[:, 3:]).max() < 0.2 * cube.side and np.abs(v[:, :3]).max() < 0.5
-            still = still + DT if calm else 0.0
-            resting = still >= SETTLE and aligned(data.xmat[body_ids[mover]].reshape(3, 3))
-            stuck = still >= 3 * SETTLE  # resting off the lattice, e.g. leaning
-            gone = np.abs(data.xpos[body_ids[mover]] / cube.side - (start + target) / 2 - np.array([0, 0, 0.5])).max() > 3
-            shoved = mover > 0 and np.abs(data.xpos[body_ids[:mover]] / cube.side - place[:mover]).max() > 3 * DISTURBED  # a knock either way
-            if (resting or stuck) and data.time > BRAKE_AT + BRAKE_HOLD or gone or shoved:
-                break
-    final = data.xpos[body_ids] / cube.side - np.array([0, 0, 0.5])
-    rot = data.xmat[body_ids].reshape(n, 3, 3)
-    knocked = any(np.abs(final[i] - (place[i] - np.array([0, 0, 0.5]))).max() > DISTURBED or not aligned(rot[i]) for i in range(mover))
-    here = final[mover]
-    upright = aligned(rot[mover])
-    outcome = "off"
-    if knocked:
-        outcome = "knock"
-    elif upright and np.abs(here - target).max() < LANDED:
-        outcome = "success"
-    elif upright and np.abs(here - start).max() < LANDED + jitter.offset:
-        outcome = "stay"
-    return {"outcome": outcome, "time": round(float(data.time), 3), "final": [round(float(v), 3) for v in here], "friction": round(friction, 3), "brake": round(brake, 4), "omega": round(abs(speed), 1)}
+    outcome = "stay"
+    attempts = 0
+    for attempt_omega in (omega, *retries):
+        if outcome != "stay":
+            break
+        attempts += 1
+        brake = cube.brake_torque * (1 + rng.uniform(-jitter.brake, jitter.brake) if jitter.brake > 0 else 1.0)
+        speed = spec["sign"] * min(abs(attempt_omega), cube.max_omega()) * (1 + rng.normal(0, jitter.speed) if jitter.speed > 0 else 1.0)
+        data.qvel[fly.dofadr[0]] = speed
+        began = data.time
+        still = 0.0
+        while data.time < began + HORIZON:
+            since = data.time - began
+            braking = BRAKE_AT <= since < BRAKE_AT + BRAKE_HOLD
+            stop = 0.5 * flywheel_inertia * data.qvel[fly.dofadr[0]] / DT  # torque that would halt the flywheel in about two steps
+            data.qfrc_applied[fly.dofadr[0]] = -np.clip(stop, -brake, brake) if braking else 0.0
+            pos = data.xpos[body_ids]
+            rot = data.xmat[body_ids].reshape(n, 3, 3)
+            data.xfrc_applied[body_ids] = magnets.wrench(pos, rot)
+            mujoco.mj_step(model, data)
+            since = data.time - began
+            if watch is not None:
+                watch(model, data)
+            if trace is not None and int(round(data.time / DT)) % 50 == 0:
+                trace.append((data.time, data.xpos[body_ids].copy() / cube.side, data.xmat[body_ids].reshape(n, 3, 3).copy()))
+            if since > BRAKE_AT + 0.05:
+                v = np.array([data.cvel[b] for b in body_ids])  # (n, 6): angular then linear
+                calm = np.abs(v[:, 3:]).max() < 0.2 * cube.side and np.abs(v[:, :3]).max() < 0.5
+                still = still + DT if calm else 0.0
+                resting = still >= SETTLE and aligned(data.xmat[body_ids[mover]].reshape(3, 3))
+                stuck = still >= 3 * SETTLE  # resting off the lattice, e.g. leaning
+                gone = np.abs(data.xpos[body_ids[mover]] / cube.side - (start + target) / 2 - np.array([0, 0, 0.5])).max() > 3
+                shoved = mover > 0 and np.abs(data.xpos[body_ids[:mover]] / cube.side - place[:mover]).max() > 3 * DISTURBED  # a knock either way
+                if (resting or stuck) and since > BRAKE_AT + BRAKE_HOLD or gone or shoved:
+                    break
+        final = data.xpos[body_ids] / cube.side - np.array([0, 0, 0.5])
+        outcome = judge(final, data.xmat[body_ids].reshape(n, 3, 3), place, start, target, jitter.offset)
+    return {"outcome": outcome, "attempts": attempts, "time": round(float(data.time), 3), "final": [round(float(v), 3) for v in final[mover]], "friction": round(friction, 3), "brake": round(brake, 4), "omega": round(abs(speed), 1)}
