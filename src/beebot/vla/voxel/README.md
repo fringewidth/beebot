@@ -13,6 +13,8 @@ modules.
 | `objects.py` | objects with properties, blocks, zones and reasoning over them: four more families, their checkers and expert (section "Objects") |
 | `demos.py` | expert demonstrations as a store, also for pivoting cubes |
 | `free_cube.py` | the planner for cubes that cannot leave a bond, and the comparison of rules and experts |
+| `shapes.py` | named objects as parts programs (text form), the support and climbing rules, functions, the overlap score, a mesh loader |
+| `build.py` | the build family: draws, records, the build expert, the score, the per-object measurement |
 | `haiku.py` | open-vocabulary instructions and thought labels written by Haiku, verified by a second call, joined to demo stores |
 | `facts.py` | window facts as hashable atoms |
 | `render.py` | isometric PNG/GIF |
@@ -797,6 +799,347 @@ them, `observe` gives an old world's old six channels plus food and empty zone c
 1. A robot standing on an object is supported, and robots can climb objects (shells include
    the top), as for cheeses.
 1. Zones are paint: they do not change physics. Pressure plates and gates are not implemented.
+
+## Build: objects by name
+
+"build a chair", "make an arch", "build something you can sit on": the swarm builds a recognisable
+object of a library of named shapes, part by part, so a language model post-trained on the
+demonstrations can bring in what it knows of objects. `shapes.py` holds the library and the rules,
+`build.py` the family, its expert and its score. The family is drawn by `build.sample_build` and by
+`demos --build F` (F build tasks per scene, after the coverage and object tasks, from a generator seeded by
+`(seed, 13)`), never by `sample_tasks` or `sample_coverage`, so every other draw is unchanged
+(`tests/test_vla_voxel_build.py` pins the build draw's digest). Training set-up: `--cube --rule
+switch_cube`, flat floor, gravity on, 0 or 1 cheese, 6 to 115 robots.
+
+### Objects are parts programs
+
+An object is a short program of parameterised parts, each a primitive with a position (its lowest
+corner, z y x), a size (h d w), an axis where it has one and a label: the group (sub-goal) it
+belongs to. A stool:
+
+    legs: col 0 0 0 3 1 1, col 0 0 2 3 1 1, col 0 2 0 3 1 1, col 0 2 2 3 1 1; seat: slab 3 0 0 1 3 3
+
+That is also the text form (`shapes.program_text`, `shapes.parse_program`, `shapes.program_mask`):
+groups `label: part, part` separated by `; `, a part `prim z y x h d w [axis] [char]`. It parses
+back to the same parts and the same voxels (tested for every library object), so a thought can
+describe a new object in parts and the description can be turned into a target.
+
+| primitive | voxels |
+| --- | --- |
+| `box`, `col`, `slab`, `wall`, `beam` | a solid block (the names say how it is used) |
+| `arch` | a block with an opening under a one-cell lintel, legs one cell thick at both ends of the axis |
+| `ring` | a rectangular outline, h layers; with an axis, an upright frame |
+| `tube`, `disc` | an elliptic outline, a filled ellipse |
+| `ramp` | steps rising along a signed axis, solid under each step |
+| `roof` | a hollow A-frame along the axis, bands two cells wide so each step rests on the one below |
+| `pyramid` | stepped and solid |
+| `dome` | a hollow half ellipsoid, stepped so every layer rests on the one below |
+| `glyph` | a letter or digit of the 5 x 7 font standing upright; every diagonal step of the font gets the cell under its upper cell, so strokes are bonded face to face |
+
+The plain sub-goals are the groups in build order, one sentence each (`shapes.subgoal_sentences`):
+"four legs 3 tall", "a 3 by 3 seat on top", "a back 4 long and 2 tall on top". They are the
+record's `subgoals` and so the thought's switch lines. Programs turn about the vertical
+(`shapes.rotate`, equal to `np.rot90` of the voxels), and a draw turns each object a random
+number of quarter turns.
+
+### Support: what stands, what can be built cube by cube
+
+The world's gravity is unchanged and permissive (anything face-connected to the ground stands).
+The library uses a stricter rule for bonded cubes (`shapes.levers`, `shapes.stands`):
+
+1. A cube on the floor (or terrain) has lever 0. A cube resting on a held cube has that cube's
+   lever. A cube bonded face to face beside a held cube, or hanging under one, has one more.
+1. A cube is held if its lever is at most `CANTILEVER` (3). So a bonded overhang reaches three
+   cells out from a column, a span between two columns can be six cells wide, and a column
+   standing on a cantilever's tip keeps the tip's lever. No load, torque or bond strength.
+1. **Buildable** (`build_order`): there is an order in which every partial structure stands.
+   Adding a cube never raises a lever, so a cube that can be placed stays placeable and the greedy
+   order (lowest first) finds one whenever one exists. An object is built group by group in
+   program order and passes only if every group can be completed on the earlier ones.
+1. **Climbable** (`climb_order`, `reach`): every cube can also walk to its voxel when it is placed,
+   a lone cube pivoting by the rule (`world.pivot_moves`, bonds released) from the floor beside the
+   site over the cubes placed so far. Two things this rules out, both real for pivoting cubes:
+   1. A **slot**, an empty voxel with placed cubes on two opposite sides in its layer: every pivot
+      into it swings through one of them. Layers are therefore filled as a raster sweep (the first
+      of the eight raster orders that works), and a part that fills a gap goes before the part that
+      closes it: wall with a door is left wall, lintel, right wall; a shelf is left side, shelves,
+      right side.
+   1. **Overhangs out of reach**: a cube cannot get round an overhang from below (no support above),
+      so a crown wider than a plus on a one-cell trunk cannot be finished: trees, pine trees,
+      mushrooms and the lighthouse's gallery fail. Building them needs scaffolding that is taken
+      away afterwards (possible with switchable bonds; not done).
+
+`fit_variant` draws only variants that fit the grid (floor plan at most 12 x 12, at most 11 tall),
+need at most the swarm's robots, are buildable and climbable, aiming at a size between 0.4 and 1.0
+times the swarm.
+
+### Library
+
+81 names (45 objects, 26 letters, 10 numbers) in 11 categories; 16 held out. Shares over 32 draws per name (`shapes.survey`, `runs/build/survey.json`): stands under the support rule, buildable group by group in program order, climbable as well; robots (min): the fewest robots any draw needs (`build.min_sizes`, `none`: never climbable, so never drawn). 63 names can be drawn with 6 to 115 robots.
+
+| category | object | held out | stands | buildable | climbable | robots (min) | voxels (min, median, max) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| furniture | stool |  | 1.00 | 1.00 | 1.00 | 8 | 8, 17, 28 |
+| furniture | chair |  | 1.00 | 1.00 | 1.00 | 14 | 18, 28, 44 |
+| furniture | throne | yes | 1.00 | 1.00 | 1.00 | 29 | 32, 46, 60 |
+| furniture | table |  | 0.91 | 0.91 | 0.84 | 21 | 20, 46, 75 |
+| furniture | bench |  | 1.00 | 1.00 | 0.94 | 12 | 12, 24, 64 |
+| furniture | sofa |  | 1.00 | 1.00 | 1.00 | 32 | 32, 52, 76 |
+| furniture | bed |  | 1.00 | 1.00 | 0.94 | 24 | 22, 40, 56 |
+| furniture | shelf |  | 1.00 | 0.59 | 0.59 | 10 | 12, 28, 52 |
+| structure | arch |  | 1.00 | 1.00 | 0.47 | 5 | 6, 12, 20 |
+| structure | bridge |  | 0.69 | 0.69 | 0.09 | 9 | 9, 36, 49 |
+| structure | gate |  | 1.00 | 1.00 | 0.25 | 10 | 11, 12, 15 |
+| structure | wall with a door |  | 1.00 | 1.00 | 1.00 | 13 | 11, 23, 41 |
+| structure | fence |  | 1.00 | 1.00 | 1.00 | 11 | 11, 16, 29 |
+| structure | castle tower |  | 1.00 | 1.00 | 1.00 | 28 | 28, 56, 120 |
+| structure | staircase | yes | 1.00 | 1.00 | 1.00 | 6 | 6, 19, 63 |
+| structure | pyramid | yes | 1.00 | 1.00 | 1.00 | 10 | 10, 35, 56 |
+| structure | ladder |  | 1.00 | 1.00 | 1.00 | 10 | 10, 18, 24 |
+| structure | obelisk |  | 1.00 | 1.00 | 1.00 | 14 | 14, 44, 107 |
+| structure | podium |  | 1.00 | 1.00 | 1.00 | 6 | 6, 18, 54 |
+| structure | slide |  | 1.00 | 1.00 | 1.00 | 8 | 8, 19, 42 |
+| structure | lamp post |  | 0.75 | 0.75 | 0.38 | 6 | 6, 7, 8 |
+| building | house |  | 1.00 | 1.00 | 1.00 | 48 | 58, 98, 156 |
+| building | hut |  | 1.00 | 1.00 | 1.00 | 25 | 25, 60, 84 |
+| building | doghouse | yes | 1.00 | 1.00 | 1.00 | 28 | 28, 38, 48 |
+| building | igloo |  | 1.00 | 1.00 | 1.00 | 16 | 16, 40, 83 |
+| building | tent |  | 1.00 | 1.00 | 1.00 | 24 | 24, 48, 84 |
+| building | lighthouse |  | 1.00 | 1.00 | 0.00 | none | - |
+| vehicle | car | yes | 1.00 | 1.00 | 0.91 | 16 | 16, 22, 34 |
+| vehicle | truck | yes | 0.88 | 0.88 | 0.62 | 38 | 38, 53, 81 |
+| vehicle | train | yes | 1.00 | 1.00 | 1.00 | 11 | 11, 22, 42 |
+| vehicle | plane | yes | 0.44 | 0.44 | 0.38 | 12 | 12, 16, 20 |
+| vehicle | boat | yes | 1.00 | 1.00 | 1.00 | 32 | 34, 50, 65 |
+| vehicle | rocket | yes | 1.00 | 1.00 | 1.00 | 13 | 13, 54, 90 |
+| container | cup |  | 1.00 | 1.00 | 1.00 | 17 | 17, 41, 73 |
+| container | pot |  | 1.00 | 1.00 | 1.00 | 20 | 20, 33, 80 |
+| container | crate |  | 1.00 | 1.00 | 1.00 | 17 | 17, 46, 96 |
+| plant | tree |  | 1.00 | 1.00 | 0.00 | none | - |
+| plant | pine tree |  | 1.00 | 1.00 | 0.00 | none | - |
+| plant | cactus | yes | 1.00 | 1.00 | 1.00 | 6 | 4, 10, 13 |
+| plant | mushroom |  | 1.00 | 1.00 | 0.00 | none | - |
+| symbol | cross |  | 1.00 | 1.00 | 1.00 | 6 | 6, 9, 13 |
+| symbol | standing ring |  | 1.00 | 1.00 | 0.56 | 8 | 8, 15, 32 |
+| figure | snowman |  | 1.00 | 1.00 | 1.00 | 61 | 61, 62, 62 |
+| animal | dog |  | 1.00 | 1.00 | 1.00 | 17 | 17, 20, 25 |
+| animal | giraffe |  | 1.00 | 1.00 | 1.00 | 23 | 23, 25, 27 |
+| letter | 26 glyphs; buildable: A B D H I J K L N O Q T U V W X Y; not: C E F G M P R S Z | K Q Z | 0.69 | 0.69 | 0.65 | | |
+| number | 10 glyphs; buildable: 0 1 4 6 8; not: 2 3 5 7 9 | 4 7 | 0.50 | 0.50 | 0.50 | | |
+
+Over all 81 names, mean share of draws: stands 0.82, buildable 0.82, climbable 0.72; names with at least one climbable draw: 63.
+
+Not drawable: tree, pine tree, mushroom, lighthouse (overhangs out of reach), letters C E F G M P R S Z and numbers 2 3 5 7 9 (an overhang of four, or a hook that hangs four out). The variants that do not stand are draws whose spans or overhangs come out too long (a bridge over 8, a table with legs 5 apart, a lamp post's lamp hanging under a 3-long arm, a plane's wings).
+
+### Functions
+
+Checks of what a structure is good for, on any occupancy grid (`shapes.FUNCTIONS`); they score the
+use tasks ("build something you can sit on": any training object that serves the use, chosen by
+the expert) and can serve as an RL reward.
+
+| use | check | objects that serve it |
+| --- | --- | --- |
+| sit | a supported flat surface, at least 2 x 2, clear above, at height 2 to 4 (top layer z 1 to 3) | stool, chair, bench, sofa, bed (throne held out) |
+| table | a supported clear 2 x 2 top at z 2 or higher with open space under at least half of it | table |
+| shelter | empty voxels with structure above and on at least two sides within 3 cells (2 such voxels) | house, hut, igloo, tent (doghouse held out) |
+| span | a straight run at z 1 or higher with two cells carried by unbroken columns and, between them, a cell with nothing under it | arch, bridge |
+| contain | a cavity: empty voxels walled in all round in their layer, on a bottom of their own (not the bare floor), open above | cup, pot, crate (boat held out) |
+
+Every library object with a use passes its check in at least 80% of draws (tested); a scattered
+swarm passes none of them in more than a quarter of scenes, and a draw is refused if the start
+already passes.
+
+### Score
+
+A named object scores the best IoU of the final robots with its target voxels over every placement
+on the grid and the four quarter turns (`shapes.object_iou`): hits / (target + robots inside the
+target's box grown by one cell across the floor and one up - hits). The instruction says neither
+where nor which way round, and robots away from the object (the ones not needed) cost nothing.
+Pass: IoU at least 0.75 (`build.OBJECT_PASS`). A use scores its check (pass at 1.0). The checker is
+also offered under `suite.score` (spec kind `build`).
+
+### The expert (`build.make_expert`)
+
+Under a pivot rule, `BuildPlanner`: `free_cube`'s planner (breadth-first pivots to the targets
+through the rule's own moves) with build segments; without a rule, `BuildExpert` (the attractor).
+
+1. One plan segment per group of parts, in program order; its points are every voxel of this group
+   and the earlier ones, in the placing order of `climb_order`. A segment ends when all its points
+   are filled, or after 12 + 4 x its voxels steps.
+1. Robots on a filled voxel hold still. The open voxels are the first 4 (`WINDOW`) empty ones of the
+   placing order that the support rule lets a cube take now, skipping one while an earlier
+   neighbour in its layer is empty.
+1. A crew of 3 robots per open voxel (`CREW`), those with the fewest pivots to go that can move at
+   all, follow the planner; a crew robot the planner leaves standing takes a random allowed move
+   one time in four (`JITTER`: jams of robots in each other's swing). Everyone else stays; those
+   within two cells of the site's box park on free ground three to six cells out.
+1. A filled voxel that leaves an earlier voxel of the order in a slot gives its robot up (it is
+   counted empty and its robot leaves), and is filled again after the gap: robots that start on
+   the site, or arrive early, otherwise wall in holes for good.
+1. The sub-goal record (`subgoals` in `small.pt`) has `{"kind": "build", "object", "part", "index",
+   "of"}` per group.
+
+What did not work: the attractor under `switch_cube` (robots stall under overhangs and in jams:
+mean IoU 0.58 on a first sample); the lowest-layer-first frontier without the placing order
+(slots: mean 0.70 on another); a crew of one robot per open voxel (one chair: 29 of 36 voxels at the end against 35 with three).
+
+Measured on fresh seeds (`python -m beebot.vla.voxel.build --per-object 4 --seed 777`): 4 scenes per drawable name and per use, `--cube --rule switch_cube` (14 moves, gravity on, failures 0.15), 6 to 115 robots log-uniform (redrawn until the object fits), each episode `episode_steps` long. Held-out objects get a plan for this measurement only. Score: IoU (or the use's check); steps to pass: the first step (in steps of 4) the score passed. Rows in `runs/build/expert.jsonl`, tables in `runs/build/tables.md`.
+
+| object | held out | n | voxels (median) | robots (median) | IoU or check | passed | steps given (median) | steps to pass (median) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dog |  | 4 | 21 | 56 | 1.00 | 1.00 | 144 | 44.0 |
+| giraffe |  | 4 | 27 | 34 | 0.99 | 1.00 | 156 | 70.0 |
+| house |  | 4 | 53 | 68 | 0.94 | 1.00 | 236 | 90.0 |
+| hut |  | 4 | 56 | 71 | 0.95 | 1.00 | 248 | 114.0 |
+| igloo |  | 4 | 29 | 46 | 1.00 | 1.00 | 134 | 30.0 |
+| tent |  | 4 | 36 | 58 | 1.00 | 1.00 | 156 | 30.0 |
+| crate |  | 4 | 40 | 64 | 0.96 | 1.00 | 182 | 46.0 |
+| cup |  | 4 | 25 | 36 | 0.99 | 1.00 | 124 | 46.0 |
+| pot |  | 4 | 24 | 34 | 1.00 | 1.00 | 120 | 36.0 |
+| snowman |  | 4 | 61 | 88 | 0.91 | 1.00 | 280 | 156.0 |
+| bed |  | 4 | 36 | 47 | 0.97 | 1.00 | 178 | 60.0 |
+| bench |  | 4 | 13 | 16 | 0.98 | 1.00 | 76 | 46.0 |
+| chair |  | 4 | 22 | 41 | 0.98 | 1.00 | 124 | 46.0 |
+| shelf |  | 4 | 44 | 62 | 0.90 | 1.00 | 212 | 124.0 |
+| sofa |  | 4 | 62 | 92 | 0.88 | 1.00 | 286 | 202.0 |
+| stool |  | 4 | 16 | 23 | 1.00 | 1.00 | 88 | 32.0 |
+| table |  | 4 | 36 | 51 | 1.00 | 1.00 | 168 | 50.0 |
+| letter A |  | 4 | 30 | 62 | 0.73 | 0.25 | 132 | 48.0 |
+| letter B |  | 4 | 48 | 61 | 0.99 | 1.00 | 204 | 60.0 |
+| letter D |  | 4 | 30 | 74 | 1.00 | 1.00 | 132 | 46.0 |
+| letter H |  | 4 | 34 | 67 | 0.97 | 1.00 | 148 | 46.0 |
+| letter I |  | 4 | 30 | 44 | 0.95 | 1.00 | 132 | 62.0 |
+| letter J |  | 4 | 20 | 32 | 1.00 | 1.00 | 90 | 40.0 |
+| letter L |  | 4 | 22 | 45 | 0.99 | 1.00 | 100 | 24.0 |
+| letter N |  | 4 | 28 | 28 | 0.96 | 1.00 | 126 | 58.0 |
+| letter O |  | 4 | 20 | 32 | 0.98 | 1.00 | 92 | 36.0 |
+| letter T |  | 4 | 22 | 69 | 0.97 | 1.00 | 100 | 60.0 |
+| letter U |  | 4 | 34 | 74 | 0.98 | 1.00 | 148 | 32.0 |
+| letter V |  | 4 | 34 | 62 | 0.96 | 1.00 | 148 | 42.0 |
+| letter W |  | 4 | 28 | 37 | 0.91 | 1.00 | 126 | 42.0 |
+| letter X |  | 4 | 20 | 26 | 0.69 | 0.00 | 92 | - |
+| letter Y |  | 4 | 28 | 56 | 0.97 | 1.00 | 124 | 54.0 |
+| number 0 |  | 4 | 38 | 72 | 0.84 | 1.00 | 162 | 64.0 |
+| number 1 |  | 4 | 15 | 26 | 1.00 | 1.00 | 72 | 30.0 |
+| number 6 |  | 4 | 40 | 64 | 0.93 | 1.00 | 172 | 52.0 |
+| number 8 |  | 4 | 25 | 34 | 0.91 | 0.75 | 112 | 56.0 |
+| arch |  | 4 | 10 | 11 | 1.00 | 1.00 | 50 | 30.0 |
+| bridge |  | 4 | 22 | 28 | 1.00 | 1.00 | 120 | 52.0 |
+| castle tower |  | 4 | 39 | 48 | 0.93 | 1.00 | 180 | 44.0 |
+| fence |  | 4 | 14 | 26 | 1.00 | 1.00 | 82 | 38.0 |
+| gate |  | 4 | 10 | 13 | 1.00 | 1.00 | 64 | 40.0 |
+| ladder |  | 4 | 18 | 33 | 0.80 | 0.50 | 110 | 78.0 |
+| lamp post |  | 4 | 9 | 41 | 1.00 | 1.00 | 72 | 34.0 |
+| obelisk |  | 4 | 18 | 42 | 1.00 | 1.00 | 108 | 46.0 |
+| podium |  | 4 | 9 | 12 | 0.98 | 1.00 | 72 | 20.0 |
+| slide |  | 4 | 30 | 40 | 0.91 | 1.00 | 146 | 50.0 |
+| wall with a door |  | 4 | 20 | 30 | 0.92 | 1.00 | 118 | 52.0 |
+| cross |  | 4 | 13 | 45 | 0.93 | 1.00 | 76 | 44.0 |
+| standing ring |  | 4 | 22 | 32 | 0.98 | 1.00 | 100 | 38.0 |
+| doghouse | yes | 4 | 28 | 36 | 0.90 | 1.00 | 136 | 98.0 |
+| throne | yes | 4 | 49 | 82 | 0.98 | 1.00 | 244 | 98.0 |
+| letter K | yes | 4 | 20 | 26 | 0.72 | 0.25 | 92 | 56.0 |
+| letter Q | yes | 4 | 46 | 72 | 0.94 | 1.00 | 196 | 50.0 |
+| number 4 | yes | 4 | 32 | 50 | 0.80 | 0.50 | 140 | 72.0 |
+| cactus | yes | 4 | 14 | 50 | 0.92 | 1.00 | 80 | 50.0 |
+| pyramid | yes | 4 | 15 | 20 | 1.00 | 1.00 | 72 | 24.0 |
+| staircase | yes | 4 | 22 | 42 | 0.98 | 1.00 | 102 | 28.0 |
+| boat | yes | 4 | 45 | 70 | 0.91 | 1.00 | 228 | 52.0 |
+| car | yes | 4 | 16 | 23 | 1.00 | 1.00 | 100 | 36.0 |
+| plane | yes | 4 | 18 | 53 | 0.99 | 1.00 | 122 | 50.0 |
+| rocket | yes | 4 | 15 | 36 | 1.00 | 1.00 | 96 | 34.0 |
+| train | yes | 4 | 41 | 65 | 0.79 | 0.75 | 200 | 52.0 |
+| truck | yes | 4 | 44 | 70 | 0.95 | 1.00 | 222 | 96.0 |
+| use:contain |  | 4 | 40 | 60 | 1.00 | 1.00 | 182 | 66.0 |
+| use:shelter |  | 4 | 42 | 82 | 1.00 | 1.00 | 180 | 16.0 |
+| use:sit |  | 4 | 12 | 13 | 1.00 | 1.00 | 72 | 40.0 |
+| use:span |  | 4 | 16 | 18 | 1.00 | 1.00 | 80 | 48.0 |
+| use:table |  | 4 | 33 | 41 | 1.00 | 1.00 | 156 | 46.0 |
+
+- named, training: 196 episodes, mean 0.95, passed 0.95
+- named, held out: 56 episodes, mean 0.92, passed 0.89
+- uses: 20 episodes, mean 1.00, passed 1.00
+- all: 272 episodes, mean 0.95, passed 0.94
+
+Weak spots, not diagnosed: the letter X (0 of 4, IoU 0.69) and A (1 of 4, 0.73); K and the number 4 (2 of 4); the ladder (2 of 4). Large objects take long: the sofa (62 voxels) passes at a median of step 202, the snowman at 156. A use passes as soon as its check holds, which for shelter is well before the object is finished (median step 16).
+
+### Episode lengths
+
+`build.episode_steps(task)`: the sum of the groups' time limits (12 + 4 per voxel each), so a plan
+always runs to its end. Over the 272 episodes:
+
+| voxels | n | passed | steps given (median) | steps to pass: median | 90th percentile | max |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 to 14 | 53 | 0.96 | 64 | 32.0 | 44.0 | 56 |
+| 15 to 30 | 113 | 0.90 | 108 | 44.0 | 68.0 | 104 |
+| 31 to 60 | 89 | 0.97 | 192 | 56.0 | 105 | 212 |
+| 61 to 115 | 17 | 1.00 | 304 | 120.0 | 218 | 260 |
+
+
+So `--steps 144` covers more than 90% of the passes of objects up to 60 voxels and `--steps 240` about 90% of the largest.
+
+The store format has one episode length per store (`--steps`), so build episodes in a mixed store
+run for the store's length and are kept only if they pass by then.
+
+### Held out
+
+1. Whole category: vehicles (car, truck, train, plane, boat, rocket). Their primitives (col, slab,
+   box, beam, wall, ring, pyramid) are all trained elsewhere, so they test composing known parts
+   under a new name.
+1. Single names: throne, doghouse, cactus, and the suite's own held-out items: pyramid, staircase
+   (the suite holds out stairs), letters K, Q, Z and numbers 4 and 7. Z and 7 cannot be built (an
+   overhang of 4), so the drawable held-out set is 14 of 63 drawable names
+   (22%).
+1. `sample_build(split="objects")` draws only them, without a plan; `split="wording"` uses the
+   held-out templates (`wordings.json` intents `build` and `build.use` have 30 or 32 training and 6
+   held-out templates each). Haiku writes the open phrasings; there is no synonym bank for objects.
+
+### Records
+
+`canonical_record(task)`: `plain` "build a chair" (`build {o}`, the object with its article) or
+"build something you can sit on" (`build something {f}`); `spec` `{"kind": "build", "object"}` or
+`{"kind": "build", "use"}`, plus `"program"` (the parts text as built) and `"voxels"`, which
+`haiku.IGNORED_KEYS` leaves out of the verifier's comparison and menu (an instruction does not pin
+them down); `subgoals` the group sentences. `scene_summary` is unchanged. `SPEC_NOTES["build"]`
+explains the kind to the verifier.
+
+### Meshes: a loader and a proposed dataset (nothing downloaded)
+
+`shapes.read_off` (ModelNet's format), `shapes.read_obj`, `shapes.voxelise` (dense surface
+sampling, flood fill of the inside), `shapes.hollow`, `shapes.boxes_of` (any voxel set as a
+program of boxes grouped by layer) and `shapes.mesh_shape`, which voxelises a mesh at the largest
+resolution (12 down to 3) that fits the robots and keeps it only if it is buildable and climbable.
+
+Proposal, to decide (sizes and licences recalled from memory, to verify before fetching):
+
+1. **ModelNet40, aligned** (Princeton; Sedaghat et al.'s orientation-aligned version): 12,311 CAD
+   meshes in 40 categories, OFF files, about 2 GB zipped (`modelnet.cs.princeton.edu`,
+   `ModelNet40.zip`). Categories overlap the library (chair, table, stool, bench, sofa, bed,
+   bookshelf, desk, stairs, tent, cup, bowl, car, airplane, plant, person, lamp, door ...). Terms:
+   for academic research; the meshes come from 3D Warehouse with no stated licence, so not for
+   redistribution. `read_off` reads it as is; no new dependency. The pilot I would run: 20 models
+   per category, `mesh_shape(..., robots=115)`, report the share kept per category.
+1. **Objaverse-LVIS** (Allen AI): the about 46,000 objects of Objaverse 1.0 annotated with 1,156
+   LVIS categories; per-object licences, mostly CC-BY 4.0 (filter to CC-BY and CC0). Fetched with
+   the `objaverse` package (`load_lvis_annotations`, `load_objects(uids)`, GLB files from the
+   `allenai/objaverse` Hugging Face dataset), tens of GB for the subset. Reading GLB needs a mesh
+   library (`trimesh`), which is not installed. This is the open-vocabulary step after ModelNet.
+
+### Commands
+
+    PYTHONPATH=src OMP_NUM_THREADS=4 python -m beebot.vla.voxel.build --per-object 4 --seed 777 --out runs/build/expert.jsonl
+    PYTHONPATH=src OMP_NUM_THREADS=4 python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_build --scenes 6000 --cube --rule switch_cube --counts log --compact --build 0.5 --steps 144
+
+Build tasks alone (`--only build`, in `demos` and `haiku export`): no suite, coverage or object
+tasks are drawn; the build generator keeps its own `(seed, 13)` seeding and each chunk its run
+seed, so the tasks are exactly the build part of the full draw with the same seed, chunk and
+`--build` share (tested). Indices then count build tasks only: a Haiku export joins to a store
+only when both were made with `--only build` (`export --store` reads it from the store's config).
+
+    PYTHONPATH=src OMP_NUM_THREADS=4 python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_build_only --scenes 6000 --cube --rule switch_cube --counts log --compact --build 1.0 --only build --steps 144
+    PYTHONPATH=src python -m beebot.vla.voxel.haiku export --name build-s0 --seed 0 --items 50 --cube --rule switch_cube --counts log --build 1.0 --only build
+
+Tests: `tests/test_vla_voxel_build.py`.
 
 ## Compact store
 

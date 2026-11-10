@@ -1,0 +1,272 @@
+{"object": "staircase", "use": null, "held_out": true, "robots": 7, "voxels": 6, "steps": 36, "score": 1.0, "passed": true, "done_at": 24}
+{"object": "arch", "use": null, "held_out": false, "robots": 9, "voxels": 7, "steps": 40, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "standing ring", "use": null, "held_out": false, "robots": 10, "voxels": 8, "steps": 44, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "arch", "use": "span", "held_out": false, "robots": 10, "voxels": 8, "steps": 44, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "arch", "use": null, "held_out": false, "robots": 11, "voxels": 9, "steps": 48, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "arch", "use": "span", "held_out": false, "robots": 11, "voxels": 9, "steps": 48, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "arch", "use": null, "held_out": false, "robots": 23, "voxels": 10, "steps": 52, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "arch", "use": null, "held_out": false, "robots": 11, "voxels": 10, "steps": 52, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "pyramid", "use": null, "held_out": true, "robots": 12, "voxels": 10, "steps": 52, "score": 1.0, "passed": true, "done_at": 20}
+{"object": "pyramid", "use": null, "held_out": true, "robots": 17, "voxels": 10, "steps": 52, "score": 1.0, "passed": true, "done_at": 16}
+{"object": "number 1", "use": null, "held_out": false, "robots": 15, "voxels": 10, "steps": 52, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "number 1", "use": null, "held_out": false, "robots": 14, "voxels": 10, "steps": 52, "score": 1.0, "passed": true, "done_at": 24}
+{"object": "stool", "use": null, "held_out": false, "robots": 10, "voxels": 8, "steps": 56, "score": 1.0, "passed": true, "done_at": 12}
+{"object": "stool", "use": null, "held_out": false, "robots": 8, "voxels": 8, "steps": 56, "score": 1.0, "passed": true, "done_at": 24}
+{"object": "letter L", "use": null, "held_out": false, "robots": 25, "voxels": 11, "steps": 56, "score": 1.0, "passed": true, "done_at": 24}
+{"object": "stool", "use": "sit", "held_out": false, "robots": 8, "voxels": 8, "steps": 56, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "stool", "use": "sit", "held_out": false, "robots": 9, "voxels": 8, "steps": 56, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "podium", "use": null, "held_out": false, "robots": 7, "voxels": 6, "steps": 60, "score": 1.0, "passed": true, "done_at": 20}
+{"object": "podium", "use": null, "held_out": false, "robots": 12, "voxels": 6, "steps": 60, "score": 1.0, "passed": true, "done_at": 20}
+{"object": "slide", "use": null, "held_out": false, "robots": 9, "voxels": 9, "steps": 60, "score": 0.8889, "passed": true, "done_at": 36}
+{"object": "cactus", "use": null, "held_out": true, "robots": 12, "voxels": 9, "steps": 60, "score": 0.9, "passed": true, "done_at": 52}
+{"object": "gate", "use": null, "held_out": false, "robots": 13, "voxels": 10, "steps": 64, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "gate", "use": null, "held_out": false, "robots": 13, "voxels": 10, "steps": 64, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "gate", "use": null, "held_out": false, "robots": 11, "voxels": 10, "steps": 64, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "lamp post", "use": null, "held_out": false, "robots": 10, "voxels": 7, "steps": 64, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "letter J", "use": null, "held_out": false, "robots": 14, "voxels": 13, "steps": 64, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "letter J", "use": null, "held_out": false, "robots": 32, "voxels": 13, "steps": 64, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "bridge", "use": null, "held_out": false, "robots": 14, "voxels": 11, "steps": 68, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "gate", "use": null, "held_out": false, "robots": 18, "voxels": 11, "steps": 68, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "cross", "use": null, "held_out": false, "robots": 12, "voxels": 11, "steps": 68, "score": 0.9167, "passed": true, "done_at": 44}
+{"object": "letter Y", "use": null, "held_out": false, "robots": 17, "voxels": 14, "steps": 68, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "bench", "use": null, "held_out": false, "robots": 16, "voxels": 12, "steps": 72, "score": 0.9231, "passed": true, "done_at": 32}
+{"object": "bench", "use": null, "held_out": false, "robots": 13, "voxels": 12, "steps": 72, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "staircase", "use": null, "held_out": true, "robots": 36, "voxels": 15, "steps": 72, "score": 1.0, "passed": true, "done_at": 16}
+{"object": "lamp post", "use": null, "held_out": false, "robots": 103, "voxels": 9, "steps": 72, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "lamp post", "use": null, "held_out": false, "robots": 42, "voxels": 9, "steps": 72, "score": 1.0, "passed": true, "done_at": 20}
+{"object": "lamp post", "use": null, "held_out": false, "robots": 40, "voxels": 9, "steps": 72, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "letter I", "use": null, "held_out": false, "robots": 22, "voxels": 15, "steps": 72, "score": 0.8824, "passed": true, "done_at": 44}
+{"object": "bridge", "use": null, "held_out": false, "robots": 17, "voxels": 13, "steps": 76, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "igloo", "use": null, "held_out": false, "robots": 20, "voxels": 16, "steps": 76, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "cross", "use": null, "held_out": false, "robots": 44, "voxels": 13, "steps": 76, "score": 0.9286, "passed": true, "done_at": 44}
+{"object": "cross", "use": null, "held_out": false, "robots": 56, "voxels": 13, "steps": 76, "score": 0.9286, "passed": true, "done_at": 56}
+{"object": "cross", "use": null, "held_out": false, "robots": 46, "voxels": 13, "steps": 76, "score": 0.9286, "passed": true, "done_at": 44}
+{"object": "number 4", "use": null, "held_out": true, "robots": 28, "voxels": 16, "steps": 76, "score": 0.8333, "passed": true, "done_at": 56}
+{"object": "bench", "use": null, "held_out": false, "robots": 15, "voxels": 14, "steps": 80, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "fence", "use": null, "held_out": false, "robots": 20, "voxels": 14, "steps": 80, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "fence", "use": null, "held_out": false, "robots": 30, "voxels": 14, "steps": 80, "score": 1.0, "passed": true, "done_at": 24}
+{"object": "train", "use": null, "held_out": true, "robots": 20, "voxels": 11, "steps": 80, "score": 0.6923, "passed": false, "done_at": null}
+{"object": "cactus", "use": null, "held_out": true, "robots": 55, "voxels": 14, "steps": 80, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "cactus", "use": null, "held_out": true, "robots": 44, "voxels": 14, "steps": 80, "score": 0.7647, "passed": true, "done_at": 52}
+{"object": "letter H", "use": null, "held_out": false, "robots": 39, "voxels": 17, "steps": 80, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "fence", "use": null, "held_out": false, "robots": 23, "voxels": 15, "steps": 84, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "ladder", "use": null, "held_out": false, "robots": 14, "voxels": 12, "steps": 84, "score": 0.6, "passed": false, "done_at": null}
+{"object": "podium", "use": null, "held_out": false, "robots": 12, "voxels": 12, "steps": 84, "score": 0.9167, "passed": true, "done_at": 20}
+{"object": "podium", "use": null, "held_out": false, "robots": 21, "voxels": 12, "steps": 84, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "cactus", "use": null, "held_out": true, "robots": 62, "voxels": 15, "steps": 84, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "rocket", "use": null, "held_out": true, "robots": 14, "voxels": 13, "steps": 88, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "rocket", "use": null, "held_out": true, "robots": 13, "voxels": 13, "steps": 88, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "letter N", "use": null, "held_out": false, "robots": 19, "voxels": 19, "steps": 88, "score": 0.85, "passed": true, "done_at": 56}
+{"object": "letter N", "use": null, "held_out": false, "robots": 19, "voxels": 19, "steps": 88, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "letter W", "use": null, "held_out": false, "robots": 21, "voxels": 19, "steps": 88, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "letter W", "use": null, "held_out": false, "robots": 24, "voxels": 19, "steps": 88, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "bench", "use": "sit", "held_out": false, "robots": 17, "voxels": 16, "steps": 88, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "wall with a door", "use": null, "held_out": false, "robots": 31, "voxels": 14, "steps": 92, "score": 0.9333, "passed": true, "done_at": 24}
+{"object": "pyramid", "use": null, "held_out": true, "robots": 23, "voxels": 20, "steps": 92, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "obelisk", "use": null, "held_out": false, "robots": 15, "voxels": 14, "steps": 92, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "cup", "use": null, "held_out": false, "robots": 40, "voxels": 17, "steps": 92, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "standing ring", "use": null, "held_out": false, "robots": 25, "voxels": 20, "steps": 92, "score": 0.9524, "passed": true, "done_at": 32}
+{"object": "letter A", "use": null, "held_out": false, "robots": 36, "voxels": 20, "steps": 92, "score": 0.6667, "passed": false, "done_at": null}
+{"object": "letter A", "use": null, "held_out": false, "robots": 28, "voxels": 20, "steps": 92, "score": 0.6667, "passed": false, "done_at": null}
+{"object": "letter D", "use": null, "held_out": false, "robots": 47, "voxels": 20, "steps": 92, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "letter D", "use": null, "held_out": false, "robots": 52, "voxels": 20, "steps": 92, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "letter K", "use": null, "held_out": true, "robots": 21, "voxels": 20, "steps": 92, "score": 0.6667, "passed": false, "done_at": null}
+{"object": "letter K", "use": null, "held_out": true, "robots": 27, "voxels": 20, "steps": 92, "score": 0.6957, "passed": false, "done_at": null}
+{"object": "letter K", "use": null, "held_out": true, "robots": 26, "voxels": 20, "steps": 92, "score": 0.8182, "passed": true, "done_at": 56}
+{"object": "letter K", "use": null, "held_out": true, "robots": 32, "voxels": 20, "steps": 92, "score": 0.6957, "passed": false, "done_at": null}
+{"object": "letter O", "use": null, "held_out": false, "robots": 39, "voxels": 20, "steps": 92, "score": 0.9524, "passed": true, "done_at": 32}
+{"object": "letter O", "use": null, "held_out": false, "robots": 23, "voxels": 20, "steps": 92, "score": 1.0, "passed": true, "done_at": 60}
+{"object": "letter O", "use": null, "held_out": false, "robots": 26, "voxels": 20, "steps": 92, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "letter O", "use": null, "held_out": false, "robots": 38, "voxels": 20, "steps": 92, "score": 0.9524, "passed": true, "done_at": 28}
+{"object": "letter X", "use": null, "held_out": false, "robots": 21, "voxels": 20, "steps": 92, "score": 0.6818, "passed": false, "done_at": null}
+{"object": "letter X", "use": null, "held_out": false, "robots": 25, "voxels": 20, "steps": 92, "score": 0.7143, "passed": false, "done_at": null}
+{"object": "letter X", "use": null, "held_out": false, "robots": 28, "voxels": 20, "steps": 92, "score": 0.6818, "passed": false, "done_at": null}
+{"object": "letter X", "use": null, "held_out": false, "robots": 40, "voxels": 20, "steps": 92, "score": 0.6818, "passed": false, "done_at": null}
+{"object": "number 1", "use": null, "held_out": false, "robots": 37, "voxels": 20, "steps": 92, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "number 1", "use": null, "held_out": false, "robots": 37, "voxels": 20, "steps": 92, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "number 6", "use": null, "held_out": false, "robots": 24, "voxels": 20, "steps": 92, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "bench", "use": null, "held_out": false, "robots": 21, "voxels": 18, "steps": 96, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "slide", "use": null, "held_out": false, "robots": 26, "voxels": 19, "steps": 100, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "car", "use": null, "held_out": true, "robots": 22, "voxels": 16, "steps": 100, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "car", "use": null, "held_out": true, "robots": 24, "voxels": 16, "steps": 100, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "car", "use": null, "held_out": true, "robots": 28, "voxels": 16, "steps": 100, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "letter L", "use": null, "held_out": false, "robots": 36, "voxels": 22, "steps": 100, "score": 1.0, "passed": true, "done_at": 24}
+{"object": "letter L", "use": null, "held_out": false, "robots": 72, "voxels": 22, "steps": 100, "score": 0.9545, "passed": true, "done_at": 44}
+{"object": "letter L", "use": null, "held_out": false, "robots": 54, "voxels": 22, "steps": 100, "score": 1.0, "passed": true, "done_at": 24}
+{"object": "letter T", "use": null, "held_out": false, "robots": 78, "voxels": 22, "steps": 100, "score": 0.9565, "passed": true, "done_at": 72}
+{"object": "letter T", "use": null, "held_out": false, "robots": 84, "voxels": 22, "steps": 100, "score": 0.9565, "passed": true, "done_at": 48}
+{"object": "letter T", "use": null, "held_out": false, "robots": 52, "voxels": 22, "steps": 100, "score": 1.0, "passed": true, "done_at": 60}
+{"object": "letter T", "use": null, "held_out": false, "robots": 60, "voxels": 22, "steps": 100, "score": 0.9565, "passed": true, "done_at": 60}
+{"object": "ladder", "use": null, "held_out": false, "robots": 24, "voxels": 17, "steps": 104, "score": 0.9412, "passed": true, "done_at": 80}
+{"object": "rocket", "use": null, "held_out": true, "robots": 58, "voxels": 17, "steps": 104, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "pot", "use": null, "held_out": false, "robots": 33, "voxels": 20, "steps": 104, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "pot", "use": null, "held_out": false, "robots": 26, "voxels": 20, "steps": 104, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "letter Q", "use": null, "held_out": true, "robots": 31, "voxels": 23, "steps": 104, "score": 0.9167, "passed": true, "done_at": 48}
+{"object": "chair", "use": null, "held_out": false, "robots": 20, "voxels": 18, "steps": 108, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "chair", "use": null, "held_out": false, "robots": 30, "voxels": 18, "steps": 108, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "obelisk", "use": null, "held_out": false, "robots": 27, "voxels": 18, "steps": 108, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "obelisk", "use": null, "held_out": false, "robots": 57, "voxels": 18, "steps": 108, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "tent", "use": null, "held_out": false, "robots": 46, "voxels": 24, "steps": 108, "score": 1.0, "passed": true, "done_at": 20}
+{"object": "car", "use": null, "held_out": true, "robots": 22, "voxels": 18, "steps": 108, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "plane", "use": null, "held_out": true, "robots": 37, "voxels": 15, "steps": 108, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "standing ring", "use": null, "held_out": false, "robots": 38, "voxels": 24, "steps": 108, "score": 0.9583, "passed": true, "done_at": 44}
+{"object": "letter B", "use": null, "held_out": false, "robots": 61, "voxels": 24, "steps": 108, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "table", "use": "table", "held_out": false, "robots": 29, "voxels": 21, "steps": 108, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "wall with a door", "use": null, "held_out": false, "robots": 23, "voxels": 19, "steps": 112, "score": 0.8095, "passed": true, "done_at": 68}
+{"object": "crate", "use": null, "held_out": false, "robots": 27, "voxels": 22, "steps": 112, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "number 0", "use": null, "held_out": false, "robots": 28, "voxels": 25, "steps": 112, "score": 0.7931, "passed": true, "done_at": 56}
+{"object": "number 0", "use": null, "held_out": false, "robots": 49, "voxels": 25, "steps": 112, "score": 0.8148, "passed": true, "done_at": 64}
+{"object": "number 8", "use": null, "held_out": false, "robots": 26, "voxels": 25, "steps": 112, "score": 1.0, "passed": true, "done_at": 56}
+{"object": "number 8", "use": null, "held_out": false, "robots": 29, "voxels": 25, "steps": 112, "score": 0.7308, "passed": false, "done_at": null}
+{"object": "number 8", "use": null, "held_out": false, "robots": 38, "voxels": 25, "steps": 112, "score": 0.92, "passed": true, "done_at": 56}
+{"object": "bridge", "use": "span", "held_out": false, "robots": 25, "voxels": 22, "steps": 112, "score": 1.0, "passed": true, "done_at": 92}
+{"object": "crate", "use": "contain", "held_out": false, "robots": 38, "voxels": 22, "steps": 112, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "ladder", "use": null, "held_out": false, "robots": 42, "voxels": 20, "steps": 116, "score": 0.95, "passed": true, "done_at": 76}
+{"object": "letter J", "use": null, "held_out": false, "robots": 57, "voxels": 26, "steps": 116, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "letter J", "use": null, "held_out": false, "robots": 31, "voxels": 26, "steps": 116, "score": 1.0, "passed": true, "done_at": 68}
+{"object": "stool", "use": null, "held_out": false, "robots": 36, "voxels": 24, "steps": 120, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "plane", "use": null, "held_out": true, "robots": 69, "voxels": 18, "steps": 120, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "bench", "use": "sit", "held_out": false, "robots": 26, "voxels": 24, "steps": 120, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "table", "use": "table", "held_out": false, "robots": 26, "voxels": 24, "steps": 120, "score": 1.0, "passed": true, "done_at": 60}
+{"object": "table", "use": null, "held_out": false, "robots": 47, "voxels": 25, "steps": 124, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "wall with a door", "use": null, "held_out": false, "robots": 30, "voxels": 22, "steps": 124, "score": 1.0, "passed": true, "done_at": 60}
+{"object": "plane", "use": null, "held_out": true, "robots": 78, "voxels": 19, "steps": 124, "score": 0.95, "passed": true, "done_at": 40}
+{"object": "plane", "use": null, "held_out": true, "robots": 30, "voxels": 19, "steps": 124, "score": 1.0, "passed": true, "done_at": 68}
+{"object": "cup", "use": null, "held_out": false, "robots": 29, "voxels": 25, "steps": 124, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "cup", "use": null, "held_out": false, "robots": 33, "voxels": 25, "steps": 124, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "letter Y", "use": null, "held_out": false, "robots": 106, "voxels": 28, "steps": 124, "score": 0.9655, "passed": true, "done_at": 60}
+{"object": "letter Y", "use": null, "held_out": false, "robots": 50, "voxels": 28, "steps": 124, "score": 1.0, "passed": true, "done_at": 56}
+{"object": "letter Y", "use": null, "held_out": false, "robots": 63, "voxels": 28, "steps": 124, "score": 0.9333, "passed": true, "done_at": 52}
+{"object": "igloo", "use": null, "held_out": false, "robots": 51, "voxels": 26, "steps": 128, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "dog", "use": null, "held_out": false, "robots": 25, "voxels": 17, "steps": 128, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "dog", "use": null, "held_out": false, "robots": 20, "voxels": 17, "steps": 128, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "staircase", "use": null, "held_out": true, "robots": 47, "voxels": 30, "steps": 132, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "ladder", "use": null, "held_out": false, "robots": 93, "voxels": 24, "steps": 132, "score": 0.72, "passed": false, "done_at": null}
+{"object": "letter I", "use": null, "held_out": false, "robots": 62, "voxels": 30, "steps": 132, "score": 1.0, "passed": true, "done_at": 68}
+{"object": "letter I", "use": null, "held_out": false, "robots": 49, "voxels": 30, "steps": 132, "score": 1.0, "passed": true, "done_at": 56}
+{"object": "letter I", "use": null, "held_out": false, "robots": 40, "voxels": 30, "steps": 132, "score": 0.9375, "passed": true, "done_at": 68}
+{"object": "bridge", "use": "span", "held_out": false, "robots": 53, "voxels": 27, "steps": 132, "score": 1.0, "passed": true, "done_at": 64}
+{"object": "stool", "use": null, "held_out": false, "robots": 42, "voxels": 28, "steps": 136, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "table", "use": null, "held_out": false, "robots": 53, "voxels": 28, "steps": 136, "score": 1.0, "passed": true, "done_at": 36}
+{"object": "fence", "use": null, "held_out": false, "robots": 42, "voxels": 28, "steps": 136, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "castle tower", "use": null, "held_out": false, "robots": 41, "voxels": 28, "steps": 136, "score": 0.8667, "passed": true, "done_at": 40}
+{"object": "doghouse", "use": null, "held_out": true, "robots": 32, "voxels": 28, "steps": 136, "score": 0.8966, "passed": true, "done_at": 96}
+{"object": "doghouse", "use": null, "held_out": true, "robots": 31, "voxels": 28, "steps": 136, "score": 0.8065, "passed": true, "done_at": 104}
+{"object": "doghouse", "use": null, "held_out": true, "robots": 39, "voxels": 28, "steps": 136, "score": 0.8966, "passed": true, "done_at": 100}
+{"object": "pot", "use": null, "held_out": false, "robots": 35, "voxels": 28, "steps": 136, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "crate", "use": null, "held_out": false, "robots": 54, "voxels": 28, "steps": 136, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "chair", "use": null, "held_out": false, "robots": 55, "voxels": 26, "steps": 140, "score": 0.963, "passed": true, "done_at": 48}
+{"object": "igloo", "use": null, "held_out": false, "robots": 53, "voxels": 32, "steps": 140, "score": 1.0, "passed": true, "done_at": 24}
+{"object": "tent", "use": null, "held_out": false, "robots": 43, "voxels": 32, "steps": 140, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "number 4", "use": null, "held_out": true, "robots": 66, "voxels": 32, "steps": 140, "score": 0.7273, "passed": false, "done_at": null}
+{"object": "number 4", "use": null, "held_out": true, "robots": 55, "voxels": 32, "steps": 140, "score": 0.7429, "passed": false, "done_at": 92}
+{"object": "number 4", "use": null, "held_out": true, "robots": 44, "voxels": 32, "steps": 140, "score": 0.8824, "passed": true, "done_at": 72}
+{"object": "bed", "use": null, "held_out": false, "robots": 29, "voxels": 27, "steps": 144, "score": 1.0, "passed": true, "done_at": 56}
+{"object": "bed", "use": null, "held_out": false, "robots": 43, "voxels": 27, "steps": 144, "score": 0.9643, "passed": true, "done_at": 56}
+{"object": "giraffe", "use": null, "held_out": false, "robots": 29, "voxels": 24, "steps": 144, "score": 1.0, "passed": true, "done_at": 72}
+{"object": "letter H", "use": null, "held_out": false, "robots": 71, "voxels": 34, "steps": 148, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "letter H", "use": null, "held_out": false, "robots": 63, "voxels": 34, "steps": 148, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "letter H", "use": null, "held_out": false, "robots": 106, "voxels": 34, "steps": 148, "score": 0.8857, "passed": true, "done_at": 36}
+{"object": "letter U", "use": null, "held_out": false, "robots": 49, "voxels": 34, "steps": 148, "score": 0.9706, "passed": true, "done_at": 56}
+{"object": "letter U", "use": null, "held_out": false, "robots": 73, "voxels": 34, "steps": 148, "score": 0.9714, "passed": true, "done_at": 32}
+{"object": "letter U", "use": null, "held_out": false, "robots": 75, "voxels": 34, "steps": 148, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "letter U", "use": null, "held_out": false, "robots": 105, "voxels": 34, "steps": 148, "score": 0.9706, "passed": true, "done_at": 28}
+{"object": "letter V", "use": null, "held_out": false, "robots": 94, "voxels": 34, "steps": 148, "score": 0.9714, "passed": true, "done_at": 36}
+{"object": "letter V", "use": null, "held_out": false, "robots": 55, "voxels": 34, "steps": 148, "score": 0.9714, "passed": true, "done_at": 40}
+{"object": "letter V", "use": null, "held_out": false, "robots": 68, "voxels": 34, "steps": 148, "score": 0.9429, "passed": true, "done_at": 56}
+{"object": "letter V", "use": null, "held_out": false, "robots": 55, "voxels": 34, "steps": 148, "score": 0.9714, "passed": true, "done_at": 44}
+{"object": "pot", "use": null, "held_out": false, "robots": 35, "voxels": 33, "steps": 156, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "standing ring", "use": null, "held_out": false, "robots": 77, "voxels": 36, "steps": 156, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "giraffe", "use": null, "held_out": false, "robots": 59, "voxels": 27, "steps": 156, "score": 1.0, "passed": true, "done_at": 48}
+{"object": "giraffe", "use": null, "held_out": false, "robots": 33, "voxels": 27, "steps": 156, "score": 0.9643, "passed": true, "done_at": 68}
+{"object": "giraffe", "use": null, "held_out": false, "robots": 35, "voxels": 27, "steps": 156, "score": 1.0, "passed": true, "done_at": 72}
+{"object": "hut", "use": "shelter", "held_out": false, "robots": 36, "voxels": 33, "steps": 156, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "tent", "use": "shelter", "held_out": false, "robots": 84, "voxels": 36, "steps": 156, "score": 1.0, "passed": true, "done_at": 8}
+{"object": "dog", "use": null, "held_out": false, "robots": 96, "voxels": 25, "steps": 160, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "dog", "use": null, "held_out": false, "robots": 88, "voxels": 25, "steps": 160, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "crate", "use": "contain", "held_out": false, "robots": 48, "voxels": 34, "steps": 160, "score": 1.0, "passed": true, "done_at": 84}
+{"object": "shelf", "use": null, "held_out": false, "robots": 34, "voxels": 32, "steps": 164, "score": 0.9091, "passed": true, "done_at": 92}
+{"object": "bridge", "use": null, "held_out": false, "robots": 40, "voxels": 32, "steps": 164, "score": 1.0, "passed": true, "done_at": 80}
+{"object": "letter N", "use": null, "held_out": false, "robots": 38, "voxels": 38, "steps": 164, "score": 0.9737, "passed": true, "done_at": 84}
+{"object": "letter N", "use": null, "held_out": false, "robots": 85, "voxels": 38, "steps": 164, "score": 1.0, "passed": true, "done_at": 60}
+{"object": "letter W", "use": null, "held_out": false, "robots": 91, "voxels": 38, "steps": 164, "score": 0.7949, "passed": true, "done_at": 40}
+{"object": "letter W", "use": null, "held_out": false, "robots": 50, "voxels": 38, "steps": 164, "score": 0.8421, "passed": true, "done_at": 44}
+{"object": "castle tower", "use": null, "held_out": false, "robots": 47, "voxels": 36, "steps": 168, "score": 0.9189, "passed": true, "done_at": 48}
+{"object": "tent", "use": null, "held_out": false, "robots": 71, "voxels": 40, "steps": 172, "score": 1.0, "passed": true, "done_at": 28}
+{"object": "letter A", "use": null, "held_out": false, "robots": 89, "voxels": 40, "steps": 172, "score": 0.6829, "passed": false, "done_at": null}
+{"object": "letter A", "use": null, "held_out": false, "robots": 109, "voxels": 40, "steps": 172, "score": 0.9, "passed": true, "done_at": 48}
+{"object": "letter D", "use": null, "held_out": false, "robots": 95, "voxels": 40, "steps": 172, "score": 1.0, "passed": true, "done_at": 56}
+{"object": "letter D", "use": null, "held_out": false, "robots": 105, "voxels": 40, "steps": 172, "score": 1.0, "passed": true, "done_at": 56}
+{"object": "number 6", "use": null, "held_out": false, "robots": 61, "voxels": 40, "steps": 172, "score": 0.9756, "passed": true, "done_at": 84}
+{"object": "number 6", "use": null, "held_out": false, "robots": 67, "voxels": 40, "steps": 172, "score": 0.9024, "passed": true, "done_at": 56}
+{"object": "number 6", "use": null, "held_out": false, "robots": 70, "voxels": 40, "steps": 172, "score": 0.8605, "passed": true, "done_at": 48}
+{"object": "throne", "use": null, "held_out": true, "robots": 48, "voxels": 32, "steps": 176, "score": 0.9697, "passed": true, "done_at": 60}
+{"object": "bridge", "use": null, "held_out": false, "robots": 58, "voxels": 39, "steps": 180, "score": 1.0, "passed": true, "done_at": 64}
+{"object": "igloo", "use": null, "held_out": false, "robots": 41, "voxels": 39, "steps": 180, "score": 1.0, "passed": true, "done_at": 64}
+{"object": "wall with a door", "use": null, "held_out": false, "robots": 97, "voxels": 37, "steps": 184, "score": 0.9474, "passed": true, "done_at": 44}
+{"object": "hut", "use": null, "held_out": false, "robots": 46, "voxels": 40, "steps": 184, "score": 0.8095, "passed": true, "done_at": 160}
+{"object": "castle tower", "use": null, "held_out": false, "robots": 49, "voxels": 42, "steps": 192, "score": 1.0, "passed": true, "done_at": 44}
+{"object": "slide", "use": null, "held_out": false, "robots": 54, "voxels": 42, "steps": 192, "score": 0.8409, "passed": true, "done_at": 72}
+{"object": "slide", "use": null, "held_out": false, "robots": 85, "voxels": 42, "steps": 192, "score": 0.907, "passed": true, "done_at": 56}
+{"object": "truck", "use": null, "held_out": true, "robots": 63, "voxels": 36, "steps": 192, "score": 0.9474, "passed": true, "done_at": 72}
+{"object": "truck", "use": null, "held_out": true, "robots": 44, "voxels": 36, "steps": 192, "score": 0.8974, "passed": true, "done_at": 100}
+{"object": "boat", "use": null, "held_out": true, "robots": 58, "voxels": 36, "steps": 192, "score": 0.8611, "passed": true, "done_at": 48}
+{"object": "table", "use": "table", "held_out": false, "robots": 53, "voxels": 42, "steps": 192, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "chair", "use": null, "held_out": false, "robots": 52, "voxels": 40, "steps": 196, "score": 0.9756, "passed": true, "done_at": 96}
+{"object": "letter Q", "use": null, "held_out": true, "robots": 65, "voxels": 46, "steps": 196, "score": 0.9783, "passed": true, "done_at": 44}
+{"object": "letter Q", "use": null, "held_out": true, "robots": 80, "voxels": 46, "steps": 196, "score": 0.9149, "passed": true, "done_at": 56}
+{"object": "letter Q", "use": null, "held_out": true, "robots": 80, "voxels": 46, "steps": 196, "score": 0.9375, "passed": true, "done_at": 52}
+{"object": "table", "use": null, "held_out": false, "robots": 49, "voxels": 44, "steps": 200, "score": 1.0, "passed": true, "done_at": 64}
+{"object": "train", "use": null, "held_out": true, "robots": 70, "voxels": 41, "steps": 200, "score": 0.8222, "passed": true, "done_at": 52}
+{"object": "train", "use": null, "held_out": true, "robots": 78, "voxels": 41, "steps": 200, "score": 0.7857, "passed": true, "done_at": 152}
+{"object": "tent", "use": null, "held_out": false, "robots": 80, "voxels": 48, "steps": 204, "score": 1.0, "passed": true, "done_at": 56}
+{"object": "train", "use": null, "held_out": true, "robots": 60, "voxels": 42, "steps": 204, "score": 0.8605, "passed": true, "done_at": 48}
+{"object": "letter B", "use": null, "held_out": false, "robots": 92, "voxels": 48, "steps": 204, "score": 0.9796, "passed": true, "done_at": 68}
+{"object": "letter B", "use": null, "held_out": false, "robots": 55, "voxels": 48, "steps": 204, "score": 0.9796, "passed": true, "done_at": 84}
+{"object": "letter B", "use": null, "held_out": false, "robots": 61, "voxels": 48, "steps": 204, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "tent", "use": "shelter", "held_out": false, "robots": 105, "voxels": 48, "steps": 204, "score": 1.0, "passed": true, "done_at": 12}
+{"object": "pot", "use": "contain", "held_out": false, "robots": 95, "voxels": 45, "steps": 204, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "hut", "use": null, "held_out": false, "robots": 69, "voxels": 46, "steps": 208, "score": 0.9787, "passed": true, "done_at": 48}
+{"object": "bed", "use": null, "held_out": false, "robots": 78, "voxels": 44, "steps": 212, "score": 0.9565, "passed": true, "done_at": 64}
+{"object": "shelf", "use": null, "held_out": false, "robots": 86, "voxels": 44, "steps": 212, "score": 0.8636, "passed": true, "done_at": 124}
+{"object": "shelf", "use": null, "held_out": false, "robots": 45, "voxels": 44, "steps": 212, "score": 0.8333, "passed": true, "done_at": 124}
+{"object": "number 0", "use": null, "held_out": false, "robots": 113, "voxels": 50, "steps": 212, "score": 0.8679, "passed": true, "done_at": 64}
+{"object": "number 0", "use": null, "held_out": false, "robots": 95, "voxels": 50, "steps": 212, "score": 0.8846, "passed": true, "done_at": 64}
+{"object": "number 8", "use": null, "held_out": false, "robots": 94, "voxels": 50, "steps": 212, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "house", "use": null, "held_out": false, "robots": 65, "voxels": 48, "steps": 216, "score": 0.9388, "passed": true, "done_at": 60}
+{"object": "house", "use": null, "held_out": false, "robots": 49, "voxels": 48, "steps": 216, "score": 1.0, "passed": true, "done_at": 88}
+{"object": "doghouse", "use": null, "held_out": true, "robots": 57, "voxels": 48, "steps": 216, "score": 1.0, "passed": true, "done_at": 52}
+{"object": "bed", "use": null, "held_out": false, "robots": 51, "voxels": 46, "steps": 220, "score": 0.9583, "passed": true, "done_at": 80}
+{"object": "shelf", "use": null, "held_out": false, "robots": 78, "voxels": 46, "steps": 220, "score": 1.0, "passed": true, "done_at": 144}
+{"object": "boat", "use": null, "held_out": true, "robots": 88, "voxels": 45, "steps": 228, "score": 0.9778, "passed": true, "done_at": 56}
+{"object": "boat", "use": null, "held_out": true, "robots": 71, "voxels": 45, "steps": 228, "score": 0.9778, "passed": true, "done_at": 44}
+{"object": "crate", "use": null, "held_out": false, "robots": 74, "voxels": 51, "steps": 228, "score": 0.9245, "passed": true, "done_at": 52}
+{"object": "crate", "use": "contain", "held_out": false, "robots": 71, "voxels": 51, "steps": 228, "score": 1.0, "passed": true, "done_at": 80}
+{"object": "pyramid", "use": null, "held_out": true, "robots": 82, "voxels": 56, "steps": 236, "score": 1.0, "passed": true, "done_at": 40}
+{"object": "throne", "use": null, "held_out": true, "robots": 80, "voxels": 48, "steps": 240, "score": 0.9796, "passed": true, "done_at": 84}
+{"object": "sofa", "use": null, "held_out": false, "robots": 69, "voxels": 51, "steps": 240, "score": 0.7818, "passed": true, "done_at": 212}
+{"object": "throne", "use": null, "held_out": true, "robots": 85, "voxels": 50, "steps": 248, "score": 0.9804, "passed": true, "done_at": 112}
+{"object": "castle tower", "use": null, "held_out": false, "robots": 84, "voxels": 56, "steps": 248, "score": 0.931, "passed": true, "done_at": 44}
+{"object": "truck", "use": null, "held_out": true, "robots": 77, "voxels": 51, "steps": 252, "score": 0.9623, "passed": true, "done_at": 92}
+{"object": "rocket", "use": null, "held_out": true, "robots": 69, "voxels": 54, "steps": 252, "score": 1.0, "passed": true, "done_at": 68}
+{"object": "crate", "use": null, "held_out": false, "robots": 79, "voxels": 57, "steps": 252, "score": 0.931, "passed": true, "done_at": 60}
+{"object": "house", "use": null, "held_out": false, "robots": 72, "voxels": 58, "steps": 256, "score": 0.8966, "passed": true, "done_at": 92}
+{"object": "sofa", "use": null, "held_out": false, "robots": 108, "voxels": 56, "steps": 260, "score": 0.8772, "passed": true, "done_at": 192}
+{"object": "staircase", "use": null, "held_out": true, "robots": 103, "voxels": 63, "steps": 264, "score": 0.9365, "passed": true, "done_at": 76}
+{"object": "boat", "use": null, "held_out": true, "robots": 68, "voxels": 54, "steps": 264, "score": 0.8393, "passed": true, "done_at": 120}
+{"object": "snowman", "use": null, "held_out": false, "robots": 112, "voxels": 61, "steps": 280, "score": 0.9194, "passed": true, "done_at": 204}
+{"object": "snowman", "use": null, "held_out": false, "robots": 93, "voxels": 61, "steps": 280, "score": 0.8413, "passed": true, "done_at": 208}
+{"object": "snowman", "use": null, "held_out": false, "robots": 84, "voxels": 61, "steps": 280, "score": 0.9365, "passed": true, "done_at": 68}
+{"object": "table", "use": "table", "held_out": false, "robots": 84, "voxels": 64, "steps": 280, "score": 1.0, "passed": true, "done_at": 32}
+{"object": "snowman", "use": null, "held_out": false, "robots": 66, "voxels": 62, "steps": 284, "score": 0.9524, "passed": true, "done_at": 108}
+{"object": "hut", "use": null, "held_out": false, "robots": 73, "voxels": 66, "steps": 288, "score": 1.0, "passed": true, "done_at": 104}
+{"object": "tent", "use": "shelter", "held_out": false, "robots": 81, "voxels": 70, "steps": 292, "score": 1.0, "passed": true, "done_at": 20}
+{"object": "throne", "use": null, "held_out": true, "robots": 109, "voxels": 64, "steps": 304, "score": 1.0, "passed": true, "done_at": 172}
+{"object": "table", "use": null, "held_out": false, "robots": 97, "voxels": 70, "steps": 304, "score": 1.0, "passed": true, "done_at": 116}
+{"object": "sofa", "use": null, "held_out": false, "robots": 81, "voxels": 69, "steps": 312, "score": 0.942, "passed": true, "done_at": 76}
+{"object": "cup", "use": null, "held_out": false, "robots": 95, "voxels": 73, "steps": 316, "score": 0.9726, "passed": true, "done_at": 120}
+{"object": "house", "use": null, "held_out": false, "robots": 95, "voxels": 74, "steps": 320, "score": 0.9221, "passed": true, "done_at": 232}
+{"object": "sofa", "use": null, "held_out": false, "robots": 103, "voxels": 76, "steps": 340, "score": 0.9231, "passed": true, "done_at": 260}
+{"object": "truck", "use": null, "held_out": true, "robots": 100, "voxels": 74, "steps": 344, "score": 0.9867, "passed": true, "done_at": 172}
+{"object": "hut", "use": null, "held_out": false, "robots": 115, "voxels": 96, "steps": 408, "score": 1.0, "passed": true, "done_at": 124}
+{"object": "obelisk", "use": null, "held_out": false, "robots": 100, "voxels": 98, "steps": 428, "score": 1.0, "passed": true, "done_at": 156}

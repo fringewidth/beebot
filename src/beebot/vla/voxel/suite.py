@@ -601,6 +601,10 @@ def score(task, static, start, end, eaten):
         return O.score(task, static, start, end, eaten)
     if "who" in spec:
         return job_score(task, static, start, end, eaten)
+    if spec["kind"] == "build":
+        from beebot.vla.voxel import build
+
+        return build.score(task, static, start, end, eaten)
     unasked = any(c in spec["forbid"] for c in eaten)
     mass = end["mass"]
     slot = {COLOUR_NAMES[int(c)]: k for k, c in enumerate(static["cheese_color"]) if c >= 0}
@@ -697,6 +701,8 @@ def task_kind(task):
         name = {"group": who.get("which", ""), "count": "count", "half": "half", "top": "top", "all": ""}[who["select"]]
         name = ("not_" if who.get("except") else "") + ("cheese" if who.get("by") == "cheese" else name)
         return f"{spec['kind']}@{name}" if name else spec["kind"]
+    if spec["kind"] == "build":
+        return "build:" + ("use:" + spec["use"] if spec.get("use") else spec["object"])
     detail = spec.get("form", "") if spec["kind"] == "eat" else "+".join(job for job, _ in spec["jobs"]) if spec["kind"] == "parallel" else ""
     return f"{spec['kind']}:{detail}" if detail else spec["kind"]
 
@@ -980,7 +986,7 @@ class Expert:
                 segs.append(None)
                 continue
             seg = plan[self.index[i]]
-            while self.index[i] < len(plan) - 1 and (self.done(i, seg, world) or self.since[i] >= SEGMENT_STEPS):
+            while self.index[i] < len(plan) - 1 and (self.done(i, seg, world) or self.since[i] >= seg.get("steps", SEGMENT_STEPS)):
                 self.index[i] += 1
                 self.since[i] = 0
                 seg = plan[self.index[i]]
@@ -1016,6 +1022,10 @@ class Expert:
             mask = torch.from_numpy(mask)
             codes[i][mask] = other[mask]
 
+    def adjust_build(self, world, codes, segs, allowed, generator=None):
+        """A subclass's last say over the action codes before the rule's clean-up (build.BuildExpert)."""
+        return codes
+
     def tensors(self, lists, presses):
         """The controller's inputs from per-scene target lists and presses: targets (B, S, 3),
         valid (B, S), press_cheese (B,), press_dir (B, 3)."""
@@ -1040,7 +1050,7 @@ class Expert:
         return codes
 
     def __call__(self, world, t, generator=None):
-        lists, presses, caps, _ = self.segments(world, t)
+        lists, presses, caps, segs = self.segments(world, t)
         targets, valid, press_cheese, press_dir = self.tensors(lists, presses)
         allowed = None if self.moves is None else self.moves.unsqueeze(0).expand(int((world.mass > 0.5).sum()), -1)
         if self.rule is not None:
@@ -1063,6 +1073,7 @@ class Expert:
                     pts = torch.tensor(lists[i]).long()
                     codes[i, pts[:, 0], pts[:, 1], pts[:, 2]] = STAY
         codes = self.adjust(world, codes)
+        codes = self.adjust_build(world, codes, segs, allowed, generator)
         if self.rule is not None:  # of a cube and the cube it pivots on, one waits
             codes = refuse(world, codes, self.rule, priority=torch.rand(world.mass.shape, generator=self.generator if generator is None else generator))
         return codes
@@ -2268,6 +2279,8 @@ def record_spec(task):
         out = {"kind": "herd_trench", "cheese": spec["cheese"]}
     elif kind == "herd_region":
         out = {"kind": "herd_region", "cheeses": sorted(spec["cheeses"]), "region": spec["region"]}
+    elif kind == "build":  # program and voxels are the expert's plan, not read from an instruction (haiku.IGNORED_KEYS)
+        out = {"kind": "build", **({"use": spec["use"]} if spec.get("use") else {"object": spec["object"]}), "program": spec["program"], "voxels": int(spec["voxels"])}
     elif kind == "eat" and spec.get("form") == "absent":
         out = {"kind": "refuse"}
     elif kind == "eat":
@@ -2302,6 +2315,7 @@ SPEC_NOTES = {
     "climb": "side: the plateau to climb onto (left, right, back or front).",
     "move": "shift the robots without changing their arrangement. toward: the side to shift toward (left, right, back, front). steps: how far, in robot widths.",
     "perch": "colour: the cheese to climb on top of.",
+    "build": "object: the named object to build (a chair, an arch, the letter A, ...). use: instead of an object, what the structure must be good for: sit (something to sit on), table (something to put things on), shelter (something to shelter in), span (something spanning a gap between two supports), contain (something that holds things). program and voxels are the plan the swarm made, not part of the instruction.",
     "who": "Fields any task can add when only some robots should act (the others stay where they are): who is group, top (the robots standing on other robots), count or half; a group is named by by=size (which: smaller, larger, smallest, largest), by=side (which: left, right, back, front, or a corner such as front right: the group furthest that way) or by=cheese (which: a colour: the group nearest that cheese); count: how many robots; except: true when the named robots are the ones that stay and everyone else acts. No who field: everyone acts.",
 }
 
@@ -2320,6 +2334,8 @@ def subgoal_sentences(task):
         return O.subgoal_sentences(task)
     plain = W.canonical(W.slots_of(task))
     spec = task.spec
+    if spec["kind"] == "build":  # one sentence per group of parts, in build order
+        return list(spec["subgoals"])
     colours = list(spec.get("order") or sorted(spec.get("eat", ())) or sorted(spec.get("any_of", ()))[:1]) if spec["kind"] == "eat" and "who" not in spec else []
     out = []
     for seg in task.plan:
