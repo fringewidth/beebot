@@ -16,6 +16,8 @@ modules.
 | `shapes.py` | named objects as parts programs (text form), the support and climbing rules, functions, the overlap score, a mesh loader |
 | `build.py` | the build family: draws, records, the build expert, the score, the per-object measurement |
 | `haiku.py` | open-vocabulary instructions and thought labels written by Haiku, verified by a second call, joined to demo stores |
+| `rollout.py` | closed-loop episodes of the think-then-act policy (and of the expert) on the training conditions |
+| `scorecard.py` | the 3D scorecard: every family and held-out split, controls, thought checks, the oracle-thought arm, gates (section "Think-then-act scorecard") |
 | `facts.py` | window facts as hashable atoms |
 | `render.py` | isometric PNG/GIF |
 
@@ -1221,6 +1223,46 @@ printed, nothing written under `data/vla/haiku`.
    summaries. `local_canonical_record` and `local_scene_summary` stand in until the suite has its
    own `canonical_record` and `scene_summary`; one line switches. A suite task whose colour is
    not in the scene (`eat:absent`) has the spec `{"kind": "refuse"}`.
+
+## Think-then-act scorecard (`rollout.py`, `scorecard.py`)
+
+The policy of `think.py` played closed loop, scored by the suite's own checkers. The module
+docstrings hold the details; in short:
+
+    PYTHONPATH=src python -m beebot.vla.voxel.scorecard --checkpoint runs/X/policy_step800.pt --device mps --out runs/X/card_step800
+    PYTHONPATH=src python -m beebot.vla.voxel.scorecard --arms expert --out runs/card_expert       # no model, CPU
+    PYTHONPATH=src python -m beebot.vla.voxel.scorecard compare runs/A/card/episodes.jsonl runs/B/card/episodes.jsonl
+
+1. **A step.** Render the views (`views=`: the stand-in isometric image until `views.py` lands),
+   build the context (instruction in force, the user's place that keeps the world's frame, memory
+   = the latest first thought and the latest switch line after it), `think_then_act` for every
+   live episode of the batch, argmax (or `--sample`) per robot, `world.step` under switch_cube
+   with failures 0.10 (0.23 up and over). A switch task's second instruction comes at its step; a
+   reply in words ends the episode with no moves. 72 steps, 144 for build.
+1. **Arms.** policy; shuffled (another episode's instruction, same scene and seed: the gap says
+   whether the policy acts on the instruction); plain (the canonical sentence); oracle (the
+   canonical first thought fed on each instruction's first step); expert (the suite's expert, the
+   ceiling; it stays still on held-out compositions, which have no plan).
+1. **Splits.** test (48 per family, training templates), wording (held-out templates), held (the
+   held-out compositions of suite, objects and build), testset (the frozen Haiku test set, scenes
+   redrawn from its config and checked against each item's record).
+1. **Thought checks.** Programmatic, against `canonical_record`: the thought parses ("you asked:
+   ... first: ..."), names the first sub-goal's key facts (colours, areas, numbers, shapes, letters,
+   object names; the kind of move when there are none) and no wrong colour, and resolves the task
+   (every sub-goal's key facts in the reasoning). On 25,378 verified Haiku training labels (run-s0
+   to run-s3 and run-s0-later): parse 1.00, first 0.97, resolves 0.97; parallel is the lowest
+   (0.84: labels often end "first: split into two groups" without the jobs).
+1. **Gates.** a) on the test split, thought parse and first-sub-goal match of the policy arm at
+   0.9 or better, with the shuffled gap and the pass share of episodes with a right against a
+   wrong first thought; b) per held-out split, pass(oracle thought) / pass(plain instruction) at
+   0.9 or better.
+1. **Seeds.** Scenes from `default_rng([700001, crc32(split), crc32(family)])`, disjoint from the
+   training stores (seeds 0..7 and their (k, 7), (k, 11), (k, 13) streams), the Haiku test set
+   (900001) and the menu (4242). An episode's own seed drives its world noise, failures, action
+   sampling and views in every arm, so arms and checkpoints are paired episode by episode.
+1. **Stand-ins until ThinkData and views land.** `rollout.build_context` (for
+   `think_data.context`), `rollout.canonical_thought` (for `think_data.template_thought`) and
+   `rollout.stand_in_views` (for `views.scene_views`, `--views scene`).
 
 ## Left out, and extension points
 
