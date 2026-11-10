@@ -129,6 +129,7 @@ Refusal: context with the refusal instruction at t 0, reply
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -276,9 +277,8 @@ def joined(parts):
 def sight(summary, record):
     """What a templated thought says it sees: the swarm and terrain, then up to MAX_SEEN things
     (objects or cheeses, and zones), those the task names first."""
-    robots = summary["robots"]["count"]
     terrain = summary["terrain"]
-    swarm = f"{robots} robot{'s' if robots != 1 else ''}"
+    swarm = "the swarm"  # no count: the policy sees images, and a count cannot be read off them
     parts = []
     if terrain["layout"] == "flat floor":
         parts.append(swarm + " on a flat floor")
@@ -311,6 +311,73 @@ def template_thought(instruction, record, summary):
         meaning = f"that means: {bare(record['plain'])}"
     first = bare(subgoals[0]) if subgoals else STAY_LINE
     return f"you asked: {bare(instruction)}. i see {sight(summary, record)}. {meaning}. first: {first}.".lower()
+
+
+COORDINATE = r"\(?\b[xyz]\s*=?\s*\d+(?:\s*(?:to|-)\s*\d+)?(?:\s*,\s*[xyz]\s*=?\s*\d+(?:\s*(?:to|-)\s*\d+)?)*\)?"
+ROW_AT = re.compile(r"\b(the|a) row at ([xy])\s*=?\s*\d+")
+NEAR_COORDINATE = re.compile(r"(?:,\s*)?\s*\b(?:at|from|to|running|near|around|on|along)?\s*" + COORDINATE)
+MEASURE = re.compile(r"(?:,\s*)?\s*\b(?:at\s+)?(?:height|depth|width)\s+(\d+)\b")
+COUNT_PATTERNS = (  # (pattern, replacement, numbers it keeps) for counts a viewer cannot read off an image
+    (re.compile(r"\ba swarm of (\d+) (?:robots|bots)\b"), "the swarm", "instruction"),
+    (re.compile(r"\ball (\d+) (?:robots|bots)\b(?! (?:tall|high))"), "all the robots", "instruction"),
+    (re.compile(r"\b(\d+) (?:robots|bots)\b(?! (?:tall|high))"), "the robots", "instruction"),
+    (re.compile(r"\ball (\d+) of (us|you)\b"), r"all of \2", "task"),
+    (re.compile(r"\b(\d+) of (us|you)\b"), r"all of \2", "task"),
+    (re.compile(r"\bthe other (\d+)\b"), "the others", "task"),
+    (re.compile(r"\bthe (\d+)\b(?! (?:robots|bots|of|high|tall))"), "the robots", "task"),
+    (re.compile(r"\ball (\d+)\b(?! (?:robots|bots|of|high|tall))"), "all of them", "task"),
+    (re.compile(r"\bhalf of (\d+) is (?:about )?(\d+)"), "half of them", "task"),
+)
+
+
+def canonical_json(value):
+    return json.dumps(value, sort_keys=True)
+
+
+def numbers_in(value):
+    """The digit strings in a value (text, or a record's spec, plain and sub-goals, walked)."""
+    if isinstance(value, dict):
+        return set().union(*(numbers_in(v) for v in value.values())) if value else set()
+    if isinstance(value, (list, tuple)):
+        return set().union(*(numbers_in(v) for v in value)) if value else set()
+    if isinstance(value, bool) or value is None:
+        return set()
+    return set(re.findall(r"\d+", str(value)))
+
+
+def visible(thought, instruction, record=None):
+    """A thought cut down to what images of the scene show: robot counts, coordinates and measured
+    heights, depths and widths go (numbers the instruction or the task's record states stay, e.g. a
+    tower's height or "3 of you"); colours, kinds, sizes and coarse places are kept. The quoted
+    instruction ("you asked: ...") is left as it is. A sentence that still holds a number from
+    nowhere is dropped, or in the first or last sentence the number becomes "some"."""
+    head = f"you asked: {bare(instruction).lower()}."
+    quoted = thought.startswith(head)
+    body = thought[len(head) :] if quoted else thought
+    stated = numbers_in(instruction)
+    keep = stated | numbers_in(record or {})
+
+    def unless_kept(replacement, kept=None):
+        kept = keep if kept is None else kept
+        return lambda m: m.group(0) if any(g and g.isdigit() and g in kept for g in m.groups()) else m.expand(replacement)
+
+    body = ROW_AT.sub(lambda m: f"{m.group(1)} row running {'back to front' if m.group(2) == 'x' else 'left to right'}", body)
+    body = NEAR_COORDINATE.sub("", body)
+    body = MEASURE.sub(unless_kept(""), body)
+    for pattern, replacement, source in COUNT_PATTERNS:  # a robot count stays only when the instruction states it
+        body = pattern.sub(unless_kept(replacement, stated if source == "instruction" else keep), body)
+    sentences = [part for part in re.split(r"(?<=\.)\s+", body.strip()) if part]
+    out = []
+    for k, sentence in enumerate(sentences):
+        stray = [n for n in re.findall(r"\b\d+\b", sentence) if n not in keep]
+        if stray and 0 < k < len(sentences) - 1 and not sentence.startswith("i see"):
+            continue
+        for n in stray:
+            sentence = re.sub(rf"\b{n}\b", "some", sentence)
+        out.append(sentence)
+    body = re.sub(r"\s+([,.;:])", r"\1", " ".join(out))
+    body = re.sub(r",\s*,", ",", body).replace(" ,", ",")
+    return (head + " " + body).strip() if quoted else body
 
 
 def template_line(record, index):
@@ -458,6 +525,7 @@ class ThinkData:
             assert not H.is_test(directory), f"{directory} is the held-out test set; it never goes into training"
             self.labels.append((H.Labels(directory.name, root=directory.parent), label_options(directory)))
         self.episodes = []
+        self.rewritten = {"haiku_thoughts": 0, "haiku_changed": 0, "haiku_lines_changed": 0, "template_thoughts": 0, "template_changed": 0}
         self.events = {}
         self.templates = {}
         for k, (path, store) in enumerate(zip(self.stores, self.data)):
@@ -485,19 +553,51 @@ class ThinkData:
         for n, row in enumerate(H.read_jsonl(Path(path) / "attempts.jsonl")):
             if row["e"] < 0:
                 continue
+            entries = store["instructions"][row["e"]]
             choices, parts, refusals = [], [], []
             for labels in mine:
                 for label_row in labels.by_key.get((seed, n), []):
-                    if label_row.get("family") != row["family"]:
-                        raise ValueError(f"label {label_row.get('pair_id')} is family {label_row.get('family')} but {path} attempt {n} is {row['family']}: the (seed, index) join is broken")
+                    self.check_label(label_row, row, entries, f"{path} attempt {n}")
                 choices += labels.choices(seed, n)
                 parts = parts or labels.switch_parts(seed, n)
                 refusals += labels.refusals(seed, n)
-            if parts:
-                starts = [int(entry["t"]) for entry in store["instructions"][row["e"]]]
-                if [p["t"] for p in parts[: len(starts)]] != starts:
-                    parts = []  # the parts do not line up with the store's instruction changes
+            if parts and [p["t"] for p in parts[: len(entries)]] != [int(entry["t"]) for entry in entries]:
+                raise ValueError(f"{path} attempt {n}: the Haiku parts start at {[p['t'] for p in parts]} but the store's instructions at {[entry['t'] for entry in entries]}")
+            record = entries[0]["record"]
+            choices = [self.visibly(choice, record) for choice in choices]
+            parts = [dict(part, choices=[self.visibly(choice, entries[part["part"]]["record"]) for choice in part["choices"]]) for part in parts[: len(entries)]]
+            refusals = [self.visibly(pair, None) for pair in refusals]
             out.append(Episode(k, int(row["e"]), seed, n, row["family"], held_out(seed, n, self.held_share), choices, parts, refusals))
+        return out
+
+    @staticmethod
+    def check_label(label_row, attempt, entries, where):
+        """A label must be for the task its episode played: its family the attempt's, and (but for a
+        refusal, which is another instruction for the same scene) its kind and spec those of the
+        store's record of the instruction it labels. Raises ValueError otherwise."""
+        problem = None
+        if label_row.get("family") != attempt["family"]:
+            problem = f"family {label_row.get('family')} but the attempt is {attempt['family']}"
+        elif label_row.get("rung") != REFUSAL:
+            j = int(label_row.get("part", 0))
+            if j >= len(entries):
+                problem = f"part {j} but the episode has {len(entries)} instructions"
+            else:
+                record = entries[j]["record"]
+                if label_row.get("kind") != record["kind"] or canonical_json(label_row.get("spec")) != canonical_json(record["spec"]):
+                    problem = f"kind {label_row.get('kind')} spec {label_row.get('spec')} but the store's record is kind {record['kind']} spec {record['spec']}"
+        if problem:
+            raise ValueError(f"label {label_row.get('pair_id')} on {where}: {problem}; the (seed, index) join is broken")
+
+    def visibly(self, choice, record):
+        """A Haiku choice (or refusal pair) with its thought and lines cut to what images show
+        (visible); counts the thoughts changed."""
+        out = dict(choice, thought=visible(choice["thought"], choice["instruction"], record))
+        if "switches" in choice:
+            out["switches"] = [visible(line, choice["instruction"], record) for line in choice["switches"]]
+        self.rewritten["haiku_thoughts"] += 1
+        self.rewritten["haiku_changed"] += out["thought"] != choice["thought"]
+        self.rewritten["haiku_lines_changed"] += out.get("switches") != choice.get("switches")
         return out
 
     # -- per-episode pieces
@@ -525,7 +625,12 @@ class ThinkData:
                 record = entry["record"]
                 summary = S.scene_summary(world_at(store, [(ep.e, int(entry["t"]))]), 0)
                 switches = [template_line(record, j) for j in range(1, len(record.get("subgoals") or []))]
-                parts.append({"rung": TEMPLATE, "instruction": entry["text"], "thought": template_thought(entry["text"], record, summary), "switches": switches, "done": DONE_LINE})
+                raw = template_thought(entry["text"], record, summary)
+                thought = visible(raw, entry["text"], record)
+                self.rewritten["template_thoughts"] += 1
+                self.rewritten["template_changed"] += thought != raw
+                switches = [visible(line, entry["text"], record) for line in switches]
+                parts.append({"rung": TEMPLATE, "instruction": entry["text"], "thought": thought, "switches": switches, "done": DONE_LINE})
             self.templates[key] = parts
         return self.templates[key]
 
@@ -648,6 +753,7 @@ class ThinkData:
             row["episodes"] += 1
             row["haiku" if ep.labelled else "template"] += 1
         out["families"] = dict(sorted(families.items()))
+        out["rewritten"] = dict(self.rewritten)  # thoughts visible() changed (templates: those built so far)
         out["per_store"] = {path: sum(ep.store == k for ep in self.episodes) for k, path in enumerate(self.stores)}
         out["per_store_haiku"] = {path: sum(ep.store == k and ep.labelled for ep in self.episodes) for k, path in enumerate(self.stores)}
         return out

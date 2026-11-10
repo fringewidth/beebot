@@ -91,8 +91,12 @@ def label_dir(path, rows, seed=SEED, options=OPTIONS):
     return path
 
 
+SPECS = {r["kind"]: r["spec"] for r in (EAT_TWO, GOTO, STAY_RECORD, WALL)} | {"refuse": {"kind": "refuse"}}
+
+
 def pair(seed, index, family, kind, rung, instruction, thought, switches=(), **extra):
-    return {"rung": rung, "instruction": instruction, "thought": thought, "switches": list(switches), "done": "done.", "pair_id": f"s{seed}-{index}:{rung}", "seed": seed, "index": index, "family": family, "kind": kind, **extra}
+    """A verified label row as haiku.verify writes it (spec: the item's record spec)."""
+    return {"rung": rung, "instruction": instruction, "thought": thought, "switches": list(switches), "done": "done.", "pair_id": f"s{seed}-{index}:{rung}", "seed": seed, "index": index, "family": family, "kind": kind, "spec": SPECS[kind], **extra}
 
 
 @pytest.fixture(scope="module")
@@ -262,6 +266,13 @@ def test_the_join_refuses_a_wrong_draw_a_wrong_family_and_the_test_set(store, tm
         T.ThinkData([store], [label_dir(tmp_path / "other-draw", [good], options={**OPTIONS, "objects": 0.3})])
     with pytest.raises(ValueError, match="join is broken"):
         T.ThinkData([store], [label_dir(tmp_path / "shifted", [dict(good, index=n0 + 1)])])
+    with pytest.raises(ValueError, match="spec"):  # same family and kind, another task: the record differs
+        T.ThinkData([store], [label_dir(tmp_path / "other-spec", [dict(good, spec=dict(good["spec"], order=["blue", "red"]))])])
+    with pytest.raises(ValueError, match="kind"):
+        T.ThinkData([store], [label_dir(tmp_path / "other-kind", [dict(good, kind="eat:and")])])
+    switch_part = pair(SEED, index_of(store, 1), "switch", "stay", "close", "freeze", "you asked: freeze. first: stay where you are.", part=0, parts=2, t=0)
+    with pytest.raises(ValueError, match="spec"):  # part 0 of that episode is the goto, not the stay
+        T.ThinkData([store], [label_dir(tmp_path / "wrong-part", [switch_part])])
     data = T.ThinkData([store], [label_dir(tmp_path / "other-seed", [dict(good, seed=SEED + 1)], seed=SEED + 1)])
     assert not any(ep.labelled for ep in data.episodes)  # labels of another seed join nothing
     with pytest.raises(AssertionError, match="test set"):
@@ -347,10 +358,30 @@ def test_template_thought_names_what_the_task_names_first_and_reads_terrain():
     }
     rec = record("logic", "eat:single", "eat the orange cheese", {"kind": "eat", "eat": ["orange"], "any_of": [], "order": []}, ["eat the orange cheese"])
     thought = T.template_thought("Eat the orange cheese!", rec, summary)
-    assert thought == "you asked: eat the orange cheese. i see 12 robots, a trench running left to right between two plateaus, an orange cheese on a plateau at the back left and a white cheese in the center. that means: eat the orange cheese. first: eat the orange cheese."
+    assert thought == "you asked: eat the orange cheese. i see the swarm, a trench running left to right between two plateaus, an orange cheese on a plateau at the back left and a white cheese in the center. that means: eat the orange cheese. first: eat the orange cheese."
     many = dict(summary, terrain={"layout": "flat floor"}, cheeses=[{"colour": c, "area": "left", "on": "floor"} for c in ("red", "blue", "green", "white", "cyan", "purple")])
     assert T.sight(many, rec).endswith("and 2 more things")
     assert T.template_line(EAT_TWO, 1) == "eat the blue cheese next."
+
+
+def test_visible_drops_counts_and_coordinates_but_keeps_what_the_task_states():
+    tower = record("construction", "tower", "build a tower 4 robots tall", {"kind": "tower", "height": 4}, ["build a tower 4 robots tall"])
+    assert T.visible("you asked: make a 4-robot tower. i see 47 robots and no towers yet. first: build a tower 4 robots tall.", "make a 4-robot tower", tower) == "you asked: make a 4-robot tower. i see the robots and no towers yet. first: build a tower 4 robots tall."
+    blocks = record("blocks", "line_blocks", "line the blocks up", {"kind": "line_blocks", "axis": "x"}, ["push the red block into the row at x = 7"])
+    assert T.visible("you asked: line the blocks up. i see a red block at x 3. first: push the red block into the row at x = 7.", "line the blocks up", blocks) == "you asked: line the blocks up. i see a red block. first: push the red block into the row running back to front."
+    subset = record("subset", "climb@count", "4 of you: climb", {"kind": "climb", "who": "count", "count": 4}, ["4 of you: climb"])
+    assert T.visible("you asked: four of you climb. i see 30 robots and a plateau. the other 26 hold. first: 4 of you: climb.", "four of you climb", subset) == "you asked: four of you climb. i see the robots and a plateau. the others hold. first: 4 of you: climb."
+    assert T.visible("you asked: all 24 of you hold. i see 24 robots. first: hold still.", "all 24 of you hold", None) == "you asked: all 24 of you hold. i see 24 robots. first: hold still."  # the instruction states it
+    crowds = T.visible("you asked: the right group moves. i see three crowds: 15 at the front left, 9 on the right. the 9 move, depth 4. first: the right group moves.", "the right group moves", None)
+    assert not re.search(r"\d", crowds) and crowds.endswith("first: the right group moves.")
+    assert T.visible("i see 54 robots on a flat floor. first: form a wall.", "form a wall") == "i see the robots on a flat floor. first: form a wall."  # no quote
+
+
+def test_template_thoughts_state_no_robot_count(data):
+    for ep in data.episodes:
+        for part in data.template_parts(ep):
+            assert "i see the swarm" in part["thought"] and not re.search(r"\d+ robots", part["thought"])
+    assert data.counts()["rewritten"]["template_thoughts"] > 0
 
 
 @pytest.fixture(scope="module")
@@ -364,7 +395,7 @@ def real_store(tmp_path_factory):
 def test_a_real_store_gives_an_example_at_every_step_of_every_episode(real_store):
     data = T.ThinkData([real_store], [], held_share=0.0)
     assert data.episodes and all(not ep.labelled for ep in data.episodes)
-    pattern = re.compile(r"you asked: .+\. i see \d+ robots?[ ,].*\. (that means: .+|nothing here matches it, so there is nothing to do)\. first: .+\.")
+    pattern = re.compile(r"you asked: .+\. i see the swarm[ ,].*\. (that means: .+|nothing here matches it, so there is nothing to do)\. first: .+\.")
     for ep in data.episodes:
         parts = data.labelling(ep, np.random.default_rng(0))
         assert len(parts) == len(data.instructions(ep))
