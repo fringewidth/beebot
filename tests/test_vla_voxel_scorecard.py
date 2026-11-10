@@ -174,3 +174,23 @@ def test_stats():
     r, se = C.ratio_se([1, 1, 0, 1], [1, 1, 1, 1])
     assert r == 0.75 and se > 0
     assert C.macro([{"x": 0.2, "x_se": 0.1}, {"x": 0.4, "x_se": 0.1}], "x") == pytest.approx((0.3, np.sqrt(0.02) / 2))
+
+
+def test_command_writes_ops_lines(tmp_path):
+    """The command (expert and still arms, two repeats) writes the episode rows, the card and the
+    live lines ops follows: rollout_success per group and per arm, scorecard3d_mean, scorecard3d_noise."""
+    import json
+
+    card_log, rollout_log = tmp_path / "card.jsonl", tmp_path / "rollout.jsonl"
+    summary = C.main(["--arms", "expert,still", "--splits", "test", "--families", "motion,logic", "--per-family", "3", "--steps", "3", "--repeats", "2", "--out", str(tmp_path / "out"), "--log", str(card_log), "--rollout-log", str(rollout_log)])
+    rollout = [json.loads(line) for line in rollout_log.read_text().splitlines()]
+    card = [json.loads(line) for line in card_log.read_text().splitlines()]
+    assert {(r["arm"], r["family"]) for r in rollout} >= {("expert", "motion"), ("still", "logic"), ("expert", "all")}
+    assert all({"rollout_success", "n", "run", "time"} <= set(r) for r in rollout)
+    means = [r for r in card if "scorecard3d_mean" in r and "scorecard3d_noise" not in r]
+    noise = [r for r in card if "scorecard3d_noise" in r]
+    assert len(means) == 4 and {r["repeat"] for r in means} == {0, 1}
+    assert {(r["arm"], r["noise_from"], r["repeats"]) for r in noise} == {("expert", "repeats", 2), ("still", "repeats", 2)}
+    rows = [json.loads(line) for line in (tmp_path / "out" / "episodes.jsonl").read_text().splitlines()]
+    assert "summary" in rows[-1] and len(rows) == 1 + 2 * 2 * 2 * 3 and summary["repeats"] == rows[-1]["summary"]["repeats"]
+    assert (tmp_path / "out" / "card.md").exists()

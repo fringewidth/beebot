@@ -70,6 +70,19 @@ from 900_001 and the verifier's menu from 4_242. An episode's seed (its world no
 action sampling, views) is sha256("700001/<split>/<family>/<i>"), the same in every arm, so arms
 and checkpoints are compared on the same episodes (compare).
 
+Live numbers for ops (JSON lines appended while it runs, each with "run" (the --out directory's
+name) and "time"):
+  --rollout-log (logs/think_act_loop.jsonl): after every (arm, split, family) group
+            {"arm", "rollout_success" (pass share), "n", "split", "family", "repeat"}, and when an
+            arm finishes a repeat, per split, the macro over families with "family": "all" and its
+            "se"; arm names model (policy), oracle_thought (oracle), expert, plain, shuffled, still
+  --log (logs/scorecard3d.jsonl): when an arm finishes a repeat, per split {"arm", "split",
+            "scorecard3d_mean" (macro score), "scorecard3d_se"}; at the end per (arm, split)
+            {"scorecard3d_noise", "noise_from", "repeats", "scorecard3d_mean"}: the standard
+            deviation of the scorecard mean across --repeats cards (seeds SEED + r: fresh scenes
+            and episode seeds; the test set's scenes are fixed, only its episode seeds change), or
+            with one card its macro standard error, which estimates the same spread. A re-run with
+            the same seed repeats the card exactly, so the noise is over scenes and seeds.
 Output (--out DIR): episodes.jsonl (one JSON line per episode and arm, as it finishes, then one
 line {"summary": ...}), card.md (the tables). Ranking two checkpoints: `compare` pairs their
 episodes by (split, family, i, arm) and gives each difference with its paired standard error.
@@ -269,12 +282,12 @@ def thought_checks(episode, played):
 # Episodes
 
 
-def scene_rng(split, family):
-    return np.random.default_rng([SEED, zlib.crc32(split.encode()), zlib.crc32(family.encode())])
+def scene_rng(split, family, seed=SEED):
+    return np.random.default_rng([seed, zlib.crc32(split.encode()), zlib.crc32(family.encode())])
 
 
-def episode_seed(split, family, i):
-    return int.from_bytes(hashlib.sha256(f"{SEED}/{split}/{family}/{i}".encode()).digest()[:4], "big") >> 1
+def episode_seed(split, family, i, seed=SEED):
+    return int.from_bytes(hashlib.sha256(f"{seed}/{split}/{family}/{i}".encode()).digest()[:4], "big") >> 1
 
 
 TRIES = 20  # scenes tried per robot count before another count is drawn (suite_tasks)
@@ -302,12 +315,12 @@ def suite_tasks(rng, n, split, family, robots, counts):
     return S.VoxelWorld(*(torch.cat([getattr(w, f) for w in worlds]) for f in fields)), metas, out
 
 
-def draw(split, family, n):
+def draw(split, family, n, seed=SEED):
     """(world, metas, tasks) of n scenes of a family on a split ("test", "wording" or a held-out key)."""
     from beebot.vla.voxel import build as B
     from beebot.vla.voxel import objects as O
 
-    rng = scene_rng(split, family)
+    rng = scene_rng(split, family, seed)
     common = {"robots": S.ROBOTS, "counts": "log"}
     if family in S.FAMILIES:
         drawn = suite_tasks(rng, n, split, family, **common)
@@ -328,23 +341,27 @@ def starts_of(task):
     return [int(t) for t in task.spec["steps"]] if task.parts else [0]
 
 
-def make_episode(world, meta, task, texts, split, family, i, extra=None):
-    return R.Episode(world, meta, task, list(texts), starts_of(task), [S.canonical_record(p) for p in parts_of(task)], R.episode_steps(task), episode_seed(split, family, i), key={"split": split, "family": family, "i": i, **(extra or {})})
+def make_episode(world, meta, task, texts, split, family, i, extra=None, seed=SEED):
+    key = {"split": split, "family": family, "i": i, **(extra or {})}
+    if seed != SEED:
+        key["repeat"] = seed - SEED
+    return R.Episode(world, meta, task, list(texts), starts_of(task), [S.canonical_record(p) for p in parts_of(task)], R.episode_steps(task), episode_seed(split, family, i, seed), key=key)
 
 
-def drawn_episodes(split, family, n, name=None):
+def drawn_episodes(split, family, n, name=None, seed=SEED):
     """Episodes of a drawn split, each with its task's own instruction(s)."""
-    world, metas, tasks = draw(split, family, n)
+    world, metas, tasks = draw(split, family, n, seed)
     name = name or split
-    return [make_episode(world.index(i), metas[i], task, [p.text for p in parts_of(task)], name, family, i) for i, task in enumerate(tasks)]
+    return [make_episode(world.index(i), metas[i], task, [p.text for p in parts_of(task)], name, family, i, seed=seed) for i, task in enumerate(tasks)]
 
 
 SWITCH_CUT = re.compile(r"\s*;\s*then,?\s*(?:on|upon)\s+(?:a|the)\s+new\s+instruction\s*[:,]?\s*", re.IGNORECASE)
 
 
-def testset_episodes(directory=TESTSET, per_family=None, families=FAMILIES):
+def testset_episodes(directory=TESTSET, per_family=None, families=FAMILIES, seed=SEED):
     """(episodes, counts): one episode per verified test-set instruction, its scene redrawn from the
-    test set's draw options (demos.draws) and checked against the item's record."""
+    test set's draw options (demos.draws) and checked against the item's record. The scenes are the
+    test set's own; seed sets only the episodes' seeds (world noise, failures, sampling)."""
     from beebot.vla.voxel import demos as D
 
     directory = Path(directory)
@@ -382,7 +399,7 @@ def testset_episodes(directory=TESTSET, per_family=None, families=FAMILIES):
     episodes = []
     for family, rows in by_family.items():
         for i, (world, meta, task, texts, pair) in enumerate(rows):
-            episodes.append(make_episode(world, meta, task, texts, "testset", family, i, {"pair_id": pair["pair_id"], "rung": pair["rung"]}))
+            episodes.append(make_episode(world, meta, task, texts, "testset", family, i, {"pair_id": pair["pair_id"], "rung": pair["rung"]}, seed))
     counts["episodes"] = len(episodes)
     return episodes, counts
 
@@ -625,7 +642,7 @@ def compare(path_a, path_b):
     arm), macro over families with standard errors, and the per-family differences."""
 
     def rows_of(path):
-        return {(r["split"], r["family"], r["i"], r["arm"]): r for r in (json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()) if "summary" not in r}
+        return {(r["split"], r["family"], r["i"], r["arm"], r.get("repeat", 0)): r for r in (json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()) if "summary" not in r}
 
     a, b = rows_of(path_a), rows_of(path_b)
     common = sorted(set(a) & set(b))
@@ -718,25 +735,80 @@ def views_of(name):
 
 
 # ---------------------------------------------------------------------------------------------
+# Live numbers for ops (JSON lines, appended while the card runs)
+
+OPS_ARMS = {"policy": "model", "oracle": "oracle_thought"}  # rollout_success's arm names; the others keep theirs
+SCORECARD_LOG = Path("logs/scorecard3d.jsonl")
+ROLLOUT_LOG = Path("logs/think_act_loop.jsonl")
+
+
+class OpsLog:
+    """Appends JSON lines, each with the run's name and the time, to a log file."""
+
+    def __init__(self, path, run):
+        self.path, self.run = Path(path), run
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def __call__(self, row):
+        with open(self.path, "a") as f:
+            f.write(json.dumps({**row, "run": self.run, "time": time.strftime("%Y-%m-%dT%H:%M:%S%z")}) + "\n")
+
+
+def arm_lines(arm, rows, repeat):
+    """When an arm has finished its episodes of one repeat: per split, its rollout_success (macro
+    pass share over families) and its scorecard3d_mean (macro score) with the standard error."""
+    by_split = {}
+    for r in rows:
+        by_split.setdefault(r["split"], {}).setdefault(r["family"], []).append(r)
+    rollout, card_lines = [], []
+    for split, families in sorted(by_split.items()):
+        entries = []
+        for these in families.values():
+            entry = {}
+            entry["score"], entry["score_se"] = mean_se([r["score"] for r in these])
+            entry["pass"], entry["pass_se"] = mean_se([float(r["passed"]) for r in these])
+            entries.append(entry)
+        n = sum(len(v) for v in families.values())
+        success, success_se = macro(entries, "pass")
+        value, se = macro(entries, "score")
+        rollout.append({"arm": OPS_ARMS.get(arm, arm), "rollout_success": round(success, 4), "se": round(success_se, 4), "n": n, "split": split, "family": "all", "repeat": repeat})
+        card_lines.append({"arm": arm, "split": split, "scorecard3d_mean": round(value, 4), "scorecard3d_se": round(se, 4), "families": len(entries), "n": n, "repeat": repeat})
+    return rollout, card_lines
+
+
+def noise_lines(means, standard_errors):
+    """scorecard3d_noise per (arm, split): the standard deviation of the scorecard mean over the
+    repeats (fresh scenes and seeds each) when there are two or more, else the macro standard error
+    of the one card, which estimates the same spread."""
+    out = []
+    for key, values in sorted(means.items()):
+        arm, split = key
+        repeated = len(values) >= 2
+        noise = float(np.std(values, ddof=1)) if repeated else standard_errors[key][0]
+        out.append({"arm": arm, "split": split, "scorecard3d_noise": round(noise, 4), "noise_from": "repeats" if repeated else "standard_error", "repeats": len(values), "scorecard3d_mean": round(float(np.mean(values)), 4), "standard_error": round(float(np.mean(standard_errors[key])), 4)})
+    return out
+
+
+# ---------------------------------------------------------------------------------------------
 # The command
 
 
-def base_episodes(args, log=print):
-    """{(split, family): base episodes} of the chosen splits and families."""
+def base_episodes(args, log=print, seed=SEED):
+    """{(split, family): base episodes} of the chosen splits and families, scenes from seed."""
     out = {}
     families = [f for f in FAMILIES if f in args.families]
     if "test" in args.splits:
         for family in families:
-            out[("test", family)] = drawn_episodes("test", family, args.per_family)
+            out[("test", family)] = drawn_episodes("test", family, args.per_family, seed=seed)
     if "wording" in args.splits:
         for family in families:
-            out[("wording", family)] = drawn_episodes("wording", family, args.per_held)
+            out[("wording", family)] = drawn_episodes("wording", family, args.per_held, seed=seed)
     if "held" in args.splits:
         for key, family in held_splits():
             if family in families:
-                out[(f"held:{key}", family)] = drawn_episodes(key, family, args.per_held, name=f"held:{key}")
+                out[(f"held:{key}", family)] = drawn_episodes(key, family, args.per_held, name=f"held:{key}", seed=seed)
     if "testset" in args.splits:
-        episodes, counts = testset_episodes(args.testset, args.testset_per_family, families)
+        episodes, counts = testset_episodes(args.testset, args.testset_per_family, families, seed)
         log(json.dumps({"testset": counts}))
         for e in episodes:
             out.setdefault(("testset", e.key["family"]), []).append(e)
@@ -776,6 +848,9 @@ def card(argv):
     parser.add_argument("--views", choices=("stand_in", "scene"), default="stand_in")
     parser.add_argument("--threads", type=int, default=None)
     parser.add_argument("--steps", type=int, default=None, help="cap every episode at this many steps (smoke runs; the card then differs from the default one)")
+    parser.add_argument("--repeats", type=int, default=1, help="whole cards on fresh scenes and seeds (seed SEED + r); two or more measure scorecard3d_noise directly")
+    parser.add_argument("--log", default=str(SCORECARD_LOG), help="scorecard3d_mean and scorecard3d_noise lines are appended here")
+    parser.add_argument("--rollout-log", default=str(ROLLOUT_LOG), help="rollout_success lines are appended here")
     args = parser.parse_args(argv)
     args.arms = [a for a in args.arms.split(",") if a]
     args.splits = [s for s in args.splits.split(",") if s]
@@ -790,27 +865,47 @@ def card(argv):
     policy = load_model(args) if needs_model else None
     views = views_of(args.views)
     t0 = time.time()
-    groups = base_episodes(args)
-    if args.steps:
-        groups = {key: [replace(e, steps=min(e.steps, args.steps)) for e in episodes] for key, episodes in groups.items()}
-    print(json.dumps({"drawn": {f"{s}/{f}": len(v) for (s, f), v in groups.items()}, "seconds": round(time.time() - t0, 1)}), flush=True)
+    card_log, rollout_log = OpsLog(args.log, out.name), OpsLog(args.rollout_log, out.name)
     rows = []
+    means, errors = {}, {}
     with open(out / "episodes.jsonl", "w") as sink:
 
         def emit(row):
             sink.write(json.dumps(row) + "\n")
             sink.flush()
 
-        for arm in args.arms:
-            for (split, family), episodes in groups.items():
-                group = "held" if split.startswith("held:") else split
-                if group not in ARM_SPLITS[arm]:
-                    continue
-                t1 = time.time()
-                done = run_arm(arm, arm_episodes(arm, episodes), policy, args.batch, args.expert_batch, views, args.sample, args.max_new_tokens, emit)
-                rows += done
-                print(json.dumps({"arm": arm, "split": split, "family": family, "n": len(done), "score": round(float(np.mean([r["score"] for r in done])), 3), "pass": round(float(np.mean([r["passed"] for r in done])), 3), "seconds": round(time.time() - t1, 1)}), flush=True)
-        summary = summarize(rows)
+        for repeat in range(args.repeats):
+            groups = base_episodes(args, seed=SEED + repeat)
+            if args.steps:
+                groups = {key: [replace(e, steps=min(e.steps, args.steps)) for e in episodes] for key, episodes in groups.items()}
+            print(json.dumps({"repeat": repeat, "drawn": {f"{s}/{f}": len(v) for (s, f), v in groups.items()}, "seconds": round(time.time() - t0, 1)}), flush=True)
+            for arm in args.arms:
+                arm_rows = []
+                for (split, family), episodes in groups.items():
+                    group = "held" if split.startswith("held:") else split
+                    if group not in ARM_SPLITS[arm]:
+                        continue
+                    t1 = time.time()
+                    done = run_arm(arm, arm_episodes(arm, episodes), policy, args.batch, args.expert_batch, views, args.sample, args.max_new_tokens, emit)
+                    for r in done:
+                        r["repeat"] = repeat
+                    arm_rows += done
+                    success = float(np.mean([r["passed"] for r in done]))
+                    rollout_log({"arm": OPS_ARMS.get(arm, arm), "rollout_success": round(success, 4), "n": len(done), "split": split, "family": family, "repeat": repeat})
+                    print(json.dumps({"repeat": repeat, "arm": arm, "split": split, "family": family, "n": len(done), "score": round(float(np.mean([r["score"] for r in done])), 3), "pass": round(success, 3), "seconds": round(time.time() - t1, 1)}), flush=True)
+                rollout_lines, card_lines = arm_lines(arm, arm_rows, repeat)
+                for line in rollout_lines:
+                    rollout_log(line)
+                for line in card_lines:
+                    card_log(line)
+                    means.setdefault((arm, line["split"]), []).append(line["scorecard3d_mean"])
+                    errors.setdefault((arm, line["split"]), []).append(line["scorecard3d_se"])
+                rows += arm_rows
+        for line in noise_lines(means, errors):
+            card_log(line)
+            print(json.dumps(line), flush=True)
+        summary = summarize([r for r in rows if r["repeat"] == 0])
+        summary["repeats"] = noise_lines(means, errors)
         config = {k: v for k, v in vars(args).items()}
         config.update(seed=SEED, rule=R.RULE, failure=R.FAILURE.tolist(), steps=R.STEPS, build_steps=R.BUILD_STEPS, seconds=round(time.time() - t0, 1))
         sink.write(json.dumps({"summary": {**summary, "config": config}}) + "\n")
