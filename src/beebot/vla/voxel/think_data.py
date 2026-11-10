@@ -746,10 +746,15 @@ class ThinkData:
         self.rewritten = {"haiku_thoughts": 0, "haiku_changed": 0, "haiku_lines_changed": 0, "template_thoughts": 0, "template_changed": 0}
         self.events = {}
         self.templates = {}
+        self.joined = set()  # the label directories that joined at least one store
+        self.seed_only = set()  # those that met a store of their seed drawn with other options
         for k, (path, store) in enumerate(zip(self.stores, self.data)):
             if "instructions" not in store:
                 raise ValueError(f"{path} has no per-step instructions (small.pt 'instructions'); rewrite it with the current demos.py")
             self.episodes += self.join(k, path, store)
+        unjoined = [f"{labels.directory} (drawn with {options})" for labels, options, _ in self.labels if labels.directory in self.seed_only - self.joined]
+        if unjoined:
+            raise ValueError(f"no store was drawn with the seed and options of {unjoined}: the (seed, index) join would be wrong")
         self.train = [ep for ep in self.episodes if not ep.held]
         self.held = [ep for ep in self.episodes if ep.held]
         self.train_pool, self.held_pool = Pool(self.train), Pool(self.held)
@@ -763,9 +768,12 @@ class ThinkData:
         for labels, options, items in self.labels:
             if options.get("seed", seed) != seed:
                 continue
-            for key in OPTION_KEYS:
-                if key in options and key in config and options[key] != config[key]:
-                    raise ValueError(f"{labels.directory} was drawn with {key}={options[key]} but {path} with {config[key]}: the (seed, index) join would be wrong")
+            # a label directory joins only the stores drawn with the same options (e.g. the build-only
+            # stores and labels share seeds with the mixed ones); one that meets stores of its seed but joins none of them raises in __init__ (labels of a seed with no store join nothing)
+            if any(key in options and key in config and options[key] != config[key] for key in OPTION_KEYS):
+                self.seed_only.add(labels.directory)
+                continue
+            self.joined.add(labels.directory)
             mine.append((labels, items))
         out = []
         for n, row in enumerate(H.read_jsonl(Path(path) / "attempts.jsonl")):
