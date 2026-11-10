@@ -34,7 +34,7 @@ import torch
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel.controller import direction_code
 from beebot.vla.voxel.facts import tallest_run
-from beebot.vla.voxel.world import BOX, CHAIN_DEPTH, COLOUR_NAMES, EAT_MIN_SHARE, EAT_SHARE, FRICTION, HEAVY_FRICTION, PATTERNS, RIM_OFFSETS, _rim, _shift, cheese_id_map, concat, sample_object_scenes, shell_mask
+from beebot.vla.voxel.world import BOX, CHAIN_DEPTH, COLOUR_NAMES, EAT_MIN_SHARE, EAT_SHARE, FRICTION, HEAVY_FRICTION, PATTERNS, RIM_OFFSETS, cheese_id_map, concat, sample_object_scenes, shell_mask
 
 SIZE = S.SIZE
 OBJECT_FAMILIES = ("things", "blocks", "zones", "reasoning")
@@ -389,9 +389,9 @@ def lead_clear(thing, solid, axis, sign):
 
 def team_cells(thing, solid, axis, sign, cap=PRESS_TEAM):
     """The voxels a pushing team stands in, at most `cap`: the face voxels behind the thing and up
-    to CHAIN_DEPTH more in line behind each, the low ones and the near ones first (rank: height
-    above the thing's base plus depth), so a team fills from the ground and every robot has the
-    one it pushes through in front of it."""
+    to CHAIN_DEPTH more in line behind each, the low ones and the near ones first (rank: twice the
+    height above the thing's base, since climbing costs pivots, plus depth), so a team fills from
+    the ground and every robot has the one it pushes through in front of it."""
     face, _ = faces(thing, solid, axis, sign)
     base = thing["pos"][0]
     ranked = []
@@ -400,7 +400,7 @@ def team_cells(thing, solid, axis, sign, cap=PRESS_TEAM):
             cell = (z, y - sign * depth if axis == 1 else y, x - sign * depth if axis == 2 else x)
             if not (0 <= cell[1] < SIZE and 0 <= cell[2] < SIZE) or solid[cell]:
                 break
-            ranked.append((z - base + depth, depth, cell))
+            ranked.append((2 * (z - base) + depth, depth, cell))
     ranked.sort()
     return [cell for _, _, cell in ranked[:cap]]
 
@@ -471,8 +471,8 @@ def job_value(spec, static, start, end):
     if kind == "line_blocks":
         blocks = [t for t in things_at(static, end) if t["noun"] == "block"]
         axis = 1 if spec["axis"] == "x" else 2  # a row from left to right shares a y row
-        lines = range(SIZE)
-        return max(sum(bool((t["cells"][:, axis - 1] == c).any()) for t in blocks) for c in lines) / max(len(blocks), 1)
+        aligned = max(sum(bool((t["cells"][:, axis - 1] == c).any()) for t in blocks) for c in range(SIZE))
+        return (aligned - 1) / max(len(blocks) - 1, 1)  # one block is always on some row
     if kind == "goto_zone":
         y0, y1, x0, x1 = zone_of(meta["props"]["zones"], spec["zone"])["box"]
         cells = np.argwhere(mass)
@@ -515,8 +515,9 @@ def score(task, static, start, end, eaten):
 
 def bound(task, world, i, n=None):
     """An upper bound on the score a swarm of n robots (default: scene i's) can reach: eating
-    takes eat_need robots, surrounding half the open shell, pushing the object's friction in
-    robots (finding the heavy one six), a tower 4 robots a level, m groups 2 m robots."""
+    takes eat_need robots, surrounding the 0.6 of the open shell the expert fills, pushing a light
+    object FRICTION robots and a heavy one a full team (team_need), a tower 4 robots a level, m
+    groups 2 m robots. Part of the draw (sample_objects keeps tasks that reach the pass mark)."""
     spec = task.spec
     n = int(world.mass[i].sum()) if n is None else n
     kind = spec["kind"]
@@ -729,13 +730,20 @@ class ObjectExpert(S.Expert):
             if thing is not None:
                 axis = int(np.nonzero(direction)[0][0])
                 side = 3 - axis  # the other floor axis
+                solid = self.solid(world, i, k) | (cheese_id_map(world.index(i))[0].numpy() == k)
                 _, ahead = faces(thing, self.solid(world, i, k), axis, direction[axis])
                 way = {tuple(c[a] + direction[a] * j for a in range(3)) for c in ahead for j in range(PATH)}
                 for cell in way:
                     if all(0 <= v < SIZE for v in cell) and bool(occupied[i][cell]):
-                        step = [0, 0, 0]
-                        step[side] = 1 if cell[side] + 0.5 >= thing["centre"][side - 1] else -1
-                        codes[i][cell] = int(direction_code(torch.tensor(step)))
+                        away = 1 if cell[side] + 0.5 >= thing["centre"][side - 1] else -1
+                        for step in ([0, 0, 0], [0, 0, 0], list(direction), [1, 0, 0]):  # aside, aside the other way, ahead, up: the first free one
+                            if not any(step):
+                                step[side] = away
+                                away = -away
+                            there = tuple(c + s for c, s in zip(cell, step))
+                            if all(0 <= v < SIZE for v in there) and not solid[there] and not bool(occupied[i][there]):
+                                codes[i][cell] = int(direction_code(torch.tensor(step)))
+                                break
             cells = torch.tensor(pts).long()
             mine = occupied[i, cells[:, 0], cells[:, 1], cells[:, 2]]
             if self.frozen[i] is not None:
@@ -962,7 +970,7 @@ def make_blocks(rng, held, kind=None):
 
     needs = {"objects": (2, 5), "food": 0.3, "zones": (0, 1), **ground}
     if job == "line":
-        needs.update(objects=(2, 4), food=0.1, layout="flat")
+        needs.update(objects=(2, 3), food=0.0, layout="flat")
     if job == "heavy":
         needs.update(objects=(2, 4), food=0.2)
     return needs, make

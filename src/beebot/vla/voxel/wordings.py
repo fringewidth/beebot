@@ -636,13 +636,17 @@ def slot_expressions():
 
 def held_out_sets():
     """What is fixed as held out before any training, by kind: words per slot value, languages,
-    categories, frames, templates per intent, and the suite's own held-out items and compositions."""
+    categories, frames, templates per intent, the suite's own held-out items and compositions, and
+    those of the object families (objects.HELD_OUT)."""
+    from beebot.vla.voxel import objects as O
+
     sides = slot_expressions()
     words = {}
     for kind, value, text in sides["held_out"]:
         if kind != "category":
             words.setdefault(kind, {}).setdefault(str(value), []).append(text)
     return {
+        "objects": {key: [list(v) if isinstance(v, tuple) else v for v in value] for key, value in O.HELD_OUT.items()},
         "words": words,
         "languages": LANGUAGES["held_out"],
         "categories": {cat["name"]: cat["set"] for cat in CATEGORIES if cat["split"] == "held_out"},
