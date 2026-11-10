@@ -1,0 +1,1064 @@
+{
+ "stool": {
+  "category": "furniture",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   8,
+   17,
+   28
+  ],
+  "min_robots": 8
+ },
+ "chair": {
+  "category": "furniture",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   18,
+   28,
+   44
+  ],
+  "min_robots": 14
+ },
+ "throne": {
+  "category": "furniture",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   32,
+   46,
+   60
+  ],
+  "min_robots": 29
+ },
+ "table": {
+  "category": "furniture",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.90625,
+  "buildable": 0.90625,
+  "climbable": 0.84375,
+  "sizes": [
+   20,
+   46,
+   75
+  ],
+  "min_robots": 21
+ },
+ "bench": {
+  "category": "furniture",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.9375,
+  "sizes": [
+   12,
+   24,
+   64
+  ],
+  "min_robots": 12
+ },
+ "sofa": {
+  "category": "furniture",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   32,
+   52,
+   76
+  ],
+  "min_robots": 32
+ },
+ "bed": {
+  "category": "furniture",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.9375,
+  "sizes": [
+   22,
+   40,
+   56
+  ],
+  "min_robots": 24
+ },
+ "shelf": {
+  "category": "furniture",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 0.59375,
+  "climbable": 0.59375,
+  "sizes": [
+   12,
+   28,
+   52
+  ],
+  "min_robots": 10
+ },
+ "arch": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.46875,
+  "sizes": [
+   6,
+   12,
+   20
+  ],
+  "min_robots": 5
+ },
+ "bridge": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.6875,
+  "buildable": 0.6875,
+  "climbable": 0.09375,
+  "sizes": [
+   9,
+   36,
+   49
+  ],
+  "min_robots": 9
+ },
+ "gate": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.25,
+  "sizes": [
+   11,
+   12,
+   15
+  ],
+  "min_robots": 10
+ },
+ "wall with a door": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   11,
+   23,
+   41
+  ],
+  "min_robots": 13
+ },
+ "fence": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   11,
+   16,
+   29
+  ],
+  "min_robots": 11
+ },
+ "castle tower": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   28,
+   56,
+   120
+  ],
+  "min_robots": 28
+ },
+ "staircase": {
+  "category": "structure",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   6,
+   19,
+   63
+  ],
+  "min_robots": 6
+ },
+ "pyramid": {
+  "category": "structure",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   10,
+   35,
+   56
+  ],
+  "min_robots": 10
+ },
+ "ladder": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   10,
+   18,
+   24
+  ],
+  "min_robots": 10
+ },
+ "obelisk": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   14,
+   44,
+   107
+  ],
+  "min_robots": 14
+ },
+ "podium": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   6,
+   18,
+   54
+  ],
+  "min_robots": 6
+ },
+ "slide": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   8,
+   19,
+   42
+  ],
+  "min_robots": 8
+ },
+ "lamp post": {
+  "category": "structure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.75,
+  "buildable": 0.75,
+  "climbable": 0.375,
+  "sizes": [
+   6,
+   7,
+   8
+  ],
+  "min_robots": 6
+ },
+ "house": {
+  "category": "building",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   58,
+   98,
+   156
+  ],
+  "min_robots": 48
+ },
+ "hut": {
+  "category": "building",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   25,
+   60,
+   84
+  ],
+  "min_robots": 25
+ },
+ "doghouse": {
+  "category": "building",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   28,
+   38,
+   48
+  ],
+  "min_robots": 28
+ },
+ "igloo": {
+  "category": "building",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   16,
+   40,
+   83
+  ],
+  "min_robots": 16
+ },
+ "tent": {
+  "category": "building",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   24,
+   48,
+   84
+  ],
+  "min_robots": 24
+ },
+ "lighthouse": {
+  "category": "building",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "car": {
+  "category": "vehicle",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.90625,
+  "sizes": [
+   16,
+   22,
+   34
+  ],
+  "min_robots": 16
+ },
+ "truck": {
+  "category": "vehicle",
+  "held_out": true,
+  "draws": 32,
+  "stand": 0.875,
+  "buildable": 0.875,
+  "climbable": 0.625,
+  "sizes": [
+   38,
+   53,
+   81
+  ],
+  "min_robots": 38
+ },
+ "train": {
+  "category": "vehicle",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   11,
+   22,
+   42
+  ],
+  "min_robots": 11
+ },
+ "plane": {
+  "category": "vehicle",
+  "held_out": true,
+  "draws": 32,
+  "stand": 0.4375,
+  "buildable": 0.4375,
+  "climbable": 0.375,
+  "sizes": [
+   12,
+   16,
+   20
+  ],
+  "min_robots": 12
+ },
+ "boat": {
+  "category": "vehicle",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   34,
+   50,
+   65
+  ],
+  "min_robots": 32
+ },
+ "rocket": {
+  "category": "vehicle",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   13,
+   54,
+   90
+  ],
+  "min_robots": 13
+ },
+ "cup": {
+  "category": "container",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   17,
+   41,
+   73
+  ],
+  "min_robots": 17
+ },
+ "pot": {
+  "category": "container",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   20,
+   33,
+   80
+  ],
+  "min_robots": 20
+ },
+ "crate": {
+  "category": "container",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   17,
+   46,
+   96
+  ],
+  "min_robots": 17
+ },
+ "tree": {
+  "category": "plant",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "pine tree": {
+  "category": "plant",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "cactus": {
+  "category": "plant",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   4,
+   10,
+   13
+  ],
+  "min_robots": 6
+ },
+ "mushroom": {
+  "category": "plant",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "cross": {
+  "category": "symbol",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   6,
+   9,
+   13
+  ],
+  "min_robots": 6
+ },
+ "standing ring": {
+  "category": "symbol",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.5625,
+  "sizes": [
+   8,
+   15,
+   32
+  ],
+  "min_robots": 8
+ },
+ "snowman": {
+  "category": "figure",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   61,
+   62,
+   62
+  ],
+  "min_robots": 61
+ },
+ "dog": {
+  "category": "animal",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   17,
+   20,
+   25
+  ],
+  "min_robots": 17
+ },
+ "giraffe": {
+  "category": "animal",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   23,
+   25,
+   27
+  ],
+  "min_robots": 23
+ },
+ "letter A": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   20,
+   20,
+   40
+  ],
+  "min_robots": 20
+ },
+ "letter B": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   24,
+   24,
+   48
+  ],
+  "min_robots": 24
+ },
+ "letter C": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "letter D": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   20,
+   20,
+   40
+  ],
+  "min_robots": 20
+ },
+ "letter E": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "letter F": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "letter G": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "letter H": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   17,
+   25,
+   34
+  ],
+  "min_robots": 17
+ },
+ "letter I": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   15,
+   30,
+   30
+  ],
+  "min_robots": 15
+ },
+ "letter J": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   13,
+   13,
+   26
+  ],
+  "min_robots": 13
+ },
+ "letter K": {
+  "category": "letter",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   20,
+   20,
+   40
+  ],
+  "min_robots": 20
+ },
+ "letter L": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   11,
+   11,
+   22
+  ],
+  "min_robots": 11
+ },
+ "letter M": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "letter N": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   19,
+   38,
+   38
+  ],
+  "min_robots": 19
+ },
+ "letter O": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   20,
+   20,
+   40
+  ],
+  "min_robots": 20
+ },
+ "letter P": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "letter Q": {
+  "category": "letter",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   23,
+   23,
+   46
+  ],
+  "min_robots": 23
+ },
+ "letter R": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "letter S": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "letter T": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   11,
+   22,
+   22
+  ],
+  "min_robots": 11
+ },
+ "letter U": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   17,
+   34,
+   34
+  ],
+  "min_robots": 17
+ },
+ "letter V": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   17,
+   34,
+   34
+  ],
+  "min_robots": 17
+ },
+ "letter W": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   19,
+   38,
+   38
+  ],
+  "min_robots": 19
+ },
+ "letter X": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   20,
+   20,
+   40
+  ],
+  "min_robots": 20
+ },
+ "letter Y": {
+  "category": "letter",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   14,
+   14,
+   28
+  ],
+  "min_robots": 14
+ },
+ "letter Z": {
+  "category": "letter",
+  "held_out": true,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "number 0": {
+  "category": "number",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   25,
+   25,
+   50
+  ],
+  "min_robots": 25
+ },
+ "number 1": {
+  "category": "number",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   10,
+   15,
+   20
+  ],
+  "min_robots": 10
+ },
+ "number 2": {
+  "category": "number",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "number 3": {
+  "category": "number",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "number 4": {
+  "category": "number",
+  "held_out": true,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   16,
+   16,
+   32
+  ],
+  "min_robots": 16
+ },
+ "number 5": {
+  "category": "number",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "number 6": {
+  "category": "number",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   20,
+   40,
+   40
+  ],
+  "min_robots": 20
+ },
+ "number 7": {
+  "category": "number",
+  "held_out": true,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ },
+ "number 8": {
+  "category": "number",
+  "held_out": false,
+  "draws": 32,
+  "stand": 1.0,
+  "buildable": 1.0,
+  "climbable": 1.0,
+  "sizes": [
+   25,
+   25,
+   50
+  ],
+  "min_robots": 25
+ },
+ "number 9": {
+  "category": "number",
+  "held_out": false,
+  "draws": 32,
+  "stand": 0.0,
+  "buildable": 0.0,
+  "climbable": 0.0,
+  "sizes": [],
+  "min_robots": null
+ }
+}
