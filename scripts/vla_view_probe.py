@@ -168,7 +168,7 @@ class ManualProcessor:
 
 
 @torch.no_grad()
-def qwen(items_by_probe, out, n):
+def qwen(items_by_probe, out, n, summary=None):
     from transformers import AutoModelForImageTextToText, AutoTokenizer
     from transformers.models.qwen2_vl import Qwen2VLImageProcessorPil
 
@@ -192,6 +192,9 @@ def qwen(items_by_probe, out, n):
                 log.flush()
             acc = np.mean([r["correct"] for r in rows if r["setting"] == setting and r["probe"] == probe])
             print(f"{setting:7s} {probe:8s} {acc:.2f}", flush=True)
+            if summary:
+                with open(summary, "a") as handle:
+                    handle.write(json.dumps({"strength": setting, "level": strength, "probe": probe, "views_probe_acc": round(float(acc), 4), "n": n}) + "\n")
     lines = ["setting  strength  colours  letters  shapes  mean"]
     for setting, strength in STRENGTHS.items():
         accs = [np.mean([r["correct"] for r in rows if r["setting"] == setting and r["probe"] == p]) for p in items_by_probe]
@@ -208,6 +211,7 @@ def main():
     parser.add_argument("--sheets", action="store_true")
     parser.add_argument("--speed", action="store_true")
     parser.add_argument("--qwen", action="store_true")
+    parser.add_argument("--summary", default=None, help="append one JSON line per (strength, probe) here (dashboards follow it)")
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -217,7 +221,7 @@ def main():
     if args.speed:
         speed(out)
     if args.qwen:
-        qwen(items_by_probe, out, args.n)
+        qwen(items_by_probe, out, args.n, args.summary)
 
 
 if __name__ == "__main__":
