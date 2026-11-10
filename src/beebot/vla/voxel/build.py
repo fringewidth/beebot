@@ -62,10 +62,10 @@ STAGE_BASE, STAGE_PER_VOXEL = 12, 4  # a part group's time limit: base + per vox
 FIELDS = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
 
 
-def say(rng, key, held, **kw):
+def say(rng, key, split_held, **kw):
     """A template of WORDINGS[key]: the training ones, or the last when held == "wording"."""
     pool = WORDINGS[key]
-    return str(rng.choice(pool[-1:] if held == "wording" else pool[:-1])).format(**kw)
+    return str(rng.choice(pool[-1:] if split_held == "wording" else pool[:-1])).format(**kw)
 
 
 @lru_cache(maxsize=None)
@@ -86,14 +86,14 @@ def site(rng, world, i, extent):
     its box grown by one cell clear of walls, cheeses and their shells; None if there is none."""
     h, d, w = extent
     size = world.mass.shape[-1]
-    blocked = world.walls[i].numpy() | (S.cheese_id_map(world.index(i))[0].numpy() >= 0) | S.shells_of(world, i)
+    obstacles = world.walls[i].numpy() | (S.cheese_id_map(world.index(i))[0].numpy() >= 0) | S.shells_of(world, i)
     heights = world.walls[i].numpy().sum(0)
     options = []
     for y in range(MARGIN, size - d - MARGIN + 1):
         for x in range(MARGIN, size - w - MARGIN + 1):
             if (heights[y - 1 : y + d + 1, x - 1 : x + w + 1] != 0).any():
                 continue
-            if blocked[: h + 1, y - 1 : y + d + 1, x - 1 : x + w + 1].any():
+            if obstacles[: h + 1, y - 1 : y + d + 1, x - 1 : x + w + 1].any():
                 continue
             options.append((y, x))
     return None if not options else options[int(rng.integers(len(options)))]
@@ -107,35 +107,35 @@ def plan_of(name, parts, at, rule="switch_cube"):
     """The segments of a build: one per part group, its points the voxels of the group and every
     earlier one (absolute), in the placing order of shapes.climb_order (program order of the
     groups; shapes.build_order when no cube can walk everywhere, which fit_variant never draws)."""
-    found = H.group_cells(parts)
-    order = H.climb_order([cells for _, cells in found], rule) or H.build_order([cells for _, cells in found]) or [[tuple(c) for c in cells.tolist()] for _, cells in found]
+    group_list = H.group_cells(parts)
+    order = H.climb_order([cells for _, cells in group_list], rule) or H.build_order([cells for _, cells in group_list]) or [[tuple(c) for c in cells.tolist()] for _, cells in group_list]
     segments, so_far = [], []
-    for k, ((label, _), cells) in enumerate(zip(found, order)):
+    for k, ((label, _), cells) in enumerate(zip(group_list, order)):
         so_far += [tuple(int(v) for v in np.array(c) + np.array(at)) for c in cells]
-        segments.append({"kind": "build", "points": list(so_far), "label": {"kind": "build", "object": name, "part": label, "index": k, "of": len(found)}, "steps": stage_steps(len(cells))})
+        segments.append({"kind": "build", "points": list(so_far), "label": {"kind": "build", "object": name, "part": label, "index": k, "of": len(group_list)}, "steps": stage_steps(len(cells))})
     return segments
 
 
-def build_task(name, use, parts, at, text, held, forbid, plan=None):
+def build_task(name, use, parts, at, text, split_held, forbid, plan=None):
     """A build Task (plan None: made from the parts unless the task is held out)."""
     cells = H.program_cells(parts) + np.array(at)
     spec = {"kind": "build", "object": name, "use": use, "program": H.program_text(parts), "at": [int(v) for v in at], "cells": cells, "voxels": len(cells), "subgoals": H.subgoal_sentences(parts), "forbid": set(forbid)}
     if plan is None:
-        plan = plan_of(name, parts, at) if held in ("", "wording") else []
-    return S.Task(FAMILY, text, spec, plan, held)
+        plan = plan_of(name, parts, at) if split_held in ("", "wording") else []
+    return S.Task(FAMILY, text, spec, plan, split_held)
 
 
-def make_build(rng, held, name=None, use=None, demonstrate=False):
+def make_build(rng, split_held, name=None, use=None, demonstrate=False):
     """(needs, make) of a build task: a named object (only `name` when given), or with USE_SHARE
     (or when `use` is given) a use any training object of the library serves. demonstrate: give
     held-out tasks a plan too (to measure the expert on them)."""
     by_use = use is not None or (name is None and rng.random() < USE_SHARE)
-    split = "objects" if held == "objects" else "train"
+    split = "objects" if split_held == "objects" else "train"
 
     def make(world, meta, i):
         n = int(world.mass[i].sum())
-        wanted = use if not by_use or use is not None else str(rng.choice(sorted(H.USES)))
-        options = [name] if name is not None else names_for(split, n, wanted if by_use else None)
+        use_key = use if not by_use or use is not None else str(rng.choice(sorted(H.USES)))
+        options = [name] if name is not None else names_for(split, n, use_key if by_use else None)
         options = [o for o in options if min_sizes()[o] <= n]
         if not options:
             return None
@@ -150,8 +150,8 @@ def make_build(rng, held, name=None, use=None, demonstrate=False):
             return None
         at = (0, *spot)
         forbid = {c for _, c in S.present(world, i)}
-        text = say(rng, "build.use", held, f=H.USES[wanted]) if by_use else say(rng, "build", held, o=H.phrase(chosen_name))
-        task = build_task(chosen_name, wanted if by_use else None, parts, at, text, held, forbid, plan_of(chosen_name, parts, at) if demonstrate else None)
+        text = say(rng, "build.use", split_held, f=H.USES[use_key]) if by_use else say(rng, "build", split_held, o=H.phrase(chosen_name))
+        task = build_task(chosen_name, use_key if by_use else None, parts, at, text, split_held, forbid, plan_of(chosen_name, parts, at) if demonstrate else None)
         snap = S.snapshot(world, i)
         value = score(task, S.static_of(world, meta, i), snap, snap, [])[0]
         if value >= (FUNCTION_PASS if by_use else 0.5):  # done before it starts
@@ -166,10 +166,10 @@ def sample_build(rng, n, split="train", robots=None, counts="uniform", check=Tru
     its families: split "train", "test", "wording" or "objects" (held-out names); robots (low,
     high) draws each scene's robot count (counts: "uniform" or "log"), None the world's density
     range. A count no object fits is drawn again. check: also the suite's bound (score_bound)."""
-    held = split if split in ("objects", "wording") else ""
+    split_held = split if split in ("objects", "wording") else ""
     worlds, metas, out = [], [], []
     while len(out) < n:
-        needs, make = make_build(rng, held, name, use, demonstrate)
+        needs, make = make_build(rng, split_held, name, use, demonstrate)
         count = None if robots is None else S.draw_count(rng, robots[0], robots[1], counts)
         world, meta = S.scenes(rng, 1, robots=count, **needs)
         task = make(world, meta[0], 0)
@@ -185,19 +185,19 @@ def sample_build(rng, n, split="train", robots=None, counts="uniform", check=Tru
 # Checking
 
 
-def score(task, static, start, end, eaten):
+def score(task, static, start, end, eaten_colours):
     """(score, unasked): a named object's best IoU over placements and quarter turns; a use's
     function check (shapes.FUNCTIONS) on the final robots."""
     spec = task.spec
-    unasked = any(c in spec["forbid"] for c in eaten)
-    occupied = end["mass"] > 0.5
+    off_limits = any(c in spec["forbid"] for c in eaten_colours)
+    occupancy = end["mass"] > 0.5
     if spec.get("use"):
-        return float(H.FUNCTIONS[spec["use"]](occupied, static["walls"])), unasked
-    return H.object_iou(occupied, spec["cells"]), unasked
+        return float(H.FUNCTIONS[spec["use"]](occupancy, static["walls"])), off_limits
+    return H.object_iou(occupancy, spec["cells"]), off_limits
 
 
-def passed(task, value, unasked):
-    return not unasked and value >= (FUNCTION_PASS if task.spec.get("use") else OBJECT_PASS)
+def passed(task, value, off_limits):
+    return not off_limits and value >= (FUNCTION_PASS if task.spec.get("use") else OBJECT_PASS)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -224,28 +224,28 @@ class BuildSegments:
         (filling it first could leave that neighbour a slot no pivot enters)."""
         if seg["kind"] != "build":
             return super().targets_of(i, seg, world, shells)
-        occupied = world.mass[i].numpy() > 0.5
+        occupancy = world.mass[i].numpy() > 0.5
         walls = world.walls[i].numpy()
         pts = [tuple(p) for p in seg["points"]]
-        filled = [p for p in pts if occupied[p]]
-        slots = self.slots(pts, set(filled))
-        filled = [p for p in filled if p not in slots]
-        lever = H.levers(filled, walls)
-        open_, waiting = [], set()
+        full = [p for p in pts if occupancy[p]]
+        slots = self.slots(pts, set(full))
+        full = [p for p in full if p not in slots]
+        lever = H.levers(full, walls)
+        open_, pending = [], set()
         for p in pts:
-            if occupied[p]:
+            if occupancy[p]:
                 continue
             z, y, x = p
-            if H.placeable(p, lever, walls) is not None and not any(n in waiting for n in ((z, y + 1, x), (z, y - 1, x), (z, y, x + 1), (z, y, x - 1))):
+            if H.placeable(p, lever, walls) is not None and not any(n in pending for n in ((z, y + 1, x), (z, y - 1, x), (z, y, x + 1), (z, y, x - 1))):
                 open_.append(p)
                 if len(open_) == WINDOW:
                     break
-            waiting.add(p)
-        self.frontier[i] = (filled, open_)
-        return filled + open_, None, None
+            pending.add(p)
+        self.frontier[i] = (full, open_)
+        return full + open_, None, None
 
     @staticmethod
-    def slots(pts, filled):
+    def slots(pts, full):
         """Filled voxels to give up: an empty voxel of the order with filled voxels on both sides
         of it in its layer is a slot no pivot can enter (a robot that started there, or one that
         came early), so the one of the two later in the order lets its robot go, and is filled
@@ -253,18 +253,18 @@ class BuildSegments:
         index = {p: k for k, p in enumerate(pts)}
         out = set()
         for p in pts:
-            if p in filled:
+            if p in full:
                 continue
             z, y, x = p
             for dy, dx in ((0, 1), (1, 0)):
                 a, b = (z, y - dy, x - dx), (z, y + dy, x + dx)
-                if a in filled and b in filled:
+                if a in full and b in full:
                     later = a if index[a] > index[b] else b
                     if index[later] > index[p]:
                         out.add(later)
         return out
 
-    def crew(self, world, codes, segs, allowed, generator=None, rank=None):
+    def crew(self, world, codes, segs, move_mask, generator=None, rank=None):
         """Robots on a filled voxel hold; as many free robots as there are open voxels keep their
         move (the nearest first: by rank(i) (D, H, W) when given, else straight-line distance); the
         rest stay, and those on or beside the site park outside it."""
@@ -272,12 +272,12 @@ class BuildSegments:
         for i, seg in enumerate(segs):
             if seg is None or seg["kind"] != "build":
                 continue
-            filled, open_ = self.frontier[i]
-            occupied = world.mass[i].numpy() > 0.5
-            cells = np.argwhere(occupied)
+            full, open_ = self.frontier[i]
+            occupancy = world.mass[i].numpy() > 0.5
+            cells = np.argwhere(occupancy)
             final = np.array(self.tasks[i].plan[-1]["points"])
             low, high = final.min(axis=0), final.max(axis=0)
-            filled_set = set(filled)
+            filled_set = set(full)
             on_target = np.array([c in filled_set for c in map(tuple, cells.tolist())], bool)
             free = np.nonzero(~on_target)[0]
             workers = set()
@@ -286,9 +286,9 @@ class BuildSegments:
                     order = rank(i)[tuple(cells[free].T)].astype(float)
                 else:
                     order = ((cells[free][:, None, :] - np.array(open_)[None]) ** 2).sum(-1).min(axis=1).astype(float)
-                if allowed is not None:  # a robot that cannot move now (another on top of it) is passed over
+                if move_mask is not None:  # a robot that cannot move now (another on top of it) is passed over
                     start = sum(counts[:i])
-                    movable = allowed[start : start + counts[i]][:, :STAY].any(dim=1).numpy()
+                    movable = move_mask[start : start + counts[i]][:, :STAY].any(dim=1).numpy()
                     order = order + 1e6 * ~movable[free]
                 workers = set(free[np.argsort(order, kind="stable")[: CREW * len(open_)]].tolist())
             box = lambda c, grow: (c[:, 1] >= low[1] - grow) & (c[:, 1] <= high[1] + grow) & (c[:, 2] >= low[2] - grow) & (c[:, 2] <= high[2] + grow)  # noqa: E731
@@ -297,30 +297,30 @@ class BuildSegments:
             idle = [k for k in free.tolist() if k not in workers and not near[k]]
             stay = cells[np.concatenate([np.nonzero(on_target)[0], np.array(idle, int)]).astype(int)]
             codes[i, stay[:, 0], stay[:, 1], stay[:, 2]] = STAY
-            stuck = [k for k in workers if codes[i][tuple(cells[k])] == STAY]
-            if stuck and allowed is not None:  # a jam of robots in each other's swing: some try another move
+            jam = [k for k in workers if codes[i][tuple(cells[k])] == STAY]
+            if jam and move_mask is not None:  # a jam of robots in each other's swing: some try another move
                 start = sum(counts[:i])
-                rows = allowed[start : start + counts[i]]
+                rows = move_mask[start : start + counts[i]]
                 gen = self.generator if generator is None else generator
-                for k, roll in zip(stuck, torch.rand(len(stuck), generator=gen).tolist()):
+                for k, roll in zip(jam, torch.rand(len(jam), generator=gen).tolist()):
                     options = rows[k].clone()
                     options[STAY] = False
                     if roll < JITTER and options.any():
                         codes[i][tuple(cells[k])] = int(torch.multinomial(options.float(), 1, generator=gen))
             if parkers:
                 heights = world.walls[i].numpy().sum(0)
-                size = occupied.shape[-1]
+                size = occupancy.shape[-1]
                 yy, xx = np.mgrid[0:size, 0:size]
                 ground = np.stack([heights.ravel(), yy.ravel(), xx.ravel()], 1)
-                ring = ~box(ground, PARK + 1) & box(ground, PARK + 4) & (ground[:, 0] < occupied.shape[0])
-                spots = [tuple(p) for p in ground[ring].tolist() if not occupied[tuple(p)]]
+                ring = ~box(ground, PARK + 1) & box(ground, PARK + 4) & (ground[:, 0] < occupancy.shape[0])
+                spots = [tuple(p) for p in ground[ring].tolist() if not occupancy[tuple(p)]]
                 park = cells[parkers]
                 if spots:
                     start = sum(counts[:i])
-                    rows = None if allowed is None else allowed[start : start + counts[i]]
+                    rows = None if move_mask is None else move_mask[start : start + counts[i]]
                     targets = torch.tensor(spots).long().unsqueeze(0)
-                    moved = act(world.index(i), targets, torch.ones(1, len(spots), dtype=torch.bool), jitter=0.0, generator=self.generator if generator is None else generator, allowed=rows)[0]
-                    codes[i, park[:, 0], park[:, 1], park[:, 2]] = moved[park[:, 0], park[:, 1], park[:, 2]]
+                    park_codes = act(world.index(i), targets, torch.ones(1, len(spots), dtype=torch.bool), jitter=0.0, generator=self.generator if generator is None else generator, allowed=rows)[0]
+                    codes[i, park[:, 0], park[:, 1], park[:, 2]] = park_codes[park[:, 0], park[:, 1], park[:, 2]]
                 else:
                     codes[i, park[:, 0], park[:, 1], park[:, 2]] = STAY
         return codes
@@ -334,8 +334,8 @@ class BuildExpert(BuildSegments, S.Expert):
         super().__init__(tasks, moves=moves, seed=seed, rule=rule)
         self.frontier = {}  # scene -> (filled voxels, voxels placeable now)
 
-    def adjust(self, world, codes, segs, allowed, generator=None):
-        return self.crew(world, codes, segs, allowed, generator)
+    def adjust(self, world, codes, segs, move_mask, generator=None):
+        return self.crew(world, codes, segs, move_mask, generator)
 
 
 class BuildPlanner(BuildSegments, FreeCubeExpert):
@@ -353,18 +353,18 @@ class BuildPlanner(BuildSegments, FreeCubeExpert):
         targets, valid, press_cheese, press_dir = self.tensors(lists, presses)
         head = torch.zeros(valid.shape, dtype=torch.int16)
         codes = self.plan(world, targets, valid, head, press_cheese, press_dir, generator)
-        occupied = world.mass > 0.5
-        b, d, h, w = occupied.shape
+        occupancy = world.mass > 0.5
+        b, d, h, w = occupancy.shape
         flat, inside = flat_index(targets, (d, h, w))
-        wanted = torch.zeros(b, d * h * w, dtype=torch.bool)
-        wanted.scatter_(1, flat, valid & inside)
-        wanted = wanted.view(b, d, h, w)
-        scenery = occupied & wanted
+        target_grid = torch.zeros(b, d * h * w, dtype=torch.bool)
+        target_grid.scatter_(1, flat, valid & inside)
+        target_grid = target_grid.view(b, d, h, w)
+        scenery = occupancy & target_grid
         cheese = cheese_id_map(world) >= 0
         paths = pivot_moves(scenery, world.walls, cheese, release=self.rule == "switch_cube")
-        dist = distances(paths, wanted & ~occupied & ~world.walls & ~cheese, torch.zeros_like(world.mass, dtype=torch.int16), ~scenery).numpy()
-        allowed = rule_moves(world, self.rule) & CUBE_MOVES
-        codes = self.crew(world, codes, segs, allowed, generator, rank=lambda i: dist[i])
+        dist = distances(paths, target_grid & ~occupancy & ~world.walls & ~cheese, torch.zeros_like(world.mass, dtype=torch.int16), ~scenery).numpy()
+        move_mask = rule_moves(world, self.rule) & CUBE_MOVES
+        codes = self.crew(world, codes, segs, move_mask, generator, rank=lambda i: dist[i])
         return refuse(world, codes, self.rule, priority=torch.rand(world.mass.shape, generator=generator))
 
 
@@ -444,7 +444,7 @@ def measure(names, per_object, seed=777, rule="switch_cube", robots=S.ROBOTS, co
             run_seed = seed * 1_000_003 + len(rows)
             expert = make_expert(tasks, seed=run_seed, rule=rule)
             results, arrays = S.run(world, metas, tasks, expert, steps=length, seed=run_seed, record=True, failure=rates, rule=rule)
-            for i, ((value, unasked), task) in enumerate(zip(results, tasks)):
+            for i, ((value, off_limits), task) in enumerate(zip(results, tasks)):
                 done_at = None
                 static = S.static_of(world, metas[i], i)
                 for t in range(0, length + 1, 4):
@@ -452,7 +452,7 @@ def measure(names, per_object, seed=777, rule="switch_cube", robots=S.ROBOTS, co
                     if passed(task, *score(task, static, snap, snap, [])):
                         done_at = t
                         break
-                row = {"object": task.spec["object"], "use": task.spec["use"], "held_out": task.spec["object"] in H.HELD_NAMES, "robots": int(world.mass[i].sum()), "voxels": int(task.spec["voxels"]), "steps": length, "score": round(float(value), 4), "passed": bool(passed(task, value, unasked)), "done_at": done_at}
+                row = {"object": task.spec["object"], "use": task.spec["use"], "held_out": task.spec["object"] in H.HELD_NAMES, "robots": int(world.mass[i].sum()), "voxels": int(task.spec["voxels"]), "steps": length, "score": round(float(value), 4), "passed": bool(passed(task, value, off_limits)), "done_at": done_at}
                 rows.append(row)
                 if sink:
                     sink.write(json.dumps(row) + "\n")
@@ -472,9 +472,9 @@ def report(rows):
         part = [r for r in rows if (("use:" + r["use"]) if r["use"] else r["object"]) == key]
         done = [r["done_at"] for r in part if r["done_at"] is not None]
         lines.append(f"| {key} | {'yes' if key in H.HELD_NAMES else ''} | {len(part)} | {np.median([r['voxels'] for r in part]):.0f} | {np.mean([r['score'] for r in part]):.2f} | {np.mean([r['passed'] for r in part]):.2f} | {np.median([r['steps'] for r in part]):.0f} | {np.median(done) if done else '-'} |")
-    named = [r for r in rows if not r["use"]]
+    by_name = [r for r in rows if not r["use"]]
     lines.append("")
-    for label, part in (("named, training", [r for r in named if not r["held_out"]]), ("named, held out", [r for r in named if r["held_out"]]), ("uses", [r for r in rows if r["use"]])):
+    for label, part in (("named, training", [r for r in by_name if not r["held_out"]]), ("named, held out", [r for r in by_name if r["held_out"]]), ("uses", [r for r in rows if r["use"]])):
         if part:
             lines.append(f"{label}: n {len(part)}, mean score {np.mean([r['score'] for r in part]):.2f}, passed {np.mean([r['passed'] for r in part]):.2f}")
     for low, high in ((0, 14), (15, 40), (41, 10**6)):
