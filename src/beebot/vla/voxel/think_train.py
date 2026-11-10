@@ -1,0 +1,358 @@
+"""Train the think-then-act voxel policy (voxel/think.py) on ThinkData examples (voxel/think_data.py),
+distilling the frozen original LM on general text so the policy keeps its language.
+
+    python -m beebot.vla.voxel.think_train --name vox-think --stores S1,S2 --haiku_dirs H1 --device cuda
+    torchrun --standalone --nproc_per_node 2 -m beebot.vla.voxel.think_train ...      # Kaggle's two T4s
+    python -m beebot.vla.voxel.think_train --name think-smoke --data fake --device mps --steps 40 \\
+        --distill_weight 0 --val_every_minutes 1                                       # a Mac smoke run
+
+A step: `accumulate` micro-batches of `batch` examples on every process (text and action losses,
+think.py), one distillation batch of general text (KL to the frozen original; for LoRA the LM with
+its adapters off), gradients averaged over processes, clipped to norm 1, AdamW with one learning
+rate for the LM's weights and another for the new ones (scene and slot embeddings, positions,
+readout), linear warmup then cosine down to min_lr_ratio over `steps`.
+
+No rollouts and no scorecards here (the Mac scores the checkpoints): every val_every_minutes the
+held-out losses on ThinkData.validation, every save_every_minutes a step-named checkpoint
+runs/<name>/policy_step{N}.pt (trainable weights in bf16 and what think.load_policy needs to rebuild
+the policy) and runs/<name>/resume.pt (fp32 weights, optimizer and scaler state, step) for --resume.
+Progress lines are JSON on stdout and in runs/<name>/history.jsonl.
+
+Precision (--precision auto): CUDA with bf16 (compute capability 8+, e.g. GH200) bf16 autocast;
+older CUDA (T4) fp16 autocast with a gradient scaler; MPS and CPU fp32. Weights and optimizer state
+stay fp32 throughout.
+
+On several GPUs (torchrun) every process trains on its own examples; process 0 keeps the clock
+(stop, validation and saving) and broadcasts it, validates and saves while the others wait.
+"""
+
+import copy
+import json
+import math
+import os
+import queue
+import threading
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from types import SimpleNamespace
+
+import numpy as np
+import torch
+import torch.distributed as dist
+
+from beebot.train import parse_config
+from beebot.vla.lm_train import distill_loss, general_text, setup_distributed
+from beebot.vla.voxel.think import ThinkVoxelPolicy, checkpoint_meta, trainable_state
+from beebot.vla.voxel.world import N_CHANNELS
+
+
+@dataclass
+class ThinkConfig:
+    name: str = "vox-think"
+    model: str = "Qwen/Qwen3-0.6B"  # from the local Hugging Face cache (Qwen/Qwen3-4B for the large run)
+    data: str = "think"  # "think": think_data.ThinkData; "fake": think_fake.FakeThinkData (smoke runs, throughput)
+    stores: str = ""  # comma-separated demonstration stores for ThinkData
+    haiku_dirs: str = ""  # comma-separated Haiku label directories for ThinkData
+    data_kwargs: str = "{}"  # JSON: further ThinkData keyword arguments
+    val_seed: int = 0
+    val_examples: int = 256
+    channels: int = N_CHANNELS
+    lora_rank: int = 0  # 0: full fine-tuning
+    train_embeddings: bool = False  # also train the token embeddings (tied to the output head in Qwen3 0.6B and 4B)
+    init: str = ""  # weights to start from: a think checkpoint or any dict of policy weights (matching names load, the rest stay)
+    resume: str = ""  # a resume.pt: weights, optimizer, scaler and step
+    batch: int = 16  # examples per micro-batch per process
+    accumulate: int = 1  # micro-batches per optimizer step
+    pack_length: int = 0  # > 0: pack examples into rows of at most this many tokens; 0: one example per row
+    text_weight: float = 1.0
+    action_weight: float = 1.0
+    ce_chunk: int = 512  # reply positions per chunk of vocabulary-wide logits
+    checkpointing: bool = False  # gradient checkpointing of the LM's layers
+    precision: str = "auto"  # auto, fp32, bf16, fp16
+    lr_lm: float = 2e-5
+    lr_new: float = 3e-4
+    weight_decay: float = 0.01
+    warmup_steps: int = 100
+    min_lr_ratio: float = 0.1
+    steps: int = 20000  # the schedule's length; a session may stop earlier (minutes, wall_minutes) and be resumed
+    minutes: float = 0.0  # > 0: stop after this much training time (validation and saving excluded)
+    wall_minutes: float = 0.0  # > 0: stop this long after the process started, everything included (Kaggle's 12 h)
+    distill_weight: float = 1.0
+    general: str = "hf"  # "hf" (FineWeb-Edu, GSM8K, SmolTalk from the Hub) or a local text file
+    lm_batch: int = 2
+    lm_length: int = 256
+    log_every: int = 20
+    val_every_minutes: float = 30.0
+    save_every_minutes: float = 60.0
+    save_resume: bool = True
+    prefetch: int = 4  # batches made ahead by a background thread; 0: in the training loop
+    device: str = "cuda"
+    seed: int = 0
+
+
+def precision_of(name, device):
+    """(precision name, autocast dtype or None) for --precision on this device."""
+    if name == "auto":
+        name = ("bf16" if torch.cuda.get_device_capability(device)[0] >= 8 else "fp16") if device.type == "cuda" else "fp32"
+    return name, {"fp32": None, "bf16": torch.bfloat16, "fp16": torch.float16}[name]
+
+
+def make_data(cfg, tokenizer):
+    split = lambda s: [p for p in s.split(",") if p]  # noqa: E731
+    kwargs = json.loads(cfg.data_kwargs)
+    if cfg.data == "fake":
+        from beebot.vla.voxel.think_fake import FakeThinkData
+
+        source = FakeThinkData(tokenizer, cfg.seed, channels=cfg.channels, **kwargs)
+    else:
+        from beebot.vla.voxel.think_data import ThinkData
+
+        source = ThinkData(split(cfg.stores), split(cfg.haiku_dirs), tokenizer, cfg.seed, **kwargs)
+    return source
+
+
+class Prefetch:
+    """Batches of examples made by a background thread, depth ahead (depth 0: made on demand)."""
+
+    def __init__(self, data, batch, rng, depth):
+        self.data, self.batch, self.rng = data, batch, rng
+        self.queue = queue.Queue(depth) if depth else None
+        if depth:
+            threading.Thread(target=self.fill, daemon=True).start()
+
+    def make(self):
+        return [self.data.sample(self.rng) for _ in range(self.batch)]
+
+    def fill(self):
+        try:
+            while True:
+                self.queue.put(self.make())
+        except Exception as error:  # surfaces in the training loop
+            self.queue.put(error)
+
+    def next(self):
+        item = self.queue.get() if self.queue is not None else self.make()
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+def average_gradients(params, world, bucket=1 << 25):
+    """All-reduce the gradients of params in flat buckets of about `bucket` elements and divide by
+    world; a parameter without a gradient counts as zero, so every process steps the same."""
+    group, size = [], 0
+    for i, p in enumerate(params):
+        if p.grad is None:
+            p.grad = torch.zeros_like(p)
+        group.append(p)
+        size += p.numel()
+        if size >= bucket or i == len(params) - 1:
+            flat = torch.cat([q.grad.reshape(-1) for q in group])
+            dist.all_reduce(flat)
+            flat.div_(world)
+            offset = 0
+            for q in group:
+                q.grad.copy_(flat[offset : offset + q.numel()].view_as(q))
+                offset += q.numel()
+            group, size = [], 0
+
+
+def memory_gb(device):
+    """Peak allocated CUDA memory, or the MPS driver's current allocation, in GB."""
+    used = torch.cuda.max_memory_allocated(device) if device.type == "cuda" else torch.mps.driver_allocated_memory() if device.type == "mps" else 0
+    return round(used / 1e9, 2)
+
+
+def lr_factor(step, cfg):
+    warm = min(1.0, (step + 1) / max(cfg.warmup_steps, 1))
+    progress = min(step / max(cfg.steps, 1), 1.0)
+    return warm * (cfg.min_lr_ratio + (1 - cfg.min_lr_ratio) * 0.5 * (1 + math.cos(math.pi * progress)))
+
+
+def run():
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    t_start = time.time()
+    cfg = parse_config(ThinkConfig)
+    rank, world, device = setup_distributed(cfg)
+    lead = rank == 0
+    torch.manual_seed(cfg.seed)  # the same on every process: identical new weights
+    run_dir = Path("runs") / cfg.name
+    precision, amp_dtype = precision_of(cfg.precision, device)
+
+    def stage(text):
+        if lead:
+            print(f"[{(time.time() - t_start) / 60:.1f} min] {text}", flush=True)
+
+    if lead:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "config.json").write_text(json.dumps({**asdict(cfg), "world": world, "precision_used": precision}, indent=1))
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model, local_files_only=True)
+    lm = AutoModelForCausalLM.from_pretrained(cfg.model, dtype=torch.float32, local_files_only=True)
+    teacher = None  # LoRA: the student with its adapters off is the original model
+    if cfg.distill_weight > 0 and not cfg.lora_rank:
+        teacher = copy.deepcopy(lm).to(device, amp_dtype or torch.float32).eval()
+        for p in teacher.parameters():
+            p.requires_grad_(False)
+    policy = ThinkVoxelPolicy(lm, tokenizer, lora_rank=cfg.lora_rank, freeze_embeddings=not cfg.train_embeddings, channels=cfg.channels, text_weight=cfg.text_weight, action_weight=cfg.action_weight, pack_length=cfg.pack_length, ce_chunk=cfg.ce_chunk)
+    if cfg.init:
+        saved = torch.load(cfg.init, map_location="cpu")
+        weights = saved.get("weights", saved)
+        own = dict(policy.named_parameters())
+        matching = {k: v.float() for k, v in weights.items() if k in own and own[k].shape == v.shape}
+        assert matching, f"init: no matching weights in {cfg.init}"
+        policy.load_state_dict(matching, strict=False)
+        stage(f"init from {cfg.init}: {len(matching)} of {len(weights)} tensors")
+    policy = policy.to(device)
+    if cfg.checkpointing:
+        policy.lm.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        policy.lm.config.use_cache = False
+    groups = [{"params": policy.lm_parameters(), "lr": cfg.lr_lm}, {"params": policy.new_parameters(), "lr": cfg.lr_new}]
+    base_lrs = [g["lr"] for g in groups]
+    optimizer = torch.optim.AdamW(groups, weight_decay=cfg.weight_decay)
+    scaler = torch.amp.GradScaler(device.type, enabled=amp_dtype == torch.float16)
+    params = [p for g in groups for p in g["params"]]
+    step = 0
+    if cfg.resume:
+        saved = torch.load(cfg.resume, map_location=device)
+        policy.load_state_dict(saved["weights"], strict=False)
+        optimizer.load_state_dict(saved["optimizer"])
+        scaler.load_state_dict(saved["scaler"])
+        step = saved["step"]
+        stage(f"resumed from {cfg.resume} at step {step}")
+    if world > 1:
+        for p in params:
+            dist.broadcast(p.data, 0)
+    stage(f"trainable: {sum(p.numel() for p in groups[1]['params']) / 1e6:.2f}M new, {sum(p.numel() for p in groups[0]['params']) / 1e6:.1f}M in the LM; precision {precision}; {world} process(es) x {cfg.batch} x {cfg.accumulate} examples per step")
+
+    data = make_data(cfg, tokenizer)
+    batches = Prefetch(data, cfg.batch, np.random.default_rng((cfg.seed, rank, step)), cfg.prefetch)
+    val_set = data.validation(cfg.val_examples, cfg.val_seed) if lead else None
+    text_stream = None
+    if cfg.distill_weight > 0:
+        text_cfg = SimpleNamespace(general=cfg.general, lm_length=cfg.lm_length, gsm8k_share=0.1, instruct_share=0.3, seed=cfg.seed, gsm8k_problems=0)
+        text_stream, _, _ = general_text(text_cfg, tokenizer, held_out=1, rank=rank, world=world)
+    stage("data ready")
+
+    def autocast():
+        return torch.autocast(device.type, dtype=amp_dtype or torch.float32, enabled=amp_dtype is not None)
+
+    history = open(run_dir / "history.jsonl", "a") if lead else None
+
+    def log(row):
+        print(json.dumps(row), flush=True)
+        history.write(json.dumps(row) + "\n")
+        history.flush()
+
+    @torch.no_grad()
+    def validate():
+        """Held-out losses over the whole validation list: text per reply token, action per robot voxel."""
+        policy.eval()
+        text = action = tokens = robots = 0.0
+        for i in range(0, len(val_set), cfg.batch):
+            with autocast():
+                out = policy(val_set[i : i + cfg.batch])
+            text += out["text"].item() * out["text_tokens"]
+            action += out["action"].item() * out["robots"]
+            tokens += out["text_tokens"]
+            robots += out["robots"]
+        policy.train()
+        text, action = text / max(tokens, 1), action / max(robots, 1)
+        return {"val_text": round(text, 4), "val_action": round(action, 4), "val_loss": round(cfg.text_weight * text + cfg.action_weight * action, 4)}
+
+    def save(step):
+        meta = {**checkpoint_meta(policy, cfg.model), "step": step}
+        torch.save({"weights": trainable_state(policy, torch.bfloat16), "meta": meta}, run_dir / f"policy_step{step}.pt")
+        if cfg.save_resume:
+            torch.save({"weights": trainable_state(policy), "optimizer": optimizer.state_dict(), "scaler": scaler.state_dict(), "step": step, "meta": meta}, run_dir / "resume.pt.tmp")
+            (run_dir / "resume.pt.tmp").replace(run_dir / "resume.pt")
+        stage(f"saved policy_step{step}.pt")
+
+    policy.train()
+    first_step = step
+    t0 = time.time()
+    paused = 0.0  # validation and saving time, kept out of the training clock
+    next_val, next_save = cfg.val_every_minutes * 60, cfg.save_every_minutes * 60
+    window = {"loss": [], "text": [], "action": [], "distill_kl": []}
+    counts = {"tokens": 0, "examples": 0, "wait": 0.0}
+    t_window = time.time()
+    while True:
+        elapsed = time.time() - t0 - paused
+        flags = [step >= cfg.steps or bool(cfg.minutes and elapsed >= cfg.minutes * 60) or bool(cfg.wall_minutes and time.time() - t_start >= cfg.wall_minutes * 60), elapsed >= next_val, elapsed >= next_save]
+        if world > 1:  # process 0's clock for everyone
+            clock = torch.tensor([float(f) for f in flags], device=device)
+            dist.broadcast(clock, 0)
+            flags = [bool(f) for f in clock.tolist()]
+        stop, do_val, do_save = flags
+        if stop:
+            break
+        if do_val or do_save:
+            t_pause = time.time()
+            if lead and do_val:
+                log({"step": step, "minutes": round(elapsed / 60, 2), **validate()})
+            if lead and do_save:
+                save(step)
+            if world > 1:
+                dist.barrier()
+            next_val = elapsed + cfg.val_every_minutes * 60 if do_val else next_val
+            next_save = elapsed + cfg.save_every_minutes * 60 if do_save else next_save
+            paused += time.time() - t_pause
+        for g, lr in zip(optimizer.param_groups, base_lrs):
+            g["lr"] = lr * lr_factor(step, cfg)
+        optimizer.zero_grad(set_to_none=True)
+        for _ in range(cfg.accumulate):
+            t_wait = time.time()
+            examples = batches.next()
+            counts["wait"] += time.time() - t_wait
+            with autocast():
+                out = policy(examples)
+            scaler.scale(out["loss"] / cfg.accumulate).backward()
+            for key in ("loss", "text", "action"):
+                window[key].append(out[key].item())
+            counts["tokens"] += out["tokens"]
+            counts["examples"] += out["examples"]
+        if text_stream is not None:
+            chunk = torch.stack([next(text_stream) for _ in range(cfg.lm_batch)]).to(device)
+            with autocast():
+                kl = distill_loss(policy.lm, teacher, chunk)
+            scaler.scale(cfg.distill_weight * kl).backward()
+            window["distill_kl"].append(kl.item())
+        if world > 1:
+            average_gradients(params, world)
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(params, 1.0)
+        scaler.step(optimizer)
+        scaler.update()
+        step += 1
+        if lead and (step % cfg.log_every == 0 or step - first_step in (1, 10)):
+            seconds = time.time() - t_window
+            row = {"step": step, "minutes": round((time.time() - t0 - paused) / 60, 2), **{k: round(float(np.mean(v)), 5) for k, v in window.items() if v}}
+            row.update({"lr_lm": optimizer.param_groups[0]["lr"], "tokens_per_s": round(counts["tokens"] * world / seconds, 1), "examples_per_s": round(counts["examples"] * world / seconds, 2), "data_wait": round(counts["wait"] / seconds, 3), "gpu_gb": memory_gb(device)})
+            log(row)
+            window = {k: [] for k in window}
+            counts = {"tokens": 0, "examples": 0, "wait": 0.0}
+            t_window = time.time()
+    if lead:
+        log({"step": step, "minutes": round((time.time() - t0 - paused) / 60, 2), **validate()})
+        save(step)
+    if world > 1:
+        dist.barrier()
+        print(f"process {rank}: weight checksum {sum(p.detach().double().sum().item() for p in params):.10e}", flush=True)
+        dist.destroy_process_group()
+    stage(f"done at step {step}")
+
+
+def main():
+    run()
+    # Exit hard once done, as lm_train does: the streamed text datasets' threads can hold the
+    # interpreter open (Kaggle kernels sat for hours after their last line).
+    import sys
+
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
+
+
+if __name__ == "__main__":
+    main()
