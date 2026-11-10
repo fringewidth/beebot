@@ -414,7 +414,7 @@ for the default, `--cube` and `--counts log` draws).
 | selector | spec (`spec["who"]`) | canonical phrase | status |
 | --- | --- | --- | --- |
 | everyone | `{"select": "all"}` | (none) | every family |
-| the smaller / larger group (two groups), the smallest / largest (three) | `{"select": "group", "by": "size", "which": ...}` | "the smaller group" | added |
+| the smaller / larger group (two groups), the smallest / largest (three) | `{"select": "group", "by": "size", "which": ...}` | "the smaller group" | added (in scenes of 2 or 3 separate groups, `place_groups`) |
 | the group on the left / right / back / front | `{"select": "group", "by": "side", "which": side}` | "the group on the left" | added |
 | the group nearest the red cheese | `{"select": "group", "by": "cheese", "which": colour}` | "the group nearest the red cheese" | added |
 | everyone except one of those | the same with `"except": true` | "everyone except the smaller group" | added |
@@ -441,8 +441,8 @@ where they are.
 | spread out | `spread` | "spread out so that no two of you touch" | added |
 | split into two / three groups | `groups` | "split into two separate groups" | added |
 | line up | `line` | "line up in one row from left to right" (or back to front) | added, swarms of up to 14 (`LINE_MAX`) |
-| climb onto a plateau | `climb` | "climb onto the plateau on the left" | added (trench scenes) |
-| climb on top of a cheese | `perch` | "3 of you: climb on top of the red cheese; ..." | added with a count selector (four voxels on top) |
+| climb onto a plateau | `climb` | "climb onto the plateau on the left" | added (trench scenes; everyone, or N of you) |
+| climb on top of a cheese | | "3 of you: climb on top of the red cheese" | out: under the pivot rule a cheese is no hinge, so a cube reaches its top only over a ladder of other cubes, and the count would have to exempt the ladder (0 of 9 under `switch_cube`). The checker and expert code (`perch`) stay; the draw leaves it out |
 | move a few steps in a direction | `move` | "move three steps toward the left" | added |
 | follow / chase a cheese without eating it | `follow` | "follow the red cheese without eating it" | added (the cheese flees, as a runner) |
 | catch / eat cheeses by colour logic | `eat` | "eat the red cheese", "eat every cheese except ..." | exists (logic, runner); eating by a selected group added |
@@ -450,6 +450,8 @@ where they are.
 | push a cheese to a region or into the trench | `herd_region`, `herd_trench` | "push the red cheese to the left of the floor without eating it" | exists |
 | letters, shapes | `mask` | "write A flat on the floor", "form a hollow cube" | exists |
 | tower, bridge, fill, stairs | `tower`, `bridge`, `fill`, `stairs` | "build a tower 5 robots tall" | exists; a tower by a selected group added |
+| avoid a cheese, keep away from it | | "stay away from the red cheese" | out for now: not added (a spread-like expert would do); "do not eat any cheese" exists |
+| swap the two groups, form a circle around the other group | | | out: needs identity across the episode or a checker of relative layouts |
 | undo, go back to where you started | | | out: the policy sees one frame; the start is gone by then. Needs memory (a history in the context, or the start frame as input) |
 | come to me, follow me, look at me | | | out: no user in the world |
 | faster, slower, carefully | | | out: one step per tick, no speed to set |

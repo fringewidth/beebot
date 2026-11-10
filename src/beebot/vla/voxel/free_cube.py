@@ -109,7 +109,11 @@ class FreeCubeExpert(S.Expert):
         for i, seg in enumerate(segs):
             if seg is not None and lists[i]:
                 head[i, : len(lists[i])] = torch.tensor(self.heads(i, seg, world, shells), dtype=torch.int16)
-        return self.plan(world, targets, valid, head, press_cheese, press_dir, self.generator if generator is None else generator)
+        codes = self.plan(world, targets, valid, head, press_cheese, press_dir, self.generator if generator is None else generator)
+        for i, frozen in enumerate(self.frozen):  # robots a coverage job leaves out stay (suite.JobSetup)
+            if frozen is not None:
+                codes[i][torch.from_numpy(frozen)] = STAY
+        return codes
 
     def plan(self, world, targets, valid, head, press_cheese, press_dir, generator=None):
         """Action codes (B, D, H, W) int8 for target voxels (B, S, 3) with heads (B, S)."""
