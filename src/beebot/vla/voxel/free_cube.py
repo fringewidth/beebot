@@ -19,6 +19,9 @@ treats lone cubes as the only material:
    So cubes travel with gaps and arrive one at a time.
 1. Targets that would be walled in are served first (a head start for voxels whose four level
    neighbours are targets too), and a tower is built one column after the other.
+1. Cubes that sit in a group, off the targets, crawl: each takes the allowed pivot that brings
+   it nearest to an open target, as the attractor controller would (a pair leapfrogs across the
+   floor at half a lone cube's pace), but never next to a mobile cube.
 
 With rule "switch_cube" (bonds can be released) every cube off a target is mobile and the gap
 keeping is off.
@@ -36,8 +39,8 @@ import numpy as np
 import torch
 
 from beebot.vla.voxel import suite as S
-from beebot.vla.voxel.controller import direction_code
-from beebot.vla.voxel.world import CUBE_MOVES, DIR_TABLE, DIRS, STAY, _at, _FACES, _padded, cheese_id_map, failure_rates, flat_index, pivot_moves, rule_table
+from beebot.vla.voxel.controller import act, direction_code
+from beebot.vla.voxel.world import CUBE_MOVES, DIR_TABLE, DIRS, STAY, _at, _FACES, _padded, _SIDES, cheese_id_map, failure_rates, flat_index, pivot_moves, rule_table
 
 FAR = 30000  # a distance no path has
 SEARCH_STEPS = 96
@@ -71,8 +74,9 @@ class FreeCubeExpert(S.Expert):
     """The suite's expert with the planner of this module in place of the attractor controller:
     the same plans, segments and sub-goal records. No jitter: a random move can bond a cube."""
 
-    def __init__(self, tasks, seed=None, rule="free_cube"):
+    def __init__(self, tasks, seed=None, rule="free_cube", crawl=True):
         super().__init__(tasks, moves=CUBE_MOVES, seed=seed, rule=rule)
+        self.crawl = crawl  # cubes in groups move too (greedily along their group)
         self.transit = None  # (B, D, H, W) bool: cubes this planner is moving
 
     def heads(self, i, seg, world, shells):
@@ -125,10 +129,12 @@ class FreeCubeExpert(S.Expert):
             mobile &= lone | (dist < FAR)  # a cube that joined a group and has no way on is scenery from now
 
         codes = torch.full((b, d, h, w), STAY, dtype=torch.int8)
-        scene, z, y, x = mobile.nonzero(as_tuple=True)
+        crawlers = occupied & ~mobile & ~on_target if self.crawl else torch.zeros_like(occupied)
+        scene, z, y, x = (mobile | crawlers).nonzero(as_tuple=True)
         transit = torch.zeros_like(occupied)
         if scene.numel():
-            truth = rule_table(world, self.rule)[scene, :, z, y, x]  # (M, 27)
+            table, side = rule_table(world, self.rule, sides=True)
+            truth = table[scene, :, z, y, x]  # (M, 27)
             here = torch.stack([z, y, x], dim=1)
             there = here.unsqueeze(1) + DIR_TABLE  # (M, 27, 3)
             flat_there, inside_there = flat_index(there, (d, h, w))
@@ -136,34 +142,53 @@ class FreeCubeExpert(S.Expert):
             own = dist[scene, z, y, x].long()
             lower = truth & (beyond < own.unsqueeze(1))
             lower[:, STAY] = False
-            cost = torch.where(lower, beyond.float(), float(FAR)) + torch.rand(lower.shape, generator=generator)
+            is_mobile = mobile[scene, z, y, x]
+            lost = ~is_mobile & (own >= FAR)  # crawlers with no way to a target head for the nearest one as the attractor would
+            if lost.any():
+                greedy = act(world, targets, valid, jitter=0.0, generator=generator, allowed=table.permute(0, 2, 3, 4, 1)[occupied] & CUBE_MOVES)[scene, z, y, x].long()
+                lower[lost, greedy[lost]] = greedy[lost] != STAY
+            cost = torch.where(lower, beyond.clamp(max=FAR).float(), 2.0 * FAR) + torch.rand(lower.shape, generator=generator)
             ranking = cost.argsort(dim=1)[:, :4].tolist()
             n_lower = lower.sum(dim=1).tolist()
-            order = (own.float() + torch.rand(own.shape, generator=generator)).argsort().tolist()
+            order = (own.float() + torch.rand(own.shape, generator=generator) + 2.0 * FAR * (~is_mobile)).argsort().tolist()  # mobile cubes first, each kind nearest first
+            sides = side[scene, :, z, y, x].tolist()
             cells = here.tolist()
             scenes = scene.tolist()
+            mobiles = is_mobile.tolist()
             near = np.zeros((b, d + 2, h + 2, w + 2), dtype=np.int16)  # how many mobile cubes (or their landing cells) touch each voxel
-            taken = np.zeros((b, d + 2, h + 2, w + 2), dtype=bool)
-            for i, (cz, cy, cx) in zip(scenes, cells):
-                for fz, fy, fx in _FACES:
-                    near[i, cz + fz + 1, cy + fy + 1, cx + fx + 1] += 1
+            taken = np.zeros((b, d + 2, h + 2, w + 2), dtype=bool)  # landing cells
+            busy = np.zeros((b, d + 2, h + 2, w + 2), dtype=bool)  # cubes that move this step
+            leant = np.zeros((b, d + 2, h + 2, w + 2), dtype=bool)  # voxels a moving cube pivots on
+            for i, (cz, cy, cx), free in zip(scenes, cells, mobiles):
+                if free:
+                    for fz, fy, fx in _FACES:
+                        near[i, cz + fz + 1, cy + fy + 1, cx + fx + 1] += 1
             chosen = [STAY] * len(cells)
             for m in order:
                 i, (cz, cy, cx) = scenes[m], cells[m]
+                if leant[i, cz + 1, cy + 1, cx + 1]:
+                    continue
                 for code in ranking[m][: n_lower[m]]:
                     dz, dy, dx = DIRS[code]
                     tz, ty, tx = cz + dz + 1, cy + dy + 1, cx + dx + 1
-                    own_touch = 1 if abs(dz) + abs(dy) + abs(dx) == 1 else 0
-                    if taken[i, tz, ty, tx] or (not release and near[i, tz, ty, tx] > own_touch):
+                    quarter = abs(dz) + abs(dy) + abs(dx) == 1
+                    own_touch = 1 if quarter and mobiles[m] else 0
+                    sz, sy, sx = _SIDES[sides[m][code]]
+                    support = (i, cz + sz + 1, cy + sy + 1, cx + sx + 1)
+                    rest = (i, tz + sz, ty + sy, tx + sx) if quarter else support
+                    if taken[i, tz, ty, tx] or busy[support] or busy[rest] or (not release and near[i, tz, ty, tx] > own_touch):
                         continue
                     chosen[m] = code
                     taken[i, tz, ty, tx] = True
-                    for fz, fy, fx in _FACES:
-                        near[i, min(max(tz + fz, 0), d + 1), min(max(ty + fy, 0), h + 1), min(max(tx + fx, 0), w + 1)] += 1
-                    transit[i, tz - 1, ty - 1, tx - 1] = True
+                    busy[i, cz + 1, cy + 1, cx + 1] = True
+                    leant[support] = leant[rest] = True
+                    if mobiles[m]:
+                        for fz, fy, fx in _FACES:
+                            near[i, tz + fz, ty + fy, tx + fx] += 1
+                        transit[i, tz - 1, ty - 1, tx - 1] = True
                     break
             codes[scene, z, y, x] = torch.tensor(chosen, dtype=torch.int8)
-            transit[scene, z, y, x] = True
+            transit[scene[is_mobile], z[is_mobile], y[is_mobile], x[is_mobile]] = True
         self.transit = transit
 
         # robots whose step along the press direction lands on the pressed cheese take it (as controller.act)
@@ -186,15 +211,17 @@ ARMS = {
     "switch_cube": ("attractor", "switch_cube", True),
     "switch_cube, planner": ("planner", "switch_cube", True),
     "free_cube": ("attractor", "free_cube", True),
+    "free_cube, lone planner": ("lone", "free_cube", True),
     "free_cube, planner": ("planner", "free_cube", True),
 }
 BUCKETS = (("under 15", 0, 14), ("15 to 40", 15, 40), ("over 40", 41, 10**6))
 
 
 def make_expert(name, tasks, rule, seed):
-    """The expert of an arm: "attractor" (suite.Expert) or "planner" (FreeCubeExpert)."""
-    if name == "planner":
-        expert = FreeCubeExpert(tasks, seed=seed, rule=rule)
+    """The expert of an arm: "attractor" (suite.Expert), "planner" (FreeCubeExpert) or "lone"
+    (FreeCubeExpert that leaves grouped cubes where they are)."""
+    if name in ("planner", "lone"):
+        expert = FreeCubeExpert(tasks, seed=seed, rule=rule, crawl=name == "planner")
     else:
         expert = S.Expert(tasks, moves=CUBE_MOVES, seed=seed, rule=rule)
     return expert
@@ -248,7 +275,7 @@ def compare(n_scenes, steps_list, arms, seed=0, chunk=24, out=None, failure=None
                         sink.write(json.dumps(row) + "\n")
                 if sink:
                     sink.flush()
-                print(f"scenes {c + len(metas)}: {arm}, {steps} steps, {len(tasks)} episodes, {time.time() - began:.0f} s", flush=True)
+                print(f"scenes {min(c + chunk, n_scenes)}: {arm}, {steps} steps, {len(tasks)} episodes, {time.time() - began:.0f} s", flush=True)
     if sink:
         sink.close()
     return rows

@@ -166,6 +166,10 @@ def fail_moves(codes, rates, generator=None):
 #
 # The floor, terrain and other cubes can be a support on any side; a cheese only from below
 # (nothing to hinge on). A move into a cheese is a press, not a pivot, and is outside the rule.
+#
+# Within one step every cube pivots at once, so the world (refuse) adds: a cube does not pivot on
+# a cube that is itself moving this step (its support at c + s, or the cube at c + h + s it comes
+# to rest against). Both conditions are judged on the scene as the step begins.
 
 RULES = ("free_cube", "switch_cube")
 _UP, _DOWN = (1, 0, 0), (-1, 0, 0)
@@ -198,7 +202,7 @@ def _at(padded, offset):
     return padded[:, z : z + d, y : y + h, x : x + w]
 
 
-def pivot_moves(cubes, walls, cheese, release=False, rubs=False):
+def pivot_moves(cubes, walls, cheese, release=False, rubs=False, sides=False):
     """(B, 27, D, H, W) bool: whether a cube standing in each voxel could make each move, given
     the other cubes (cubes), terrain (walls) and cheese voxels, all (B, D, H, W) bool. Defined for
     every voxel, occupied or not, so a planner can ask about cells a cube would pass through.
@@ -206,7 +210,9 @@ def pivot_moves(cubes, walls, cheese, release=False, rubs=False):
     release: the cube can switch its bonds off, so other cubes on its faces do not hold it.
     rubs: also refuse a move whose landing cell (and, for a half turn, the cell passed on the
     way) has a cube, terrain or the floor beside it along the pivot axis (sliding into a slot,
-    HARDWARE.md: 3 of 22 got in). Off in both named rules."""
+    HARDWARE.md: 3 of 22 got in). Off in both named rules.
+    sides: also return (B, 27, D, H, W) int8, the support side of each possible move as an index
+    into _SIDES (leans turns it into the voxels leaned on)."""
     surface = _padded(cubes | walls, True)  # what a cube can hinge on, on any side
     below = _padded(cubes | walls | cheese, True)  # what it can roll over; also everything that blocks
     others = _padded(cubes, False)
@@ -214,6 +220,7 @@ def pivot_moves(cubes, walls, cheese, release=False, rubs=False):
     face_cubes = sum(_at(others, f).to(torch.int8) for f in _FACES)
     out = torch.zeros(cubes.shape[0], N_ACTIONS, *cubes.shape[1:], dtype=torch.bool, device=cubes.device)
     out[:, STAY] = True
+    side = torch.zeros(out.shape, dtype=torch.int8, device=cubes.device) if sides else None
     for code, step_ in enumerate(DIRS):
         if not bool(CUBE_MOVES[code]):
             continue
@@ -236,19 +243,33 @@ def pivot_moves(cubes, walls, cheese, release=False, rubs=False):
                 axis = _cross(h, s)
                 for cell in [_add(h, s), h] if half else [h]:
                     free = free & ~_at(surface, _add(cell, axis)) & ~_at(surface, _add(cell, axis, -1))
+            if sides:
+                side[:, code][free & ~has_pivot] = _SIDES.index(s)
             possible |= free & ~has_pivot
             has_pivot |= can
         out[:, code] = possible & _at(inside, step_)
-    return out
+    return (out, side) if sides else out
 
 
-def rule_table(world, rule, cubes=None):
-    """pivot_moves of a scene batch under a named rule (RULES). cubes: the cubes that count
-    (default: every robot)."""
+_SIDE_TABLE = torch.tensor(_SIDES)
+_HALF_TURN = (DIR_TABLE != 0).sum(dim=1) == 2  # (27,)
+
+
+def leans(here, code, side):
+    """(M, 2, 3): the two voxels a cube at here (M, 3) leans on when it makes move code (M,) on
+    support side `side` (M,) (pivot_moves' index): its support, and for a quarter turn the voxel
+    it comes to rest against (for a half turn the support again)."""
+    support = _SIDE_TABLE.to(here.device)[side.long()]
+    step_ = DIR_TABLE.to(here.device)[code.long()]
+    rest = torch.where(_HALF_TURN.to(here.device)[code.long()].unsqueeze(1), support, step_ + support)
+    return torch.stack([here + support, here + rest], dim=1)
+
+
+def rule_table(world, rule, sides=False):
+    """pivot_moves of a scene batch under a named rule (RULES)."""
     if rule not in RULES:
         raise ValueError(f"unknown rule {rule!r}")
-    cubes = (world.mass > 0.5) if cubes is None else cubes
-    return pivot_moves(cubes, world.walls, cheese_id_map(world) >= 0, release=rule == "switch_cube")
+    return pivot_moves(world.mass > 0.5, world.walls, cheese_id_map(world) >= 0, release=rule == "switch_cube", sides=sides)
 
 
 def rule_moves(world, rule):
@@ -258,9 +279,13 @@ def rule_moves(world, rule):
     return table.permute(0, 2, 3, 4, 1)[world.mass > 0.5]
 
 
-def refuse(world, codes, rule, ids=None):
-    """Action codes (B, D, H, W) with every move the rule forbids replaced by STAY. A move into a
-    cheese is a press and passes."""
+def refuse(world, codes, rule, ids=None, priority=None):
+    """Action codes (B, D, H, W) with every move the rule forbids replaced by STAY: a move no
+    pivot makes from there, and a pivot on a cube that is itself pivoting this step. A move into
+    a cheese is a press and passes.
+    priority: (B, D, H, W) float, for a controller cleaning up its own choice: of a cube and the
+    cube it pivots on, only the one with the lower priority is stopped, so what is left passes
+    the plain check. Without it both stay, as in the world's step."""
     b, d, h, w = world.mass.shape
     ids = cheese_id_map(world) if ids is None else ids
     scene, z, y, x = (world.mass > 0.5).nonzero(as_tuple=True)
@@ -268,7 +293,24 @@ def refuse(world, codes, rule, ids=None):
     there = torch.stack([z, y, x], dim=1) + DIR_TABLE.to(codes.device)[code]
     flat, inside = flat_index(there, (d, h, w))
     press = inside & (ids.reshape(b, -1)[scene, flat] >= 0)
-    ok = rule_table(world, rule)[scene, code, z, y, x] | press
+    table, side = rule_table(world, rule, sides=True)
+    pivots = table[scene, code, z, y, x] & ~press & (code != STAY)
+    here = torch.stack([z, y, x], dim=1)
+    moving = torch.zeros(b, d * h * w, dtype=torch.bool, device=codes.device)
+    moving[scene[pivots], flat_index(here[pivots], (d, h, w))[0]] = True
+    lean_flat, lean_inside = flat_index(leans(here, code, side[scene, code, z, y, x]), (d, h, w))
+    if priority is None:
+        unsteady = (moving[scene.unsqueeze(1), lean_flat] & lean_inside).any(dim=1)
+    else:
+        rank = torch.where(pivots, priority[scene, z, y, x].float(), -1.0)
+        rank_grid = torch.full((b * d * h * w,), -1.0, device=codes.device)
+        rank_grid[scene * d * h * w + flat_index(here, (d, h, w))[0]] = rank
+        lean_cells = scene.unsqueeze(1) * d * h * w + lean_flat
+        support_rank = torch.where(lean_inside, rank_grid[lean_cells], -1.0).max(dim=1).values
+        load = torch.full((b * d * h * w,), -1.0, device=codes.device)  # the highest priority of the movers leaning on each voxel
+        load.scatter_reduce_(0, lean_cells[pivots].reshape(-1), rank[pivots].repeat_interleave(2), "amax")
+        unsteady = (support_rank > rank) | (load[scene * d * h * w + flat_index(here, (d, h, w))[0]] > rank)
+    ok = (pivots & ~unsteady) | press | (code == STAY)
     out = codes.clone()
     out[scene[~ok], z[~ok], y[~ok], x[~ok]] = STAY
     return out
