@@ -13,13 +13,13 @@ Interface (the trainer codes against exactly this)
 --------------------------------------------------
 ThinkData(stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1/3, haiku_share=None,
           refusal_share=0.05, held_share=0.05, channels=world.N_CHANNELS, system=None,
-          views=stand_in_views, validation_views=None)
+          views=stand_in_views, validation_views=None, mismatch="raise")
   stores        demo store directories (demos.write --compact or dense; small.pt must hold
                 "instructions", i.e. written after the coverage commit)
   haiku_dirs    Haiku label directories (haiku.Labels: verified pairs only; the test set is refused).
                 A directory joins the stores written with its seed (config.json); its draw options
-                must equal the store's (ValueError otherwise), and every joined label's family must
-                equal the store's attempt (ValueError otherwise).
+                must equal the store's (ValueError otherwise), and every joined label must belong to
+                its episode (see "Join check" below).
   tokenizer     optional; when given, check_tokens(tokenizer) runs (the fixed tokens below)
   seed          not used for sampling (sample takes an rng); kept for the caller's bookkeeping
   thought_share share of act examples drawn at a thought step (first step, instruction change,
@@ -31,16 +31,23 @@ ThinkData(stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1/3, haiku_s
   held_share    episodes held out for validation by a stable hash of (seed, index)
   channels      observation channels (world.observe)
   system        optional system message text
-  views         views(obs, rng) -> list of PIL images of the observation, called at sample time
-                with the sampler's rng (fresh randomization on every draw). The stand-in is one
-                isometric render; the switch to the randomized views is one line:
+  views         views(obs, rng) -> images, or (images, pose): PIL images of the observation,
+                called at sample time with the sampler's rng (fresh randomization on every draw).
+                pose["azimuth"] is the camera's place round the arena in degrees, measured from
+                the world's front (+y) toward its right (+x): 0 front, 90 right, 180 back, 270
+                left; the camera looks at the arena. Plain images count as azimuth 0. The stand-in
+                is one isometric render (azimuth 45: the front right corner); the switch to the
+                randomized views is one line:
                 views=lambda obs, rng: scene_views(obs, rng, ViewSpec())  (voxel/views.py)
   validation_views  the views of validation examples (e.g. a clean mode); None: `views`, with the
                 validation seed's rng, so validation examples are the same on every call and run
+  mismatch      "raise": a label that does not belong to its episode raises ValueError; "drop":
+                that episode's labels are dropped (it keeps its template) and counted
 
 .sample(rng: numpy.random.Generator) -> Example        (training episodes only)
 .validation(n, seed=0) -> list[Example]                (fixed: held-out episodes, same sampler)
-.counts() -> dict                                      (episodes, labelled, template, refusals, ...)
+.counts() -> dict                                      (episodes, labelled, template, refusals, mismatched, rewritten)
+.mismatches: list of (store, attempt index, problem) of the episodes whose labels were dropped
 tokenize(example, tokenizer, counts=None, slots=0) -> (input_ids (L,) long, labels (L,) long)
   IMAGES is expanded as the Qwen3-VL processor expands an image: <|vision_start|>, n x
   <|image_pad|>, <|vision_end|> per image, n = counts[i] or image_tokens(image) (Qwen3.5's resize:
@@ -66,8 +73,11 @@ Example (dataclass)
   family       the task family (attempts.jsonl)
   kind         "first", "change" (instruction change), "switch" (sub-goal switch), "done",
                "plain" (no thought this step) or "refusal"
-  instruction  the user instruction in the current turn
+  instruction  the user instruction in the current turn (in the user's frame)
   store        the store directory
+  user         where the user stands relative to the camera: "behind", "left", "right", "opposite"
+  turns        the user's quarter turn round the arena (0: the world's own frame), see below
+  camera       the camera's azimuth the views reported (degrees, as pose["azimuth"])
 
 Fixed tokens (checked by check_tokens on Qwen/Qwen3.5-4B, local_files_only): "<think>" 248068,
 "</think>" 248069, "<tool_call>" 248058 (ACT), "<|im_start|>" 248045, "<|im_end|>" 248046,
@@ -86,8 +96,29 @@ Text layout
 -----------
     [<|im_start|>system\\n{system}<|im_end|>\\n]                                  only with system
     [<|im_start|>assistant\\n{first thought}[\\n{latest line}]<|im_end|>\\n]       memory, t > 0
-    <|im_start|>user\\n<IMAGES>\\n{instruction}<|im_end|>\\n<|im_start|>assistant\\n
-    reply_text
+    <|im_start|>user\\n<IMAGES>\\n{where the user stands}\\n{instruction}<|im_end|>\\n<|im_start|>assistant\\n
+    reply_text                                                                   starts with "<think>\\n"
+
+The context ends exactly at "<|im_start|>assistant\\n" and the reply starts with "<think>\\n" (Qwen3.5's
+generation prompt ends in "<think>\\n", so the thought is always the reply's); an acting reply ends
+with "<tool_call>".
+
+The user's frame. The camera can be anywhere round the arena, and the user stands at one of four
+places relative to it, drawn per example: "(i'm standing behind the camera)" (seeing what the
+camera sees), "(i'm standing to the left of the camera)" and "(... to the right ...)" (a quarter
+turn round the arena from the camera, facing the arena), "(i'm standing opposite the camera,
+facing it)". The user's place round the arena is the camera's azimuth plus 0, -90, +90 or 180
+degrees, rounded to the nearest quarter turn (half way goes to the later one): turns 0 is the
+world's front (the world's own frame), 1 its right, 2 its back, 3 its left. Every direction word
+of the instruction, the thoughts, the memory, the switch lines and the refusal's answer is said as
+that user says it (in_user_frame): front/back/left/right and the corners (front/back first), -most
+and -ward forms, "in front of", "behind" and "to the left/right of" a thing, forward(s),
+backward(s), "back" after a motion verb, and "side by side" / "one behind the other" (swapped on a
+quarter turn); idioms ("right now", "nothing left", "come back") stay. A label whose wording cannot
+be turned reliably (UNMAPPABLE: near/far side or end, north/south/east/west, toward me, top left,
+right-hand, clockwise, ...) is used only when turns is 0: otherwise another verified rung, then the
+template, then the user's place that makes turns 0 (counts()["frames"] counts each). The voxel
+observation and the action codes stay in the world's frame.
 
 Memory is fixed in size: the latest first thought emitted before step t (of the instruction in
 force before t: on the step an instruction changes it is still the old one's) and the latest
@@ -108,23 +139,54 @@ switch episode only when every part has a verified instruction, one rung per par
 store's template instruction with a templated first thought from canonical_record and
 scene_summary (at the part's first step) and "<sub-goal> next." switch lines.
 
-Rendered examples (dev store: seed 0, the first 48 scenes of voxel_full/s0, with run-s0 labels)
----------------------------------------------------------------------------------------------
-First step, Haiku (e 7, eat:except, rung close):
-    context: <|im_start|>user\\nleave the white cheese alone and eat the others\\n<|image_pad|><|im_end|>\\n<|im_start|>assistant\\n
-    reply:   <think>\\nyou asked: leave the white cheese alone and eat the others. i see a red cheese on the back left plateau and a white one on the front right plateau. not white leaves red. first: eat the red cheese.\\n</think>\\n\\n<tool_call>
-Ordinary step (same episode, t 30):
-    context: <|im_start|>assistant\\nyou asked: leave the white cheese ... first: eat the red cheese.<|im_end|>\\n<|im_start|>user\\nleave the white cheese alone and eat the others\\n<|image_pad|><|im_end|>\\n<|im_start|>assistant\\n
+Rendered examples (data/vla/voxel_full/s0 with run-s0 and run-s0-later labels; render_examples, the CLI's --show)
+--------------------------------------------------------------------------------------------------------------
+These are in the world's frame, with "(i'm standing behind the camera)\\n" before each instruction left
+out for width; a turned one follows them.
+First step, Haiku (e 0, t 0, parallel, rung casual):
+    context: <|im_start|>user\\n<IMAGES>\\nsplit up pls, half go front n the rest go front right<|im_end|>\\n<|im_start|>assistant\\n
+    reply:   <think>\\nyou asked: split up pls, half go front n the rest go front right. i see the robots. two halves, two spots. first: split into two groups: one should go to the front, the other should go to the front right.\\n</think>\\n\\n<tool_call>
+Ordinary step (same episode, t 36):
+    context: <|im_start|>assistant\\nyou asked: split up pls, ... the other should go to the front right.<|im_end|>\\n<|im_start|>user\\n<IMAGES>\\nsplit up pls, half go front n the rest go front right<|im_end|>\\n<|im_start|>assistant\\n
     reply:   <think>\\n\\n</think>\\n\\n<tool_call>
-Done step (t 51): reply "<think>\\ndone.\\n</think>\\n\\n<tool_call>"; later steps carry "done." as
-the memory's second line.
-Template first step (no verified label):
-    reply:   <think>\\nyou asked: bridge the gap. i see 39 robots, a trench running left to right between two plateaus. that means: build a bridge across the trench. first: build a bridge across the trench.\\n</think>\\n\\n<tool_call>
-Instruction change (switch:goto>stay at t 21): the user turn holds "stay where you are", the
-memory the first instruction's thought, the reply the second part's first thought.
-Refusal: context with the refusal instruction at t 0, reply
-    <think>\\nyou asked: make the blue cheese float in the air. ... i will not act.\\n</think>\\n\\ngravity holds the blue cheese on the floor, so i will do nothing.<|im_end|>
-(The README section "Think-then-act training examples" has the exact output of render_examples.)
+Sub-goal switch, Haiku (e 195, t 20, logic):
+    context: <|im_start|>assistant\\nyou asked: yo eat the cyan one first, then the yellow one, ty. i see cyan at left, yellow at back right, blue at front left. cyan then yellow. first: eat the cyan cheese.<|im_end|>\\n<|im_start|>user\\n<IMAGES>\\nyo eat the cyan one first, then the yellow one, ty<|im_end|>\\n<|im_start|>assistant\\n
+    reply:   <think>\\nnow the yellow one\\n</think>\\n\\n<tool_call>
+Sub-goal switch, template (e 754, t 10, blocks): reply "<think>\\npush the huge orange l-shaped block into the row running back to front next.\\n</think>\\n\\n<tool_call>"
+Done (e 8, t 67, logic): reply "<think>\\ndone.\\n</think>\\n\\n<tool_call>"; later steps carry "done." as the memory's second line.
+Template first step (e 13, t 0, runner):
+    reply:   <think>\\nyou asked: hunt the yellow cheese. i see the swarm on low hills, a yellow cheese at the front right and a cyan cheese at the front. that means: catch the yellow cheese and eat it. first: eat the yellow cheese.\\n</think>\\n\\n<tool_call>
+Instruction change, Haiku (e 49, t 21, switch:goto>stay):
+    context: <|im_start|>assistant\\nyou asked: head to the front right of the floor. i see low hills and a red cheese in the center. front right is the floor corner in front and on the right. first: go to the front right of the floor.<|im_end|>\\n<|im_start|>user\\n<IMAGES>\\nremain where you are now<|im_end|>\\n<|im_start|>assistant\\n
+    reply:   <think>\\nyou asked: remain where you are now. i see low hills and one red cheese. remain means every robot holds still. first: stay where you are.\\n</think>\\n\\n<tool_call>
+Refusal (e 10, t 0, parallel):
+    context: <|im_start|>user\\n<IMAGES>\\nsplit into two groups: one should surround the white cheese, the other should surround the cyan cheese<|im_end|>\\n<|im_start|>assistant\\n
+    reply:   <think>\\nyou asked: split into two groups: ... i see white and red cheeses only, no cyan one. the second group has no cyan cheese to surround, so i will not split.\\n</think>\\n\\nthere is no cyan cheese in this scene, so i will not split or move.<|im_end|>
+
+A turned example (user behind the stand-in camera at azimuth 45: turns 1, the user at the world's
+right, so the world's "back to front" is the user's "right to left"):
+    context: <|im_start|>user\\n<IMAGES>\\n(i'm standing behind the camera)\\nbuild a bridge across the trench<|im_end|>\\n<|im_start|>assistant\\n
+    reply:   <think>\\nyou asked: build a bridge across the trench. i see the swarm, a trench running right to left between two plateaus and a yellow cheese on a plateau in the center. that means: build a bridge across the trench. first: build a bridge across the trench.\\n</think>\\n\\n<tool_call>
+
+What images show (visible): the policy sees images, not the scene summary, so every thought (Haiku
+and template, and switch lines) is cut to what a viewer can read off them: robot counts ("i see 54
+robots" -> "i see the robots", "the other 26 hold" -> "the others hold"), coordinates ("at x 13",
+"the row at x = 7" -> "the row running back to front") and measured heights, depths and widths go,
+unless the instruction states the number (or, for a non-robot-count number such as a tower's height
+or "3 of you", the task's record does); colours, kinds, sizes and coarse places stay. A sentence
+still holding a number from nowhere is dropped, or in the "i see" or last sentence the number
+becomes "some". Templates say "the swarm" and "other things", never a count.
+
+Join check (mismatch="raise" by default): every label joined by (seed, index) must belong to its
+episode: the label's family is the attempt's, its kind and spec are the store's record of the
+instruction it labels (refusals: family only), and the exported item it was written from
+(items.jsonl) has the attempt's family, kind and robot count. Any problem raises ValueError;
+mismatch="drop" instead drops that episode's labels (it keeps its template), lists them in
+.mismatches and counts them in counts()["mismatched_episodes"]. On the real stores of 2026-11-10
+(voxel_full/s0..s7 with run-s*/run-s*-later) 894 of 30,905 episodes fail (s0 229, s1 305, s2 326,
+s4 1, s5 1, s7 32): the stores' object-task draws part from the Haiku export at one index per seed
+(s0 715, s1 816, s2 783, s7 2745; demos.draws alone reproduces the export, demos.write does not),
+so for now load them with mismatch="drop".
 """
 
 import hashlib
@@ -183,13 +245,15 @@ def text_reply(thought, answer):
     return thought_block(thought) + answer.strip() + END
 
 
-def context(instruction, memory=(), system=None):
+def context(instruction, memory=(), system=None, standing=None):
     """The text before the reply: system, memory (earlier assistant text) and the user turn with
-    IMAGES, then the instruction."""
+    IMAGES, where the user stands (standing, a USER_POSITIONS sentence), then the instruction. It
+    ends exactly at the assistant's turn: the reply starts with "<think>\n"."""
     out = f"{START}system\n{system}{END}\n" if system else ""
     if memory:
         out += f"{START}assistant\n" + "\n".join(memory) + f"{END}\n"
-    return out + f"{START}user\n{IMAGES}\n{instruction.strip()}{END}\n{START}assistant\n"
+    where = f"{standing}\n" if standing else ""
+    return out + f"{START}user\n{IMAGES}\n{where}{instruction.strip()}{END}\n{START}assistant\n"
 
 
 def stand_in_views(obs, rng=None, scale=ISO_SCALE):
@@ -219,7 +283,17 @@ def stand_in_views(obs, rng=None, scale=ISO_SCALE):
         cx, cy = ox + (x - y) * s, oy + (x + y) * s / 2 - z * s
         for face, k in zip(([(cx, cy - s), (cx + s, cy - s / 2), (cx, cy), (cx - s, cy - s / 2)], [(cx - s, cy - s / 2), (cx, cy), (cx, cy + s), (cx - s, cy + s / 2)], [(cx, cy), (cx + s, cy - s / 2), (cx + s, cy + s / 2), (cx, cy + s)]), SHADES):
             draw.polygon(face, fill=tuple(int(c * k) for c in rgb))
-    return [image]
+    return [image], {"azimuth": STAND_IN_AZIMUTH}
+
+
+def views_and_pose(result):
+    """(images, camera azimuth in degrees) from what a views function returns: a list of images
+    (the camera then counts as the default viewer's, azimuth 0) or (images, pose) with
+    pose["azimuth"]."""
+    if isinstance(result, tuple):
+        images, pose = result
+        return list(images), float((pose or {}).get("azimuth", 0.0))
+    return list(result), 0.0
 
 
 def article(phrase):
@@ -294,7 +368,7 @@ def sight(summary, record):
     ordered = [p for named, p in entries if named] + [p for named, p in entries if not named]
     parts += ordered[:MAX_SEEN]
     if len(ordered) > MAX_SEEN:
-        parts.append(f"{len(ordered) - MAX_SEEN} more thing{'s' if len(ordered) - MAX_SEEN > 1 else ''}")
+        parts.append("other things")
     return joined(parts)
 
 
@@ -328,6 +402,29 @@ COUNT_PATTERNS = (  # (pattern, replacement, numbers it keeps) for counts a view
     (re.compile(r"\ball (\d+)\b(?! (?:robots|bots|of|high|tall))"), "all of them", "task"),
     (re.compile(r"\bhalf of (\d+) is (?:about )?(\d+)"), "half of them", "task"),
 )
+
+
+def label_problem(label_row, attempt, entries, item=None):
+    """Why a label does not belong to the episode it joined (None when it does). Its family must be
+    the attempt's; but for a refusal (another instruction for the same scene) its kind and spec those
+    of the store's record of the instruction it labels; and the exported item it was written from
+    (items.jsonl) must have the attempt's family, kind and robot count, so a label that matches by
+    chance after a misaligned draw (another scene with the same task) is caught too."""
+    if label_row.get("family") != attempt["family"]:
+        return f"family {label_row.get('family')} but the attempt is {attempt['family']}"
+    if item is not None:
+        record, robots = item["record"], item.get("scene", {}).get("robots", {}).get("count")
+        if (record["family"], record["kind"]) != (attempt["family"], attempt["kind"]) or (robots is not None and robots != attempt.get("robots", robots)):
+            return f"its item is {record['family']}/{record['kind']} with {robots} robots but the attempt is {attempt['family']}/{attempt['kind']} with {attempt.get('robots')}"
+    if label_row.get("rung") == REFUSAL:
+        return None
+    j = int(label_row.get("part", 0))
+    if j >= len(entries):
+        return f"part {j} but the episode has {len(entries)} instructions"
+    record = entries[j]["record"]
+    if label_row.get("kind") != record["kind"] or canonical_json(label_row.get("spec")) != canonical_json(record["spec"]):
+        return f"kind {label_row.get('kind')} spec {label_row.get('spec')} but the store's record is kind {record['kind']} spec {record['spec']}"
+    return None
 
 
 def canonical_json(value):
@@ -385,6 +482,118 @@ def template_line(record, index):
     subgoals = record.get("subgoals") or []
     goal = bare(subgoals[index]) if 0 <= index < len(subgoals) else "the next part"
     return f"{goal} next.".lower()
+
+
+# The user's frame: directions as the user standing around the arena says them
+
+ORDER = ("front", "right", "back", "left")  # world directions counterclockwise seen from above, from the default viewer's side (+y)
+USER_POSITIONS = {  # the user's place relative to the camera: (degrees added to the camera's azimuth, what the user turn says)
+    "behind": (0, "(i'm standing behind the camera)"),
+    "left": (-90, "(i'm standing to the left of the camera)"),
+    "right": (90, "(i'm standing to the right of the camera)"),
+    "opposite": (180, "(i'm standing opposite the camera, facing it)"),
+}
+STAND_IN_AZIMUTH = 45.0  # render.render_scene looks from the front right corner (x to the lower right, y to the lower left)
+NOT_DIRECTIONS = (  # uses of the four words that are no direction: left as they are
+    r"\b(?:all|alright|that's|thats|you're|youre) right\b",
+    r"(?<!\bthe )(?<!\bto the )(?<!\bon the )(?<!\bat the )(?<!\bfront )(?<!\bback )(?<!\bfar )\bright (?:now|away|here|there|next to|beside|behind|in front|where|by|on top|above|below|against|into|onto|under|over)\b",
+    r"\b(?:is|are|was|were|nothing|none|anything|what's|whats|still|ones|one|those|any|no|be) left\b(?! (?:side|of|corner|edge|half|to|and|or|plateau|zone|stripe|group|one|area|part))",
+    r"\bleft (?:over|alone|behind|untouched|uneaten|out)\b",
+    r"\b(?:come|came|comes|coming|go|goes|went|get|gets|got|bring|put|turn|hold|held|holding|fall|pull|give|sit|sitting|stand|standing|settle|settling|lie|lying|set) back\b(?! (?:left|right|of|side|corner|edge|half|row|plateau|area|part))",
+    r"\bback (?:off|up|together|down)\b",
+)
+UNMAPPABLE = re.compile(  # direction words that cannot be turned reliably: used only when the user's frame is the world's
+    r"\b(?:near|far|nearer|farther|further|this|that|other|opposite)\s+(?:side|end|edge|corner|wall|half)\b"
+    r"|\b(?:north|south|east|west|northern|southern|eastern|western|northeast|northwest|southeast|southwest)\b"
+    r"|\b(?:window|door|doorway|camera|viewer)\b"
+    r"|\b(?:toward|towards|away from|closest to|nearest to|close to|near|nearest|facing)\s+(?:me|you|us)\b"
+    r"|\b(?:top|bottom|upper|lower)\s+(?:left|right|edge|side|corner|half|row|part|end)\b"
+    r"|\b(?:left|right)[- ]?hand\b"
+    r"|\b(?:front|back)(?:left|right)\b|\bfar(?:left|right|back|front)\b"
+    r"|\b(?:clockwise|counterclockwise|anticlockwise)\b"
+)
+MOTION_VERBS = r"(?:step|steps|move|moves|moving|head|heads|walk|walks|shift|shifts|slide|slides|push|pushes|roll|rolls|nudge|nudges|drift)"
+SAID = {  # how a turned word is said in each kind of place: plain, after "in front of"/"behind", after a motion verb or as forward/backward
+    "plain": {d: d for d in ORDER},
+    "preposition": {"front": "in front of", "back": "behind", "left": "to the left of", "right": "to the right of"},
+    "motion": {"front": "forward", "back": "back", "left": "left", "right": "right"},
+    "adverb": {"front": "forward", "back": "backward", "left": "to the left", "right": "to the right"},
+}
+
+
+def quarter_turns(degrees):
+    """The quarter turn (0 front, 1 right, 2 back, 3 left) of a place around the arena at this
+    azimuth, nearest first (a place half way between two goes to the later one)."""
+    return int(((float(degrees) + 45.0) % 360.0) // 90.0)
+
+
+def user_turns(camera_azimuth, position):
+    return quarter_turns(camera_azimuth + USER_POSITIONS[position][0])
+
+
+def turn_word(word, turns):
+    """A world direction word as said from the user's side `turns` quarter turns round."""
+    return ORDER[(ORDER.index(word) - turns) % 4]
+
+
+def mappable(text):
+    return UNMAPPABLE.search(text) is None
+
+
+USER_NAMES = tuple(USER_POSITIONS)
+
+
+def turnable_choice(choice):
+    """Whether every text of a label (instruction, thought, switch lines, reply) can be turned."""
+    texts = [choice.get("instruction", ""), choice.get("thought", ""), choice.get("reply", "")] + list(choice.get("switches") or [])
+    return all(mappable(text) for text in texts)
+
+
+def turnable(parts):
+    return all(turnable_choice(part) for part in parts)
+
+
+def in_user_frame(text, turns):
+    """Text with every direction word turned from the world frame (front = +y, toward the default
+    viewer; left = -x) into the frame of a user `turns` quarter turns round the arena (1: at the
+    world's right, looking across it). Corners keep front/back first, "in front of" and "behind"
+    become the user's word for that side, forward(s) and backward(s) and "back" after a motion verb
+    turn too, and "side by side" and "one behind the other" swap on a quarter turn. Every turned
+    word is written through a marker, so nothing is turned twice. turns 0 returns the text as it is."""
+    if not turns:
+        return text
+    kept = []
+
+    def put(value):
+        kept.append(value)
+        return f"\x00{len(kept) - 1}\x00"
+
+    def mark(word, style="plain"):
+        return put(SAID[style][turn_word(word, turns)])
+
+    for pattern in NOT_DIRECTIONS:
+        text = re.sub(pattern, lambda m: put(m.group(0)), text)
+    rows = {"side by side": "one behind the other"} if turns % 2 else {}
+    text = re.sub(r"\bside by side\b|\bone behind (?:the other|another)\b", lambda m: put(rows.get(m.group(0), "side by side" if turns % 2 else m.group(0))), text)
+    text = re.sub(r"\bin front of\b", lambda m: mark("front", "preposition"), text)
+    text = re.sub(r"\bto the (left|right) of\b(?! the (?:floor|arena|area|grid|ground|field|world|map|room|space|board)\b)", lambda m: mark(m.group(1), "preposition"), text)  # beside a thing; of the floor it is a region
+    text = re.sub(r"\bbehind\b", lambda m: mark("back", "preposition"), text)
+    text = re.sub(r"\bforwards?\b", lambda m: mark("front", "adverb"), text)
+    text = re.sub(r"\bbackwards?\b", lambda m: mark("back", "adverb"), text)
+    text = re.sub(r"\b(" + MOTION_VERBS + r") back\b", lambda m: m.group(1) + " " + mark("back", "motion"), text)
+    text = re.sub(r"\brear\b", "back", text)
+
+    def corner(m):
+        first, second = turn_word(m.group(1), turns), turn_word(m.group(3), turns)
+        if first in ("left", "right"):
+            first, second = second, first
+        return put(first + m.group(2) + second)
+
+    text = re.sub(r"\b(front|back)([ -])(left|right)\b", corner, text)
+    text = re.sub(r"\b(front|back|left|right)(most|ward|wards)?\b", lambda m: mark(m.group(1)) + (m.group(2) or ""), text)
+    text = re.sub("\x00(\\d+)\x00", lambda m: kept[int(m.group(1))], text)
+    text = re.sub("\x00(\\d+)\x00", lambda m: kept[int(m.group(1))], text)  # a kept phrase may hold a mark
+    return re.sub(r"\bon the (front|back)\b", r"at the \1", text)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -493,6 +702,9 @@ class Example:
     kind: str
     instruction: str
     store: str
+    user: str = "behind"  # where the user stands relative to the camera (USER_POSITIONS)
+    turns: int = 0  # the user's quarter turn round the arena (0: the world's own frame); every direction word is in that frame
+    camera: float = 0.0  # the camera's azimuth (degrees round the arena, 0 at the world's front, 90 at its right)
 
 
 def still(obs):
@@ -505,7 +717,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise"):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -516,6 +728,10 @@ class ThinkData:
         self.channels = channels
         self.system = system
         self.views = views
+        if mismatch not in ("raise", "drop"):
+            raise ValueError(f"mismatch is raise or drop, not {mismatch}")
+        self.mismatch = mismatch
+        self.mismatches = []  # (store, attempt index, problem) of the episodes whose labels were dropped
         self.validation_views = validation_views
         self.stores = [str(s) for s in stores]
         self.data = [load(s) for s in self.stores]
@@ -523,8 +739,10 @@ class ThinkData:
         for directory in haiku_dirs:
             directory = Path(directory)
             assert not H.is_test(directory), f"{directory} is the held-out test set; it never goes into training"
-            self.labels.append((H.Labels(directory.name, root=directory.parent), label_options(directory)))
+            items = {(item["seed"], item["index"]): item for item in H.read_jsonl(directory / "items.jsonl")}
+            self.labels.append((H.Labels(directory.name, root=directory.parent), label_options(directory), items))
         self.episodes = []
+        self.frames = {"turned": 0, "world": 0, "rung_swapped": 0, "template_instead": 0, "world_frame_forced": 0}
         self.rewritten = {"haiku_thoughts": 0, "haiku_changed": 0, "haiku_lines_changed": 0, "template_thoughts": 0, "template_changed": 0}
         self.events = {}
         self.templates = {}
@@ -542,52 +760,41 @@ class ThinkData:
         config = store.get("config", {})
         seed = int(config["seed"])
         mine = []
-        for labels, options in self.labels:
+        for labels, options, items in self.labels:
             if options.get("seed", seed) != seed:
                 continue
             for key in OPTION_KEYS:
                 if key in options and key in config and options[key] != config[key]:
                     raise ValueError(f"{labels.directory} was drawn with {key}={options[key]} but {path} with {config[key]}: the (seed, index) join would be wrong")
-            mine.append(labels)
+            mine.append((labels, items))
         out = []
         for n, row in enumerate(H.read_jsonl(Path(path) / "attempts.jsonl")):
             if row["e"] < 0:
                 continue
             entries = store["instructions"][row["e"]]
             choices, parts, refusals = [], [], []
-            for labels in mine:
+            problems = []
+            for labels, items in mine:
                 for label_row in labels.by_key.get((seed, n), []):
-                    self.check_label(label_row, row, entries, f"{path} attempt {n}")
+                    problem = label_problem(label_row, row, entries, items.get((seed, n)))
+                    if problem:
+                        problems.append(f"label {label_row.get('pair_id')}: {problem}")
                 choices += labels.choices(seed, n)
                 parts = parts or labels.switch_parts(seed, n)
                 refusals += labels.refusals(seed, n)
             if parts and [p["t"] for p in parts[: len(entries)]] != [int(entry["t"]) for entry in entries]:
-                raise ValueError(f"{path} attempt {n}: the Haiku parts start at {[p['t'] for p in parts]} but the store's instructions at {[entry['t'] for entry in entries]}")
+                problems.append(f"the Haiku parts start at {[p['t'] for p in parts]} but the store's instructions at {[entry['t'] for entry in entries]}")
+            if problems:
+                if self.mismatch == "raise":
+                    raise ValueError(f"{path} attempt {n}: {problems[0]}; the (seed, index) join is broken ({len(problems)} problems on this episode; mismatch='drop' falls back to templates)")
+                self.mismatches.append((path, n, problems[0]))
+                choices, parts, refusals = [], [], []
             record = entries[0]["record"]
             choices = [self.visibly(choice, record) for choice in choices]
             parts = [dict(part, choices=[self.visibly(choice, entries[part["part"]]["record"]) for choice in part["choices"]]) for part in parts[: len(entries)]]
             refusals = [self.visibly(pair, None) for pair in refusals]
             out.append(Episode(k, int(row["e"]), seed, n, row["family"], held_out(seed, n, self.held_share), choices, parts, refusals))
         return out
-
-    @staticmethod
-    def check_label(label_row, attempt, entries, where):
-        """A label must be for the task its episode played: its family the attempt's, and (but for a
-        refusal, which is another instruction for the same scene) its kind and spec those of the
-        store's record of the instruction it labels. Raises ValueError otherwise."""
-        problem = None
-        if label_row.get("family") != attempt["family"]:
-            problem = f"family {label_row.get('family')} but the attempt is {attempt['family']}"
-        elif label_row.get("rung") != REFUSAL:
-            j = int(label_row.get("part", 0))
-            if j >= len(entries):
-                problem = f"part {j} but the episode has {len(entries)} instructions"
-            else:
-                record = entries[j]["record"]
-                if label_row.get("kind") != record["kind"] or canonical_json(label_row.get("spec")) != canonical_json(record["spec"]):
-                    problem = f"kind {label_row.get('kind')} spec {label_row.get('spec')} but the store's record is kind {record['kind']} spec {record['spec']}"
-        if problem:
-            raise ValueError(f"label {label_row.get('pair_id')} on {where}: {problem}; the (seed, index) join is broken")
 
     def visibly(self, choice, record):
         """A Haiku choice (or refusal pair) with its thought and lines cut to what images show
@@ -634,13 +841,41 @@ class ThinkData:
             self.templates[key] = parts
         return self.templates[key]
 
-    def labelling(self, ep, rng):
-        """One choice per instruction: Haiku (a rung drawn per part) or the template."""
+    def labelling(self, ep, rng, usable=None):
+        """One choice per instruction: Haiku (a rung drawn per part, among those `usable` accepts)
+        or the template. None when a part has no usable choice."""
+        def pick(choices):
+            pool = [c for c in choices if usable is None or usable(c)]
+            return pool[int(rng.integers(len(pool)))] if pool else None
+
         if ep.parts:
-            return [part["choices"][int(rng.integers(len(part["choices"])))] for part in ep.parts[: len(self.instructions(ep))]]
-        if ep.choices:
-            return [ep.choices[int(rng.integers(len(ep.choices)))]]
-        return self.template_parts(ep)
+            parts = [pick(part["choices"]) for part in ep.parts[: len(self.instructions(ep))]]
+        elif ep.choices:
+            parts = [pick(ep.choices)]
+        else:
+            parts = [part if usable is None or usable(part) else None for part in self.template_parts(ep)]
+        return None if any(part is None for part in parts) else parts
+
+    def user_frame(self, ep, parts, rng, azimuth):
+        """(parts, user position, quarter turns): the user's place drawn round the camera; labels
+        whose direction words cannot be turned (UNMAPPABLE) are used only in the world's frame, so
+        another rung, then the template, then the position that makes the frame the world's."""
+        position = USER_NAMES[int(rng.integers(len(USER_NAMES)))] if rng is not None else "behind"
+        turns = user_turns(azimuth, position)
+        if turns == 0 or turnable(parts):
+            self.frames["turned" if turns else "world"] += 1
+            return parts, position, turns
+        other = self.labelling(ep, rng, turnable_choice) if ep.labelled else None
+        if other is not None:
+            self.frames["rung_swapped"] += 1
+            return other, position, turns
+        template = self.template_parts(ep)
+        if ep.labelled and turnable(template):
+            self.frames["template_instead"] += 1
+            return template, position, turns
+        self.frames["world_frame_forced"] += 1
+        position = next(name for name in USER_NAMES if user_turns(azimuth, name) == 0)
+        return parts, position, 0
 
     def thought_of(self, ep, parts, ev):
         part = parts[ev.part]
@@ -665,14 +900,16 @@ class ThinkData:
         starts = [int(entry["t"]) for entry in self.instructions(ep)]
         j = part_at(starts, t)
         here = next((ev for ev in events if ev.t == t), None)
-        memory = [self.thought_of(ep, parts, ev) for ev in memory_before(events, t)]
-        thought = self.thought_of(ep, parts, here) if here is not None else ""
         codes = self.data[ep.store]["actions"][ep.e, t].long()
         obs = self.observation(ep, t)
+        images, azimuth = views_and_pose((views or self.views)(obs, rng))
+        parts, position, turns = self.user_frame(ep, parts, rng, azimuth)
+        memory = [in_user_frame(self.thought_of(ep, parts, ev), turns) for ev in memory_before(events, t)]
+        thought = in_user_frame(self.thought_of(ep, parts, here), turns) if here is not None else ""
         return Example(
             obs=obs,
-            images=(views or self.views)(obs, rng),
-            context_text=context(parts[j]["instruction"], memory, self.system),
+            images=images,
+            context_text=context(in_user_frame(parts[j]["instruction"], turns), memory, self.system, USER_POSITIONS[position][1]),
             reply_text=act_reply(thought),
             act=True,
             codes=codes,
@@ -683,17 +920,28 @@ class ThinkData:
             rung=parts[j]["rung"],
             family=ep.family,
             kind=here.kind if here is not None else "plain",
-            instruction=parts[j]["instruction"],
+            instruction=in_user_frame(parts[j]["instruction"], turns),
             store=self.stores[ep.store],
+            user=position,
+            turns=turns,
+            camera=azimuth,
         )
 
     def refusal(self, ep, pair, rng=None, views=None):
         obs = self.observation(ep, 0)
+        images, azimuth = views_and_pose((views or self.views)(obs, rng))
+        position = USER_NAMES[int(rng.integers(len(USER_NAMES)))] if rng is not None else "behind"
+        turns = user_turns(azimuth, position)
+        if turns and not turnable_choice(pair):
+            self.frames["world_frame_forced"] += 1
+            position, turns = next(name for name in USER_NAMES if user_turns(azimuth, name) == 0), 0
+        else:
+            self.frames["turned" if turns else "world"] += 1
         return Example(
             obs=obs,
-            images=(views or self.views)(obs, rng),
-            context_text=context(pair["instruction"], (), self.system),
-            reply_text=text_reply(pair["thought"], pair["reply"]),
+            images=images,
+            context_text=context(in_user_frame(pair["instruction"], turns), (), self.system, USER_POSITIONS[position][1]),
+            reply_text=text_reply(in_user_frame(pair["thought"], turns), in_user_frame(pair["reply"], turns)),
             act=False,
             codes=None,
             seed=ep.seed,
@@ -703,8 +951,11 @@ class ThinkData:
             rung=REFUSAL,
             family=ep.family,
             kind=REFUSAL,
-            instruction=pair["instruction"],
+            instruction=in_user_frame(pair["instruction"], turns),
             store=self.stores[ep.store],
+            user=position,
+            turns=turns,
+            camera=azimuth,
         )
 
     def draw(self, pool, rng, views=None):
@@ -753,7 +1004,10 @@ class ThinkData:
             row["episodes"] += 1
             row["haiku" if ep.labelled else "template"] += 1
         out["families"] = dict(sorted(families.items()))
-        out["rewritten"] = dict(self.rewritten)  # thoughts visible() changed (templates: those built so far)
+        out["mismatched_episodes"] = len(self.mismatches)  # labels dropped (mismatch="drop")
+        out["mismatched_per_store"] = {path: sum(m[0] == path for m in self.mismatches) for path in self.stores}
+        out["rewritten"] = dict(self.rewritten)
+        out["frames"] = dict(self.frames)  # examples drawn so far: in a turned frame, in the world's, and how unturnable labels were handled  # thoughts visible() changed (templates: those built so far)
         out["per_store"] = {path: sum(ep.store == k for ep in self.episodes) for k, path in enumerate(self.stores)}
         out["per_store_haiku"] = {path: sum(ep.store == k and ep.labelled for ep in self.episodes) for k, path in enumerate(self.stores)}
         return out
@@ -833,10 +1087,11 @@ def main():
     parser.add_argument("--haiku", nargs="*", default=[])
     parser.add_argument("--samples", type=int, default=2000)
     parser.add_argument("--show", action="store_true", help="print one rendered example of each kind")
+    parser.add_argument("--mismatch", choices=("raise", "drop"), default="raise", help="labels that do not belong to their episode: raise, or drop them (the episode keeps its template)")
     args = parser.parse_args()
     torch.set_num_threads(1)
     t0 = time.time()
-    data = ThinkData(args.stores, args.haiku)
+    data = ThinkData(args.stores, args.haiku, mismatch=args.mismatch)
     print(f"loaded in {time.time() - t0:.1f} s")
     print(json.dumps(data.counts(), indent=1))
     if args.show:
