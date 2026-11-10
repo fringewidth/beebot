@@ -339,7 +339,7 @@ def choose(rng, kind, value, template, name, split, present, keep, choices, slot
     """The text for one placeholder: the canonical word, or an expression of the split that fits."""
     part = "train" if split == "wording" else split
     options = [] if split == "wording" else entries(kind, value, "words" if part == "categories" and kind != "colour" else part) if part != "categories" else []
-    if kind == "colour" and present is not None and value in present and split in ("train", "categories"):
+    if kind == "colour" and present is not None and value in present and len(set(present)) > 1 and split in ("train", "categories"):  # "the warm-coloured cheese" only where it tells cheeses apart
         options = options + category_entries([value], present, split)
     options = [(source, fitting(forms, template, name)) for source, forms in options]
     options = [(source, forms) for source, forms in options if forms]
