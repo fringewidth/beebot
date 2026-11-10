@@ -10,7 +10,9 @@
        step-named checkpoints and resume.pt every hour under /kaggle/working/runs/<name>/;
        otherwise exit at once.
 
-Inputs: the private datasets beebot-src-tpu (src/ as beebot-src-tpu.tar.gz) and beebot-think-data
+Code: the tpu-port branch of github.com/fringewidth/beebot (this script re-runs as the branch's copy).
+Inputs: the private datasets beebot-src-tpu (src/ as beebot-src-tpu.tar.gz; used when the clone
+fails) and beebot-think-data
 (data/vla/voxel_full/s0-s7, voxel_build/s0-s1, haiku/run-s*, build-s* as beebot-think-data.tar.gz);
 internet for pip, the model and the distillation text. Every measurement is a JSON line
 {"run": "tpu-probe", ...} on stdout. No evaluation here: the Mac scores the checkpoints.
@@ -27,7 +29,7 @@ import tarfile
 import threading
 import time
 
-T0 = time.time()
+T0 = float(os.environ.get("BEEBOT_T0", time.time()))  # the session's start, kept across the re-exec below
 SESSION_MINUTES = 9 * 60  # Kaggle's TPU session limit
 MARGIN_MINUTES = 25  # the real run's last validation, last save and the output upload
 GATE = 5.0  # examples/s on eight chips to go on to the real run
@@ -56,12 +58,26 @@ def find(name, max_depth=7):
 
 # ---- code, data, packages, model
 
-code = find("beebot-src-tpu.tar.gz")
-if code and os.path.isfile(code[0]):
-    tarfile.open(code[0]).extractall(f"{WORK}/code")
-else:
-    package = find("beebot/vla/voxel/think_train.py", 9)[0]
-    shutil.copytree(package.rsplit("/beebot/vla/voxel/think_train.py", 1)[0], f"{WORK}/code/src")
+# The code: the tpu-port branch of the public repo, cloned at the session's start (so fixes pushed
+# while the kernel waits in the queue reach it), with this script replaced by the branch's own copy;
+# the beebot-src-tpu dataset when the clone fails.
+CLONE = "/tmp/beebot-repo"
+if not os.environ.get("BEEBOT_SRC"):
+    cloned = subprocess.run(["git", "clone", "--depth", "1", "-b", "tpu-port", "https://github.com/fringewidth/beebot.git", CLONE], check=False).returncode == 0
+    script = f"{CLONE}/scripts/kaggle_tpu/think_kernel.py"
+    if cloned and os.path.isfile(script):
+        commit = subprocess.run(["git", "-C", CLONE, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
+        print(f"code: branch tpu-port at {commit}", flush=True)
+        os.environ.update({"BEEBOT_SRC": f"{CLONE}/src", "BEEBOT_T0": str(T0)})
+        os.execv(sys.executable, [sys.executable, script])
+    print("clone failed: the code from the beebot-src-tpu dataset", flush=True)
+    code = find("beebot-src-tpu.tar.gz")
+    if code and os.path.isfile(code[0]):
+        tarfile.open(code[0]).extractall("/tmp/beebot-code")
+        os.environ["BEEBOT_SRC"] = "/tmp/beebot-code/src"
+    else:
+        os.environ["BEEBOT_SRC"] = find("beebot/vla/voxel/think_train.py", 9)[0].rsplit("/beebot/vla/voxel/think_train.py", 1)[0]
+SRC = os.environ["BEEBOT_SRC"]
 data = [p for p in find("beebot-think-data.tar.gz") if os.path.isfile(p)]
 if data:
     tarfile.open(data[0]).extractall(DATA)
@@ -94,7 +110,7 @@ note(phase="ready")
 def train(phase, chips, args, first_log_minutes=FIRST_LOG_MINUTES):
     """Run think_train on chips TPU chips; its output goes to logs/<phase>.out and stdout. Killed
     when no step was logged within first_log_minutes. Returns the JSON rows it logged."""
-    env = {**os.environ, "PYTHONPATH": f"{WORK}/code/src", "PJRT_DEVICE": "TPU", "BEEBOT_XLA_CACHE": "/tmp/xla_cache", "BEEBOT_XLA_PROCESSES": str(chips), "TOKENIZERS_PARALLELISM": "false"}
+    env = {**os.environ, "PYTHONPATH": SRC, "PJRT_DEVICE": "TPU", "BEEBOT_XLA_CACHE": "/tmp/xla_cache", "BEEBOT_XLA_PROCESSES": str(chips), "TOKENIZERS_PARALLELISM": "false"}
     if chips == 1:
         env.update({"TPU_PROCESS_BOUNDS": "1,1,1", "TPU_CHIPS_PER_PROCESS_BOUNDS": "1,1,1", "TPU_VISIBLE_CHIPS": "0", "TPU_PROCESS_PORT": "8476", "TPU_PROCESS_ADDRESSES": "localhost:8476"})
     command = [sys.executable, "-c", "from beebot.vla.voxel.think_train import main; main()", *args, "--device", "xla", "--chips", str(chips)]
