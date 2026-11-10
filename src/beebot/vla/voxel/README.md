@@ -202,7 +202,71 @@ A 300-scene sample (seed 0, `--cube`) took 37 s on 4 threads, about 12 s per 100
 kept 875 of 1098 episodes (0.5 GB; an episode is 0.6 MB). The store files are allocated for six
 episodes per scene and are sparse, so their apparent size is about twice what they use.
 
-Tests: `tests/test_vla_voxel_cube.py`.
+Three more options, each off unless given (`--cube` does not turn them on):
+
+| option | what |
+| --- | --- |
+| `--compact` | write `mass` and `actions` by robot instead of as dense grids (next section). |
+| `--counts log` | draw the robot count log-uniformly over `--robots` (`suite.draw_count`), so every doubling of the swarm gets the same share of scenes. Of 6 to 115 robots, 31% of scenes have under 15, 34% have 15 to 40 and 35% more; the uniform draw gives 8%, 24% and 68%. |
+| `--fit` | apply the swarm check without `--robots` too, on the density range's 51 to 115 robots. It leaves out what no expert can pass there: eating a cheese in a corner, and formations with over three robots per mask voxel (two-letter words, the ring). With `--robots` or `--cube` the check is always on. It changes which scenes are drawn, so it stays opt-in. |
+
+The same sample with `--counts log --compact` (300 scenes, seed 0) kept 719 of 915 episodes in 216 s (small swarms are redrawn more often until a task fits; the uniform sample took 37 s):
+
+| robots | kept / tried | construction | formation | herd | logic | parallel | runner |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| under 15 | 110 / 139 | 34 / 39 | 1 / 3 | 41 / 57 | 22 / 22 | 12 / 18 | none |
+| 15 to 40 | 233 / 305 | 68 / 71 | 52 / 55 | 32 / 55 | 29 / 37 | 34 / 44 | 18 / 43 |
+| over 40 | 376 / 471 | 82 / 86 | 78 / 85 | 20 / 63 | 65 / 74 | 60 / 79 | 71 / 84 |
+
+The uniform sample kept 31 / 42, 173 / 219 and 671 / 837 in the same buckets.
+
+Small swarms never get runners (a cheese takes 23 robots to eat) and logic gives them only
+"eat nothing".
+
+Tests: `tests/test_vla_voxel_cube.py`, `tests/test_vla_voxel_compact.py`.
+
+## Compact store
+
+A dense store spends 0.6 MB on an episode of 72 steps (145 grids of 4096 bytes) to hold 6 to
+115 robots. The compact format (`play_store.py`) stores each frame's robots instead:
+
+| file | content |
+| --- | --- |
+| `compact.json` | `{"dims": [D, H, W], "voxel_dtype": "uint16", "stay": 26}`; its presence marks the format |
+| `offsets.npy` | int64 (episodes, steps + 2): frame (e, t) is entries `offsets[e, t]` to `offsets[e, t + 1]` of the two files below |
+| `voxels.bin` | raw uint16: the flat voxel index `(z H + y) W + x` of every robot of every frame, ascending within a frame (uint32 for grids over 65536 voxels) |
+| `codes.bin` | raw int8, parallel to `voxels.bin`: that robot's action code; an episode's last frame has no action and holds STAY |
+
+`small.pt`, `labels.jsonl` and `attempts.jsonl` are the same in both formats.
+
+1. **Exact.** The format needs a mass of 0 or 1 and STAY wherever no robot is; the writer
+   refuses anything else, so the dense grids come back bit for bit.
+1. **Reading.** `play_store.load` detects `compact.json` and returns `mass` and `actions` as
+   `CompactGrids`: `store["mass"][e, t]` is the same (D, H, W) tensor as from a dense store,
+   slices of episodes and steps work, and `shape` and `dtype` are those of the dense array. The
+   three files are memory-mapped and only the frames asked for are read. `lm.world_at`,
+   `lm.batch_of`, `facts` and `render` read either format unchanged. Code that calls tensor
+   methods on the whole field (`store["mass"].flatten(2)`) needs `store["mass"][:]` first.
+1. **Writing.** `demos --compact`, or for an existing store (the source is only read, and only
+   its rows in use are written):
+
+   ```
+   uv run python -m beebot.vla.voxel.play_store --convert data/vla/voxel_demos_cube_sample --out data/vla/voxel_demos_cube_sample_compact
+   ```
+
+Measured on the 875-episode cube sample (M4 Pro, 3 threads, both stores in the page cache):
+
+| | dense | compact |
+| --- | --- | --- |
+| grids, bytes per episode | 593,920 in use (1,221,779 apparent: 1800 rows allocated) | 15,083 (voxels 9,661, codes 4,830, offsets 592) |
+| with `small.pt` (5,122 per episode) | 599,042 | 20,205 |
+| 30,000 episodes | 17.8 GB (36.7 GB apparent) | 0.45 GB, 0.61 GB with `small.pt` |
+| `lm.batch_of`, batches of 16 on the CPU | 4,700 rows/s on a quiet machine; 900 to 1,100 with other jobs running | 3,400 rows/s; 600 to 1,200 with other jobs running |
+| the two grids alone | 19,000 to 58,000 rows/s | 10,000 to 17,000 rows/s |
+
+The trainer draws 30 to 60 batches of 16 a second (480 to 960 rows); most of a `batch_of` call is `observe`, not the read, and the same rows gave the same checksum from both stores. A
+compact store of 30,000 episodes fits in memory many times over; the dense one does not, and
+every random row would then be a disk read.
 
 ## Left out, and extension points
 

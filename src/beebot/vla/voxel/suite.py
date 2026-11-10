@@ -60,6 +60,7 @@ EPISODE_STEPS = 48
 SEGMENT_STEPS = 24
 CUBE_STEPS = 72  # episode length of pivoting-cube demonstrations (world.CUBE_MOVES)
 ROBOTS = (6, int(0.45 * SIZE * SIZE))  # the range of swarm sizes when scenes draw a robot count: a handful up to the densest sampled scene
+COUNTS = ("uniform", "log")  # how a robot count is drawn from a range (draw_count)
 SUCCESS = {"formation": 0.5}  # checker score an episode needs to count as done (a demonstration), per family
 PASS_MARK = 0.75  # and for the families not named there
 WORDINGS = {
@@ -516,24 +517,40 @@ def make_runner(rng, held):
 MAKERS = {"formation": make_formation, "construction": make_construction, "logic": make_logic, "parallel": make_parallel, "herd": make_herd, "runner": make_runner}
 
 
-def sample_tasks(rng, n, split="train", family=None, robots=None, check=True):
+def draw_count(rng, low, high, counts="uniform"):
+    """A robot count in [low, high]: "uniform", or "log" for a log-uniform draw (count k with
+    probability proportional to log((k + 1) / k)), which gives every doubling of the swarm the
+    same share: of 6 to 115, 31% under 15, 34% from 15 to 40 and 35% above, against 8%, 24% and
+    68% for uniform."""
+    if counts == "log":
+        count = min(int(np.exp(rng.uniform(np.log(low), np.log(high + 1)))), high)
+    else:
+        count = int(rng.integers(low, high + 1))
+    return count
+
+
+def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, counts="uniform"):
     """(world, metas, tasks) of n scenes with one task each. split: "train", "test" (in
     distribution) or a HELD_OUT key (forces that held-out item). robots: (low, high), each
-    scene's robot count drawn uniformly from that range, and its task one the swarm is large
-    enough for (fits; check=False skips that): families are redrawn for the same count until one
-    fits, so the counts stay uniform. None: the world's density range and no size check."""
+    scene's robot count drawn from that range (counts: "uniform" or "log", draw_count); None:
+    the world's density range. check: whether the task must be one the scene's swarm is large
+    enough for (fits), which also leaves out a cheese that can never be eaten and a formation
+    with over three robots per mask voxel; None: only when robots is given, so the default draws
+    are as they always were. Families are redrawn for the same count until one fits, so the
+    counts keep their distribution."""
     held = split if split in HELD_OUT else ""
+    check = robots is not None if check is None else check
     worlds, metas, out = [], [], []
     count = None
     while len(out) < n:
         if robots is not None and count is None:
-            count = int(rng.integers(robots[0], robots[1] + 1))
+            count = draw_count(rng, robots[0], robots[1], counts)
         fam = HELD_FAMILY.get(held) or family or str(rng.choice(FAMILIES))
         needs, make = MAKERS[fam](rng, held)
         colours = needs.pop("colours", TRAIN_COLOURS)
         world, meta = scenes(rng, 1, colours=colours, robots=count, **needs)
         task = make(world, meta[0], 0)
-        if task is None or (robots is not None and check and not fits(task, world, 0)):
+        if task is None or (check and not fits(task, world, 0)):
             continue
         count = None
         worlds.append(world)
