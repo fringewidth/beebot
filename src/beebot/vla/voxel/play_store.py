@@ -183,6 +183,23 @@ def load(out_dir):
     return store
 
 
+def instructions_of(store, e, labels=None):
+    """The instructions in force over episode e of a demonstration store: [{"t": first step,
+    "text", "record"}] from small.pt's "instructions" (demos writes it; a switch episode has one
+    entry per instruction). An older store has none: then the label rows of e (labels.jsonl, as
+    dicts) give [{"t": w0, "text"}], and without labels the result is None."""
+    if "instructions" in store:
+        return store["instructions"][e]
+    if labels is None:
+        return None
+    return [{"t": int(row["w0"]), "text": row["text"]} for row in sorted((r for r in labels if r["e"] == e), key=lambda r: r["w0"])]
+
+
+def instruction_at(entries, t):
+    """The entry of instructions_of in force at step t: the last one starting at or before t."""
+    return [entry for entry in entries if entry["t"] <= t][-1]
+
+
 def convert(src_dir, out_dir, chunk=64):
     """Write the store at src_dir (dense or compact) as a compact store at out_dir: the first
     "count" episodes (a demonstration store allocates more rows than it fills; otherwise all),

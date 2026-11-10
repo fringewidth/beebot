@@ -1500,6 +1500,973 @@
     "your meal today is the {c} cheese",
     "chow down on the {c} cheese"
    ]
+  },
+  "stay": {
+   "slots": {},
+   "canonical": "stay where you are",
+   "train": [
+    "stay where you are",
+    "stop moving",
+    "freeze",
+    "everyone hold still",
+    "don't move",
+    "stop",
+    "please stay where you are",
+    "could you all stop moving?",
+    "I'd like everyone to hold still",
+    "stay put",
+    "nobody move",
+    "hold your positions",
+    "stop right there",
+    "keep still",
+    "stay exactly where you are",
+    "hold it, nobody moves",
+    "everyone stop",
+    "can you all freeze?",
+    "remain where you are",
+    "don't go anywhere",
+    "hold still, please",
+    "stand still",
+    "halt",
+    "all of you, stop",
+    "not a single move",
+    "stop what you're doing and stay put",
+    "stay in place",
+    "everybody freeze right now",
+    "no more moving",
+    "keep your positions",
+    "wait where you are",
+    "stop all movement",
+    "please don't move at all",
+    "everyone stay put",
+    "stay where you are, all of you",
+    "freeze in place"
+   ],
+   "held_out": [
+    "cease all motion",
+    "remain motionless",
+    "be still where you stand",
+    "not one step more, anyone",
+    "pause right where you are",
+    "everybody go perfectly still"
+   ]
+  },
+  "approach": {
+   "slots": {
+    "c": "colour"
+   },
+   "canonical": "go next to the {c} cheese without eating it",
+   "train": [
+    "go next to the {c} cheese without eating it",
+    "get close to the {c} cheese but leave it alone",
+    "move up beside the {c} cheese",
+    "head over next to the {c} cheese, no eating",
+    "please go next to the {c} cheese",
+    "could you get close to the {c} cheese without eating it?",
+    "I'd like you all near the {c} cheese",
+    "go and stand by the {c} cheese",
+    "gather near the cheese that is {c}, but don't eat it",
+    "come close to the {c} cheese",
+    "approach the {c} cheese without eating it",
+    "move next to the cheese that's {c}",
+    "go near the {c} one and leave it uneaten",
+    "get next to the {c} cheese",
+    "all of you, beside the {c} cheese",
+    "huddle near the {c} cheese without touching it too much",
+    "go to the {c} cheese but don't eat it",
+    "be near the {c} cheese",
+    "walk up to the {c} cheese",
+    "can you go next to the {c} cheese?",
+    "find the {c} cheese and wait beside it",
+    "crowd close to the {c} cheese without eating it",
+    "make your way to the {c} cheese, no eating",
+    "position yourselves by the {c} cheese",
+    "get as close as you can to the {c} cheese without eating it",
+    "I want you near the {c} cheese",
+    "stand around near the {c} cheese",
+    "go over to the {c} cheese and stop beside it",
+    "head for the {c} cheese, but leave it alone",
+    "please wait next to the {c} cheese",
+    "the {c} cheese: go stand by it",
+    "move to the {c} cheese without eating it",
+    "come over by the {c} cheese",
+    "go close to the cheese that is {c}"
+   ],
+   "held_out": [
+    "draw near to the {c} cheese yet spare it",
+    "loiter beside the cheese that is {c}",
+    "close in on the {c} cheese but keep it whole",
+    "take up a spot alongside the {c} cheese",
+    "shadow the {c} cheese's side without a bite",
+    "settle in the vicinity of the {c} cheese"
+   ]
+  },
+  "follow": {
+   "slots": {
+    "c": "colour"
+   },
+   "canonical": "follow the {c} cheese without eating it",
+   "train": [
+    "follow the {c} cheese without eating it",
+    "chase the {c} cheese but do not eat it",
+    "stay close to the {c} cheese as it runs",
+    "keep after the {c} cheese, no eating",
+    "please follow the {c} cheese",
+    "could you follow the {c} cheese without eating it?",
+    "I'd like you to follow the {c} cheese",
+    "go after the {c} cheese and keep near it",
+    "follow the cheese that is {c}",
+    "keep up with the {c} cheese",
+    "track the {c} cheese wherever it goes",
+    "follow the cheese that's {c} but leave it uneaten",
+    "stick with the {c} cheese",
+    "don't let the {c} cheese get away from you, but don't eat it",
+    "trail the {c} cheese",
+    "go wherever the {c} cheese goes",
+    "chase after the {c} cheese without eating it",
+    "keep close to the {c} one as it moves",
+    "follow that {c} cheese",
+    "hey, follow the {c} cheese",
+    "can you stay near the {c} cheese while it runs?",
+    "pursue the {c} cheese but never eat it",
+    "stay on the {c} cheese's tail",
+    "keep the {c} cheese company as it flees",
+    "the {c} cheese is running: follow it",
+    "move with the {c} cheese and stay close",
+    "I want you to follow the {c} cheese",
+    "run after the {c} cheese, no eating",
+    "keep following the {c} cheese",
+    "follow the {c} cheese around",
+    "chase the cheese that is {c} without eating it",
+    "go after the {c} one"
+   ],
+   "held_out": [
+    "dog the {c} cheese's every step",
+    "hound the cheese that is {c} but spare it",
+    "tail the {c} cheese at a short distance",
+    "escort the fleeing {c} cheese",
+    "remain hot on the heels of the {c} cheese",
+    "shadow the {c} cheese as it scurries"
+   ]
+  },
+  "gather": {
+   "slots": {},
+   "canonical": "gather into one group",
+   "train": [
+    "gather into one group",
+    "come together in one group",
+    "everyone get together",
+    "form one single group",
+    "merge into a single group",
+    "please gather into one group",
+    "could you all come together?",
+    "I'd like you in one group",
+    "get together in one place",
+    "group up",
+    "join up into one group",
+    "form a single group",
+    "all of you, come together",
+    "huddle together",
+    "make one big group",
+    "regroup into a single group",
+    "gather together",
+    "come together",
+    "let's all get together",
+    "become one group",
+    "assemble into one group",
+    "unite into a single group",
+    "close ranks into one group",
+    "can you merge into one group?",
+    "everybody together now",
+    "pull together into one group",
+    "join together",
+    "one group, please",
+    "gather all in one spot",
+    "bunch up together",
+    "come back together as one group",
+    "meet up in one group",
+    "get together as one swarm",
+    "turn into one group"
+   ],
+   "held_out": [
+    "coalesce into a single mass",
+    "consolidate into one cluster",
+    "fuse into a lone pack",
+    "rally into one band",
+    "amalgamate into one crowd",
+    "converge as one body"
+   ]
+  },
+  "spread": {
+   "slots": {},
+   "canonical": "spread out so that no two of you touch",
+   "train": [
+    "spread out so that no two of you touch",
+    "spread out",
+    "move apart from each other",
+    "keep your distance from one another",
+    "scatter so nobody touches anybody",
+    "please spread out",
+    "could you all spread out?",
+    "I'd like you spread apart",
+    "give each other some space",
+    "spread yourselves out",
+    "get away from each other",
+    "nobody should touch anyone",
+    "space out",
+    "stand apart from one another",
+    "don't touch each other: spread out",
+    "fan out",
+    "spread out a bit",
+    "make some room between you",
+    "can you spread apart so no one touches?",
+    "keep apart",
+    "everyone, spread out",
+    "separate from one another",
+    "move so that no two of you are touching",
+    "leave gaps between you",
+    "spread across the floor",
+    "disperse a little",
+    "each of you, find your own spot",
+    "keep a gap between each of you",
+    "spread out please",
+    "break apart so nobody touches",
+    "space yourselves out",
+    "no touching: spread out"
+   ],
+   "held_out": [
+    "distribute yourselves with gaps between",
+    "keep clear of every neighbour",
+    "thin out so none are in contact",
+    "put space between every pair of you",
+    "go your separate ways a little",
+    "maintain clearance from each other"
+   ]
+  },
+  "groups.two": {
+   "slots": {},
+   "canonical": "split into two separate groups",
+   "train": [
+    "split into two separate groups",
+    "form two separate groups",
+    "break up into two groups",
+    "divide yourselves into two groups",
+    "please split into two groups",
+    "could you form two groups?",
+    "I'd like two separate groups",
+    "make two groups",
+    "split up into two",
+    "two groups, please",
+    "separate into two groups",
+    "become two groups",
+    "split the swarm in two",
+    "divide into two separate bunches",
+    "can you split into two groups?",
+    "form two groups apart from each other",
+    "make two separate clusters",
+    "break into two",
+    "split in two",
+    "everyone, into two groups",
+    "go into two groups",
+    "regroup as two groups",
+    "two separate groups, please",
+    "turn into two groups",
+    "split yourselves into two",
+    "I want two groups",
+    "let's have two groups",
+    "form a pair of groups",
+    "make two teams apart from each other",
+    "split into two clusters",
+    "divide in two",
+    "part into two groups"
+   ],
+   "held_out": [
+    "bifurcate into a pair of clusters",
+    "fork into two bands",
+    "halve yourselves into two crowds",
+    "cleave the swarm into two",
+    "go off as two packs",
+    "sort yourselves into two camps"
+   ]
+  },
+  "groups.three": {
+   "slots": {},
+   "canonical": "split into three separate groups",
+   "train": [
+    "split into three separate groups",
+    "form three separate groups",
+    "break up into three groups",
+    "divide yourselves into three groups",
+    "please split into three groups",
+    "could you form three groups?",
+    "I'd like three separate groups",
+    "make three groups",
+    "split up into three",
+    "three groups, please",
+    "separate into three groups",
+    "become three groups",
+    "split the swarm in three",
+    "divide into three separate bunches",
+    "can you split into three groups?",
+    "form three groups apart from each other",
+    "make three separate clusters",
+    "break into three",
+    "split in three",
+    "everyone, into three groups",
+    "go into three groups",
+    "regroup as three groups",
+    "three separate groups, please",
+    "turn into three groups",
+    "split yourselves into three",
+    "I want three groups",
+    "let's have three groups",
+    "form a trio of groups",
+    "make three teams apart from each other",
+    "split into three clusters",
+    "divide in three",
+    "part into three groups"
+   ],
+   "held_out": [
+    "trisect the swarm into separate crowds",
+    "fork into three bands",
+    "go off as three packs",
+    "sort yourselves into three camps",
+    "cleave the swarm into three",
+    "arrange into a triple of clusters"
+   ]
+  },
+  "line.x": {
+   "slots": {},
+   "canonical": "line up in one row from left to right",
+   "train": [
+    "line up in one row from left to right",
+    "form a line running left to right",
+    "get in a row from left to right",
+    "stand in a single row from left to right",
+    "please line up from left to right",
+    "could you form a line from left to right?",
+    "I'd like a straight line from left to right",
+    "make a line going left to right",
+    "line up left to right",
+    "one row, left to right, please",
+    "get into a straight row running left to right",
+    "form a single file from left to right",
+    "line yourselves up from left to right",
+    "make one straight line from left to right",
+    "can you line up from left to right?",
+    "everyone in a row, left to right",
+    "stand in line from left to right",
+    "form a row along the floor from left to right",
+    "I want you in a line from left to right",
+    "queue up from left to right",
+    "make a straight row left to right",
+    "line up in a single row going from left to right",
+    "arrange yourselves in a line from left to right",
+    "all in one line, from left to right",
+    "put yourselves in a row from left to right",
+    "a line from left to right, please",
+    "get in line from left to right",
+    "line up end to end from left to right",
+    "stretch out in a line from left to right",
+    "form one row that runs from left to right"
+   ],
+   "held_out": [
+    "align in a single file oriented left to right",
+    "array yourselves in a rank from left to right",
+    "make a column of one running left to right",
+    "string yourselves out left to right",
+    "set up in a straight file from left to right",
+    "position yourselves in a left-to-right row"
+   ]
+  },
+  "line.y": {
+   "slots": {},
+   "canonical": "line up in one row from back to front",
+   "train": [
+    "line up in one row from back to front",
+    "form a line running back to front",
+    "get in a row from back to front",
+    "stand in a single row from back to front",
+    "please line up from back to front",
+    "could you form a line from back to front?",
+    "I'd like a straight line from back to front",
+    "make a line going back to front",
+    "line up back to front",
+    "one row, back to front, please",
+    "get into a straight row running back to front",
+    "form a single file from back to front",
+    "line yourselves up from back to front",
+    "make one straight line from back to front",
+    "can you line up from back to front?",
+    "everyone in a row, back to front",
+    "stand in line from back to front",
+    "form a row along the floor from back to front",
+    "I want you in a line from back to front",
+    "queue up from back to front",
+    "make a straight row back to front",
+    "line up in a single row going from back to front",
+    "arrange yourselves in a line from back to front",
+    "all in one line, from back to front",
+    "put yourselves in a row from back to front",
+    "a line from back to front, please",
+    "get in line from back to front",
+    "line up end to end from back to front",
+    "stretch out in a line from back to front",
+    "form one row that runs from back to front"
+   ],
+   "held_out": [
+    "align in a single file oriented back to front",
+    "array yourselves in a rank from back to front",
+    "make a column of one running back to front",
+    "string yourselves out back to front",
+    "set up in a straight file from back to front",
+    "position yourselves in a back-to-front row"
+   ]
+  },
+  "climb": {
+   "slots": {
+    "r": "region"
+   },
+   "canonical": "climb onto the plateau on the {r}",
+   "train": [
+    "climb onto the plateau on the {r}",
+    "get up on the plateau on the {r}",
+    "everyone up onto the plateau on the {r}",
+    "scale the cliff to the plateau on the {r}",
+    "please climb onto the plateau on the {r}",
+    "could you climb up to the plateau on the {r}?",
+    "I'd like you on top of the plateau on the {r}",
+    "climb up to the {plateau} on the {r}",
+    "go up onto the {plateau} on the {r}",
+    "get on top of the {plateau} on the {r}",
+    "climb the wall up to the plateau on the {r}",
+    "all of you, up on the plateau on the {r}",
+    "can you get up onto the plateau on the {r}?",
+    "climb to the top of the {plateau} on the {r}",
+    "head up onto the plateau on the {r}",
+    "move up onto the plateau on the {r}",
+    "make it up onto the {plateau} on the {r}",
+    "go stand on the plateau on the {r}",
+    "everyone onto the high ground on the {r}",
+    "up you go, onto the plateau on the {r}",
+    "climb out onto the plateau on the {r}",
+    "get yourselves up on the plateau on the {r}",
+    "I want you up on the {plateau} on the {r}",
+    "the plateau on the {r}: climb onto it",
+    "reach the top of the plateau on the {r}",
+    "go up to the high side on the {r}",
+    "climb up on the {r}",
+    "clamber onto the {plateau} on the {r}",
+    "ascend to the plateau on the {r}",
+    "let's all climb onto the plateau on the {r}"
+   ],
+   "held_out": [
+    "mount the high ground over on the {r}",
+    "make the ascent to the {plateau} on the {r}",
+    "haul yourselves atop the {plateau} on the {r}",
+    "summit the raised ground on the {r}",
+    "work your way up the cliff on the {r}",
+    "end up perched on the plateau on the {r}"
+   ]
+  },
+  "move": {
+   "slots": {
+    "r": "region"
+   },
+   "canonical": "move three steps toward the {r}",
+   "train": [
+    "move three steps toward the {r}",
+    "shift three steps toward the {r}",
+    "take three steps toward the {r}",
+    "step over three toward the {r}",
+    "please move three steps toward the {r}",
+    "could you all shift three steps toward the {r}?",
+    "I'd like you to move three steps toward the {r}",
+    "move a little toward the {r}",
+    "shift over toward the {r} a bit",
+    "go three steps toward the {r}",
+    "slide three steps toward the {r}",
+    "move over three toward the {r}",
+    "everyone, three steps toward the {r}",
+    "budge three steps toward the {r}",
+    "can you move three steps toward the {r}?",
+    "shuffle three steps toward the {r}",
+    "nudge yourselves three steps toward the {r}",
+    "move toward the {r} by three",
+    "edge three steps toward the {r}",
+    "all of you, shift toward the {r} by three steps",
+    "step three times toward the {r}",
+    "drift three steps toward the {r}",
+    "I want the swarm three steps closer to the {r}",
+    "make three moves toward the {r}",
+    "come three steps toward the {r}",
+    "three steps toward the {r}, please",
+    "shift the whole swarm three toward the {r}",
+    "move yourselves three steps toward the {r}"
+   ],
+   "held_out": [
+    "relocate three paces toward the {r}",
+    "advance three paces in the direction of the {r}",
+    "creep three spaces toward the {r}",
+    "displace yourselves by three toward the {r}",
+    "translate three units toward the {r}",
+    "inch three paces toward the {r}"
+   ]
+  },
+  "subset": {
+   "slots": {
+    "who": "who",
+    "job": "do"
+   },
+   "canonical": "{who}: {job}; everyone else: stay where you are",
+   "train": [
+    "{who}: {job}; everyone else: stay where you are",
+    "only {who} should move: {job}",
+    "{who}, {job}; the rest of you stay put",
+    "I want {who} to {job} while nobody else moves",
+    "{who}: {job}. the others stay still",
+    "{who}, please {job}; everyone else, stay where you are",
+    "could {who} {job}? the rest of you, don't move",
+    "{who} should {job}; nobody else moves",
+    "{who} only: {job}",
+    "just {who}: {job}",
+    "{who}, {job}. everyone else, freeze",
+    "let {who} {job}; the others stay where they are",
+    "{who}, go ahead and {job}; the rest stay put",
+    "I'd like {who} to {job}; the others should hold still",
+    "{who}, {job}, and nobody else move",
+    "only {who}: {job}",
+    "{who}: {job}, the rest stay still",
+    "can {who} {job} while the others wait?",
+    "{who} must {job}; everybody else keeps still",
+    "{who}, it's your turn: {job}"
+   ],
+   "held_out": [
+    "{who} alone ought to {job}; the remainder stay motionless",
+    "it falls to {who} to {job}; all others remain",
+    "{who}, your task is to {job}; the remainder hold fast",
+    "have {who} {job} while the remainder idle",
+    "solely {who}: {job}; all others idle",
+    "{who} will {job}; the remainder keep their places"
+   ]
+  },
+  "who.smaller": {
+   "slots": {},
+   "canonical": "the smaller group",
+   "train": [
+    "the smaller group",
+    "the small group",
+    "the group with fewer robots",
+    "the less crowded group",
+    "the littler group",
+    "the group that has fewer robots",
+    "the lesser group",
+    "the smaller bunch"
+   ],
+   "held_out": [
+    "the minority cluster",
+    "the more sparsely numbered crowd"
+   ]
+  },
+  "who.larger": {
+   "slots": {},
+   "canonical": "the larger group",
+   "train": [
+    "the larger group",
+    "the big group",
+    "the group with more robots",
+    "the bigger group",
+    "the more crowded group",
+    "the group that has more robots",
+    "the larger bunch",
+    "the bigger bunch"
+   ],
+   "held_out": [
+    "the majority cluster",
+    "the more numerous crowd"
+   ]
+  },
+  "who.smallest": {
+   "slots": {},
+   "canonical": "the smallest group",
+   "train": [
+    "the smallest group",
+    "the tiniest group",
+    "the group with the fewest robots",
+    "the littlest group",
+    "the smallest bunch",
+    "the least crowded group",
+    "the group that has the fewest robots",
+    "the tiniest bunch"
+   ],
+   "held_out": [
+    "the most sparsely numbered crowd",
+    "the slightest cluster"
+   ]
+  },
+  "who.largest": {
+   "slots": {},
+   "canonical": "the largest group",
+   "train": [
+    "the largest group",
+    "the biggest group",
+    "the group with the most robots",
+    "the most crowded group",
+    "the largest bunch",
+    "the biggest bunch",
+    "the group that has the most robots",
+    "the main group"
+   ],
+   "held_out": [
+    "the most numerous crowd",
+    "the dominant cluster"
+   ]
+  },
+  "who.half": {
+   "slots": {},
+   "canonical": "half of you",
+   "train": [
+    "half of you",
+    "half the swarm",
+    "one half of the robots",
+    "half the robots",
+    "half of the swarm",
+    "half of everyone",
+    "any half of you",
+    "half of all of you"
+   ],
+   "held_out": [
+    "fifty percent of the swarm",
+    "a 50 percent share of you"
+   ]
+  },
+  "who.top": {
+   "slots": {},
+   "canonical": "the robots standing on other robots",
+   "train": [
+    "the robots standing on other robots",
+    "the ones on top",
+    "the top layer",
+    "the robots on top",
+    "the robots resting on other robots",
+    "the upper layer",
+    "the ones standing on someone",
+    "the robots up on top of others"
+   ],
+   "held_out": [
+    "whoever is perched atop another",
+    "those riding piggyback"
+   ]
+  },
+  "who.side": {
+   "slots": {
+    "x": "region"
+   },
+   "canonical": "the group on the {x}",
+   "train": [
+    "the group on the {x}",
+    "the group over on the {x}",
+    "the robots on the {x}",
+    "the group at the {x}",
+    "the bunch on the {x}",
+    "the ones over on the {x}",
+    "the group that is on the {x}",
+    "the robots over at the {x}"
+   ],
+   "held_out": [
+    "the cluster situated toward the {x}",
+    "whoever sits over toward the {x}"
+   ]
+  },
+  "who.cheese": {
+   "slots": {
+    "x": "colour"
+   },
+   "canonical": "the group nearest the {x} cheese",
+   "train": [
+    "the group nearest the {x} cheese",
+    "the group closest to the {x} cheese",
+    "the robots by the {x} cheese",
+    "the group next to the {x} cheese",
+    "the bunch near the {x} cheese",
+    "the group nearest the cheese that is {x}",
+    "the robots nearest the {x} one",
+    "the group beside the cheese that's {x}"
+   ],
+   "held_out": [
+    "the cluster in the vicinity of the cheese that is {x}",
+    "whoever is adjacent to the {x} cheese"
+   ]
+  },
+  "who.count": {
+   "slots": {
+    "x": "count"
+   },
+   "canonical": "{x} of you",
+   "train": [
+    "{x} of you",
+    "just {x} robots",
+    "{x} robots",
+    "only {x} of you",
+    "{x} of the robots",
+    "just {x} of you",
+    "a group of {x} robots",
+    "{x} robots from the swarm"
+   ],
+   "held_out": [
+    "a squad of {x} from among you",
+    "{x} volunteers among you"
+   ]
+  },
+  "who.not": {
+   "slots": {
+    "x": "who"
+   },
+   "canonical": "everyone except {x}",
+   "train": [
+    "everyone except {x}",
+    "all but {x}",
+    "everybody other than {x}",
+    "everyone apart from {x}",
+    "everyone but {x}",
+    "all of you except {x}",
+    "everybody except {x}",
+    "the rest, not {x}"
+   ],
+   "held_out": [
+    "all save {x}",
+    "everybody barring {x}"
+   ]
+  },
+  "do.region": {
+   "slots": {
+    "x": "region"
+   },
+   "canonical": "go to the {x} of the floor",
+   "train": [
+    "go to the {x} of the floor",
+    "head to the {x}",
+    "move over to the {x}",
+    "go to the {x}",
+    "gather at the {x}",
+    "make your way to the {x}",
+    "travel to the {x} of the floor",
+    "get over to the {x}"
+   ],
+   "held_out": [
+    "relocate to the {x}",
+    "take up position at the {x}"
+   ]
+  },
+  "do.approach": {
+   "slots": {
+    "x": "colour"
+   },
+   "canonical": "go next to the {x} cheese without eating it",
+   "train": [
+    "go next to the {x} cheese without eating it",
+    "get close to the {x} cheese",
+    "move up beside the {x} cheese",
+    "go near the cheese that is {x} without eating it",
+    "stand by the {x} cheese",
+    "approach the {x} cheese without eating it",
+    "come close to the cheese that's {x}",
+    "go to the {x} cheese but leave it alone"
+   ],
+   "held_out": [
+    "draw near to the cheese that is {x} yet spare it",
+    "loiter beside the {x} cheese"
+   ]
+  },
+  "do.gather": {
+   "slots": {},
+   "canonical": "gather into one group",
+   "train": [
+    "gather into one group",
+    "come together in one group",
+    "merge into a single group",
+    "form one single group",
+    "get together",
+    "group up",
+    "huddle together",
+    "join up into one group"
+   ],
+   "held_out": [
+    "coalesce into a single mass",
+    "converge as one body"
+   ]
+  },
+  "do.spread": {
+   "slots": {},
+   "canonical": "spread out so that no two of you touch",
+   "train": [
+    "spread out so that no two of you touch",
+    "spread out",
+    "move apart from each other",
+    "keep your distance from one another",
+    "space out",
+    "fan out",
+    "give each other some space",
+    "scatter so nobody touches anybody"
+   ],
+   "held_out": [
+    "thin out so none are in contact",
+    "keep clear of every neighbour"
+   ]
+  },
+  "do.groups": {
+   "slots": {},
+   "canonical": "split into two separate groups",
+   "train": [
+    "split into two separate groups",
+    "form two separate groups",
+    "break up into two groups",
+    "divide into two groups",
+    "split in two",
+    "make two groups",
+    "separate into two groups",
+    "split up into two"
+   ],
+   "held_out": [
+    "bifurcate into a pair of clusters",
+    "fork into two bands"
+   ]
+  },
+  "do.line_x": {
+   "slots": {},
+   "canonical": "line up in one row from left to right",
+   "train": [
+    "line up in one row from left to right",
+    "form a line running left to right",
+    "get in a row from left to right",
+    "stand in a single row from left to right",
+    "line up left to right",
+    "make a line going left to right",
+    "form a single file from left to right",
+    "make one straight line from left to right"
+   ],
+   "held_out": [
+    "align in a single file oriented left to right",
+    "string yourselves out left to right"
+   ]
+  },
+  "do.line_y": {
+   "slots": {},
+   "canonical": "line up in one row from back to front",
+   "train": [
+    "line up in one row from back to front",
+    "form a line running back to front",
+    "get in a row from back to front",
+    "stand in a single row from back to front",
+    "line up back to front",
+    "make a line going back to front",
+    "form a single file from back to front",
+    "make one straight line from back to front"
+   ],
+   "held_out": [
+    "align in a single file oriented back to front",
+    "string yourselves out back to front"
+   ]
+  },
+  "do.move": {
+   "slots": {
+    "x": "region"
+   },
+   "canonical": "move three steps toward the {x}",
+   "train": [
+    "move three steps toward the {x}",
+    "shift three steps toward the {x}",
+    "take three steps toward the {x}",
+    "step over three toward the {x}",
+    "go three steps toward the {x}",
+    "slide three steps toward the {x}",
+    "move over three toward the {x}",
+    "shuffle three steps toward the {x}"
+   ],
+   "held_out": [
+    "relocate three paces toward the {x}",
+    "advance three paces in the direction of the {x}"
+   ]
+  },
+  "do.perch": {
+   "slots": {
+    "x": "colour"
+   },
+   "canonical": "climb on top of the {x} cheese",
+   "train": [
+    "climb on top of the {x} cheese",
+    "get up onto the {x} cheese",
+    "stand on top of the {x} cheese",
+    "climb onto the cheese that is {x}",
+    "get on top of the {x} one",
+    "climb up on the {x} cheese",
+    "go stand on the cheese that's {x}",
+    "sit on top of the {x} cheese"
+   ],
+   "held_out": [
+    "mount the cheese that is {x}",
+    "perch atop the {x} cheese"
+   ]
+  },
+  "do.tower": {
+   "slots": {
+    "x": "count"
+   },
+   "canonical": "build a tower {x} robots tall",
+   "train": [
+    "build a tower {x} robots tall",
+    "stack up {x} high",
+    "make a column {x} robots high",
+    "build a tower {x} high",
+    "pile up into a tower of height {x}",
+    "put up a tower {x} tall",
+    "form a stack {x} robots high",
+    "raise a tower to a height of {x}"
+   ],
+   "held_out": [
+    "erect a tower {x} robots in height",
+    "climb onto each other until the pile measures {x}"
+   ]
+  },
+  "do.eat": {
+   "slots": {
+    "x": "colour"
+   },
+   "canonical": "eat the {x} cheese",
+   "train": [
+    "eat the {x} cheese",
+    "go eat the {x} one",
+    "devour the {x} cheese",
+    "eat the cheese that is {x}",
+    "gobble up the {x} cheese",
+    "munch the {x} cheese",
+    "eat up the {x} cheese",
+    "eat the cheese that's {x}"
+   ],
+   "held_out": [
+    "polish off the {x} cheese",
+    "make a meal of the cheese that is {x}"
+   ]
+  },
+  "do.climb": {
+   "slots": {
+    "x": "region"
+   },
+   "canonical": "climb onto the plateau on the {x}",
+   "train": [
+    "climb onto the plateau on the {x}",
+    "get up on the plateau on the {x}",
+    "scale the cliff to the plateau on the {x}",
+    "climb up to the {plateau} on the {x}",
+    "go up onto the {plateau} on the {x}",
+    "get on top of the plateau on the {x}",
+    "climb the wall up to the plateau on the {x}",
+    "head up onto the plateau on the {x}"
+   ],
+   "held_out": [
+    "mount the high ground over on the {x}",
+    "haul yourselves atop the {plateau} on the {x}"
+   ]
   }
  },
  "lexical": {
