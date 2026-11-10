@@ -646,3 +646,35 @@ What this asks of the policy and the hardware:
 1. Not modelled: chamfered edges, which may ease sliding into a slot; a harmful outcome that
    leaves the mover aligned in a third cell ("strayed") is counted as harmful, as in cube.py,
    though a planner could carry on from it.
+
+### The rule in the voxel world (2026-11-10)
+
+The voxel world now has this as an opt-in move rule, `free_cube` (`vla/voxel/world.py`:
+`pivot_moves`, `refuse`; `step(..., rule="free_cube")`), with the same pivot table as
+`cube_swarm.plan`: support side, swing clearance, and no cube on any face but the support's.
+`switch_cube` is the same rule for a cube that can release its bonds. What the expert can still
+do under each is in `src/beebot/vla/voxel/README.md` ("Free cubes").
+
+It is not the rule of `physics.allowed_moves` (round 1), and the two should not be mixed up:
+
+| | `physics.allowed_moves`, permanent magnets | `free_cube` |
+| --- | --- | --- |
+| a bond the move leaves | costs torque, 0.5 s m g L each; the best round-1 crawler (L3cm-magnet-c0.12-a0.25-f0: s = 28, torque 34) pries two at once | holds the cube: 0 of 121 in MuJoCo, one bond is enough (77 of the 121 had exactly one) |
+| a bond the move keeps (a neighbour it stays beside) | free | holds the cube all the same (in-plane shear) |
+| what it pivots on | the destination must touch something by a face | a support beside or below the cube, continuing under the destination (quarter turn) or turned around (half turn); never a cheese's side, never a ceiling |
+| room to swing | not checked | the cells the turning cube sweeps must be empty |
+| horizontal diagonals | allowed | never (two pivots) |
+| a support that moves in the same step | not checked | the move does not happen |
+| structure | statics with connector strength | the voxel world's support rule (any face-connected group holds) |
+| pushing a cheese | force model | untouched: a press is not a pivot |
+
+On 48 sampled cube scenes (1,831 robots, `demos --cube --counts log` draws) a robot has 8.0 of
+the 14 cube moves open (destination empty and inside). `physics.allowed_moves` lets the
+permanent-magnet crawler make 4.3 of them, `switch_cube` 3.2 and `free_cube` 2.1. Every
+`free_cube` move is also allowed by `physics.allowed_moves` (0 of 3,791 refused); `free_cube`
+refuses 51% of the moves physics allows and `switch_cube` 25%. 23% of robots have no move at
+all under `free_cube`, 9% under `switch_cube`.
+
+The reason is the actuator, not a bug in either: round 1 models a geared hinge that can hold a
+torque for as long as it takes to pry a face open; the cube has a flywheel impulse of a few
+milliseconds, which cannot shear a face bond at any speed it reaches.
