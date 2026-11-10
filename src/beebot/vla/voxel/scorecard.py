@@ -27,7 +27,8 @@ Arms (--arms; ARM_SPLITS says which splits each runs on):
   plain     the canonical plain sentence of the task (canonical_record "plain") instead of the
             instruction; the held-out splits (gate b's denominator)
   oracle    the episode's instruction with the canonical first thought fed on the first step of each
-            instruction (rollout.canonical_thought); gate b's numerator on the held-out splits
+            instruction (rollout.oracle_thought: the training template's thought, in the user's
+            frame); gate b's numerator on the held-out splits
   expert    the scripted expert (rollout.ExpertActor) on the same scenes: the ceiling; held-out
             compositions have no plan, so there it is the robots staying still
   still     no robot ever moves: the floor. Some tasks pass so (a switch to "stay", "eat no
@@ -103,6 +104,7 @@ import torch
 
 from beebot.vla.voxel import rollout as R
 from beebot.vla.voxel import suite as S
+from beebot.vla.voxel import think_data as T
 from beebot.vla.voxel.world import COLOUR_NAMES
 
 SEED = 700_001
@@ -229,7 +231,7 @@ def matches_subgoal(clause, reasoning, record):
     not (the task's when the sub-goal names none); a sub-goal without key facts needs its kind of
     move in the clause or the reasoning, failing that half its content words in the reasoning."""
     subgoals = record.get("subgoals") or []
-    goal = subgoals[0] if subgoals else R.STAY_LINE
+    goal = subgoals[0] if subgoals else T.STAY_LINE
     keys = record_keys(record)
     need = facts(goal, keys)
     colours = {f for f in facts(goal, keys) if f[0] == "colour"} or {f for f in facts(" ".join([record.get("plain", "")] + list(subgoals)), keys) if f[0] == "colour"}
@@ -267,14 +269,21 @@ def check_thought(thought, instruction, record):
     return {"parse": bool(thought) and well, "first": bool(thought) and matches_subgoal(clause, reasoning, record), "resolves": bool(thought) and bool(resolves)}
 
 
+def in_frame(record, turns):
+    """A canonical record with its sentences said in the user's frame (think_data.in_user_frame),
+    so that areas compare with a thought said there."""
+    return {**record, "plain": T.in_user_frame(record.get("plain", ""), turns), "subgoals": [T.in_user_frame(g, turns) for g in record.get("subgoals") or []]}
+
+
 def thought_checks(episode, played):
-    """Per instruction j: the check of the first thought given on its first step."""
+    """Per instruction j: the check of the first thought given on its first step, against the
+    record and the instruction said in the episode's user frame."""
     out = []
     for j, (text, start, record) in enumerate(zip(episode.texts, episode.starts, episode.records)):
         if start >= episode.steps:
             continue
         thought = next((t["text"] for t in played.thoughts if t["part"] == j and t["t"] == start), "")
-        out.append({"part": j, "thought": thought, **check_thought(thought, text, record)})
+        out.append({"part": j, "thought": thought, **check_thought(thought, T.in_user_frame(text, played.turns), in_frame(record, played.turns))})
     return out
 
 
@@ -450,6 +459,10 @@ def episode_row(arm, episode, played, seconds, thinking):
         "unfinished": played.unfinished,
         "moved": round(float(np.mean(played.moves)) if played.moves else 0.0, 4),
         "thoughts": played.thoughts,
+        "user": played.user,
+        "turns": played.turns,
+        "camera": played.camera,
+        "said": [T.in_user_frame(text, played.turns) for text in episode.texts],
         "seconds": round(seconds, 3),
     }
     if thinking:
@@ -457,7 +470,7 @@ def episode_row(arm, episode, played, seconds, thinking):
     return row
 
 
-def run_arm(arm, episodes, policy=None, batch=8, expert_batch=48, views=R.stand_in_views, sample=False, max_new_tokens=R.MAX_NEW_TOKENS, emit=print):
+def run_arm(arm, episodes, policy=None, batch=8, expert_batch=48, views=None, sample=False, max_new_tokens=R.MAX_NEW_TOKENS, emit=print):
     """Rows of one arm's episodes, emitted batch by batch."""
     rows = [None] * len(episodes)
     size = expert_batch if arm in ("expert", "still") else batch
@@ -713,25 +726,10 @@ def load_model(args):
     return policy
 
 
-class SceneViews:
-    """views.scene_views with the default ViewSpec (voxel/views.py, once it lands), one look
-    (cameras, lights, materials: views.sample_look) per episode, kept for all its steps; the
-    rollout gives each episode its own rng, which keys the look."""
-
-    def __init__(self):
-        from beebot.vla.voxel import views as V
-
-        self.V, self.spec, self.looks = V, V.ViewSpec(), {}
-
-    def __call__(self, obs, rng):
-        if id(rng) not in self.looks:
-            self.looks[id(rng)] = (rng, self.V.sample_look(rng, self.spec))  # the rng is kept so its id is not reused
-        return self.V.scene_views(obs, rng, self.spec, look=self.looks[id(rng)][1])
-
-
 def views_of(name):
-    """The views function: "stand_in" (rollout.stand_in_views) or "scene" (SceneViews)."""
-    return SceneViews() if name == "scene" else R.stand_in_views
+    """The views function: "scene" gives None (each batch's actor makes its rollout.SceneViews: one
+    views.sample_look per episode), "stand_in" think_data.stand_in_views (one isometric image)."""
+    return T.stand_in_views if name == "stand_in" else None
 
 
 # ---------------------------------------------------------------------------------------------
@@ -845,7 +843,7 @@ def card(argv):
     parser.add_argument("--expert-batch", type=int, default=48)
     parser.add_argument("--sample", action="store_true", help="sample actions from the softmax (default argmax)")
     parser.add_argument("--max-new-tokens", type=int, default=R.MAX_NEW_TOKENS)
-    parser.add_argument("--views", choices=("stand_in", "scene"), default="stand_in")
+    parser.add_argument("--views", choices=("scene", "stand_in"), default="scene", help="scene: views.scene_views, one look per episode (training's views); stand_in: think_data's isometric image")
     parser.add_argument("--threads", type=int, default=None)
     parser.add_argument("--steps", type=int, default=None, help="cap every episode at this many steps (smoke runs; the card then differs from the default one)")
     parser.add_argument("--repeats", type=int, default=1, help="whole cards on fresh scenes and seeds (seed SEED + r); two or more measure scorecard3d_noise directly")

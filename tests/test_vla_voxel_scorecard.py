@@ -11,7 +11,9 @@ import torch
 from beebot.vla.voxel import rollout as R
 from beebot.vla.voxel import scorecard as C
 from beebot.vla.voxel import suite as S
-from beebot.vla.voxel.lm import PATCH
+from beebot.vla.voxel import think_data as T
+from beebot.vla.voxel.lm import PATCH, world_at
+from beebot.vla.voxel.play_store import load
 from beebot.vla.voxel.think import ThinkStep
 from beebot.vla.voxel.world import N_ACTIONS, STAY
 
@@ -61,11 +63,12 @@ def thinking_once(context, k):
 def test_instruction_switch_at_its_step(switch):
     e = short(switch, steps=30)[0]
     policy = Scripted(thinking_once)
-    R.play_policy(policy, [e])
+    played = R.play_policy(policy, [e])[0]
     k = e.starts[1]
+    first, second = (T.in_user_frame(text, played.turns) for text in e.texts)  # as said in the episode's drawn frame
     user = [calls[0].split("<|im_start|>user\n")[1] for calls in policy.calls]
-    assert all(e.texts[0] in u for u in user[:k]) and all(e.texts[1] in u for u in user[k:])
-    assert all(e.texts[1] not in u for u in user[:k])
+    assert all(first in u for u in user[:k]) and all(second in u for u in user[k:])
+    assert all(second not in u for u in user[:k])
     # memory: the first thought from step 1 on, still there on the step the instruction changes
     assert "<|im_start|>assistant\nyou asked: go." in policy.calls[k][0]
 
@@ -90,7 +93,7 @@ def test_oracle_arm_feeds_the_canonical_thought(motion):
     policy = Scripted(lambda c, k: ("", True, ""))
     played = R.play_policy(policy, episodes)
     for k, (e, p) in enumerate(zip(episodes, played)):
-        thought = R.canonical_thought(e.texts[0], e.records[0], S.scene_summary(R.prepare_world(e.world), 0, e.task))
+        thought = R.oracle_thought(e.texts[0], e.records[0], S.scene_summary(R.prepare_world(e.world), 0, e.task), p.turns)
         assert policy.calls[0][k].endswith(f"<|im_start|>assistant\n<think>\n{thought}\n</think>\n\n")
         assert p.thoughts[0] == {"t": 0, "part": 0, "text": thought, "forced": True}
         assert policy.calls[1][k].startswith(f"<|im_start|>assistant\n{thought}<|im_end|>")  # in memory on the next step
@@ -106,7 +109,7 @@ def test_canonical_thoughts_pass_the_checks():
         e = C.drawn_episodes("test", family, 1)[0]
         world = R.prepare_world(e.world)
         for text, record in zip(e.texts, e.records):
-            thought = R.canonical_thought(text, record, S.scene_summary(world, 0, e.task))
+            thought = R.oracle_thought(text, record, S.scene_summary(world, 0, e.task))
             assert all(C.check_thought(thought, text, record).values()), (family, thought, record)
     record = {"plain": "eat the red cheese first, then the blue cheese", "subgoals": ["eat the red cheese", "eat the blue cheese"], "spec": {"kind": "eat"}}
     assert not C.check_thought("you asked: x. i see red and blue. first: the blue one.", "x", record)["first"]
@@ -194,3 +197,60 @@ def test_command_writes_ops_lines(tmp_path):
     rows = [json.loads(line) for line in (tmp_path / "out" / "episodes.jsonl").read_text().splitlines()]
     assert "summary" in rows[-1] and len(rows) == 1 + 2 * 2 * 2 * 3 and summary["repeats"] == rows[-1]["summary"]["repeats"]
     assert (tmp_path / "out" / "card.md").exists()
+
+
+def think_data_tests():
+    """tests/test_vla_voxel_think_data.py as a module (its synthetic store)."""
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location("think_data_tests", Path(__file__).parent / "test_vla_voxel_think_data.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_rollout_contexts_equal_think_data_examples(tmp_path):
+    """For training episodes (an eat-two template with a switch line and done, and an instruction
+    change), the context the rollout builds at every step, given the thoughts training emits, is the
+    context ThinkData produced for that step, in the world's frame and in a turned one."""
+    TD = think_data_tests()
+    store = TD.synthetic_store(tmp_path / "store")
+    data = T.ThinkData([store], [], held_share=0.0, views=T.stand_in_views)
+    raw = load(store)
+    frames = set()
+    for e in (4, 5):
+        ep = next(x for x in data.episodes if x.e == e)
+        parts = data.labelling(ep, np.random.default_rng(0))
+        entries = data.instructions(ep)
+        for seed in range(4):
+            examples = [data.example(ep, t, parts, np.random.default_rng(seed)) for t in range(TD.STEPS)]
+            thoughts = [x.reply_text[len("<think>\n") : x.reply_text.index("\n</think>")] for x in examples]
+            episode = R.Episode(world_at(raw, [(e, 0)]), {}, None, [x["text"] for x in entries], [int(x["t"]) for x in entries], [x["record"] for x in entries], TD.STEPS, seed, user=examples[0].user)
+            policy = Scripted(lambda c, k: (thoughts[len(policy.calls) - 1], True, ""))
+            actor = R.PolicyActor(policy, [episode], views=T.stand_in_views)
+            for t in range(TD.STEPS):
+                actor(world_at(raw, [(e, t)]), t)
+            assert [calls[0] for calls in policy.calls] == [x.context_text for x in examples]
+            assert actor.frames[0][:2] == (examples[0].user, examples[0].turns)
+            frames.add(examples[0].turns)
+    assert 0 in frames and len(frames) > 1  # both the world's frame and a turned one were compared
+
+
+def test_user_frame_is_drawn_per_episode_and_turns_the_instruction(motion):
+    base = replace(short(motion, steps=2)[0], texts=["go to the front left of the floor"])
+    turned = R.play_policy(Scripted(lambda c, k: ("", True, "")), [replace(base, user="behind")], views=T.stand_in_views)[0]
+    assert (turned.user, turned.turns) == ("behind", 1)  # the stand-in camera is at azimuth 45
+    policy = Scripted(lambda c, k: ("", True, ""))
+    R.play_policy(policy, [replace(base, user="behind")], views=T.stand_in_views)
+    said = T.in_user_frame("go to the front left of the floor", 1)
+    assert said != "go to the front left of the floor" and policy.calls[0][0].endswith(f"(i'm standing behind the camera)\n{said}<|im_end|>\n<|im_start|>assistant\n")
+    world = R.play_policy(Scripted(lambda c, k: ("", True, "")), [replace(base, user="behind", texts=["head north"])], views=T.stand_in_views)[0]
+    assert world.turns == 0 and world.user == "left"  # cannot be turned: the place that keeps the world's frame
+    users = {R.play_policy(Scripted(lambda c, k: ("", True, "")), [replace(base, seed=s)])[0].user for s in range(12)}
+    assert len(users) > 1  # drawn per episode from its seed
+    record = {**base.records[0], "plain": "go to the front left of the floor", "subgoals": ["go to the front left of the floor"]}
+    thought = R.oracle_thought(base.texts[0], record, {"terrain": {"layout": "flat floor"}, "cheeses": []}, 1)
+    played = R.Played(0.0, False, False, thoughts=[{"t": 0, "part": 0, "text": thought, "forced": True}], turns=1)
+    checks = C.thought_checks(replace(base, records=[record]), played)[0]
+    assert checks["parse"] and checks["first"] and checks["resolves"], (thought, checks)
