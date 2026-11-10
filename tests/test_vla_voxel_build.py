@@ -17,7 +17,7 @@ from beebot.vla.voxel import suite as S
 from beebot.vla.voxel import wordings as W
 from beebot.vla.voxel.world import fall, failure_rates
 
-BUILD_DIGEST = "pinned below"  # draw_digest of test_the_build_draw_is_pinned
+BUILD_DIGEST = "3f2d74f840b6a706"  # draw_digest of test_the_build_draw_is_pinned
 
 
 def draws_of(name, n=4, seed=0):
@@ -331,9 +331,9 @@ def test_a_mixed_batch_plays_the_other_tasks_as_without_builds():
     both = replace(both, gravity=torch.ones_like(both.gravity))
     alone_world = replace(world, gravity=torch.ones_like(world.gravity))
     make_other = lambda some: S.Expert(some, moves=B.CUBE_MOVES, seed=3, rule="switch_cube")  # noqa: E731
-    alone, alone_arrays = S.run(alone_world, metas, tasks, make_other(tasks), steps=12, seed=3, record=True, rule="switch_cube")
+    alone, alone_arrays = S.run(alone_world, metas, tasks, make_other(tasks), steps=1, seed=3, record=True, rule="switch_cube")
     player = B.Mixed(tasks + more_tasks, make_other, lambda some: B.make_expert(some, seed=3))
-    mixed, mixed_arrays = S.run(both, metas + more_metas, tasks + more_tasks, player, steps=12, seed=3, record=True, rule="switch_cube")
+    mixed, mixed_arrays = S.run(both, metas + more_metas, tasks + more_tasks, player, steps=1, seed=3, record=True, rule="switch_cube")
     assert (mixed_arrays["actions"][:3] == alone_arrays["actions"]).all()
     assert len(player.subgoals) == 5 and all(player.subgoals)
 

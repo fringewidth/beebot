@@ -1339,18 +1339,20 @@ def boxes_of(grid, label_by_layer=True):
     return tuple(parts)
 
 
-def mesh_shape(vertices, faces, name, category, robots=115, up=1, fill=True, shell=True):
-    """A library Shape from a mesh, or None: voxelised at the largest resolution (up to the
-    grid's FOOTPRINT) whose voxels (the surface only when shell) number at most `robots`, kept
-    only if it stands under the support rule and builds layer by layer. Its program is boxes_of."""
+def mesh_shape(vertices, faces, name, category, robots=115, up=1, fill=True, shell=False, climb=True):
+    """A library Shape from a mesh, or None: voxelised at the largest resolution (the grid's
+    FOOTPRINT down to 3) whose voxels (only the surface when shell) number at most `robots` and
+    that stands under the support rule, builds layer by layer and (climb) lets every cube walk to
+    its voxel; a resolution that fails is passed over for the next smaller one. Its program is
+    boxes_of: boxes grouped by layer."""
     for resolution in range(FOOTPRINT, 2, -1):
         grid = voxelise(vertices, faces, resolution, up=up, fill=fill)
         if shell:
             grid = hollow(grid)
         cells = np.argwhere(grid)
-        if len(cells) and len(cells) <= robots and fits_grid(cells):
-            parts = boxes_of(grid)
-            if not buildable(parts):
-                return None
-            return Shape(name, category, normalise(parts), ())
+        if not len(cells) or len(cells) > robots or not fits_grid(cells):
+            continue
+        parts = normalise(boxes_of(grid))
+        if buildable(parts) and (not climb or climbable(parts)):
+            return Shape(name, category, parts, ())
     return None
