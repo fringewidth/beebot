@@ -966,13 +966,13 @@ p * s. Any item can be turned off by name: `ViewSpec(off={"jpeg"})`.
 | | specular | Blinn-Phong. Robots ks U(0, 0.55 s), shininess 8-64; steel floors ks 0.1-0.5; objects ks up to 0.15 s (robots 0.15) |
 | style | style | p 0.3 flat (no lighting, a fixed shade per face direction); p 0.2 toon (three light bands, dark outlines); otherwise lit. Outlines p 0.35 (lit, outlined) |
 | materials | floor | steel, brushed metal, wood, paper (p 0.3 graph lines), fractal noise or rotated tiles, at low saturation. Its mean is at least 20 Lab units from every object colour and 15 from the robots (dark slate) |
-| | table | the surface past the sheet: the same types in any colour, fading into the background. Sheet margin 0.6-3 cells (light grey, 1.2) |
+| | table | the surface past the sheet: the same types, colours at least 25 Lab units from every named colour, fading into the background. Sheet margin 0.6-3 cells (light grey, 1.2) |
 | | terrain | sand, wood, stone, concrete, cardboard or foam. Sides 0.75-1 of the top, faint cell edges, at least 15 Lab units from every object colour (sand) |
 | | robots | base grey 0.12-0.85 with saturation up to 0.08, at least 15 Lab units from every object colour. Edge lines 0.03-0.12 of a face, darker or lighter; p 0.5 face markings (dot, ring, cross, square, stripe); per-cube brightness +-6 s % (mid grey, dark edges) |
 | | object_noise | object surface texture amplitude up to 0.12 s (0) |
 | | grid_lines, markers | appearance only, see Registration (light lines at 0.35, white L brackets) |
 | colour | colour_jitter | per named colour of objects and zones: hue, saturation and value within `COLOUR_JITTER[name]` x s (exact) |
-| distractors | clutter | Poisson(4 s) boxes on the table outside the sheet: 0.5-4 cells, up to 4 high, saturation up to 0.6. They cast shadows (none) |
+| distractors | clutter | Poisson(4 s) things on the table outside the sheet, never cube-like: papers (1-4 cells, 0.02-0.08 high), books (0.2-0.6 high), cable- or pen-like bars (2-7 long, 0.15-0.45 thick). They cast shadows (none) |
 | | stickers | Poisson(5 s) flat ellipses, rectangles and stripes on the table (none) |
 | | background | procedural backdrop where rays miss the floor: a gradient plus fractal blobs (grey gradient) |
 | | hand_shadow | per image, p 0.3: a soft hand shadow (palm and fingers) from an edge, darkening by 0.25-0.5 (none) |
@@ -988,6 +988,10 @@ p * s. Any item can be turned off by name: `ViewSpec(off={"jpeg"})`.
 | | gamma | p 0.6: 1 +- 0.25 s |
 | | chromatic | p 0.4: red and blue at radial scales 1 +- U(0, 0.006 s) |
 | | cutout | p 0.4: 1-3 patches of 4-12% of the side, flat colour or noise, placed only where they cover no object or zone pixel, so a target is never erased from any view |
+
+Nothing outside the arena may look like an object an instruction can name. So every clutter,
+sticker, table and backdrop colour has saturation of at most 0.3-0.4 and lies at least
+`DISTRACTOR_GAP` (25) Lab units from every named colour (`test_distractors_are_unnameable`).
 
 Camera, lighting, style, materials, colour and clutter are drawn once per look, which is one
 episode. Hand and cable shadows and the corruptions are drawn for every image.
