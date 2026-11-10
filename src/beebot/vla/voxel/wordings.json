@@ -1,0 +1,2663 @@
+{
+ "about": "Wording bank for the voxel suite (beebot.vla.voxel.wordings reads it): paraphrase templates per intent, a slot lexicon from canonical values to open expressions, and categories that denote sets of colours. Every list has a training part and a held-out part that is never used in training. Written by hand (Claude, 2026-11-10); see 'rulings' for the borderline words.",
+ "shared_tokens": [
+  " the",
+  " a",
+  " an",
+  " of",
+  " on",
+  " in",
+  " one",
+  " with",
+  " colour",
+  " color",
+  " colours",
+  "-col",
+  "oured",
+  "-colored",
+  " flag",
+  "-",
+  " "
+ ],
+ "predicative": [
+  " is ",
+  " are ",
+  "that's ",
+  " isn't ",
+  " aren't "
+ ],
+ "languages": {
+  "train": [
+   "spanish",
+   "french"
+  ],
+  "held_out": [
+   "german",
+   "hindi",
+   "chinese",
+   "japanese"
+  ]
+ },
+ "intents": {
+  "letter_floor": {
+   "slots": {
+    "w": "letter"
+   },
+   "canonical": "write {w} flat on the floor",
+   "train": [
+    "write the letter {w} on the floor",
+    "lie down in the shape of {w}",
+    "spell {w} flat on the ground",
+    "draw a big {w} on the floor",
+    "form a letter {w} lying flat",
+    "write {w} on the floor",
+    "please write {w} flat on the floor",
+    "could you spell out {w} on the ground?",
+    "I'd like to see {w} written on the floor",
+    "lay yourselves out on the floor as {w}",
+    "{w}, flat on the floor, please",
+    "make the letter {w} lying down on the ground",
+    "can you draw {w} on the ground with your bodies?",
+    "the floor should read {w}",
+    "spread out on the ground so that you spell {w}",
+    "trace {w} on the floor",
+    "hey, write {w} down on the floor for me",
+    "everyone lie flat and form {w}",
+    "I want {w} spelled out across the floor",
+    "put the letter {w} on the ground, lying flat",
+    "would you mind writing {w} on the floor?",
+    "arrange yourselves flat on the ground to spell {w}",
+    "floor writing: {w}",
+    "let's have {w} laid out flat on the floor",
+    "show me {w} lying on the ground",
+    "it would be great if the floor said {w}",
+    "get down on the floor and spell {w}",
+    "swarm, write {w} flat on the ground",
+    "how about writing {w} on the floor?",
+    "spell out {w} along the ground, nothing standing up",
+    "make {w} out of yourselves, flat on the floor",
+    "ok, lie flat and write {w}",
+    "I need {w} written at ground level",
+    "form {w} on the floor, lying down",
+    "write a large {w} across the floor",
+    "your job is to spell {w} on the ground"
+   ],
+   "held_out": [
+    "sketch {w} on the ground using the whole swarm",
+    "lie low and lay out {w} so it can be read from above",
+    "can we get {w} printed flat on the floor?",
+    "the ground is your page: put {w} on it",
+    "{w} needs to appear on the floor, flat, made of robots",
+    "kindly lie down so that together you read {w}"
+   ]
+  },
+  "letter_stand": {
+   "slots": {
+    "w": "letter"
+   },
+   "canonical": "write {w} standing upright",
+   "train": [
+    "stand up as the letter {w}",
+    "form a standing letter {w}",
+    "make the letter {w} standing upright",
+    "build the letter {w} in the air",
+    "write {w} standing up",
+    "please form {w} upright",
+    "could you make {w} stand upright?",
+    "I'd like an upright {w}",
+    "raise {w} off the floor so it stands vertically",
+    "spell {w} vertically",
+    "{w}, standing up, please",
+    "make a vertical {w}",
+    "can you build {w} so it stands up?",
+    "stand yourselves up in the shape of {w}",
+    "I want to see {w} standing tall",
+    "draw {w} upright, as if on a blackboard",
+    "form {w} in the vertical plane",
+    "hey, put up a standing {w}",
+    "the letter {w}, upright, not lying down",
+    "would you build {w} standing up for me?",
+    "arrange yourselves into an upright {w}",
+    "let's see {w} standing on end",
+    "stack yourselves into the letter {w}, standing",
+    "it would be nice to have {w} standing upright",
+    "build {w} upward from the floor",
+    "show me a standing {w}",
+    "swarm, stand up and form {w}",
+    "make {w} rise up vertically",
+    "how about an upright letter {w}?",
+    "get {w} standing, please",
+    "I need the letter {w} built upright",
+    "hold {w} up in the air, vertical",
+    "write {w} in the air, standing straight up",
+    "your task: a standing {w}",
+    "form the letter {w} so that it stands up rather than lies flat",
+    "ok, make {w} stand"
+   ],
+   "held_out": [
+    "erect a vertical {w}",
+    "{w} should face me like a sign, not lie on the ground",
+    "can the swarm pose as an upright {w}?",
+    "lift {w} up so it stands on its base",
+    "I'd love a tall {w} that stands by itself",
+    "no lying down this time: {w}, vertical"
+   ]
+  },
+  "shape": {
+   "slots": {
+    "s": "shape"
+   },
+   "canonical": "form a {s}",
+   "train": [
+    "form a {s}",
+    "make a {s}",
+    "arrange yourselves into a {s}",
+    "build a {s} out of robots",
+    "please form a {s}",
+    "could you make a {s}?",
+    "I'd like a {s}",
+    "get into the shape of a {s}",
+    "can you all arrange into a {s}?",
+    "shape yourselves into a {s}",
+    "a {s}, please",
+    "I want to see a {s}",
+    "let's have a {s}",
+    "organise yourselves as a {s}",
+    "organize into a {s}",
+    "hey, make me a {s}",
+    "would you mind forming a {s}?",
+    "the swarm should form a {s}",
+    "take the shape of a {s}",
+    "everyone, come together as a {s}",
+    "turn yourselves into a {s}",
+    "show me a {s}",
+    "it would be great to see a {s}",
+    "how about a {s}?",
+    "your job is to build a {s}",
+    "swarm, assemble into a {s}",
+    "go ahead and make a {s}",
+    "I need a {s} made of robots",
+    "gather up and form a {s}",
+    "position yourselves so that together you make a {s}",
+    "ok, a {s} this time",
+    "put together a {s}",
+    "can I get a {s}?",
+    "make yourselves into a {s}, all of you",
+    "next shape: a {s}",
+    "try making a {s}"
+   ],
+   "held_out": [
+    "become a {s}",
+    "what I'm after is a {s}",
+    "rearrange until you look like a {s}",
+    "could the whole swarm pose as a {s}?",
+    "sculpt a {s} from your own bodies",
+    "time for a {s}, if you would"
+   ]
+  },
+  "tower": {
+   "slots": {
+    "n": "count"
+   },
+   "canonical": "build a tower {n} robots tall",
+   "train": [
+    "build a tower {n} robots tall",
+    "stack up {n} high",
+    "make a column {n} robots high",
+    "pile up into a tower of height {n}",
+    "build a tower {n} high",
+    "please build a tower that is {n} robots tall",
+    "could you stack yourselves {n} high?",
+    "I'd like a tower about {n} tall",
+    "make a tower of {n} levels",
+    "tower, {n} tall",
+    "can you make a stack {n} robots high?",
+    "I want a tower {n} cubes tall",
+    "put up a tower with a height of {n}",
+    "stack on top of each other until you are {n} high",
+    "raise a column {n} tall",
+    "hey, build me a tower {n} high",
+    "would you build a tower of height {n}?",
+    "the tower should be {n} robots tall",
+    "go {n} high in a single tower",
+    "let's see a tower that reaches {n}",
+    "climb onto each other and make a tower {n} tall",
+    "build upward to a height of {n}",
+    "make a pile {n} robots tall",
+    "how about a tower {n} levels high?",
+    "it would be good to have a column of height {n}",
+    "swarm, tower up to {n}",
+    "your task is a tower {n} robots high",
+    "I need a stack that is {n} tall",
+    "build a tower: height {n}",
+    "get a tower up, {n} robots from bottom to top",
+    "stack up into a column {n} high, please",
+    "form a tower whose height is {n}",
+    "ok, tower time, {n} tall",
+    "one tower, {n} high",
+    "construct a tower {n} units tall",
+    "pile on top of one another to a height of {n}"
+   ],
+   "held_out": [
+    "erect a tower {n} robots in height",
+    "I'm after a tower; make it {n} tall",
+    "can we get a stack going, {n} robots straight up?",
+    "the goal is height: one column, {n} tall",
+    "how tall? {n}. build that tower",
+    "stand on each other's heads until the pile measures {n}"
+   ]
+  },
+  "bridge": {
+   "slots": {},
+   "canonical": "build a bridge across the trench",
+   "train": [
+    "bridge the {trench}",
+    "build a bridge across the {trench}",
+    "span the {trench} with your bodies",
+    "make a bridge over the {trench}",
+    "please build a bridge over the {trench}",
+    "could you bridge the {trench}?",
+    "I'd like a bridge across the {trench}",
+    "link the two sides of the {trench} with a bridge",
+    "can you make a bridge that crosses the {trench}?",
+    "a bridge over the {trench}, please",
+    "form a bridge from one side of the {trench} to the other",
+    "I want the {trench} bridged",
+    "stretch across the {trench} to make a bridge",
+    "put a bridge across the {trench}",
+    "get a bridge over the {trench}",
+    "hey, bridge that {trench}",
+    "would you span the {trench} for me?",
+    "the {trench} needs a bridge",
+    "join the two {plateau}s with a bridge",
+    "build a bridge between the {plateau}s",
+    "lay yourselves across the {trench} as a bridge",
+    "let's have a bridge over the {trench}",
+    "make a crossing over the {trench}",
+    "how about bridging the {trench}?",
+    "it would help to have a bridge across the {trench}",
+    "swarm, bridge the {trench}",
+    "your job: a bridge across the {trench}",
+    "I need a bridge spanning the {trench}",
+    "line up across the {trench} so it is bridged",
+    "build a bridge so the {trench} can be crossed",
+    "ok, bridge over the {trench}",
+    "cross the {trench} with a bridge made of robots",
+    "reach from one {plateau} to the other with a bridge",
+    "construct a bridge over the {trench}",
+    "the two {plateau}s should be joined by a bridge",
+    "go make a bridge across the {trench}"
+   ],
+   "held_out": [
+    "connect the two {plateau}s with a bridge",
+    "there should be a way over the {trench}: become it",
+    "can the swarm turn itself into a bridge over the {trench}?",
+    "one side of the {trench} to the other, bridged, please",
+    "throw a bridge across the {trench}",
+    "give me a walkway of robots from one side of the {trench} to the other"
+   ]
+  },
+  "fill": {
+   "slots": {},
+   "canonical": "fill the trench",
+   "train": [
+    "fill the {trench}",
+    "climb down into the {trench} and fill it",
+    "fill up the {trench}",
+    "please fill the {trench}",
+    "could you fill in the {trench}?",
+    "I'd like the {trench} filled",
+    "get into the {trench} and fill it up",
+    "can you pack the {trench} full?",
+    "the {trench}, filled, please",
+    "I want the {trench} full of robots",
+    "everyone into the {trench} until it is full",
+    "go down and fill the {trench}",
+    "fill the {trench} with your bodies",
+    "hey, fill that {trench}",
+    "would you fill up the {trench} for me?",
+    "the {trench} needs filling",
+    "fill the {trench} between the {plateau}s",
+    "pour yourselves into the {trench}",
+    "let's get the {trench} filled in",
+    "drop into the {trench} and pack it",
+    "how about filling the {trench}?",
+    "it would be good to have the {trench} filled",
+    "swarm, fill the {trench}",
+    "your job is to fill the {trench}",
+    "I need the {trench} filled to the top",
+    "pile into the {trench} until it is full",
+    "make the {trench} full",
+    "ok, fill in the {trench}",
+    "stuff the {trench} with robots",
+    "all of you, down into the {trench} to fill it",
+    "plug the {trench} with yourselves",
+    "fill all of the {trench}",
+    "get the {trench} filled",
+    "occupy the {trench} completely",
+    "the space in the {trench} should be filled by the swarm",
+    "go fill the {trench}"
+   ],
+   "held_out": [
+    "fill up the {trench} that separates the {plateau}s",
+    "pack yourselves into the {trench}",
+    "no empty space in the {trench}, please: get in there",
+    "can the swarm settle into the {trench} until it is full?",
+    "I'd be glad if the {trench} were brimming with robots",
+    "cram into the {trench}"
+   ]
+  },
+  "stairs": {
+   "slots": {},
+   "canonical": "build stairs up to the plateau",
+   "train": [
+    "build stairs up to the {plateau}",
+    "make a staircase up to the {plateau}",
+    "please build stairs to the top of the {plateau}",
+    "could you make steps up to the {plateau}?",
+    "I'd like a staircase leading up to the {plateau}",
+    "form steps that climb to the {plateau}",
+    "can you build a stairway up to the {plateau}?",
+    "stairs up to the {plateau}, please",
+    "I want stairs from the bottom of the {trench} up to the {plateau}",
+    "make steps going up the side of the {plateau}",
+    "build a staircase against the {plateau}",
+    "hey, put some stairs up to the {plateau}",
+    "would you build steps up to the {plateau} for me?",
+    "the {plateau} needs stairs leading up to it",
+    "arrange yourselves as steps up to the {plateau}",
+    "let's have a staircase to the {plateau}",
+    "stack into stairs that reach the {plateau}",
+    "how about stairs up to the {plateau}?",
+    "it would help to have steps up to the {plateau}",
+    "swarm, build stairs to the {plateau}",
+    "your job: a staircase up to the {plateau}",
+    "I need steps that lead up onto the {plateau}",
+    "build stairs up the side wall of the {plateau}",
+    "make a flight of stairs to the top of the {plateau}",
+    "ok, stairs up to the {plateau}",
+    "construct a staircase that climbs to the {plateau}",
+    "go build steps up to the {plateau}",
+    "get a staircase up to the {plateau}",
+    "form a stairway rising to the {plateau}",
+    "pile up as stairs to the {plateau}",
+    "build a set of steps up to the {plateau}",
+    "stairs, from the floor of the {trench} to the top of the {plateau}",
+    "make stairs so the {plateau} can be climbed",
+    "put a staircase up against the {plateau}",
+    "the swarm should become stairs up to the {plateau}",
+    "build steps, each higher than the last, up to the {plateau}"
+   ],
+   "held_out": [
+    "make a staircase up the cliff",
+    "one step, then a higher one, then a higher one, until you reach the {plateau}",
+    "can the swarm turn into stairs that climb out of the {trench}?",
+    "I'd love a way to walk up to the {plateau}, one step at a time",
+    "lay down a stairway from low ground up to the {plateau}",
+    "give the {plateau} a staircase"
+   ]
+  },
+  "region": {
+   "slots": {
+    "r": "region"
+   },
+   "canonical": "go to the {r} of the floor",
+   "train": [
+    "go to the {r} of the floor",
+    "gather at the {r}",
+    "everyone to the {r}",
+    "move over to the {r}",
+    "go to the {r}",
+    "please move to the {r}",
+    "could you all go to the {r}?",
+    "I'd like everyone at the {r}",
+    "head to the {r} of the floor",
+    "can you gather at the {r} of the floor?",
+    "the {r}, please",
+    "I want the swarm at the {r}",
+    "make your way to the {r}",
+    "assemble at the {r}",
+    "hey, get over to the {r}",
+    "would you move to the {r} for me?",
+    "the swarm should be at the {r}",
+    "travel to the {r} of the floor",
+    "come together at the {r}",
+    "let's all go to the {r}",
+    "collect at the {r} of the floor",
+    "how about moving to the {r}?",
+    "it would be good to have you all at the {r}",
+    "swarm, go to the {r}",
+    "your job is to reach the {r}",
+    "I need you at the {r} of the floor",
+    "shift over to the {r}",
+    "all of you, to the {r}",
+    "ok, off to the {r}",
+    "relocate to the {r} of the floor",
+    "get yourselves to the {r}",
+    "meet up at the {r}",
+    "move the whole swarm to the {r}",
+    "next stop: the {r}",
+    "head for the {r}",
+    "park yourselves at the {r} of the floor"
+   ],
+   "held_out": [
+    "regroup at the {r}",
+    "where should you be? the {r}",
+    "can the whole swarm end up at the {r}?",
+    "I'd appreciate it if everybody drifted over to the {r}",
+    "destination: the {r} of the floor",
+    "take up position at the {r}"
+   ]
+  },
+  "surround": {
+   "slots": {
+    "c": "colour"
+   },
+   "canonical": "surround the {c} cheese",
+   "train": [
+    "surround the {c} cheese",
+    "gather around the {c} cheese",
+    "encircle the {c} cheese",
+    "please surround the {c} cheese",
+    "could you gather around the {c} cheese?",
+    "I'd like the {c} cheese surrounded",
+    "form a circle around the {c} cheese",
+    "can you circle the {c} cheese without eating it?",
+    "surround the cheese that is {c}",
+    "I want you all around the {c} cheese",
+    "close in around the {c} cheese but do not eat it",
+    "crowd around the {c} one",
+    "hey, surround the {c} one",
+    "would you encircle the {c} cheese for me?",
+    "the {c} cheese should be surrounded",
+    "stand all around the {c} cheese",
+    "gather around the cheese that's {c}",
+    "let's surround the {c} cheese",
+    "pen in the {c} cheese",
+    "how about surrounding the {c} cheese?",
+    "it would be good to have the {c} cheese surrounded",
+    "swarm, surround the {c} cheese",
+    "your job is to encircle the cheese which is {c}",
+    "I need the {c} cheese ringed by robots",
+    "make a circle around the {c} cheese",
+    "wrap around the {c} cheese, no eating",
+    "ok, surround the {c} one",
+    "take up places all around the cheese that is {c}",
+    "get around the {c} cheese on every side",
+    "enclose the {c} cheese",
+    "go and surround the {c} cheese",
+    "the cheese that is {c}: surround it",
+    "put yourselves around the {c} cheese",
+    "surround the {c} cheese and leave it uneaten",
+    "find the cheese that's {c} and gather around it",
+    "flock around the {c} cheese"
+   ],
+   "held_out": [
+    "hug the {c} cheese without eating it",
+    "hem in the {c} cheese",
+    "can the swarm make a fence around the cheese that is {c}?",
+    "I'd love to see the {c} cheese with robots on all sides of it",
+    "no bites, just stand guard around the {c} cheese",
+    "cluster around the {c} one, please"
+   ]
+  },
+  "logic.single": {
+   "slots": {
+    "a": "colour"
+   },
+   "canonical": "eat the {a} cheese",
+   "train": [
+    "eat the {a} cheese",
+    "go eat the {a} one",
+    "gobble up the {a} cheese",
+    "find the {a} cheese and eat it",
+    "please eat the {a} cheese",
+    "could you eat the {a} cheese?",
+    "I'd like you to eat the {a} cheese",
+    "devour the {a} cheese",
+    "can you eat the cheese that is {a}?",
+    "the {a} cheese, eat it",
+    "I want the {a} cheese eaten",
+    "go for the {a} cheese and eat it",
+    "eat the cheese that's {a}",
+    "hey, eat the {a} one",
+    "would you eat the {a} cheese for me?",
+    "the {a} cheese should be eaten",
+    "munch the {a} cheese",
+    "eat only the {a} cheese",
+    "let's eat the {a} cheese",
+    "the cheese that is {a} is the one to eat",
+    "how about eating the {a} cheese?",
+    "it would be good if you ate the {a} cheese",
+    "swarm, eat the {a} cheese",
+    "your job is to eat the cheese which is {a}",
+    "I need the {a} cheese gone, eat it",
+    "finish off the {a} cheese",
+    "ok, eat the {a} one",
+    "head over to the cheese that is {a} and eat it",
+    "get the {a} cheese eaten",
+    "consume the {a} cheese",
+    "go and eat the {a} cheese",
+    "eat up the {a} cheese",
+    "make a meal of the {a} cheese",
+    "the one to eat is the {a} cheese",
+    "track down the cheese that's {a} and eat it",
+    "have the {a} cheese for lunch"
+   ],
+   "held_out": [
+    "polish off the {a} cheese",
+    "dinner is the {a} cheese: dig in",
+    "can the swarm make the cheese that is {a} disappear by eating it?",
+    "I'd be happy if the {a} one got eaten",
+    "your meal today is the {a} cheese",
+    "chow down on the {a} cheese"
+   ]
+  },
+  "logic.except": {
+   "slots": {
+    "a": "colour"
+   },
+   "canonical": "eat every cheese except the {a} one",
+   "train": [
+    "eat everything except the {a} cheese",
+    "eat all the cheese but the {a} one",
+    "leave the {a} one alone and eat the rest",
+    "eat every cheese that isn't the {a} one",
+    "please eat every cheese except the {a} one",
+    "could you eat all the cheeses apart from the {a} one?",
+    "I'd like you to eat everything but the {a} cheese",
+    "eat all of them, just not the {a} cheese",
+    "can you eat every cheese other than the {a} one?",
+    "everything except the {a} cheese, eat it",
+    "I want every cheese eaten except the {a} one",
+    "skip the {a} cheese and eat all the others",
+    "eat every cheese except the one that is {a}",
+    "hey, eat them all except the {a} one",
+    "would you eat all but the {a} cheese for me?",
+    "every cheese but the {a} one should be eaten",
+    "do not touch the {a} cheese; eat the others",
+    "eat all the cheeses, leaving only the {a} one",
+    "let's eat everything apart from the {a} cheese",
+    "the cheese that is {a} stays; eat the rest",
+    "how about eating all of them except the {a} cheese?",
+    "it would be good if you ate every cheese besides the {a} one",
+    "swarm, eat everything but the {a} cheese",
+    "your job is to eat every cheese except the one which is {a}",
+    "I need all the cheese gone apart from the {a} one",
+    "spare the {a} cheese and eat the others",
+    "ok, eat all except the {a} one",
+    "avoid the cheese that is {a} and eat every other one",
+    "get every cheese eaten, the {a} one excepted",
+    "eat all the others but keep the {a} cheese",
+    "go and eat every cheese except the {a} one",
+    "eat up all the cheese other than the {a} one",
+    "the {a} cheese is off limits; eat everything else",
+    "all the cheeses are yours to eat, except the {a} one",
+    "don't eat the cheese that's {a}, but do eat the rest",
+    "eat whatever isn't the {a} cheese"
+   ],
+   "held_out": [
+    "save the {a} cheese for later and finish the others",
+    "everything is on the menu apart from the {a} cheese",
+    "can the swarm clear all the cheese while leaving the one that is {a}?",
+    "I'd rather the {a} one survived; eat the others",
+    "eat your way through the cheeses, the {a} one aside",
+    "hands off the {a} cheese, the remaining ones are for eating"
+   ]
+  },
+  "logic.or": {
+   "slots": {
+    "a": "colour",
+    "b": "colour"
+   },
+   "canonical": "eat either the {a} or the {b} cheese",
+   "train": [
+    "eat the {a} or the {b} cheese",
+    "eat either the {a} or the {b} cheese",
+    "eat one of the {a} and {b} cheeses",
+    "please eat either the {a} cheese or the {b} one",
+    "could you eat the {a} cheese or the {b} one?",
+    "I'd like you to eat one of these: the {a} cheese or the {b} cheese",
+    "eat the {a} one or the {b} one",
+    "can you eat either the {a} one or the {b} one?",
+    "the {a} cheese or the {b} cheese, eat one of them",
+    "I want one of the {a} and {b} cheeses eaten",
+    "pick the {a} cheese or the {b} cheese and eat it",
+    "eat either the cheese that is {a} or the one that is {b}",
+    "hey, eat the {a} or the {b} one",
+    "would you eat either the {a} or the {b} cheese for me?",
+    "either the {a} cheese or the {b} one should be eaten",
+    "choose between the {a} and the {b} cheese and eat your choice",
+    "eat the {a} cheese, or else the {b} one",
+    "let's eat the {a} cheese or the {b} cheese",
+    "the cheese that is {a} or the one that is {b}: eat either",
+    "how about eating the {a} or the {b} cheese?",
+    "it would be good if you ate either the {a} or the {b} one",
+    "swarm, eat the {a} cheese or the {b} cheese",
+    "your job is to eat one of two cheeses, the {a} one or the {b} one",
+    "I need either the {a} or the {b} cheese eaten",
+    "go for the {a} cheese or the {b} cheese, your pick, and eat it",
+    "eat whichever you like of the {a} and {b} cheeses",
+    "ok, eat the {a} one or the {b} one",
+    "take either the cheese that is {a} or the {b} one and eat it",
+    "get one of the {a} and {b} cheeses eaten",
+    "one of the {a} and {b} cheeses is to be eaten, you decide which",
+    "go and eat the {a} cheese or the {b} cheese",
+    "eat any one of the {a} and {b} cheeses",
+    "eat the {a} one or the {b} one, either is fine",
+    "eat one cheese: the {a} one or the {b} one",
+    "find the cheese that's {a} or the {b} one and eat it",
+    "have the {a} cheese or the {b} cheese"
+   ],
+   "held_out": [
+    "it's a choice between the {a} and the {b} cheese: eat one",
+    "the {a} cheese or the {b} cheese, I don't mind which you eat",
+    "can the swarm eat one out of the {a} and {b} cheeses?",
+    "I'd be content with either the cheese that is {a} or the {b} one being eaten",
+    "settle on the {a} or the {b} cheese and devour it",
+    "two options for eating, the {a} cheese and the {b} cheese; take one"
+   ]
+  },
+  "logic.and": {
+   "slots": {
+    "a": "colour",
+    "b": "colour"
+   },
+   "canonical": "eat both the {a} and the {b} cheese",
+   "train": [
+    "eat the {a} and {b} cheeses",
+    "eat both the {a} and the {b} cheese",
+    "eat the {a} cheese, and also the {b} one",
+    "please eat the {a} cheese and the {b} cheese",
+    "could you eat both the {a} one and the {b} one?",
+    "I'd like you to eat the {a} and the {b} cheeses",
+    "eat the {a} one and the {b} one",
+    "can you eat the {a} cheese as well as the {b} cheese?",
+    "the {a} cheese and the {b} cheese, eat both",
+    "I want both the {a} and {b} cheeses eaten",
+    "eat two cheeses: the {a} one and the {b} one",
+    "eat the cheese that is {a} and the one that is {b}",
+    "hey, eat the {a} and the {b} ones",
+    "would you eat both the {a} and the {b} cheese for me?",
+    "the {a} cheese and the {b} cheese should both be eaten",
+    "go eat the {a} cheese plus the {b} one",
+    "eat the {a} cheese together with the {b} one",
+    "let's eat the {a} cheese and the {b} cheese",
+    "the cheese that is {a} and the one that is {b}: eat them both",
+    "how about eating the {a} and the {b} cheese?",
+    "it would be good if you ate both the {a} and the {b} one",
+    "swarm, eat the {a} cheese and the {b} cheese",
+    "your job is to eat two cheeses, the {a} one and the {b} one",
+    "I need the {a} and {b} cheeses both gone, eat them",
+    "finish off the {a} cheese and the {b} cheese",
+    "eat this pair: the {a} cheese and the {b} cheese",
+    "ok, eat the {a} one and the {b} one",
+    "eat the cheese that's {a}, and the {b} one too",
+    "get both the {a} and the {b} cheese eaten",
+    "devour the {a} and {b} cheeses",
+    "go and eat both the {a} cheese and the {b} cheese",
+    "eat up the {a} cheese and the {b} cheese",
+    "not just the {a} cheese, eat the {b} one as well",
+    "both the {a} cheese and the {b} one are to be eaten",
+    "find the cheese that is {a} and the {b} one and eat the two of them",
+    "have both the {a} and the {b} cheese"
+   ],
+   "held_out": [
+    "make a meal of the {a} cheese and the {b} cheese alike",
+    "neither the {a} nor the {b} cheese should be left: eat them",
+    "can the swarm eat its way through the {a} cheese and the {b} one?",
+    "I'd like two cheeses eaten, the one that is {a} and the {b} one",
+    "eat the {a} cheese, and don't forget the {b} one",
+    "polish off the {a} and {b} cheeses, the pair of them"
+   ]
+  },
+  "logic.all": {
+   "slots": {},
+   "canonical": "eat every cheese",
+   "train": [
+    "eat all the cheese",
+    "eat everything",
+    "clear the floor of cheese by eating it",
+    "eat every cheese you see",
+    "please eat all the cheese",
+    "could you eat every cheese?",
+    "I'd like you to eat all of the cheeses",
+    "eat every single cheese",
+    "can you eat all the cheese there is?",
+    "all the cheese, eat it",
+    "I want every cheese eaten",
+    "eat each and every cheese",
+    "eat all of them",
+    "hey, eat all the cheese",
+    "would you eat every cheese for me?",
+    "every cheese should be eaten",
+    "leave no cheese uneaten",
+    "eat the lot",
+    "let's eat all the cheese",
+    "eat cheese until none is left",
+    "how about eating all the cheese?",
+    "it would be good if you ate every cheese",
+    "swarm, eat everything",
+    "your job is to eat every cheese",
+    "I need all the cheese gone, eat it",
+    "finish off all the cheese",
+    "ok, eat them all",
+    "eat every cheese, whatever its colour",
+    "get all the cheese eaten",
+    "devour every cheese",
+    "go and eat all the cheeses",
+    "eat up all the cheese",
+    "no cheese should remain; eat it all",
+    "all of the cheeses are to be eaten",
+    "eat every last cheese",
+    "eat all the cheeses, one after another"
+   ],
+   "held_out": [
+    "make every cheese disappear by eating it",
+    "nothing gets spared: eat the whole lot of cheese",
+    "can the swarm eat its way through all the cheese?",
+    "I'd be delighted if not one cheese survived your appetite",
+    "gobble up the full set of cheeses",
+    "cheese, all of it, into your bellies"
+   ]
+  },
+  "logic.none": {
+   "slots": {},
+   "canonical": "do not eat any cheese",
+   "train": [
+    "don't eat anything",
+    "leave the cheese alone",
+    "do not eat any cheese",
+    "stay away from the food",
+    "please don't eat any cheese",
+    "could you not eat anything?",
+    "I'd like you to leave all the cheese uneaten",
+    "eat nothing",
+    "can you keep from eating any cheese?",
+    "no cheese, please: don't eat any",
+    "I want no cheese eaten",
+    "do not eat a single cheese",
+    "don't eat any of them",
+    "hey, no eating",
+    "would you leave every cheese alone for me?",
+    "none of the cheese should be eaten",
+    "leave every cheese uneaten",
+    "eat none of the cheese",
+    "let's not eat any cheese",
+    "keep off the cheese",
+    "how about not eating anything?",
+    "it would be good if you ate nothing at all",
+    "swarm, do not eat",
+    "your job is to eat no cheese at all",
+    "I need all the cheese left as it is, uneaten",
+    "hold back from eating",
+    "ok, no cheese gets eaten",
+    "don't eat any cheese, whatever its colour",
+    "make sure no cheese is eaten",
+    "refrain from eating any cheese",
+    "do not eat the cheeses",
+    "every cheese stays uneaten",
+    "no eating this time",
+    "all of the cheeses are to be left alone",
+    "not a single cheese is to be eaten",
+    "avoid eating anything"
+   ],
+   "held_out": [
+    "the cheese is not for eating today",
+    "hands off every cheese",
+    "can the swarm manage without eating any cheese at all?",
+    "I'd be grateful if all the cheese were still here at the end",
+    "eating is forbidden for now",
+    "zero cheeses eaten, that's the goal"
+   ]
+  },
+  "logic.ordered": {
+   "slots": {
+    "a": "colour",
+    "b": "colour"
+   },
+   "canonical": "eat the {a} cheese first, then the {b} cheese",
+   "train": [
+    "eat the {a} cheese first, then the {b} one",
+    "eat the {a} cheese and after that the {b} one",
+    "first the {a} cheese, then the {b} cheese",
+    "please eat the {a} cheese first and the {b} cheese second",
+    "could you eat the {a} cheese before the {b} one?",
+    "I'd like you to eat the {a} cheese and then the {b} cheese",
+    "eat the {a} one, then the {b} one",
+    "can you eat the {a} cheese first and then the {b} cheese?",
+    "the {a} cheese first, the {b} cheese afterwards",
+    "I want the {a} cheese eaten before the {b} one",
+    "start by eating the {a} cheese, then eat the {b} one",
+    "eat the cheese that is {a} first, then the one that is {b}",
+    "hey, eat the {a} one and then the {b} one",
+    "would you eat the {a} cheese first and the {b} cheese next for me?",
+    "the {a} cheese should be eaten first and the {b} one second",
+    "after eating the {a} cheese, eat the {b} one",
+    "eat the {b} cheese only after eating the {a} one",
+    "let's eat the {a} cheese and then move on to the {b} cheese",
+    "eat in this order: the cheese that is {a}, then the {b} one",
+    "how about eating the {a} cheese first and then the {b} one?",
+    "it would be good if you ate the {a} cheese before the {b} cheese",
+    "swarm, eat the {a} cheese, then the {b} cheese",
+    "your job is to eat two cheeses in order: the {a} one, then the {b} one",
+    "I need the {a} cheese eaten first and the {b} cheese after it",
+    "begin with the {a} cheese and finish with the {b} one",
+    "eat the {b} cheese, but not before you have eaten the {a} one",
+    "ok, the {a} one first and then the {b} one",
+    "eat the cheese that's {a}; once it is gone, eat the {b} one",
+    "get the {a} cheese eaten, then the {b} cheese",
+    "eat the {a} cheese, followed by the {b} cheese",
+    "go and eat the {a} cheese, and when that is done, the {b} cheese",
+    "before you eat the {b} cheese, eat the {a} one",
+    "the order is the {a} cheese and then the {b} cheese; eat them that way",
+    "eat the {a} cheese ahead of the {b} one",
+    "first eat the cheese that is {a}, and second the {b} one",
+    "eat the {a} one before you eat the {b} one"
+   ],
+   "held_out": [
+    "the {b} cheese has to wait until the {a} one is eaten; eat both in that order",
+    "starter: the {a} cheese. main course: the {b} cheese",
+    "can the swarm eat the cheese that is {a} and only afterwards the {b} one?",
+    "I'd like the {a} cheese to be eaten earlier than the {b} cheese",
+    "eat the {a} cheese to begin with, the {b} cheese to finish",
+    "two cheeses to eat, in sequence: number one the {a} cheese, number two the {b} cheese"
+   ]
+  },
+  "logic.neither": {
+   "slots": {
+    "a": "colour",
+    "b": "colour"
+   },
+   "canonical": "eat every cheese except the {a} and {b} ones",
+   "train": [
+    "eat neither the {a} nor the {b} cheese, but every other one",
+    "don't eat the {a} or the {b} cheese; eat the rest",
+    "please eat every cheese that is neither the {a} one nor the {b} one",
+    "could you eat the others but neither the {a} nor the {b} cheese?",
+    "I'd like you to leave the {a} and {b} cheeses and eat the rest",
+    "neither the {a} cheese nor the {b} cheese gets eaten; all the others do",
+    "can you eat everything while touching neither the {a} nor the {b} cheese?",
+    "not the {a} cheese, not the {b} cheese, but eat all the others",
+    "I want neither the {a} nor the {b} cheese eaten, and every other cheese eaten",
+    "do not eat the {a} one or the {b} one, and eat the rest",
+    "eat the rest, but neither the cheese that is {a} nor the {b} one",
+    "hey, don't eat the {a} or {b} ones, eat the others",
+    "would you eat every cheese but leave both the {a} and the {b} one for me?",
+    "the {a} and {b} cheeses should stay; the others should be eaten",
+    "leave the {a} cheese and the {b} cheese alone and eat every other cheese",
+    "eat the cheeses that are neither {a} nor {b}",
+    "let's eat the others and neither the {a} nor the {b} cheese",
+    "the cheese that is {a} and the {b} one are not to be eaten; eat the rest",
+    "how about leaving the {a} and {b} cheeses and eating the rest?",
+    "it would be good if you ate neither the {a} nor the {b} cheese and did eat the others",
+    "swarm, neither the {a} nor the {b} cheese; eat all the rest",
+    "your job is to eat every cheese while eating neither the {a} one nor the {b} one",
+    "I need the {a} and {b} cheeses untouched and the rest eaten",
+    "keep away from the {a} and the {b} cheese, and eat the remaining ones",
+    "ok, not the {a} one and not the {b} one, eat the others",
+    "don't eat the cheese that's {a} or the {b} one, but eat everything else",
+    "eat the other cheeses; neither the {a} nor the {b} one is for eating",
+    "no eating the {a} cheese, no eating the {b} cheese, eat the rest",
+    "go and eat every cheese, though neither the {a} nor the {b} one",
+    "eat up the rest and let both the {a} and the {b} cheese be",
+    "the {a} cheese and the {b} cheese are off limits; eat everything else",
+    "neither the {a} nor the {b} cheese is to be eaten, only the others",
+    "eat only cheeses that are not the {a} one or the {b} one",
+    "avoid both the {a} and the {b} cheese and eat all the others",
+    "don't eat the {a} cheese, don't eat the {b} cheese, do eat the rest",
+    "eat the cheeses, but neither of these two: the {a} one and the {b} one"
+   ],
+   "held_out": [
+    "eat neither the {a} one nor the {b} one, but everything else",
+    "two cheeses are not food, the {a} one and the {b} one; eat the others",
+    "can the swarm eat the rest without eating either the cheese that is {a} or the {b} one?",
+    "I'd rather you ate neither the {a} cheese nor the {b} cheese, just all the others",
+    "leave both the {a} and the {b} cheese on the floor and eat what remains",
+    "eat whatever is neither the {a} cheese nor the {b} cheese"
+   ]
+  },
+  "logic.all_but_two": {
+   "slots": {
+    "a": "colour",
+    "b": "colour"
+   },
+   "canonical": "eat every cheese except the {a} and {b} ones",
+   "train": [
+    "eat all but the {a} and {b} ones",
+    "eat everything except the {a} and {b} cheeses",
+    "please eat every cheese except the {a} and the {b} one",
+    "could you eat all the cheeses apart from the {a} and {b} ones?",
+    "I'd like you to eat everything but the {a} cheese and the {b} cheese",
+    "eat all of them except the {a} one and the {b} one",
+    "can you eat every cheese other than the {a} and the {b} one?",
+    "everything except the {a} and {b} cheeses, eat it",
+    "I want every cheese eaten except the {a} one and the {b} one",
+    "skip the {a} and {b} cheeses and eat all the others",
+    "eat every cheese except the one that is {a} and the {b} one",
+    "hey, eat them all except the {a} and {b} ones",
+    "would you eat all but the {a} and {b} cheeses for me?",
+    "every cheese but the {a} and {b} ones should be eaten",
+    "eat all the cheeses, leaving only the {a} one and the {b} one",
+    "eat every cheese besides the {a} and the {b} cheese",
+    "let's eat everything apart from the {a} and {b} cheeses",
+    "all the cheeses except the one that is {a} and the {b} one: eat them",
+    "how about eating all of them except the {a} and {b} cheeses?",
+    "it would be good if you ate every cheese besides the {a} one and the {b} one",
+    "swarm, eat everything but the {a} and {b} cheeses",
+    "your job is to eat all the cheeses except two, the {a} one and the {b} one",
+    "I need all the cheese gone apart from the {a} and {b} ones",
+    "spare the {a} and {b} cheeses and eat the others",
+    "ok, eat all except the {a} one and the {b} one",
+    "eat every cheese apart from the one that's {a} and the {b} one",
+    "get every cheese eaten, the {a} and {b} ones excepted",
+    "eat all the others but keep the {a} cheese and the {b} cheese",
+    "go and eat every cheese except the {a} and {b} ones",
+    "eat up all the cheese other than the {a} and {b} cheeses",
+    "all the cheeses are yours to eat, except the {a} one and the {b} one",
+    "eat all the cheeses save the {a} and the {b} one",
+    "eat everything, minus the {a} cheese and the {b} cheese",
+    "with the exception of the {a} and {b} cheeses, eat them all",
+    "all but two cheeses get eaten; the two are the {a} one and the {b} one",
+    "eat every cheese, only not the {a} one and not the {b} one"
+   ],
+   "held_out": [
+    "everything is on the menu apart from the {a} and {b} cheeses",
+    "save the {a} cheese and the {b} cheese for later and finish the others",
+    "can the swarm clear all the cheese while leaving the one that is {a} and the {b} one?",
+    "I'd like the lot eaten, the {a} and {b} cheeses aside",
+    "eat your way through the cheeses but stop short of the {a} one and the {b} one",
+    "two get to stay, the {a} cheese and the {b} cheese; eat all the remaining cheese"
+   ]
+  },
+  "herd_region": {
+   "slots": {
+    "c": "colour",
+    "r": "region"
+   },
+   "canonical": "push the {c} cheese to the {r} of the floor without eating it",
+   "train": [
+    "push the {c} cheese to the {r}",
+    "shove the {c} cheese over to the {r} without eating it",
+    "move the {c} cheese to the {r} of the floor",
+    "herd the {c} cheese to the {r}",
+    "please push the {c} cheese to the {r}",
+    "could you move the {c} cheese over to the {r}?",
+    "I'd like the {c} cheese pushed to the {r}",
+    "slide the {c} cheese to the {r}",
+    "can you get the {c} cheese to the {r} without eating it?",
+    "the {c} cheese goes to the {r}: push it there",
+    "I want the {c} cheese at the {r} of the floor",
+    "push the cheese that is {c} to the {r}",
+    "hey, shove the {c} one to the {r}",
+    "would you push the {c} cheese to the {r} for me?",
+    "the {c} cheese should end up at the {r}, uneaten",
+    "nudge the {c} cheese all the way to the {r}",
+    "take the cheese that's {c} and push it to the {r}",
+    "let's move the {c} cheese to the {r}",
+    "push the {c} cheese until it reaches the {r}",
+    "how about pushing the {c} cheese to the {r}?",
+    "it would be good to have the {c} cheese at the {r}",
+    "swarm, push the {c} cheese to the {r} of the floor",
+    "your job is to move the cheese which is {c} to the {r}",
+    "I need the {c} cheese moved to the {r}, not eaten",
+    "bring the {c} cheese to the {r}",
+    "drive the {c} cheese to the {r} of the floor",
+    "ok, {c} cheese to the {r}",
+    "get behind the cheese that is {c} and push it to the {r}",
+    "get the {c} cheese over to the {r}",
+    "relocate the {c} cheese to the {r}",
+    "go and push the {c} one to the {r}",
+    "to the {r} with the {c} cheese, and no eating it",
+    "deliver the {c} cheese to the {r}",
+    "the {r} is where the {c} cheese belongs; push it there",
+    "find the cheese that's {c} and shove it to the {r}",
+    "transport the {c} cheese to the {r}"
+   ],
+   "held_out": [
+    "steer the {c} cheese into the {r}",
+    "the {c} cheese is in the wrong place; it should sit at the {r}",
+    "can the swarm escort the cheese that is {c} to the {r} in one piece?",
+    "I'd like the {c} cheese parked at the {r} of the floor",
+    "give the {c} cheese a push until it sits at the {r}",
+    "destination for the {c} cheese: the {r}. don't eat it on the way"
+   ]
+  },
+  "herd_trench": {
+   "slots": {
+    "c": "colour"
+   },
+   "canonical": "push the {c} cheese into the trench without eating it",
+   "train": [
+    "push the {c} cheese into the {trench}",
+    "shove the {c} cheese down into the {trench}",
+    "knock the {c} cheese into the {trench} without eating it",
+    "please push the {c} cheese into the {trench}",
+    "could you move the {c} cheese into the {trench}?",
+    "I'd like the {c} cheese pushed into the {trench}",
+    "slide the {c} cheese into the {trench}",
+    "can you get the {c} cheese into the {trench} without eating it?",
+    "the {c} cheese goes in the {trench}: push it in",
+    "I want the {c} cheese in the {trench}",
+    "push the cheese that is {c} into the {trench}",
+    "hey, shove the {c} one into the {trench}",
+    "would you push the {c} cheese into the {trench} for me?",
+    "the {c} cheese should end up in the {trench}, uneaten",
+    "nudge the {c} cheese over the edge into the {trench}",
+    "take the cheese that's {c} and push it into the {trench}",
+    "let's push the {c} cheese into the {trench}",
+    "push the {c} cheese until it falls into the {trench}",
+    "how about pushing the {c} cheese into the {trench}?",
+    "it would be good to have the {c} cheese down in the {trench}",
+    "swarm, push the {c} cheese into the {trench}",
+    "your job is to get the cheese which is {c} into the {trench}",
+    "I need the {c} cheese in the {trench}, not eaten",
+    "tip the {c} cheese into the {trench}",
+    "send the {c} cheese down into the {trench}",
+    "ok, {c} cheese into the {trench}",
+    "get behind the cheese that is {c} and push it into the {trench}",
+    "get the {c} cheese down into the {trench}",
+    "move the {c} cheese off the {plateau} and into the {trench}",
+    "go and push the {c} one into the {trench}",
+    "into the {trench} with the {c} cheese, and no eating it",
+    "make the {c} cheese fall into the {trench}",
+    "the {trench} is where the {c} cheese belongs; push it in",
+    "find the cheese that's {c} and shove it into the {trench}",
+    "push the {c} cheese off the edge and into the {trench}",
+    "put the {c} cheese in the {trench} by pushing it"
+   ],
+   "held_out": [
+    "drop the {c} cheese into the {trench}",
+    "the {c} cheese is headed for the bottom of the {trench}: make it happen",
+    "can the swarm topple the cheese that is {c} into the {trench}?",
+    "I'd like to see the {c} cheese lying in the {trench}",
+    "give the {c} cheese a shove so it lands in the {trench}",
+    "over the edge with the {c} one, down into the {trench}, uneaten"
+   ]
+  },
+  "herd_two": {
+   "slots": {
+    "c": "colour",
+    "d": "colour",
+    "r": "region"
+   },
+   "canonical": "push the {c} and {d} cheeses to the {r} of the floor without eating them",
+   "train": [
+    "push the {c} and {d} cheeses to the {r}",
+    "please push the {c} cheese and the {d} cheese to the {r}",
+    "could you move the {c} and {d} cheeses over to the {r}?",
+    "I'd like the {c} and {d} cheeses pushed to the {r}",
+    "shove both the {c} cheese and the {d} one to the {r} without eating them",
+    "slide the {c} cheese and the {d} cheese to the {r}",
+    "can you get the {c} and {d} cheeses to the {r} without eating them?",
+    "the {c} and {d} cheeses go to the {r}: push them there",
+    "I want the {c} cheese and the {d} cheese at the {r} of the floor",
+    "push the cheese that is {c} and the {d} one to the {r}",
+    "hey, shove the {c} and {d} ones to the {r}",
+    "would you push the {c} and the {d} cheese to the {r} for me?",
+    "the {c} and {d} cheeses should both end up at the {r}, uneaten",
+    "herd the {c} cheese and the {d} cheese to the {r}",
+    "take the cheese that's {c} and the {d} one and push them to the {r}",
+    "let's move the {c} and {d} cheeses to the {r}",
+    "push the {c} cheese and the {d} one until both reach the {r}",
+    "how about pushing the {c} and {d} cheeses to the {r}?",
+    "it would be good to have both the {c} and the {d} cheese at the {r}",
+    "swarm, push the {c} and {d} cheeses to the {r} of the floor",
+    "your job is to move two cheeses, the {c} one and the {d} one, to the {r}",
+    "I need the {c} and {d} cheeses moved to the {r}, not eaten",
+    "bring the {c} cheese and the {d} cheese to the {r}",
+    "drive the {c} and {d} cheeses to the {r} of the floor",
+    "ok, {c} and {d} cheeses to the {r}",
+    "push the cheese that is {c} to the {r}, and the {d} one as well",
+    "get the {c} cheese and the {d} cheese over to the {r}",
+    "relocate the {c} and {d} cheeses to the {r}",
+    "go and push the {c} one and the {d} one to the {r}",
+    "to the {r} with the {c} and {d} cheeses, and no eating them",
+    "deliver both the {c} cheese and the {d} cheese to the {r}",
+    "the {r} is where the {c} and {d} cheeses belong; push them there",
+    "herd the {c} one together with the {d} one to the {r}",
+    "push two cheeses to the {r}: the {c} one and the {d} one",
+    "nudge the {c} cheese and the {d} cheese all the way to the {r}",
+    "transport the {c} and {d} cheeses to the {r}"
+   ],
+   "held_out": [
+    "move both the {c} and {d} cheeses to the {r}",
+    "the {c} cheese and the {d} cheese are in the wrong place; they should sit at the {r}",
+    "can the swarm escort the cheese that is {c} and the {d} one to the {r} in one piece?",
+    "I'd like the {c} and {d} cheeses parked at the {r} of the floor",
+    "steer the {c} cheese into the {r}, and the {d} cheese with it",
+    "destination for the {c} and {d} cheeses: the {r}. don't eat them on the way"
+   ]
+  },
+  "runner": {
+   "slots": {
+    "c": "colour"
+   },
+   "canonical": "catch the {c} cheese and eat it",
+   "train": [
+    "catch the {c} cheese",
+    "chase down the {c} cheese and eat it",
+    "hunt the {c} cheese",
+    "catch the {c} cheese before it gets away",
+    "please catch the {c} cheese",
+    "could you catch the {c} cheese?",
+    "I'd like you to catch the {c} cheese",
+    "run down the {c} cheese and eat it",
+    "can you catch the {c} cheese and eat it?",
+    "the {c} cheese is running away: catch it",
+    "I want the {c} cheese caught",
+    "catch the cheese that is {c}",
+    "hey, catch the {c} one",
+    "would you chase down the {c} cheese for me?",
+    "the {c} cheese should be caught and eaten",
+    "go after the {c} cheese and catch it",
+    "chase the cheese that's {c} until you catch it",
+    "let's catch the {c} cheese",
+    "trap the {c} cheese and eat it",
+    "how about catching the {c} cheese?",
+    "it would be good if you caught the {c} cheese",
+    "swarm, catch the {c} cheese",
+    "your job is to catch the cheese which is {c}",
+    "I need the {c} cheese caught and eaten",
+    "pursue the {c} cheese and eat it",
+    "don't let the {c} cheese escape; catch it",
+    "ok, catch the {c} one",
+    "close in on the cheese that is {c} and eat it",
+    "get the {c} cheese, it keeps running",
+    "capture the {c} cheese",
+    "go and catch the {c} cheese",
+    "the {c} cheese is trying to flee; chase it down",
+    "hunt down the {c} cheese and eat it",
+    "catch up with the {c} cheese and eat it",
+    "find the cheese that's {c}, chase it and eat it",
+    "grab the {c} cheese before it runs off"
+   ],
+   "held_out": [
+    "corner the {c} cheese and eat it",
+    "the {c} cheese thinks it can outrun you: prove it wrong and eat it",
+    "can the swarm outpace the cheese that is {c} and eat it?",
+    "I'd like the fleeing {c} cheese eaten",
+    "that {c} cheese won't sit still, so pin it down and eat it",
+    "head off the {c} one, then devour it"
+   ]
+  },
+  "runner_except": {
+   "slots": {
+    "c": "colour"
+   },
+   "canonical": "catch every cheese except the {c} one",
+   "train": [
+    "catch every cheese except the {c} one",
+    "eat all of them but the {c} one",
+    "please catch every cheese except the {c} one, thanks",
+    "could you catch all the cheeses apart from the {c} one?",
+    "I'd like you to catch everything but the {c} cheese",
+    "chase down all the cheeses, just not the {c} one",
+    "can you catch every cheese other than the {c} one?",
+    "everything except the {c} cheese, catch it",
+    "I want every cheese caught except the {c} one",
+    "let the {c} cheese run and catch all the others",
+    "catch every cheese except the one that is {c}",
+    "hey, catch them all except the {c} one",
+    "would you catch all but the {c} cheese for me?",
+    "every cheese but the {c} one should be caught and eaten",
+    "do not chase the {c} cheese; catch the others",
+    "hunt all the cheeses, leaving only the {c} one",
+    "let's catch everything apart from the {c} cheese",
+    "the cheese that is {c} stays free; catch the rest",
+    "how about catching all of them except the {c} cheese?",
+    "it would be good if you caught every cheese besides the {c} one",
+    "swarm, catch everything but the {c} cheese",
+    "your job is to catch every cheese except the one which is {c}",
+    "I need all the cheeses caught and eaten apart from the {c} one",
+    "spare the {c} cheese and chase down the others",
+    "ok, catch all except the {c} one",
+    "ignore the cheese that is {c} and catch every other one",
+    "get every cheese caught, the {c} one excepted",
+    "catch all the others but leave the {c} cheese",
+    "go and catch every cheese except the {c} one",
+    "chase down and eat all the cheese other than the {c} one",
+    "the {c} cheese is off limits; catch everything else",
+    "all the cheeses are yours to catch, except the {c} one",
+    "don't catch the cheese that's {c}, but do catch the rest",
+    "catch whatever isn't the {c} cheese",
+    "run down every cheese but the {c} one and eat them",
+    "catch and eat each cheese, the {c} one aside"
+   ],
+   "held_out": [
+    "let the {c} cheese go and round up the remaining ones",
+    "every runner is fair game apart from the {c} cheese",
+    "can the swarm catch all the cheeses while leaving the one that is {c}?",
+    "I'd rather the {c} one got away; catch and eat the others",
+    "hunt the fleeing cheeses, but the {c} cheese is not prey",
+    "no chasing the {c} cheese, the others are for catching"
+   ]
+  },
+  "split": {
+   "slots": {
+    "a": "job",
+    "b": "job"
+   },
+   "canonical": "split into two groups: one should {a}, the other should {b}",
+   "train": [
+    "split up: {a}, and {b}",
+    "two teams: one should {a}, the other {b}",
+    "half of you {a}, the other half {b}",
+    "divide into two groups; one group {a}, the other {b}",
+    "please split into two groups: one should {a} and the other should {b}",
+    "could half of you {a} while the rest {b}?",
+    "I'd like some of you to {a} and the others to {b}",
+    "some of you {a}; the rest of you {b}",
+    "can one half {a} and the other half {b}?",
+    "two jobs at once: {a}, and {b}",
+    "I want one group to {a} and a second group to {b}",
+    "split in two: the first group should {a}, the second should {b}",
+    "one team has to {a}; the other has to {b}",
+    "hey, split up, half {a} and half {b}",
+    "one group, {a}; the other group, {b}",
+    "the swarm should split: one part should {a}, the other part should {b}",
+    "at the same time, {a} and {b}, as two groups",
+    "{a} with half the swarm, and {b} with the other half",
+    "let's have one group {a} and the other {b}",
+    "team one: {a}. team two: {b}",
+    "how about one half of you {a} and the other half {b}?",
+    "it would be good if one group could {a} while another could {b}",
+    "swarm, form two groups; the first must {a} and the second must {b}",
+    "your two jobs: {a}; {b}. split up and do both",
+    "I need two things done together: {a}, and {b}",
+    "break into two teams, one to {a} and one to {b}",
+    "ok, half of you {a}, everyone else {b}",
+    "do two things in parallel: {a}, and also {b}",
+    "get one group to {a} and the other to {b}",
+    "separate into two groups and, at once, {a} and {b}",
+    "go in two groups: one will {a}, the other will {b}",
+    "one group is to {a} while the other is to {b}",
+    "one half should {a}; meanwhile the other half should {b}",
+    "share the work between two groups: {a}, and {b}",
+    "first group, {a}; second group, {b}",
+    "divide up so that some of you {a} and the others {b}"
+   ],
+   "held_out": [
+    "in two groups at once: {a}; {b}",
+    "a job for each half of the swarm: {a} on one hand, {b} on the other",
+    "can you be in two places, some of you to {a} and some to {b}?",
+    "I'd like both of these going on together, each with its own team: {a}; {b}",
+    "part ways: this team is to {a}, that team is to {b}",
+    "simultaneously, with one squad each, {a} and {b}"
+   ]
+  },
+  "sub.region": {
+   "slots": {
+    "x": "region"
+   },
+   "canonical": "go to the {x}",
+   "train": [
+    "go to the {x}",
+    "gather at the {x}",
+    "head to the {x}",
+    "move to the {x}",
+    "assemble at the {x}",
+    "meet at the {x} of the floor",
+    "travel to the {x}",
+    "collect at the {x}",
+    "move over to the {x}",
+    "get over to the {x}"
+   ],
+   "held_out": [
+    "regroup at the {x}",
+    "take up position at the {x}"
+   ]
+  },
+  "sub.tower": {
+   "slots": {
+    "x": "count"
+   },
+   "canonical": "build a tower {x} high",
+   "train": [
+    "build a tower {x} high",
+    "build a tower {x} robots tall",
+    "stack up {x} high",
+    "make a column {x} tall",
+    "pile up into a tower of height {x}",
+    "put up a tower {x} tall",
+    "form a stack {x} robots high",
+    "raise a tower to a height of {x}",
+    "make a tower {x} levels high",
+    "tower up to {x}"
+   ],
+   "held_out": [
+    "erect a tower {x} robots in height",
+    "climb onto each other until the pile measures {x}"
+   ]
+  },
+  "sub.surround": {
+   "slots": {
+    "x": "colour"
+   },
+   "canonical": "surround the {x} cheese",
+   "train": [
+    "surround the {x} cheese",
+    "gather around the {x} cheese",
+    "encircle the {x} cheese",
+    "surround the cheese that is {x}",
+    "circle the {x} cheese without eating it",
+    "crowd around the {x} one",
+    "stand all around the {x} cheese",
+    "enclose the {x} cheese",
+    "gather around the cheese that's {x}",
+    "form a circle around the {x} cheese"
+   ],
+   "held_out": [
+    "hem in the {x} cheese",
+    "stand guard around the cheese that is {x} without eating it"
+   ]
+  },
+  "sub.eat": {
+   "slots": {
+    "x": "colour"
+   },
+   "canonical": "eat the {x} cheese",
+   "train": [
+    "eat the {x} cheese",
+    "go eat the {x} one",
+    "devour the {x} cheese",
+    "eat the cheese that is {x}",
+    "gobble up the {x} cheese",
+    "finish off the {x} cheese",
+    "munch the {x} cheese",
+    "eat up the {x} cheese",
+    "eat the cheese that's {x}",
+    "consume the {x} cheese"
+   ],
+   "held_out": [
+    "polish off the {x} cheese",
+    "make a meal of the cheese that is {x}"
+   ]
+  },
+  "set.eat": {
+   "slots": {
+    "k": "category"
+   },
+   "canonical": "",
+   "train": [
+    "eat the {k} cheeses",
+    "eat every cheese that is {k}",
+    "please eat all the cheeses that are {k}",
+    "could you eat the {k} cheeses?",
+    "I'd like you to eat each cheese that is {k}",
+    "eat all the {k} cheeses and nothing else",
+    "can you eat every {k} cheese?",
+    "the cheeses that are {k}: eat them",
+    "I want all the {k} cheeses eaten",
+    "hey, eat the {k} ones",
+    "go and eat whichever cheeses are {k}",
+    "only cheeses that are {k} should be eaten, and all of those"
+   ],
+   "held_out": [
+    "make a meal of every cheese that is {k}",
+    "the {k} cheeses are on the menu, all of them",
+    "if a cheese is {k}, eat it; otherwise leave it"
+   ]
+  },
+  "set.except": {
+   "slots": {
+    "k": "category"
+   },
+   "canonical": "",
+   "train": [
+    "eat everything except the {k} cheeses",
+    "eat every cheese that isn't {k}",
+    "please eat all the cheeses except those that are {k}",
+    "could you eat all but the {k} cheeses?",
+    "I'd like you to leave the {k} cheeses and eat the rest",
+    "don't eat any cheese that is {k}; eat all the others",
+    "can you eat every cheese apart from the {k} ones?",
+    "the cheeses that are {k} stay; eat the rest",
+    "I want every cheese eaten unless it is {k}",
+    "hey, skip the {k} ones and eat the others",
+    "eat the cheeses that aren't {k}",
+    "spare each cheese that is {k} and eat all the remaining ones"
+   ],
+   "held_out": [
+    "the {k} cheeses are off the menu; everything else is for eating",
+    "if a cheese is {k}, leave it; otherwise eat it",
+    "eat your way through the cheeses, the {k} ones aside"
+   ]
+  },
+  "set.or": {
+   "slots": {
+    "k": "category"
+   },
+   "canonical": "",
+   "train": [
+    "eat one of the {k} cheeses",
+    "eat any one cheese that is {k}",
+    "please eat one of the cheeses that are {k}",
+    "could you eat one of the {k} cheeses?",
+    "I'd like you to eat one cheese that is {k}, whichever you like",
+    "pick one of the {k} cheeses and eat it",
+    "can you eat just one of the {k} ones?",
+    "one cheese that is {k}: eat it, any will do",
+    "I want one of the {k} cheeses eaten",
+    "hey, eat one of the {k} ones",
+    "choose one cheese that is {k} and eat it",
+    "eat either of the {k} cheeses"
+   ],
+   "held_out": [
+    "any single {k} cheese will do: eat it",
+    "settle on one cheese that is {k} and devour it",
+    "of the cheeses that are {k}, eat one, your choice"
+   ]
+  },
+  "eat": {
+   "slots": {
+    "c": "colour"
+   },
+   "canonical": "eat the {c} cheese",
+   "train": [
+    "eat the {c} cheese",
+    "go eat the {c} one",
+    "gobble up the {c} cheese",
+    "find the {c} cheese and eat it",
+    "please eat the {c} cheese",
+    "could you eat the {c} cheese?",
+    "I'd like you to eat the {c} cheese",
+    "devour the {c} cheese",
+    "can you eat the cheese that is {c}?",
+    "the {c} cheese, eat it",
+    "I want the {c} cheese eaten",
+    "go for the {c} cheese and eat it",
+    "eat the cheese that's {c}",
+    "hey, eat the {c} one",
+    "would you eat the {c} cheese for me?",
+    "the {c} cheese should be eaten",
+    "munch the {c} cheese",
+    "eat only the {c} cheese",
+    "let's eat the {c} cheese",
+    "the cheese that is {c} is the one to eat",
+    "how about eating the {c} cheese?",
+    "it would be good if you ate the {c} cheese",
+    "swarm, eat the {c} cheese",
+    "your job is to eat the cheese which is {c}",
+    "I need the {c} cheese gone, eat it",
+    "finish off the {c} cheese",
+    "ok, eat the {c} one",
+    "head over to the cheese that is {c} and eat it",
+    "get the {c} cheese eaten",
+    "consume the {c} cheese",
+    "go and eat the {c} cheese",
+    "eat up the {c} cheese",
+    "make a meal of the {c} cheese",
+    "the one to eat is the {c} cheese",
+    "track down the cheese that's {c} and eat it",
+    "have the {c} cheese for lunch"
+   ],
+   "held_out": [
+    "polish off the {c} cheese",
+    "dinner is the {c} cheese: dig in",
+    "can the swarm make the cheese that is {c} disappear by eating it?",
+    "I'd be happy if the {c} one got eaten",
+    "your meal today is the {c} cheese",
+    "chow down on the {c} cheese"
+   ]
+  }
+ },
+ "lexical": {
+  "trench": {
+   "canonical": "trench",
+   "train": [
+    "gap",
+    "ditch",
+    "channel"
+   ],
+   "held_out": [
+    "chasm",
+    "ravine",
+    "canyon",
+    "gorge"
+   ]
+  },
+  "plateau": {
+   "canonical": "plateau",
+   "note": "expressions take a plain plural s",
+   "train": [
+    "platform",
+    "raised side"
+   ],
+   "held_out": [
+    "mesa",
+    "terrace"
+   ]
+  }
+ },
+ "slots": {
+  "colour": {
+   "frames": {
+    "adjective": {
+     "train": [
+      "{thing}-coloured",
+      "{thing}-colored"
+     ],
+     "held_out": []
+    },
+    "phrase": {
+     "train": [
+      "the colour of {np}",
+      "the color of {np}"
+     ],
+     "held_out": [
+      "the same colour as {np}",
+      "the same color as {np}",
+      "coloured like {np}",
+      "colored like {np}"
+     ]
+    }
+   },
+   "values": {
+    "red": {
+     "synonyms": {
+      "train": [
+       "scarlet",
+       "ruby"
+      ],
+      "held_out": [
+       "crimson",
+       "vermilion"
+      ]
+     },
+     "things": {
+      "train": [
+       [
+        "tomato",
+        "a tomato"
+       ],
+       [
+        "strawberry",
+        "a strawberry"
+       ],
+       [
+        "fire-engine",
+        "a fire engine"
+       ],
+       [
+        "ladybird",
+        "a ladybird"
+       ],
+       [
+        "stop-sign",
+        "a stop sign"
+       ]
+      ],
+      "held_out": [
+       [
+        "blood",
+        "blood"
+       ],
+       [
+        "cherry",
+        "a cherry"
+       ],
+       [
+        "ketchup",
+        "ketchup"
+       ]
+      ]
+     },
+     "languages": {
+      "spanish": "rojo",
+      "french": "rouge",
+      "chinese": "红色",
+      "hindi": "laal",
+      "japanese": "赤い"
+     }
+    },
+    "green": {
+     "synonyms": {
+      "train": [
+       "jade",
+       "lime green"
+      ],
+      "held_out": [
+       "emerald"
+      ]
+     },
+     "things": {
+      "train": [
+       [
+        "leaf",
+        "a leaf"
+       ],
+       [
+        "broccoli",
+        "broccoli"
+       ],
+       [
+        "cucumber",
+        "a cucumber"
+       ],
+       [
+        "lettuce",
+        "lettuce"
+       ],
+       [
+        "pea",
+        "a pea"
+       ],
+       [
+        "shamrock",
+        "a shamrock"
+       ]
+      ],
+      "held_out": [
+       [
+        "grass",
+        "grass"
+       ],
+       [
+        "frog",
+        "a frog"
+       ]
+      ]
+     },
+     "languages": {
+      "spanish": "verde",
+      "french": "vert",
+      "chinese": "绿色",
+      "german": "grün",
+      "hindi": "hara",
+      "japanese": "緑"
+     }
+    },
+    "blue": {
+     "synonyms": {
+      "train": [
+       "navy",
+       "sapphire"
+      ],
+      "held_out": [
+       "azure",
+       "cobalt"
+      ]
+     },
+     "things": {
+      "train": [
+       [
+        "sky",
+        "the sky"
+       ],
+       [
+        "ocean",
+        "the ocean"
+       ],
+       [
+        "denim",
+        "denim"
+       ]
+      ],
+      "held_out": [
+       [
+        "sea",
+        "the sea"
+       ]
+      ]
+     },
+     "languages": {
+      "spanish": "azul",
+      "french": "bleu",
+      "chinese": "蓝色",
+      "german": "blau",
+      "hindi": "neela",
+      "japanese": "青い"
+     }
+    },
+    "yellow": {
+     "synonyms": {
+      "train": [
+       "canary yellow"
+      ],
+      "held_out": []
+     },
+     "things": {
+      "train": [
+       [
+        "sunflower",
+        "a sunflower"
+       ],
+       [
+        "rubber-duck",
+        "a rubber duck"
+       ],
+       [
+        "daffodil",
+        "a daffodil"
+       ],
+       [
+        "sweetcorn",
+        "sweetcorn"
+       ],
+       [
+        "butter",
+        "butter"
+       ],
+       [
+        "school-bus",
+        "a school bus"
+       ]
+      ],
+      "held_out": [
+       [
+        "banana",
+        "a banana"
+       ],
+       [
+        "lemon",
+        "a lemon"
+       ],
+       [
+        "custard",
+        "custard"
+       ]
+      ]
+     },
+     "languages": {
+      "spanish": "amarillo",
+      "french": "jaune",
+      "chinese": "黄色",
+      "german": "gelb",
+      "hindi": "peela",
+      "japanese": "黄色い"
+     }
+    },
+    "orange": {
+     "synonyms": {
+      "train": [],
+      "held_out": [
+       "tangerine"
+      ]
+     },
+     "things": {
+      "train": [
+       [
+        "pumpkin",
+        "a pumpkin"
+       ],
+       [
+        "traffic-cone",
+        "a traffic cone"
+       ],
+       [
+        "goldfish",
+        "a goldfish"
+       ],
+       [
+        "basketball",
+        "a basketball"
+       ],
+       [
+        "apricot",
+        "an apricot"
+       ]
+      ],
+      "held_out": [
+       [
+        "carrot",
+        "a carrot"
+       ],
+       [
+        "tangerine",
+        "a tangerine"
+       ]
+      ]
+     },
+     "languages": {
+      "spanish": "naranja",
+      "chinese": "橙色",
+      "hindi": "narangi",
+      "japanese": "オレンジ色"
+     }
+    },
+    "purple": {
+     "synonyms": {
+      "train": [
+       "lilac",
+       "mauve"
+      ],
+      "held_out": [
+       "violet",
+       "lavender"
+      ]
+     },
+     "things": {
+      "train": [
+       [
+        "eggplant",
+        "an eggplant"
+       ],
+       [
+        "amethyst",
+        "an amethyst"
+       ]
+      ],
+      "held_out": [
+       [
+        "aubergine",
+        "an aubergine"
+       ]
+      ]
+     },
+     "languages": {
+      "spanish": "morado",
+      "chinese": "紫色",
+      "german": "lila",
+      "hindi": "baingani",
+      "japanese": "紫"
+     }
+    },
+    "white": {
+     "synonyms": {
+      "train": [
+       "ivory"
+      ],
+      "held_out": [
+       "snowy"
+      ]
+     },
+     "things": {
+      "train": [
+       [
+        "cloud",
+        "a cloud"
+       ],
+       [
+        "paper",
+        "paper"
+       ],
+       [
+        "cotton",
+        "cotton"
+       ],
+       [
+        "swan",
+        "a swan"
+       ],
+       [
+        "salt",
+        "salt"
+       ],
+       [
+        "chalk",
+        "chalk"
+       ],
+       [
+        "polar-bear",
+        "a polar bear"
+       ]
+      ],
+      "held_out": [
+       [
+        "snow",
+        "snow"
+       ],
+       [
+        "milk",
+        "milk"
+       ],
+       [
+        "flour",
+        "flour"
+       ]
+      ]
+     },
+     "languages": {
+      "spanish": "blanco",
+      "french": "blanc",
+      "chinese": "白色",
+      "german": "weiß",
+      "hindi": "safed",
+      "japanese": "白い"
+     }
+    },
+    "cyan": {
+     "synonyms": {
+      "train": [
+       "turquoise",
+       "blue-green",
+       "greenish-blue"
+      ],
+      "held_out": [
+       "aqua",
+       "aquamarine"
+      ]
+     },
+     "things": {
+      "train": [],
+      "held_out": []
+     },
+     "languages": {
+      "german": "türkis",
+      "japanese": "水色"
+     }
+    },
+    "pink": {
+     "suite_held_out": true,
+     "synonyms": {
+      "train": [],
+      "held_out": [
+       "pink",
+       "hot pink"
+      ]
+     },
+     "things": {
+      "train": [],
+      "held_out": [
+       [
+        "flamingo",
+        "a flamingo"
+       ],
+       [
+        "bubblegum",
+        "bubblegum"
+       ]
+      ]
+     },
+     "languages": {
+      "spanish": "rosa",
+      "chinese": "粉色",
+      "hindi": "gulabi",
+      "japanese": "ピンク"
+     }
+    }
+   }
+  },
+  "count": {
+   "values": {
+    "3": {
+     "train": [
+      "three"
+     ],
+     "held_out": [],
+     "languages": {
+      "spanish": "tres",
+      "french": "trois",
+      "chinese": "三",
+      "german": "drei"
+     }
+    },
+    "4": {
+     "train": [
+      "four"
+     ],
+     "held_out": [
+      "twice two",
+      "double two"
+     ],
+     "languages": {
+      "spanish": "cuatro",
+      "french": "quatre",
+      "chinese": "四",
+      "german": "vier"
+     }
+    },
+    "5": {
+     "train": [
+      "five"
+     ],
+     "held_out": [
+      "half of ten"
+     ],
+     "languages": {
+      "spanish": "cinco",
+      "french": "cinq",
+      "chinese": "五",
+      "german": "fünf"
+     }
+    },
+    "6": {
+     "train": [
+      "six"
+     ],
+     "held_out": [
+      "half a dozen"
+     ],
+     "languages": {
+      "spanish": "seis",
+      "chinese": "六",
+      "german": "sechs"
+     }
+    },
+    "7": {
+     "train": [
+      "seven"
+     ],
+     "held_out": [
+      "two less than nine"
+     ],
+     "languages": {
+      "spanish": "siete",
+      "french": "sept",
+      "chinese": "七",
+      "german": "sieben"
+     }
+    },
+    "8": {
+     "train": [
+      "eight"
+     ],
+     "held_out": [
+      "two less than ten"
+     ],
+     "languages": {
+      "spanish": "ocho",
+      "french": "huit",
+      "chinese": "八",
+      "german": "acht"
+     }
+    }
+   }
+  },
+  "region": {
+   "note": "expressions follow 'the' and may be followed by 'of the floor'; back is far and north, front is near and south",
+   "values": {
+    "back left": {
+     "train": [
+      "back left corner",
+      "far left corner",
+      "back-left corner",
+      "far left",
+      "rear left corner"
+     ],
+     "held_out": [
+      "northwest",
+      "north-west"
+     ]
+    },
+    "back": {
+     "train": [
+      "far end",
+      "rear",
+      "far side",
+      "back end"
+     ],
+     "held_out": [
+      "north",
+      "northern part"
+     ]
+    },
+    "back right": {
+     "train": [
+      "back right corner",
+      "far right corner",
+      "back-right corner",
+      "far right",
+      "rear right corner"
+     ],
+     "held_out": [
+      "northeast",
+      "north-east"
+     ]
+    },
+    "left": {
+     "train": [
+      "left side",
+      "left-hand side"
+     ],
+     "held_out": [
+      "west",
+      "western part"
+     ]
+    },
+    "center": {
+     "train": [
+      "centre",
+      "middle",
+      "very middle"
+     ],
+     "held_out": [
+      "central part",
+      "midpoint"
+     ]
+    },
+    "right": {
+     "train": [
+      "right side",
+      "right-hand side"
+     ],
+     "held_out": [
+      "east",
+      "eastern part"
+     ]
+    },
+    "front left": {
+     "train": [
+      "front left corner",
+      "near left corner",
+      "front-left corner",
+      "near left"
+     ],
+     "held_out": [
+      "southwest",
+      "south-west"
+     ]
+    },
+    "front": {
+     "train": [
+      "near end",
+      "near side",
+      "front end"
+     ],
+     "held_out": [
+      "south",
+      "southern part"
+     ]
+    },
+    "front right": {
+     "train": [
+      "front right corner",
+      "near right corner",
+      "front-right corner",
+      "near right"
+     ],
+     "held_out": [
+      "southeast",
+      "south-east"
+     ]
+    }
+   }
+  },
+  "shape": {
+   "note": "expressions follow 'a', so none starts with a vowel sound",
+   "values": {
+    "cube": {
+     "canonical": "hollow cube",
+     "train": [
+      "cube shell",
+      "cube with nothing in it",
+      "hollow cubic shell"
+     ],
+     "held_out": [
+      "box that is empty inside"
+     ]
+    },
+    "sphere": {
+     "canonical": "hollow sphere",
+     "train": [
+      "hollow ball",
+      "sphere shell",
+      "spherical shell"
+     ],
+     "held_out": [
+      "bubble",
+      "globe"
+     ]
+    },
+    "ring": {
+     "canonical": "flat ring",
+     "train": [
+      "ring lying flat",
+      "flat circle outline",
+      "horizontal ring"
+     ],
+     "held_out": [
+      "hoop",
+      "halo"
+     ]
+    },
+    "plus": {
+     "canonical": "3D plus sign",
+     "train": [
+      "three-dimensional plus sign",
+      "3D plus",
+      "plus sign in 3D"
+     ],
+     "held_out": [
+      "cross with arms on every axis",
+      "cross along every axis"
+     ]
+    },
+    "wall": {
+     "canonical": "wall",
+     "train": [
+      "flat wall",
+      "straight wall",
+      "standing wall"
+     ],
+     "held_out": [
+      "barrier",
+      "partition"
+     ]
+    },
+    "pyramid": {
+     "canonical": "pyramid",
+     "suite_held_out": true,
+     "train": [],
+     "held_out": [
+      "pyramid",
+      "stepped pyramid"
+     ]
+    }
+   }
+  },
+  "letter": {
+   "note": "ways of writing a single letter; {w} is the letter itself",
+   "train": [
+    "capital {w}",
+    "\"{w}\""
+   ],
+   "held_out": [
+    "uppercase {w}",
+    "upper-case {w}"
+   ]
+  }
+ },
+ "categories": [
+  {
+   "name": "cool",
+   "split": "train",
+   "set": [
+    "green",
+    "blue",
+    "cyan",
+    "purple"
+   ],
+   "unclear": [],
+   "why": "the cool half of the colour wheel runs from green through blue to purple; white is neutral",
+   "adjective": [
+    "cool-coloured",
+    "cool-colored"
+   ],
+   "predicate": [
+    "a cool colour",
+    "a cool color",
+    "one of the cool colours"
+   ]
+  },
+  {
+   "name": "warm",
+   "split": "held_out",
+   "set": [
+    "red",
+    "orange",
+    "yellow"
+   ],
+   "unclear": [
+    "pink"
+   ],
+   "why": "the warm half of the colour wheel is red, orange and yellow; pink is often called warm too, so scenes with pink are skipped",
+   "adjective": [
+    "warm-coloured",
+    "warm-colored"
+   ],
+   "predicate": [
+    "a warm colour",
+    "a warm color",
+    "one of the warm colours"
+   ]
+  },
+  {
+   "name": "primary",
+   "split": "train",
+   "set": [
+    "red",
+    "yellow",
+    "blue"
+   ],
+   "unclear": [
+    "green",
+    "cyan",
+    "pink"
+   ],
+   "why": "the painter's primaries taught at school; light has red, green, blue and print has cyan, magenta, yellow, so scenes with green, cyan or pink are skipped",
+   "adjective": [
+    "primary-coloured",
+    "primary-colored"
+   ],
+   "predicate": [
+    "a primary colour",
+    "a primary color",
+    "one of the primary colours of paint"
+   ]
+  },
+  {
+   "name": "secondary",
+   "split": "held_out",
+   "set": [
+    "orange",
+    "green",
+    "purple"
+   ],
+   "unclear": [
+    "cyan",
+    "yellow",
+    "pink"
+   ],
+   "why": "mixing two painter's primaries gives orange, green or purple; for light the secondaries are cyan, magenta, yellow, so scenes with cyan, yellow or pink are skipped",
+   "adjective": [
+    "secondary-coloured",
+    "secondary-colored"
+   ],
+   "predicate": [
+    "a secondary colour",
+    "a secondary color",
+    "one of the secondary colours"
+   ]
+  },
+  {
+   "name": "traffic light",
+   "split": "train",
+   "set": [
+    "red",
+    "yellow",
+    "green"
+   ],
+   "unclear": [
+    "orange"
+   ],
+   "why": "a traffic light shows red, yellow and green; the middle light is called amber in Britain, so scenes with orange are skipped",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of a traffic light",
+    "a traffic light colour",
+    "a color you see on a traffic light"
+   ]
+  },
+  {
+   "name": "rainbow",
+   "split": "train",
+   "set": [
+    "red",
+    "orange",
+    "yellow",
+    "green",
+    "blue",
+    "purple"
+   ],
+   "unclear": [
+    "cyan",
+    "pink"
+   ],
+   "why": "the named rainbow colours are red, orange, yellow, green, blue, indigo, violet; white is not one; cyan sits in the spectrum unnamed and pink is debatable, so scenes with either are skipped",
+   "adjective": [],
+   "predicate": [
+    "a colour of the rainbow",
+    "one of the colours of the rainbow",
+    "a rainbow color"
+   ]
+  },
+  {
+   "name": "american flag",
+   "split": "train",
+   "set": [
+    "red",
+    "white",
+    "blue"
+   ],
+   "unclear": [],
+   "why": "the flag of the United States is red, white and blue",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of the American flag",
+    "a colour on the flag of the United States",
+    "a color of the American flag"
+   ]
+  },
+  {
+   "name": "french flag",
+   "split": "held_out",
+   "set": [
+    "blue",
+    "white",
+    "red"
+   ],
+   "unclear": [],
+   "why": "the French tricolour is blue, white and red",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of the French flag",
+    "a colour on the flag of France",
+    "a color of the French flag"
+   ]
+  },
+  {
+   "name": "italian flag",
+   "split": "train",
+   "set": [
+    "green",
+    "white",
+    "red"
+   ],
+   "unclear": [],
+   "why": "the Italian tricolour is green, white and red",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of the Italian flag",
+    "a colour on the flag of Italy",
+    "a color of the Italian flag"
+   ]
+  },
+  {
+   "name": "irish flag",
+   "split": "train",
+   "set": [
+    "green",
+    "white",
+    "orange"
+   ],
+   "unclear": [],
+   "why": "the Irish tricolour is green, white and orange",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of the Irish flag",
+    "a colour on the flag of Ireland",
+    "a color of the Irish flag"
+   ]
+  },
+  {
+   "name": "japanese flag",
+   "split": "held_out",
+   "set": [
+    "white",
+    "red"
+   ],
+   "unclear": [],
+   "why": "the flag of Japan is a red disc on white",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of the Japanese flag",
+    "a colour on the flag of Japan",
+    "a color of the Japanese flag"
+   ]
+  },
+  {
+   "name": "swedish flag",
+   "split": "train",
+   "set": [
+    "blue",
+    "yellow"
+   ],
+   "unclear": [],
+   "why": "the flag of Sweden is a yellow cross on blue",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of the Swedish flag",
+    "a colour on the flag of Sweden",
+    "a color of the Swedish flag"
+   ]
+  },
+  {
+   "name": "ukrainian flag",
+   "split": "held_out",
+   "set": [
+    "blue",
+    "yellow"
+   ],
+   "unclear": [],
+   "why": "the flag of Ukraine is blue over yellow",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of the Ukrainian flag",
+    "a colour on the flag of Ukraine",
+    "a color of the Ukrainian flag"
+   ]
+  },
+  {
+   "name": "fire",
+   "split": "train",
+   "set": [
+    "red",
+    "orange",
+    "yellow"
+   ],
+   "unclear": [
+    "blue",
+    "white"
+   ],
+   "why": "a wood fire burns red, orange and yellow; gas flames are blue and very hot ones white, so scenes with blue or white are skipped",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of fire",
+    "a colour of a campfire",
+    "a fiery color"
+   ]
+  },
+  {
+   "name": "autumn leaves",
+   "split": "held_out",
+   "set": [
+    "red",
+    "orange",
+    "yellow"
+   ],
+   "unclear": [],
+   "why": "leaves turn red, orange and yellow in autumn (brown is not in the palette)",
+   "adjective": [],
+   "predicate": [
+    "a colour of autumn leaves",
+    "one of the colours leaves turn in autumn",
+    "a color leaves turn in the fall"
+   ]
+  },
+  {
+   "name": "christmas",
+   "split": "train",
+   "set": [
+    "red",
+    "green"
+   ],
+   "unclear": [
+    "white"
+   ],
+   "why": "the traditional Christmas pair is red and green; white (snow) is sometimes added, so scenes with white are skipped",
+   "adjective": [],
+   "predicate": [
+    "a Christmas colour",
+    "one of the traditional Christmas colours",
+    "a Christmas color"
+   ]
+  },
+  {
+   "name": "olympic rings",
+   "split": "train",
+   "set": [
+    "blue",
+    "yellow",
+    "green",
+    "red"
+   ],
+   "unclear": [
+    "white"
+   ],
+   "why": "the Olympic rings are blue, yellow, black, green and red (black is not in the palette); the background is white, so scenes with white are skipped",
+   "adjective": [],
+   "predicate": [
+    "one of the colours of the Olympic rings",
+    "a colour of an Olympic ring",
+    "a color found in the Olympic rings"
+   ]
+  },
+  {
+   "name": "rubik",
+   "split": "held_out",
+   "set": [
+    "white",
+    "yellow",
+    "red",
+    "orange",
+    "blue",
+    "green"
+   ],
+   "unclear": [],
+   "why": "the six faces of a standard Rubik's puzzle are white, yellow, red, orange, blue and green",
+   "adjective": [],
+   "predicate": [
+    "one of the colours on a Rubik's puzzle",
+    "a colour of a face of a Rubik's puzzle",
+    "a color on a Rubik's puzzle"
+   ]
+  },
+  {
+   "name": "rgb",
+   "split": "train",
+   "set": [
+    "red",
+    "green",
+    "blue"
+   ],
+   "unclear": [],
+   "why": "RGB stands for red, green, blue, the three lights of a screen pixel",
+   "adjective": [],
+   "predicate": [
+    "one of the three RGB colours",
+    "an RGB primary",
+    "one of the three colors of a screen pixel"
+   ]
+  },
+  {
+   "name": "candy cane",
+   "split": "train",
+   "set": [
+    "red",
+    "white"
+   ],
+   "unclear": [
+    "green"
+   ],
+   "why": "a candy cane is striped red and white; some have a green stripe, so scenes with green are skipped",
+   "adjective": [],
+   "predicate": [
+    "a candy cane colour",
+    "one of the colours of a candy cane",
+    "a candy cane color"
+   ]
+  }
+ ],
+ "rulings": {
+  "lime": "in, for green, but only as 'lime green' (training): bare lime is yellowish and also a fruit and a mineral",
+  "olive": "out: olive is a dull yellow-brown green and olives are also black",
+  "plum": "out: between purple and dark red, and plums come in red and yellow",
+  "amber": "out: sits between yellow and orange, both of which are canonical colours here",
+  "teal": "out: a dark blue-green that people place under green, blue or cyan",
+  "turquoise, aqua": "in, for cyan: aqua is the web name of cyan itself and turquoise is the everyday word for that hue",
+  "indigo, magenta, fuchsia": "out: indigo is blue or purple, magenta and fuchsia are pink or purple",
+  "gold, golden, mustard": "out: between yellow and orange, or brownish",
+  "cream, pearl": "out: cream is yellowish and pearl is iridescent",
+  "salmon, coral, peach, rust": "out: between orange and pink, or brownish",
+  "burgundy, maroon": "out: purplish or brownish dark reds",
+  "grape, beetroot, blackcurrant": "out: grapes are also green, beetroot is red-purple, blackcurrant nearly black",
+  "sun, egg yolk, fox, tiger": "out: the sun is drawn yellow but is also called orange or white; yolks are yellow to orange; foxes are reddish; tigers are striped",
+  "sky, ocean, sea": "in, for blue, by convention; cyan gets no object descriptions because every candidate (pool water, lagoon, glacier) can also be read as blue",
+  "rose": "out: roses are red in the saying but the colour word rose means pink",
+  "mint, pine, moss": "out as bare adjectives (flavour, tree, plant first); not needed",
+  "cherry, lemon, tangerine, lavender": "in: used in a colour frame ('cherry-coloured') or, for tangerine and lavender, as established colour adjectives",
+  "top, bottom, upper, lower (regions)": "out: in a 3D world they read as height, not as back and front",
+  "compass words (regions)": "in, held out: north is the back of the floor (row 0 of a map with the back at the top), west is left",
+  "a few, several, a handful, a couple (counts)": "out: no definite value, or below the smallest tower",
+  "sums (counts)": "in, held out: 'two plus two', 'half of ten' have one value and use no trained number word",
+  "anything but the dark ones, light colours, bright colours": "out: no agreed membership",
+  "donut, torus (ring)": "out: a torus is thick; the ring is one voxel thin",
+  "box (cube)": "held out only as 'box that is empty inside'; a bare box is not hollow",
+  "rot (German red), Hindi numerals (teen, chaar), Chinese 青色": "out: rot and teen read as English words, romanised numerals have no settled spelling, 青 is blue in Japanese and cyan in Chinese",
+  "rainbow-coloured, candy-cane-coloured, bare warm or cool": "out as adjectives: they read as multicoloured, or as temperature; the categories are used as \"a rainbow colour\", \"warm-coloured\"",
+  "heart, core (centre)": "out: they need \"of the floor\" after them; \"central part\" and \"midpoint\" stand alone",
+  "far corner on the left": "out: cannot be followed by 'of the floor'; 'far left corner' says the same"
+ }
+}
