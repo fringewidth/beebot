@@ -134,4 +134,71 @@ def test_without_a_rule_the_expert_asks_for_moves_cubes_cannot_make():
     asked = int((codes != STAY).sum())
     refused = int((refuse(world, codes, "free_cube") != codes).sum())
     assert refused > 0.3 * asked
+
+
+def test_a_cube_does_not_pivot_on_a_cube_that_moves():
+    pair = scene([(0, 5, 5), (0, 5, 6), (0, 9, 9)])
+    codes = torch.full((1, 16, 16, 16), STAY)
+    codes[0, 0, 5, 5] = code(1, 0, 1)  # each climbs the other
+    codes[0, 0, 5, 6] = code(1, 0, -1)
+    codes[0, 0, 9, 9] = code(0, 1, 0)
+    world_keeps = refuse(pair, codes, "free_cube")
+    assert world_keeps[0, 0, 5, 5] == STAY and world_keeps[0, 0, 5, 6] == STAY and world_keeps[0, 0, 9, 9] == code(0, 1, 0)
+    after, _ = step(pair, codes, rule="free_cube")
+    assert (after.mass == pair.mass).sum() == pair.mass.numel() - 2  # only the lone cube moved
+    priority = torch.zeros(1, 16, 16, 16)
+    priority[0, 0, 5, 6] = 1.0
+    one = refuse(pair, codes, "free_cube", priority=priority)  # a controller keeps one of the two
+    assert one[0, 0, 5, 5] == STAY and one[0, 0, 5, 6] == code(1, 0, -1)
+    assert (refuse(pair, one, "free_cube") == one).all()
+    alone = codes.clone()
+    alone[0, 0, 5, 6] = STAY
+    after, _ = step(pair, alone, rule="free_cube")
+    assert after.mass[0, 1, 5, 6] == 1 and after.mass[0, 0, 5, 5] == 0  # on top of its neighbour
+
+
+def test_the_planner_builds_a_tower_by_the_measured_route():
+    from beebot.vla.voxel.free_cube import FreeCubeExpert
+
+    cells = [(0, y, x) for y in (1, 4, 12, 15) for x in (1, 5, 10, 14)]  # sixteen lone cubes
+    world = scene(cells)
+    height = 4
+    points = [(z, 8 + a, 8 + c) for z in range(height) for a in range(2) for c in range(2)]
+    task = S.Task("construction", "", {"kind": "tower", "height": height, "forbid": set()}, [{"kind": "targets", "points": points, "label": S.tower_label(height, points)}])
+    expert = FreeCubeExpert([task], seed=0)
+    asked = set()
+
+    def actor(w, t):
+        codes = expert(w, t)
+        assert (refuse(w, codes.long(), "free_cube") == codes).all()
+        asked.update(DIRS[c] for c in codes[w.mass > 0.5].tolist() if c != STAY)
+        return codes
+
+    results, _ = S.run(world, [None], [task], actor, steps=96, seed=0, rule="free_cube")
+    assert results[0][0] == 1.0
+    assert (1, 0, 0) in asked and any(move[0] == 1 and move != (1, 0, 0) for move in asked)  # concave up, then convex up
+    crowd = scene([(0, y, x) for y in range(4, 8) for x in range(4, 8)])  # a packed patch: nothing to build with
+    results, _ = S.run(crowd, [None], [task], FreeCubeExpert([task], seed=0), steps=24, seed=0, rule="free_cube")
+    assert results[0][0] == 0.25
+
+
+def test_free_cube_store_obeys_the_rule(tmp_path):
+    from beebot.vla.voxel import demos
+    from beebot.vla.voxel.play_store import load
+
+    steps = 24
+    count = demos.write(tmp_path, 6, seed=0, chunk=6, steps=steps, moves="cube", robots=(6, 60), failure=failure_rates(0.15), compact=True, rule="free_cube", expert="planner")
+    store = load(tmp_path)
+    assert count == store["count"] > 0 and store["config"]["rule"] == "free_cube" and store["config"]["expert"] == "planner"
+    assert bool(store["gravity"].all())
+    n_moves = 0
+    for e in range(count):
+        for t in (0, steps // 2, steps - 1):
+            mass = np.asarray(store["mass"][e, t]).astype(np.float32)
+            actions = torch.from_numpy(np.asarray(store["actions"][e, t])).long().unsqueeze(0)
+            cheeses = [(*(int(v) for v in store["cheese_pos"][e, t, k]), int(store["cheese_color"][e, k])) for k in range(3) if store["cheese_alive"][e, t, k]]
+            world = world_from_arrays(mass, store["walls"][e], cheeses, True)
+            assert (refuse(world, actions, "free_cube") == actions).all()
+            n_moves += int((actions != STAY).sum())
+    assert n_moves > 0
     assert (controller.act(world, torch.zeros(10, 1, 3, dtype=torch.long), torch.ones(10, 1, dtype=torch.bool), jitter=1.0, generator=torch.Generator().manual_seed(0), allowed=rule_moves(world, "free_cube"))[world.mass < 0.5] == STAY).all()

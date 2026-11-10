@@ -4,7 +4,7 @@ comparison of experts and rules on the suite's tasks.
 Under the rule a cube that touches another cube face to face can only pivot on that cube, and
 every pivot ends face to face with the support or the surface it continues on. So joining a
 group cannot be undone: a cube leaves only the floor and terrain behind. The planner therefore
-treats lone cubes as the only material:
+treats lone cubes as its material and groups as scenery that can crawl:
 
 1. Mobile cubes are the lone ones (no cube on any face) and the ones this planner has brought
    to a structure and is still moving (climbing). Every other cube is part of the scenery.
@@ -19,9 +19,16 @@ treats lone cubes as the only material:
    So cubes travel with gaps and arrive one at a time.
 1. Targets that would be walled in are served first (a head start for voxels whose four level
    neighbours are targets too), and a tower is built one column after the other.
-1. Cubes that sit in a group, off the targets, crawl: each takes the allowed pivot that brings
-   it nearest to an open target, as the attractor controller would (a pair leapfrogs across the
-   floor at half a lone cube's pace), but never next to a mobile cube.
+1. Cubes that sit in a group, off the targets, crawl after the mobile cubes have chosen: each
+   takes an allowed pivot that lowers the same distance (a pair leapfrogs across the floor at
+   half a lone cube's pace) or, with no way to a target, the pivot that brings it nearest to
+   one in a straight line, as the attractor controller would. Never next to a mobile cube.
+1. Of a cube and the cube it pivots on, only one moves in a step (world.refuse).
+
+Tried and dropped (48 scenes of another seed, 72 steps): keeping crawling groups from joining
+each other (fewer shell voxels covered), no straight-line fallback (0.45 against 0.49 mean
+score), columns of props under a formation's voxels in the air (no gain: the limit is how many
+cubes can still move, not what they can reach).
 
 With rule "switch_cube" (bonds can be released) every cube off a target is mobile and the gap
 keeping is off.
@@ -76,19 +83,22 @@ class FreeCubeExpert(S.Expert):
 
     def __init__(self, tasks, seed=None, rule="free_cube", crawl=True):
         super().__init__(tasks, moves=CUBE_MOVES, seed=seed, rule=rule)
-        self.crawl = crawl  # cubes in groups move too (greedily along their group)
+        self.crawl = crawl  # cubes in groups move too, along their group
+        self.wander = True  # crawlers with no way to a target still head for the nearest one
+        self.stats = None  # of the last step, per scene: [on a target, mobile, crawling, moved, held (no pivot), no way (pivots, none nearer a target)]
         self.transit = None  # (B, D, H, W) bool: cubes this planner is moving
 
     def heads(self, i, seg, world, shells):
         """Each target's head start (pivots; lower is served first), in targets_of order."""
         if seg["kind"] == "union":
-            return [value for part in seg["parts"] for value in self.heads(i, part, world, shells)]
-        points = [tuple(p) for p in self.targets_of(i, seg, world, shells)[0]]
-        cells = set(points)
-        out = [0 if all((z, y + dy, x + dx) in cells for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0))) else INNER_HEAD for z, y, x in points]
-        if seg["kind"] == "targets" and seg.get("label", {}).get("kind") == "tower":
-            columns = sorted({(y, x) for _, y, x in points})
-            out = [value + COLUMN_HEAD * columns.index((y, x)) for value, (_, y, x) in zip(out, points)]
+            out = [value for part in seg["parts"] for value in self.heads(i, part, world, shells)]
+        else:
+            points = [tuple(p) for p in self.targets_of(i, seg, world, shells)[0]]
+            cells = set(points)
+            out = [0 if all((z, y + dy, x + dx) in cells for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0))) else INNER_HEAD for z, y, x in points]
+            if seg["kind"] == "targets" and seg.get("label", {}).get("kind") == "tower":
+                columns = sorted({(y, x) for _, y, x in points})
+                out = [value + COLUMN_HEAD * columns.index((y, x)) for value, (_, y, x) in zip(out, points)]
         return out
 
     def __call__(self, world, t, generator=None):
@@ -143,7 +153,7 @@ class FreeCubeExpert(S.Expert):
             lower = truth & (beyond < own.unsqueeze(1))
             lower[:, STAY] = False
             is_mobile = mobile[scene, z, y, x]
-            lost = ~is_mobile & (own >= FAR)  # crawlers with no way to a target head for the nearest one as the attractor would
+            lost = ~is_mobile & (own >= FAR) & self.wander  # crawlers with no way to a target head for the nearest one as the attractor would
             if lost.any():
                 greedy = act(world, targets, valid, jitter=0.0, generator=generator, allowed=table.permute(0, 2, 3, 4, 1)[occupied] & CUBE_MOVES)[scene, z, y, x].long()
                 lower[lost, greedy[lost]] = greedy[lost] != STAY
@@ -188,6 +198,12 @@ class FreeCubeExpert(S.Expert):
                         transit[i, tz - 1, ty - 1, tx - 1] = True
                     break
             codes[scene, z, y, x] = torch.tensor(chosen, dtype=torch.int8)
+            moved = torch.tensor(chosen) != STAY
+            can_pivot = truth[:, :STAY].any(dim=1)
+            columns = [torch.ones_like(moved), is_mobile, ~is_mobile, moved, ~can_pivot, can_pivot & ~lower.any(dim=1)]
+            stats = torch.zeros(b, len(columns), dtype=torch.long).index_add_(0, scene, torch.stack(columns, dim=1).long())
+            stats[:, 0] = on_target.sum(dim=(1, 2, 3))
+            self.stats = stats
             transit[scene[is_mobile], z[is_mobile], y[is_mobile], x[is_mobile]] = True
         self.transit = transit
 
@@ -205,14 +221,16 @@ class FreeCubeExpert(S.Expert):
 # Comparison: the same tasks and seeds under each rule and expert
 
 ARMS = {
-    # name: (expert, rule, gravity on everywhere)
-    "cube": ("attractor", None, False),
-    "cube, gravity on": ("attractor", None, True),
-    "switch_cube": ("attractor", "switch_cube", True),
-    "switch_cube, planner": ("planner", "switch_cube", True),
-    "free_cube": ("attractor", "free_cube", True),
-    "free_cube, lone planner": ("lone", "free_cube", True),
-    "free_cube, planner": ("planner", "free_cube", True),
+    # name: (expert, rule, gravity on everywhere, robots re-placed apart at the start)
+    "cube": ("attractor", None, False, False),
+    "cube, gravity on": ("attractor", None, True, False),
+    "switch_cube": ("attractor", "switch_cube", True, False),
+    "switch_cube, planner": ("planner", "switch_cube", True, False),
+    "free_cube": ("attractor", "free_cube", True, False),
+    "free_cube, lone planner": ("lone", "free_cube", True, False),
+    "free_cube, planner": ("planner", "free_cube", True, False),
+    "free_cube, apart": ("attractor", "free_cube", True, True),
+    "free_cube, planner, apart": ("planner", "free_cube", True, True),
 }
 BUCKETS = (("under 15", 0, 14), ("15 to 40", 15, 40), ("over 40", 41, 10**6))
 
@@ -227,6 +245,41 @@ def make_expert(name, tasks, rule, seed):
     return expert
 
 
+def apart(world, rng):
+    """The scenes with every swarm set down again on the terrain so that no two robots touch
+    (as a swarm would be laid out by hand): random ground cells, none beside another and none on
+    or beside a cheese's footprint. Robots that do not fit that way (a very dense scene) go on
+    any free ground cell."""
+    b, d, h, w = world.mass.shape
+    mass = torch.zeros_like(world.mass)
+    cheese = (cheese_id_map(world) >= 0).any(dim=1)  # (B, H, W)
+    ground = world.walls.sum(dim=1)  # terrain is a heightmap
+    for i in range(b):
+        n = int(world.mass[i].sum())
+        keep_clear = cheese[i].clone()
+        keep_clear[1:] |= cheese[i, :-1]
+        keep_clear[:-1] |= cheese[i, 1:]
+        keep_clear[:, 1:] |= cheese[i, :, :-1]
+        keep_clear[:, :-1] |= cheese[i, :, 1:]
+        full = keep_clear | (ground[i] >= d)
+        crowded = full.clone()
+        spare = []
+        for flat in rng.permutation(h * w).tolist():
+            y, x = divmod(flat, w)
+            if n == 0 or full[y, x]:
+                continue
+            if crowded[y, x]:
+                spare.append((y, x))
+                continue
+            mass[i, int(ground[i, y, x]), y, x] = 1.0
+            crowded[max(y - 1, 0) : y + 2, x] = True
+            crowded[y, max(x - 1, 0) : x + 2] = True
+            n -= 1
+        for y, x in spare[:n]:
+            mass[i, int(ground[i, y, x]), y, x] = 1.0
+    return replace(world, mass=mass)
+
+
 def lone_share(world):
     """(B,) the share of each scene's robots with no robot on any face."""
     occupied = world.mass > 0.5
@@ -238,9 +291,9 @@ def lone_share(world):
 def compare(n_scenes, steps_list, arms, seed=0, chunk=24, out=None, failure=None):
     """Play demos.py's cube sample (tasks fitted to swarms of suite.ROBOTS, counts log-uniform,
     one instruction per family a scene allows) under every arm, from the same scenes with the
-    same seeds. Returns rows {"arm", "steps", "family", "kind", "robots", "gravity", "lone",
+    same seeds (the "apart" arms re-place each swarm first, apart). Returns rows {"arm", "steps", "family", "kind", "robots", "gravity", "lone",
     "score", "unasked", "success"}; out: a .jsonl path to append them to as they come."""
-    from beebot.vla.voxel.demos import SUCCESS, contrast
+    from beebot.vla.voxel.demos import SUCCESS, contrast  # demos imports this module
 
     rng = np.random.default_rng(seed)
     failure = failure_rates() if failure is None else failure
@@ -253,8 +306,10 @@ def compare(n_scenes, steps_list, arms, seed=0, chunk=24, out=None, failure=None
         lone = lone_share(world).tolist()
         for steps in steps_list:
             for arm in arms:
-                expert_name, rule, gravity_on = ARMS[arm]
+                expert_name, rule, gravity_on, spaced = ARMS[arm]
                 start = replace(world, gravity=torch.ones_like(world.gravity)) if gravity_on else world
+                if spaced:
+                    start = apart(start, np.random.default_rng(run_seed))
                 began = time.time()
                 results, _ = S.run(start, metas, tasks, make_expert(expert_name, tasks, rule, run_seed), steps=steps, seed=run_seed, failure=failure, rule=rule)
                 for i, ((score, unasked), task) in enumerate(zip(results, tasks)):
