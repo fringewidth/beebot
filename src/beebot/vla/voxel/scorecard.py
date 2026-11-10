@@ -626,7 +626,7 @@ def markdown(summary):
             cells.append(" / ".join(fmt(m.get(thinking[0], {}).get(f"thought_{k}")) for k in ("parse", "first", "resolves")))
         lines += ["| " + " | ".join(cells) + " |", ""]
     gates = summary.get("gates", {})
-    if gates:
+    if gates.get("a") or gates.get("b"):
         lines += ["### gates", ""]
         if "a" in gates:
             a = gates["a"]
