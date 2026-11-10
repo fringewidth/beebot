@@ -903,7 +903,25 @@ counts, one rendered example of each kind and the sampling speed.
    episode only when every part is verified), otherwise the store's template instruction with a
    templated thought from `canonical_record` and `scene_summary` at the part's first step. The join
    is by (seed, index) through `attempts.jsonl`; a label directory drawn with other options than
-   the store, or a label whose family differs from the attempt's, is an error.
+   the store is an error, and so is a label that does not belong to its episode: its family, kind
+   and spec must be the store's record of the instruction it labels, and its exported item's
+   family, kind and robot count the attempt's (`mismatch="drop"` drops such labels and counts
+   them instead).
+1. **What images show.** The policy sees images, so `visible` cuts every thought to what a viewer
+   can read off them: robot counts, coordinates and measured heights go unless the instruction or
+   the task states the number; colours, kinds, sizes and coarse places stay. On the 2026-11-10
+   labels it changed 8,402 of 31,184 Haiku thoughts and 261 of 20,761 template thoughts.
+1. **The user's frame.** The camera can stand anywhere round the arena (the views report its
+   azimuth), and the user stands behind it, to its left, to its right or opposite it, said in the
+   user turn ("(i'm standing to the left of the camera)"). Every direction word in the instruction,
+   thoughts, memory and answers is turned into that user's frame (`in_user_frame`, quarter turns);
+   wording that cannot be turned reliably (near/far side, north, toward me, ...: about 1.6% of the
+   Haiku choices) is used only when the user's frame is the world's. Observations and action codes
+   stay in the world's frame.
+1. **Known problem.** In `voxel_full` s0, s1, s2 and s7 the stores' object-task draws part from
+   the Haiku export at one index per seed (s0 715, s1 816, s2 783, s7 2745); `demos.draws` alone
+   reproduces the export, `demos.write` does not. 894 of 30,905 episodes have labels that fail the
+   check; load these stores with `mismatch="drop"` until the writer is fixed.
 1. **Sampling.** `thought_share` (default 1/3) of act examples at a thought step; `refusal_share`
    (default 0.05) refusal examples; `haiku_share` None draws episodes uniformly. 5% of episodes
    (a hash of (seed, index)) are held out for `validation(n, seed)`.
