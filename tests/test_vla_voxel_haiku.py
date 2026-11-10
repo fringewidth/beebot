@@ -230,3 +230,107 @@ def test_dry_runs_print_prompts_and_write_nothing_under_root(tmp_path, capsys, m
     assert "You write training text" in out and "Someone typed an instruction" in out
     H.main(["export", "--dry-run", "--name", "x", "--root", str(root)])
     assert not root.exists()
+
+
+@pytest.fixture(scope="module")
+def coverage_items():
+    return H.drawn_items({"seed": 2, "chunk": 4, "coverage": 1.0, "robots": list(S.ROBOTS), "counts": "log"}, 30, keep=lambda item: item["record"]["family"] in S.COVERAGE)
+
+
+def test_switch_parts_are_separate_instructions_loaded_per_part(tmp_path, coverage_items):
+    switch_items = [item for item in coverage_items if item["record"]["spec"]["kind"] == "switch"]
+    assert switch_items and all("voxels" in item for item in coverage_items)
+    directory = build(tmp_path, switch_items + [item for item in coverage_items if item["record"]["family"] != "switch"][:2])
+    prompts = []
+    fake = H.SpecHints(H.FakeHaiku(), coverage_items)
+
+    def provider(prompt):
+        prompts.append(prompt)
+        return fake(prompt)
+
+    rows = H.generate(directory, provider, batch=4, workers=1, refusal_share=1.0)
+    episode = switch_items[0]
+    parts = episode["record"]["spec"]["parts"]
+    part_rows = {row["id"]: row for row in rows if row["id"].startswith(episode["id"] + "#")}
+    assert set(part_rows) == {f"{episode['id']}#p{j}" for j in range(len(parts))}
+    for j, part in enumerate(parts):
+        row = part_rows[f"{episode['id']}#p{j}"]
+        assert (row["seed"], row["index"], row["part"], row["parts"], row["t"], row["kind"]) == (episode["seed"], episode["index"], j, len(parts), part["t"], part["record"]["kind"])
+        assert j == 0 or all(pair["rung"] != H.REFUSAL for pair in row["pairs"])  # a refusal pairs with the first frame
+    entries = [json.loads(line) for prompt in prompts for line in prompt.split("one JSON object per line):\n", 1)[1].splitlines() if line.strip()]
+    by_id = {entry["id"]: entry for entry in entries}
+    assert by_id[episode["id"] + "#p0"]["task"] == parts[0]["record"]["plain"] and "later" not in by_id[episode["id"] + "#p0"]
+    assert by_id[episode["id"] + "#p1"]["task"] == parts[1]["record"]["plain"] and by_id[episode["id"] + "#p1"]["later"] is True
+    assert "arrives later, mid-task" in prompts[0] and episode["id"] not in by_id
+    H.verify(directory, fake, batch=5, workers=1)
+    labels = H.Labels("train", tmp_path)
+    assert labels.choices(episode["seed"], episode["index"]) == []
+    loaded = labels.switch_parts(episode["seed"], episode["index"])
+    assert [(p["part"], p["t"]) for p in loaded] == [(j, part["t"]) for j, part in enumerate(parts)]
+    for j, p in enumerate(loaded):
+        assert p["choices"] and all(parts[j]["record"]["plain"].lower() in c["instruction"].lower() for c in p["choices"])
+    assert labels.switch_parts(-1, -1) == []
+
+
+def test_menu_explains_line_and_lists_selectors_once(coverage_items, items):
+    records = [item["record"] for item in items + coverage_items] + [{"family": "motion", "kind": "line", "plain": "line up in one row from left to right", "spec": {"kind": "line", "axis": "x"}, "subgoals": []}]
+    menu = H.menu_from(records)
+    line = next(row for row in menu.splitlines() if row.startswith('- "line"'))
+    assert "needs nothing in the scene" in line and "x for a row running left to right" in line and "y for a row running back to front" in line
+    assert '"who"' not in line and 'Example: "line up in one row' in line
+    assert '- "switch"' not in menu  # parts are verified one by one
+    selector_lines = [row for row in menu.splitlines() if row.startswith("Only some robots")]
+    assert len(selector_lines) == 1 and "front right" in selector_lines[0]
+    for row in menu.splitlines():
+        if row.startswith("- "):
+            assert '"who"' not in row.split("Example:")[0] and '"except"' not in row.split("Example:")[0], row
+    assert "line, gather, spread, stay, groups and move need nothing" in H.verify_prompt([], menu)
+
+
+def test_subset_answers_match_by_the_robots_they_select(tmp_path, coverage_items):
+    subset = [item for item in coverage_items if item["record"]["spec"].get("by") == "side"]
+    assert subset
+    item = subset[0]
+    want = item["record"]["spec"]
+    voxels = item["voxels"]
+    target = H.selection(want, voxels)
+    assert target
+    candidates = [{"who": "group", "by": by, "which": which, "except": flag} for by, names in (("size", ("smaller", "larger", "smallest", "largest")), ("side", ("left", "right", "back", "front", "back left", "back right", "front left", "front right"))) for which in names for flag in (False, True)]
+    job = H.job_fields(want)
+    same = [c for c in candidates if H.selection({**job, **c}, voxels) == target and (c["by"], c["which"], c["except"]) != (want["by"], want["which"], bool(want.get("except")))]
+    other = [c for c in candidates if H.selection({**job, **c}, voxels) not in (None, target)]
+    assert same and other
+    assert H.same_task({**job, **same[0]}, want, voxels)
+    assert not H.same_task({**job, **other[0]}, want, voxels)
+    assert not H.same_task({**job, **same[0], "kind": "spread"}, want, voxels)  # the same robots, another job
+    assert not H.same_task({**job, **same[0]}, want, None)  # no voxels: the fields must match
+    assert H.same_task({**want, "except": bool(want.get("except"))}, want, voxels)
+    assert H.selection({"kind": "goto", "who": "half"}, voxels) == H.selection({"kind": "goto", "who": "count", "count": len(voxels["robots"]) // 2}, voxels)
+
+    directory = build(tmp_path, [item])
+
+    def equivalent(prompt):
+        entries = [json.loads(line) for line in prompt.split("one JSON object per line):\n", 1)[1].splitlines() if line.strip()]
+        if "instruction" not in entries[0]:
+            return H.SpecHints(H.FakeHaiku(), [item])(prompt)
+        return json.dumps({e["id"]: {**job, **same[0]} for e in entries})
+
+    H.generate(directory, equivalent, batch=4, workers=1, refusal_share=0.0)
+    H.verify(directory, equivalent, batch=5, workers=1)
+    assert len(H.read_jsonl(directory / "verified.jsonl")) == len(H.RUNGS) and not H.read_jsonl(directory / "rejected.jsonl")
+
+
+def test_export_from_items_attaches_voxels_and_writes_a_fresh_menu(tmp_path):
+    options = {"seed": 2, "chunk": 4, "coverage": 1.0, "robots": list(S.ROBOTS), "counts": "log"}
+    source = tmp_path / "run"
+    source.mkdir()
+    earlier = [{k: v for k, v in item.items() if k != "voxels"} for item in H.drawn_items(options, 20)]
+    (source / "config.json").write_text(json.dumps(options))
+    later = [item for item in earlier if item["record"]["family"] in S.COVERAGE]
+    (source / "later.jsonl").write_text("".join(json.dumps(item) + "\n" for item in later))
+    H.main(["export", "--name", "later", "--root", str(tmp_path), "--from-items", str(source / "later.jsonl")])
+    written = H.read_jsonl(tmp_path / "later" / "items.jsonl")
+    assert [item["id"] for item in written] == [item["id"] for item in later] and all("voxels" in item for item in written)
+    assert "Only some robots" in json.loads((tmp_path / "later" / "menu.json").read_text())["menu"]
+    with pytest.raises(ValueError):  # another draw: the records differ
+        H.attach_voxels(later, {**options, "chunk": 3})
