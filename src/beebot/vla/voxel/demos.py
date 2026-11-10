@@ -19,6 +19,14 @@ choice, whether or not the move happened.
 
     OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_cube --scenes 6000 --cube
 
+Demonstrations real cubes can carry out (--free-cube): --cube, and the world enforces the
+free-cube rule (--rule free_cube, world.pivot_moves: a cube pivots on a support and moves only
+when no other cube touches it face to face), gravity is on in every scene, and the expert is the
+planner for lone cubes (--expert planner, voxel/free_cube.py). --rule switch_cube is the same for
+cubes that can release their bonds. No recorded action breaks the rule.
+
+    OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_free_cube --scenes 6000 --free-cube --counts log --compact
+
 Further options, all off unless given: --compact writes the grids by robot (play_store's compact
 format, about 40 times smaller; load() reads both); --counts log draws the robot count
 log-uniformly over --robots, so small swarms are as common as large ones; --fit draws only tasks
@@ -28,6 +36,7 @@ the scene's swarm can do (suite.fits) also when --robots is not given.
 import argparse
 import json
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -35,11 +44,13 @@ import torch
 
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel.play_store import CompactWriter, DenseWriter
-from beebot.vla.voxel.world import CUBE_MOVES, FAILURE_RATE, VoxelWorld, failure_rates
+from beebot.vla.voxel.free_cube import FreeCubeExpert
+from beebot.vla.voxel.world import CUBE_MOVES, FAILURE_RATE, RULES, VoxelWorld, failure_rates
 
 SUCCESS = S.SUCCESS  # checker score an episode needs to count as a demonstration
 FIELDS = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
 MOVES = {"all": None, "cube": CUBE_MOVES}
+EXPERTS = ("attractor", "planner")  # suite.Expert; free_cube.FreeCubeExpert (needs a rule)
 
 
 def contrast(rng, world, metas, tasks, check=False):
@@ -65,14 +76,16 @@ def contrast(rng, world, metas, tasks, check=False):
     return VoxelWorld(*(torch.cat([getattr(x, f) for x in worlds]) for f in FIELDS)), out_metas, out
 
 
-def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False):
+def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor"):
     """Write the store. moves: "all" or "cube" (MOVES). robots: (low, high) robot counts, with
     tasks fitted to the swarm (None: the world's density range). failure: (27,) per-action
     failure probabilities (world.failure_rates) or None. compact: write mass and actions in
     play_store's compact format instead of the dense .npy files. counts: how a scene's robot
     count is drawn from `robots` ("uniform" or "log", suite.draw_count). fit: draw only tasks
-    the swarm can do also when robots is None (with robots that is always so). Returns the
-    number of demonstrations."""
+    the swarm can do also when robots is None (with robots that is always so). rule: a pivot
+    rule (world.RULES) that the world enforces and the expert chooses within, with gravity on in
+    every scene; None: the voxel world's own moves. expert: "attractor", or with a rule
+    "planner" (free_cube.FreeCubeExpert). Returns the number of demonstrations."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
@@ -89,8 +102,10 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         world, metas, tasks = S.sample_tasks(rng, min(chunk, n_scenes - c), "train", robots=robots, check=check, counts=counts)
         world, metas, tasks = contrast(rng, world, metas, tasks, check=check)
         run_seed = seed * 1_000_003 + c
-        expert = S.Expert(tasks, moves=MOVES[moves], seed=run_seed)
-        results, arrays = S.run(world, metas, tasks, expert, steps=steps, seed=run_seed, record=True, failure=failure)
+        if rule is not None:
+            world = replace(world, gravity=torch.ones_like(world.gravity))
+        player = FreeCubeExpert(tasks, seed=run_seed, rule=rule) if expert == "planner" else S.Expert(tasks, moves=MOVES[moves], seed=run_seed, rule=rule)
+        results, arrays = S.run(world, metas, tasks, player, steps=steps, seed=run_seed, record=True, failure=failure, rule=rule)
         for i, ((score, unasked), task) in enumerate(zip(results, tasks)):
             tried[task.family] = tried.get(task.family, 0) + 1
             is_demo = not unasked and score >= SUCCESS.get(task.family, 0.75)
@@ -105,7 +120,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
             small["walls"].append(world.walls[i])
             small["cheese_color"].append(world.cheese_color[i])
             small["gravity"].append(world.gravity[i])
-            subgoals.append(expert.subgoals[i])
+            subgoals.append(player.subgoals[i])
             swarm.append(n_robots)
             labels.write(json.dumps({"e": row, "w0": 0, "w1": steps, "family": task.family, "form": task.spec.get("form", ""), "text": task.text}) + "\n")
             row += 1
@@ -113,7 +128,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         attempts.flush()
         print(f"{min(c + chunk, n_scenes)} scenes, {row} demos, {time.time() - t0:.0f} s; kept/tried {json.dumps({f: f'{kept.get(f, 0)}/{tried[f]}' for f in sorted(tried)})}", flush=True)
     writer.close()
-    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check}
+    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert}
     torch.save({**{k: torch.stack(v) for k, v in small.items()}, "phases": [[] for _ in range(row)], "count": row, "robots": torch.tensor(swarm), "subgoals": subgoals, "config": config}, out / "small.pt")
     (out / "done").write_text(str(row))
     return row
@@ -135,6 +150,9 @@ def main():
     parser.add_argument("--chunk", type=int, default=24)
     parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--cube", action="store_true", help=f"pivoting-cube demonstrations: --moves cube --steps {S.CUBE_STEPS} --robots {S.ROBOTS[0]} {S.ROBOTS[1]} --failure {FAILURE_RATE}, each unless given")
+    parser.add_argument("--free-cube", action="store_true", help="demonstrations real cubes can carry out: --cube with --rule free_cube --expert planner, each unless given")
+    parser.add_argument("--rule", choices=RULES, default=None, help="a pivot rule the world enforces and the expert chooses within (gravity on in every scene)")
+    parser.add_argument("--expert", choices=EXPERTS, default=None, help="planner needs --rule")
     parser.add_argument("--steps", type=int, default=None)
     parser.add_argument("--moves", choices=sorted(MOVES), default=None)
     parser.add_argument("--robots", type=int, nargs=2, default=None, metavar=("LOW", "HIGH"))
@@ -144,11 +162,16 @@ def main():
     parser.add_argument("--fit", action="store_true", help="draw only tasks the scene's swarm can do, also without --robots (with --robots or --cube this is always on)")
     args = parser.parse_args()
     torch.set_num_threads(args.threads)
-    steps = args.steps or (S.CUBE_STEPS if args.cube else S.EPISODE_STEPS)
-    moves = args.moves or ("cube" if args.cube else "all")
-    robots = args.robots or (S.ROBOTS if args.cube else None)
-    failure = parse_failure(args.failure) if args.failure else failure_rates() if args.cube else None
-    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit)
+    cube = args.cube or args.free_cube
+    steps = args.steps or (S.CUBE_STEPS if cube else S.EPISODE_STEPS)
+    moves = args.moves or ("cube" if cube else "all")
+    robots = args.robots or (S.ROBOTS if cube else None)
+    failure = parse_failure(args.failure) if args.failure else failure_rates() if cube else None
+    rule = args.rule or ("free_cube" if args.free_cube else None)
+    expert = args.expert or ("planner" if args.free_cube else "attractor")
+    if expert == "planner" and rule is None:
+        parser.error("--expert planner needs --rule")
+    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert)
 
 
 if __name__ == "__main__":
