@@ -203,13 +203,13 @@ def shell_mask(form):
     """(B, K, 216) bool over RIM_OFFSETS: the voxels touching each object by a face, edge or
     corner that are not part of it."""
     rim = _rim(form)
-    grown = rim.clone()
+    halo = rim.clone()
     for axis in range(3):
-        step_ = grown.clone()
+        step_ = halo.clone()
         for sign in (-1, 1):
-            step_ |= _shift(grown, axis, sign)
-        grown = step_
-    return (grown & ~rim).flatten(2)
+            step_ |= _shift(halo, axis, sign)
+        halo = step_
+    return (halo & ~rim).flatten(2)
 
 
 def full_shell(world):
@@ -229,9 +229,9 @@ def cheese_id_map(world, pos=None, alive=None):
         flat, inside = flat_index(cheese_voxels(pos), dims)
         keep = inside & alive.unsqueeze(2)
     else:
-        coords, filled = object_voxels(world, pos)
+        coords, in_form = object_voxels(world, pos)
         flat, inside = flat_index(coords, dims)
-        keep = inside & alive.unsqueeze(2) & filled
+        keep = inside & alive.unsqueeze(2) & in_form
     ids = torch.full((b, dims[0] * dims[1] * dims[2]), -1, dtype=torch.long, device=pos.device)
     rows = torch.arange(b, device=pos.device).view(b, 1, 1).expand_as(flat)
     cheese = torch.arange(k, device=pos.device).view(1, k, 1).expand_as(flat)
@@ -605,7 +605,7 @@ def push_objects(world, mass, force):
     b, k = world.cheese_alive.shape
     pos = world.cheese_pos.clone()
     mass = mass.clone()
-    pushed = torch.zeros(b, k, dtype=torch.bool, device=mass.device)
+    slides = torch.zeros(b, k, dtype=torch.bool, device=mass.device)
     rim = _rim(world.form)
     offsets = RIM_OFFSETS.to(mass.device)
     friction = world.friction if world.friction is not None else torch.full((b, k), FRICTION, device=mass.device)
@@ -638,14 +638,14 @@ def push_objects(world, mass, force):
                 if not can.any():
                     continue
                 flat = mass.view(b, -1)
-                moving = (can.view(b, 1) & robot1).to(mass.dtype)
-                flat.scatter_add_(1, flat_index(lead1, mass.shape[-3:])[0], -moving)
-                flat.scatter_add_(1, flat_index(lead2, mass.shape[-3:])[0], moving)
+                movers = (can.view(b, 1) & robot1).to(mass.dtype)
+                flat.scatter_add_(1, flat_index(lead1, mass.shape[-3:])[0], -movers)
+                flat.scatter_add_(1, flat_index(lead2, mass.shape[-3:])[0], movers)
                 step_ = torch.zeros(b, 3, dtype=torch.long, device=mass.device)
                 step_[:, a] = s
                 pos[:, c] = torch.where(can.view(b, 1), pos[:, c] + step_, pos[:, c])
-                pushed[:, c] |= can
-    return mass, pos, pushed
+                slides[:, c] |= can
+    return mass, pos, slides
 
 
 def _grow_faces(held, out):
@@ -757,11 +757,11 @@ def colour_map(world):
     where none."""
     b, k = world.cheese_alive.shape
     dims = world.mass.shape[-3:]
-    coords, filled = object_voxels(world)
+    coords, in_form = object_voxels(world)
     second = paint_of(world.form, world.pattern).reshape(b, k, -1) & (world.colour2 >= 0).unsqueeze(-1)
     colour = torch.where(second, world.colour2.unsqueeze(-1), world.cheese_color.unsqueeze(-1))
     flat, inside = flat_index(coords, dims)
-    keep = inside & world.cheese_alive.unsqueeze(2) & filled
+    keep = inside & world.cheese_alive.unsqueeze(2) & in_form
     out = torch.full((b, dims[0] * dims[1] * dims[2]), -1, dtype=torch.long, device=coords.device)
     rows = torch.arange(b, device=coords.device).view(b, 1, 1).expand_as(flat)
     out[rows[keep], flat[keep]] = colour[keep]
@@ -989,7 +989,7 @@ def sample_object_scenes(rng, b, size=SIZE, gravity_prob=0.5, robots=None, objec
     floor zones (patches 3 to 4 cells a side or stripes one cell wide and 6 to 10 long, level, each
     its own colour), then `objects` (low, high) objects (draw_object), each food with probability
     `food`, on level ground off the zones and a voxel apart, then the robots. colours: the palette
-    indices objects and zones are drawn from (None: all). Returns (world with MAX_OBJECTS slots
+    indices objects and zones are item from (None: all). Returns (world with MAX_OBJECTS slots
     and every object field, meta): meta[i] holds layout, height and gap as sample_scenes gives them
     and "zones" (place_zones)."""
     d = h = w = size
@@ -1016,12 +1016,12 @@ def sample_object_scenes(rng, b, size=SIZE, gravity_prob=0.5, robots=None, objec
         for mark in marks:
             y0, y1, x0, x1 = mark["box"]
             zone_map[i, y0:y1, x0:x1] = mark["colour"]
-        taken = walls[i].clone()
-        near = torch.zeros(d, h, w, dtype=torch.bool)  # object voxels grown by one all round: no object within a voxel of another
-        placed = 0
+        occupied_voxels = walls[i].clone()
+        near = torch.zeros(d, h, w, dtype=torch.bool)  # object voxels halo by one all round: no object within a voxel of another
+        n_placed = 0
         for _ in range(int(rng.integers(objects[0], objects[1] + 1))):
-            drawn = draw_object(rng, colours)
-            depth, rows, cols = form_extent(drawn["form"])
+            item = draw_object(rng, colours)
+            depth, rows, cols = form_extent(item["form"])
             for _ in range(60):
                 y, x = int(rng.integers(0, h - rows + 1)), int(rng.integers(0, w - cols + 1))
                 foot = height[y : y + rows, x : x + cols]
@@ -1029,24 +1029,24 @@ def sample_object_scenes(rng, b, size=SIZE, gravity_prob=0.5, robots=None, objec
                 if (foot != base).any() or base + depth > d or floor_taken[y : y + rows, x : x + cols].any():
                     continue
                 cells = torch.zeros(d + BOX, h + BOX, w + BOX, dtype=torch.bool)
-                cells[base : base + BOX, y : y + BOX, x : x + BOX] = drawn["form"]
+                cells[base : base + BOX, y : y + BOX, x : x + BOX] = item["form"]
                 cells = cells[:d, :h, :w]
-                if (cells & (taken | near)).any():
+                if (cells & (occupied_voxels | near)).any():
                     continue
-                pos[i, placed] = torch.tensor([base, y, x])
-                alive[i, placed] = True
-                colour[i, placed] = drawn["colour"]
-                form[i, placed] = drawn["form"]
-                colour2[i, placed] = drawn["colour2"]
-                pattern[i, placed] = PATTERNS.index(drawn["pattern"])
-                friction[i, placed] = HEAVY_FRICTION if drawn["heavy"] else FRICTION
-                edible[i, placed] = bool(rng.random() < food)
-                taken |= cells
-                grown = cells.unsqueeze(0).clone()
+                pos[i, n_placed] = torch.tensor([base, y, x])
+                alive[i, n_placed] = True
+                colour[i, n_placed] = item["colour"]
+                form[i, n_placed] = item["form"]
+                colour2[i, n_placed] = item["colour2"]
+                pattern[i, n_placed] = PATTERNS.index(item["pattern"])
+                friction[i, n_placed] = HEAVY_FRICTION if item["heavy"] else FRICTION
+                edible[i, n_placed] = bool(rng.random() < food)
+                occupied_voxels |= cells
+                halo = cells.unsqueeze(0).clone()
                 for axis in (1, 2, 3):
-                    grown = grown | torch.roll(grown, 1, axis) | torch.roll(grown, -1, axis)
-                near |= grown[0]
-                placed += 1
+                    halo = halo | torch.roll(halo, 1, axis) | torch.roll(halo, -1, axis)
+                near |= halo[0]
+                n_placed += 1
                 break
         n_robots = int(h * w * rng.uniform(0.2, 0.45)) if robots is None else int(robots)
         fill = height.clone()
@@ -1054,12 +1054,12 @@ def sample_object_scenes(rng, b, size=SIZE, gravity_prob=0.5, robots=None, objec
             if n_robots == 0:
                 break
             z0 = int(fill[y, x])
-            while z0 < d and taken[z0, y, x]:
+            while z0 < d and occupied_voxels[z0, y, x]:
                 z0 += 1
             if z0 >= min(d, int(height[y, x]) + 3):
                 continue
             mass[i, z0, y, x] = 1.0
-            taken[z0, y, x] = True
+            occupied_voxels[z0, y, x] = True
             fill[y, x] = z0 + 1
             n_robots -= 1
         meta.append({"layout": layout, "height": height, "gap": gap, "zones": marks})

@@ -707,7 +707,28 @@ eaten). Rows in `runs/objects/expert.{txt,jsonl}`:
 PYTHONPATH=src OMP_NUM_THREADS=4 nice python scripts/vla_voxel_objects.py --scenes 144 --arms switch --out runs/objects/expert.jsonl
 ```
 
-OBJECT_RESULTS
+| family | score / passed (n) |
+| --- | --- |
+| things | 0.80 / 0.76 (144) |
+| blocks | 0.80 / 0.74 (144) |
+| zones | 0.86 / 0.83 (144) |
+| reasoning | 0.85 / 0.83 (144) |
+
+Per kind (n): things: eat 0.76 (38), catch 0.73 (22), surround 0.95 (38), push to a region 0.63
+(35), into the trench 0.71 (7), the heavy one to a region 0.00 (3), into the trench 1.00 (1).
+Blocks: push to a region 0.73 (92), into the trench 0.90 (10), the heavy one to a region 0.18
+(11), into the trench 1.00 (3), line up 0.93 (28). Zones: go to 0.94 (66), line up on a stripe
+0.77 (48), push onto 0.67 (30). Reasoning: conditionals 0.93 to 1.00 (4 to 28 per form and
+branch), count tower 0.89 (9), superlatives: eat 0.67 (3), push 0.67 (9) and 1.00 into the
+trench (4), surround 1.00 (9); comparisons: eat 0.33 (9), surround 1.00 (5); nearness: push 0.50
+(6), surround 1.00 (5); next to: eat 0.86 (7), push 0.45 (11), 0.33 into the trench (3). By swarm:
+under 15 robots 0.76, 15 to 40 0.80, over 40 0.79.
+
+Weak spots: pushing the heavy one to a floor region (in the episodes traced the probe found the
+right one; the push then moved it slowly, six of eight pressers must succeed in one step, and
+stalled on robots it could not shove, as in an L's notch); pushes that need a route around
+another object (the heading only sidesteps); eating in a comparison (3 of 9, not traced). A
+failed attempt costs nothing but its row: demos keeps passes only.
 
 ### Drawing them into demonstrations and labels
 
