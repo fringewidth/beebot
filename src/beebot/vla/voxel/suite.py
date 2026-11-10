@@ -1648,6 +1648,20 @@ def already_done(task, world, meta, i):
     return job_score(task, static_of(world, meta, i), snap, snap, [])[0] >= 0.5
 
 
+def has_room(task, world, i):
+    """Whether nearly all the robots a move task names (95%) have MOVE_STEPS cells of floor
+    that way before the edge of the grid."""
+    spec = task.spec
+    if spec["kind"] != "move":
+        return True
+    pick = chosen(spec["who"], world.mass[i].numpy() > 0.5, cheese_centres(world.cheese_color[i].tolist(), snapshot(world, i)))
+    if pick is None or not pick.any():
+        return False
+    axis, sign = SIDE_AXES[spec["toward"]]
+    there = np.argwhere(pick)[:, axis] + sign * spec["steps"]
+    return float(((there >= 0) & (there < SIZE)).mean()) >= 0.95
+
+
 def plateaus(meta):
     """{side: ([y0, y1, x0, x1], top)} of a gap scene's two plateaus."""
     axis, start, width, top = trench(meta)
@@ -1726,7 +1740,7 @@ def make_motion(rng, held, job=None):
         if job == "follow":
             runners = (next(k for k, c in present(world, i) if c == fields["colour"]),)
         task = coverage_task("motion", say(rng, key, held, **kw), spec, held, runners)
-        if job != "stay" and already_done(task, world, meta, i):
+        if job != "stay" and (already_done(task, world, meta, i) or not has_room(task, world, i)):
             return None
         return task
 
@@ -1783,9 +1797,10 @@ def draw_who(rng, kind, world, i, most=8):
     return who
 
 
-def make_subset(rng, held):
-    """A selector picks robots and they do a job; everyone else stays (SUBSET_JOBS)."""
-    pairs = [(sel, job) for job, sels in SUBSET_JOBS.items() for sel in sels]
+def make_subset(rng, held, job=None):
+    """A selector picks robots and they do a job (only this job when given); everyone else
+    stays (SUBSET_JOBS)."""
+    pairs = [(sel, name) for name, sels in SUBSET_JOBS.items() for sel in sels if job is None or name == job]
     if held == "selector_job":
         pairs = list(HELD_OUT["selector_job"])
     else:
@@ -1812,7 +1827,7 @@ def make_subset(rng, held):
             spec["count"] = 2
         text = say(rng, "subset", held, who=who_text(rng, who, held), job=say(rng, key, held, **kw))
         task = coverage_task("subset", text, spec, held)
-        if already_done(task, world, meta, i):
+        if already_done(task, world, meta, i) or not has_room(task, world, i):
             return None
         return task
 
@@ -1829,11 +1844,11 @@ def make_subset(rng, held):
     return needs, make
 
 
-def make_switch(rng, held):
+def make_switch(rng, held, job=None):
     """Task A from step 0, then task B from step k (SWITCH_AT): B is "stay" half the time, else a
-    redirect (goto, gather, spread). The episode is scored on B from step k."""
+    redirect (goto, gather, spread), or `job` when given. The episode is scored on B from step k."""
     first = str(rng.choice(SWITCH_FIRST))
-    then = str(rng.choice(SWITCH_THEN))
+    then = job or str(rng.choice(SWITCH_THEN))
     at = int(rng.integers(*SWITCH_AT))
     if first in MAKERS:
         needs, make_first = MAKERS[first](rng, held if held in ("", "wording") else "")
@@ -1873,17 +1888,18 @@ def instruction_at(task, t):
     return task.parts[instruction_index(task, t)] if task.parts else task
 
 
-def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uniform", check=True):
+def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uniform", check=True, job=None):
     """(world, metas, tasks) of n scenes with one coverage task each (COVERAGE families), as
     sample_tasks draws the suite's: family None draws one of COVERAGE per scene; split "train",
     "test" or a HELD_OUT key of a coverage family; robots (low, high) draws each scene's robot
     count (counts: "uniform" or "log"), None the world's density range; check keeps only tasks
-    whose score_bound reaches the pass mark."""
+    whose score_bound reaches the pass mark. job: draw only that job (motion, subset) or that
+    second instruction (switch), for measuring one at a time."""
     held = split if split in HELD_OUT else ""
     worlds, metas, out = [], [], []
     while len(out) < n:
         fam = HELD_FAMILY.get(held) if held in ("selector_job", "switch_then") else family or str(rng.choice(COVERAGE))
-        needs, make = COVERAGE_MAKERS[fam](rng, held)
+        needs, make = COVERAGE_MAKERS[fam](rng, held, job)
         span = needs.pop("robots", None) or robots
         count = None if span is None else draw_count(rng, span[0], span[1], counts)
         colours = needs.pop("colours", TRAIN_COLOURS)
@@ -1932,36 +1948,115 @@ def json_safe(value):
     return value
 
 
+
+def who_fields(who):
+    """A selector as flat spec fields: {} for everyone; "who" (group, top, count, half), with "by"
+    and "which" for a group, "count" for a count, and "except": true when it picks everyone else."""
+    if who["select"] == "all":
+        return {}
+    out = {"who": who["select"]}
+    if who["select"] == "group":
+        out.update(by=who["by"], which=who["which"])
+    if who["select"] == "count":
+        out["count"] = int(who["count"])
+    if who.get("except"):
+        out["except"] = True
+    return out
+
+
+def record_spec(task):
+    """What an instruction has to pin down, in this scene, as plain JSON (the verifier reads an
+    instruction back into it): lists are sets unless their key is "order"; an eat task's forbid
+    set is left out (every other cheese), and an eat task naming a colour the scene does not have
+    is {"kind": "refuse"}. Coverage tasks: the job's kind and fields, plus who_fields."""
+    from beebot.vla.voxel import wordings as W
+
+    spec = task.spec
+    kind = spec["kind"]
+    if "who" in spec:
+        out = {"kind": kind}
+        if kind == "eat":
+            out.update(eat=[spec["colour"]], any_of=[], order=[])
+        else:
+            out.update({key: spec[key] for key in COVERAGE_FIELDS.get(kind, ())})
+        out.update(who_fields(spec["who"]))
+    elif kind == "mask":
+        slots = W.slots_of(task)
+        out = {"kind": "shape", "shape": slots["s"]} if slots["intent"] == "shape" else {"kind": "letters", "word": slots["w"], "standing": slots["intent"] == "letter_stand"}
+    elif kind == "tower":
+        out = {"kind": "tower", "height": int(spec["height"])}
+    elif kind in ("bridge", "fill", "stairs"):
+        out = {"kind": kind}
+    elif kind == "parallel":
+        out = {"kind": "parallel", "jobs": [[job, x] for job, x in spec["jobs"]]}
+    elif kind == "herd_trench":
+        out = {"kind": "herd_trench", "cheese": spec["cheese"]}
+    elif kind == "herd_region":
+        out = {"kind": "herd_region", "cheeses": sorted(spec["cheeses"]), "region": spec["region"]}
+    elif kind == "eat" and spec.get("form") == "absent":
+        out = {"kind": "refuse"}
+    elif kind == "eat":
+        out = {"kind": "eat", "eat": sorted(spec["eat"]), "any_of": sorted(spec["any_of"]), "order": list(spec["order"])}
+    else:
+        raise ValueError(kind)
+    return json_safe(out)
+
+
+COVERAGE_FIELDS = {"goto": ("region",), "approach": ("colour",), "follow": ("colour",), "perch": ("colour",), "groups": ("count",), "line": ("axis",), "climb": ("side",), "move": ("toward", "steps"), "tower": ("height",)}
+SPEC_NOTES = {
+    "eat": "eat: colours that must all be eaten. any_of: eat one of these (either/or). order: the colours in the order they must be eaten, only when the order matters, else []. No other cheese may be eaten; an instruction to eat nothing has all three lists empty.",
+    "letters": "word: the capital letters to write. standing: true if they stand upright, false if they lie on the floor.",
+    "shape": "shape: the shape the robots form.",
+    "tower": "height: how many robots tall.",
+    "parallel": "jobs: the two groups' jobs, [job, target] each: region with a floor area, tower with a height, surround or eat with a colour.",
+    "herd_region": "cheeses: the cheeses to push (without eating them). region: the floor area to push them to.",
+    "herd_trench": "cheese: the cheese to push into the trench (without eating it).",
+    "bridge": "build a bridge across the trench.",
+    "fill": "fill the trench with robots.",
+    "stairs": "build stairs up to the plateau.",
+    "refuse": "the instruction cannot or should not be followed in this scene: it asks for a colour or thing the scene does not have, or makes no sense. The swarm does nothing.",
+    "clarify": "the instruction could mean two different tasks in this scene, so the swarm asks before acting.",
+    "stay": "stop: every robot stays where it is (stop, freeze, hold still, don't move).",
+    "goto": "region: the floor area to go to.",
+    "approach": "colour: the cheese to go next to, without eating it.",
+    "follow": "colour: the fleeing cheese to follow, without eating it.",
+    "gather": "come together into one group.",
+    "spread": "spread out so that no two robots touch.",
+    "groups": "count: how many separate groups to split into.",
+    "line": "axis: x for one row from left to right, y for one row from back to front.",
+    "climb": "side: the plateau to climb onto (left, right, back or front).",
+    "move": "toward: the side to shift toward (left, right, back, front). steps: how far, in robot widths.",
+    "perch": "colour: the cheese to climb on top of.",
+    "who": "Fields any task can add when only some robots should act (the others stay where they are): who is group, top (the robots standing on other robots), count or half; a group is named by by=size (which: smaller, larger, smallest, largest), by=side (which: left, right, back, front: the group furthest that way) or by=cheese (which: a colour: the group nearest that cheese); count: how many robots; except: true when the named robots are the ones that stay and everyone else acts. No who field: everyone acts.",
+}
+
+
 def subgoal_sentences(task):
-    """Ordered plain sub-goal sentences of a task (canonical words, as wordings.canonical)."""
+    """Ordered plain sub-goal sentences, one per plan segment in plan order: an eat segment eats
+    the next colour of the plan, every other segment is the whole task's plain sentence; a switch
+    task's parts in turn."""
     from beebot.vla.voxel import wordings as W
 
     if task.parts:
         return [s for part in task.parts for s in subgoal_sentences(part)]
-    spec = task.spec
     plain = W.canonical(W.slots_of(task))
-    if "who" in spec:
-        slots = W.slots_of(task)
-        if slots["intent"] != "subset":
-            return [plain]
-        return [W.who_phrase(slots["who"]) + ": " + W.job_phrase(slots["job"]), "everyone else: stay where you are"]
-    kind = spec["kind"]
-    if kind == "eat":
-        order = spec["order"] or sorted(spec["eat"])
-        if spec["any_of"]:
-            return [plain]
-        return [W.INTENTS["sub.eat"]["canonical"].format(x=c) for c in order] or [plain]
-    if kind == "parallel":
-        return [W.INTENTS[W.SUB[job]]["canonical"].format(x=W.plain(W.INTENTS[W.SUB[job]]["slots"]["x"], x)) for job, x in spec["jobs"]]
-    return [plain]
+    spec = task.spec
+    colours = list(spec.get("order") or sorted(spec.get("eat", ())) or sorted(spec.get("any_of", ()))[:1]) if spec["kind"] == "eat" and "who" not in spec else []
+    out = []
+    for seg in task.plan:
+        if seg["kind"] == "eat":
+            out.append(W.INTENTS["sub.eat"]["canonical"].format(x=colours[sum(s["kind"] == "eat" for s in task.plan[: len(out)])]))
+        else:
+            out.append(plain)
+    return out
 
 
 def canonical_record(task):
     """A task as plain JSON: {"family", "kind" (task_kind), "plain" (one canonical English
-    sentence, wordings.canonical), "spec" (the checker's spec made JSON-safe, arrays as voxel
-    counts, with the canonical slots under "slots"), "subgoals" (ordered plain sub-goal
-    sentences)}. A switch task's plain sentence joins its instructions ("A; then, on a new
-    instruction: B"), its spec lists them under "parts" as {"t": first step, "record": record}."""
+    sentence, wordings.canonical; wordings.parse_canonical inverts it), "spec" (record_spec: what
+    an instruction has to pin down), "subgoals" (subgoal_sentences)}. A switch task's plain
+    sentence joins its instructions with "; then, on a new instruction: ", and its spec is
+    {"kind": "switch", "parts": [{"t": first step, "record": record}, ...]}."""
     from beebot.vla.voxel import wordings as W
 
     if task.parts:
@@ -1969,69 +2064,60 @@ def canonical_record(task):
         spec = {"kind": "switch", "parts": [{"t": int(t), "record": r} for t, r in zip(task.spec["steps"], records)]}
         plain = "; then, on a new instruction: ".join(r["plain"] for r in records)
         return {"family": task.family, "kind": task_kind(task), "plain": plain, "spec": spec, "subgoals": subgoal_sentences(task)}
-    slots = W.slots_of(task)
-    spec = json_safe({k: v for k, v in task.spec.items() if not isinstance(v, np.ndarray) and k != "masks"})
-    spec["slots"] = json_safe(slots)
-    return {"family": task.family, "kind": task_kind(task), "plain": W.canonical(slots), "spec": spec, "subgoals": subgoal_sentences(task)}
+    return {"family": task.family, "kind": task_kind(task), "plain": W.canonical(W.slots_of(task)), "spec": record_spec(task), "subgoals": subgoal_sentences(task)}
 
 
-def terrain_summary(walls):
-    """The terrain of a scene from its walls (D, H, W): flat, a trench between two plateaus, or
-    raised ground (hills) with the regions it covers and its highest level."""
-    heights = walls.sum(axis=0)
-    top = int(heights.max())
-    if top == 0:
-        return {"kind": "flat"}
-    for along, names, runs in ((0, ("left", "right"), "back to front"), (1, ("back", "front"), "left to right")):
-        if not (heights.min(axis=along) == heights.max(axis=along)).all():  # level along the trench
-            continue
-        profile = heights.max(axis=along)
-        low = np.nonzero(profile == 0)[0]
-        if len(low) and (profile[profile > 0] == top).all() and low.max() - low.min() + 1 == len(low) and low.min() > 0 and low.max() < len(profile) - 1:
-            centre = (low.min() + low.max()) / 2
-            where = region_of(SIZE / 2, centre) if along == 0 else region_of(centre, SIZE / 2)
-            return {"kind": "trench", "runs": runs, "region": where, "width": int(len(low)), "depth": top, "plateaus": list(names)}
-    raised = sorted({region_of(y, x) for y, x in np.argwhere(heights > 0)})
-    return {"kind": "hills", "highest": top, "regions": raised}
+def terrain_summary(height):
+    """The terrain of a heightmap (H, W) in words: {"layout": "flat floor"}, a trench between two
+    plateaus ({"layout", "trench": {"runs", "from_x" or "from_y", "width", "depth"},
+    "plateau_height"}) or {"layout": "low hills", "highest"}."""
+    if height.max() == 0:
+        return {"layout": "flat floor"}
+    low = height == 0
+    tops = np.unique(height[~low])
+    for axis, runs in ((0, "back to front"), (1, "left to right")):
+        band = low.all(axis=axis)
+        if len(tops) == 1 and band.any() and (low == (band[None, :] if axis == 0 else band[:, None])).all():
+            where = np.nonzero(band)[0]
+            if where.max() - where.min() + 1 == len(where):
+                along = "x" if axis == 0 else "y"
+                return {"layout": "trench between two plateaus", "trench": {"runs": runs, f"from_{along}": int(where.min()), "width": len(where), "depth": int(tops[0])}, "plateau_height": int(tops[0])}
+    return {"layout": "low hills", "highest": int(height.max())}
 
 
 def scene_summary(world, i):
-    """Scene i as plain JSON (coarse: floor regions of FLOOR_REGIONS, heights in voxels):
-    {"robots": n, "gravity": bool, "terrain": terrain_summary, "cheeses": [{"colour", "region",
-    "at": [z, y, x], "on": "floor" | "raised ground" | "trench floor"}], "groups": [{"size",
-    "region", "centre": [y, x], "height"}] (26-connected groups of at least 2 robots and a tenth
-    of the swarm, largest first), "scattered": robots outside those groups, "towers": [{"height",
-    "region"}] (vertical runs of 3 or more, tallest first), "on_top": robots standing on robots}."""
+    """Scene i as plain JSON (x left to right, y back to front, z up; areas are FLOOR_REGIONS):
+    {"gravity", "terrain" (terrain_summary), "robots": {"count", "mostly_around" (the area of the
+    centroid), "clumps" (facts.groups: groups of at least a tenth of the swarm), "groups" (every
+    26-connected group of 2 or more robots, largest first: {"size", "area", "x", "y" (centre,
+    rounded), "height"}), "alone" (robots touching no other), "on_top" (robots standing on
+    robots), "towers" (vertical runs of 3 or more: {"height", "area"}, tallest first)}, "cheeses":
+    [{"colour", "area", "on" (floor, plateau or hill), "x", "y", "z" (lowest corner)}]}."""
+    walls = world.walls[i].numpy()
     occupied = world.mass[i].numpy() > 0.5
-    terrain = terrain_summary(world.walls[i].numpy())
-    n = int(occupied.sum())
+    terrain = terrain_summary(walls.sum(0))
+    cells = np.argwhere(occupied)
+    robots = {"count": int(len(cells))}
+    if len(cells):
+        robots.update(mostly_around=region_of(int(cells[:, 1].mean()), int(cells[:, 2].mean())), clumps=len(groups(occupied.astype(float))))
+        found = components(occupied)
+        robots["groups"] = [{"size": len(g), "area": region_of(*g[:, 1:].mean(axis=0)), "x": round(float(g[:, 2].mean()), 1), "y": round(float(g[:, 1].mean()), 1), "height": int(g[:, 0].max()) + 1} for g in found if len(g) >= 2]
+        robots["alone"] = sum(len(g) == 1 for g in found)
+        robots["on_top"] = int((occupied[1:] & occupied[:-1]).sum())
+        run = np.zeros(occupied.shape[1:], int)
+        tops = {}
+        for z in range(occupied.shape[0]):
+            run = np.where(occupied[z], run + 1, 0)
+            for y, x in np.argwhere(run >= 3):
+                tops[(int(y), int(x))] = int(run[y, x])
+        towers = []
+        for (y, x), height in sorted(tops.items(), key=lambda item: (-item[1], item[0])):
+            if not any(abs(y - ty) <= 1 and abs(x - tx) <= 1 for ty, tx, _ in towers):
+                towers.append((y, x, height))
+        robots["towers"] = [{"height": h, "area": region_of(y, x)} for y, x, h in towers]
     cheeses = []
     for k, colour in present(world, i):
         z, y, x = (int(v) for v in world.cheese_pos[i, k])
-        on = "floor" if z == 0 else "raised ground"
-        if terrain["kind"] == "trench" and z == 0:
-            on = "trench floor"
-        cheeses.append({"colour": colour, "region": region_of(y + 1, x + 1), "at": [z, y, x], "on": on})
-    found = components(occupied)
-    big = [g for g in found if len(g) >= max(2, int(np.ceil(BLOB_SHARE * n)))]
-    group_rows = [{"size": len(g), "region": region_of(*g[:, 1:].mean(axis=0)), "centre": [round(float(v), 1) for v in g[:, 1:].mean(axis=0)], "height": int(g[:, 0].max()) + 1} for g in big]
-    towers = []
-    run = np.zeros(occupied.shape[1:], int)
-    tops = {}
-    for z in range(occupied.shape[0]):
-        run = np.where(occupied[z], run + 1, 0)
-        for y, x in np.argwhere(run >= 3):
-            tops[(y, x)] = int(run[y, x])
-    for (y, x), height in sorted(tops.items(), key=lambda item: -item[1]):
-        if not any(abs(y - t["yx"][0]) <= 1 and abs(x - t["yx"][1]) <= 1 for t in towers):
-            towers.append({"height": height, "region": region_of(y, x), "yx": (y, x)})
-    return {
-        "robots": n,
-        "gravity": bool(world.gravity[i]),
-        "terrain": terrain,
-        "cheeses": cheeses,
-        "groups": group_rows,
-        "scattered": n - sum(len(g) for g in big),
-        "towers": [{"height": t["height"], "region": t["region"]} for t in towers],
-        "on_top": int((occupied[1:] & occupied[:-1]).sum()),
-    }
+        on = "floor" if z == 0 else "plateau" if "trench" in terrain else "hill"
+        cheeses.append({"colour": colour, "area": region_of(y + 1, x + 1), "on": on, "x": x, "y": y, "z": z})
+    return {"gravity": bool(world.gravity[i]), "terrain": terrain, "robots": robots, "cheeses": cheeses}

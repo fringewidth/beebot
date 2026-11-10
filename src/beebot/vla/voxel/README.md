@@ -488,20 +488,34 @@ summary = suite.scene_summary(world, i)  # scene i of a VoxelWorld batch
    inverts it). A subset task reads `"the smaller group: go to the back left of the floor;
    everyone else: stay where you are"`. A switch task joins its instructions with
    `"; then, on a new instruction: "`.
-1. `spec`: the checker's spec, JSON-safe (sets as sorted lists, arrays left out), with the
-   canonical slots under `"slots"`. A switch task's spec is `{"kind": "switch", "parts": [{"t":
-   first step, "record": record}, ...]}`.
-1. `subgoals`: ordered plain sub-goal sentences: the cheeses of an eat task in order, the two
-   jobs of a parallel task, the selected robots' job then "everyone else: stay where you are",
-   the instructions of a switch task in turn.
+1. `spec`: `suite.record_spec`, what an instruction has to pin down in this scene (the verifier
+   of `haiku.py` reads an instruction back into it): the six families as `haiku.py` had them
+   (an eat task's forbid set left out, an eat task naming an absent colour `{"kind":
+   "refuse"}`); a coverage task its job's kind and fields (`goto`: region, `approach`, `follow`,
+   `perch`: colour, `groups`: count, `line`: axis, `climb`: side, `move`: toward and steps,
+   `tower`: height, `eat`: eat, any_of, order) plus the selector as flat fields: `who` (group,
+   top, count, half), `by` and `which` for a group, `count`, and `"except": true`. No `who`:
+   everyone. A switch task's spec is `{"kind": "switch", "parts": [{"t": first step, "record":
+   record}, ...]}`. `suite.SPEC_NOTES` explains every kind for the verifier's menu.
+1. `subgoals`: one plain sentence per plan segment, in plan order: an eat segment eats the next
+   colour, any other segment is the task's plain sentence; a switch task's parts in turn.
 
-`scene_summary(world, i)` returns `{"robots", "gravity", "terrain", "cheeses", "groups",
-"scattered", "towers", "on_top"}`: terrain `{"kind": "flat"}`, `{"kind": "trench", "runs",
-"region", "width", "depth", "plateaus"}` or `{"kind": "hills", "highest", "regions"}`; each cheese
-`{"colour", "region", "at": [z, y, x], "on"}`; groups (26-connected, at least 2 robots and a tenth
-of the swarm, largest first) `{"size", "region", "centre": [y, x], "height"}`; towers (vertical
-runs of 3 or more) `{"height", "region"}`; `on_top` counts robots standing on robots. Regions are
-the nine floor regions of `FLOOR_REGIONS`.
+`scene_summary(world, i)` returns `{"gravity", "terrain", "robots", "cheeses"}` (x left to right,
+y back to front, z up; areas are the nine `FLOOR_REGIONS`):
+
+1. `terrain`: `{"layout": "flat floor"}`, `{"layout": "trench between two plateaus", "trench":
+   {"runs", "from_x" or "from_y", "width", "depth"}, "plateau_height"}` or `{"layout": "low
+   hills", "highest"}`.
+1. `robots`: `count`, `mostly_around` (the area of the centroid), `clumps` (groups of at least a
+   tenth of the swarm, `facts.groups`), `groups` (every 26-connected group of 2 or more robots,
+   largest first: `size`, `area`, `x`, `y` of its centre, `height`), `alone` (robots touching no
+   other), `on_top` (robots standing on robots), `towers` (vertical runs of 3 or more:
+   `height`, `area`).
+1. `cheeses`: `colour`, `area`, `on` (floor, plateau or hill), `x`, `y`, `z` (lowest corner).
+
+These are the shapes of `haiku.py`'s former stand-ins (`local_canonical_record`,
+`local_scene_summary`), which `haiku.py` now replaces with the suite's own; the summary only adds
+fields to the `robots` entry. A test checks both against the stand-ins on the six families.
 
 ## Compact store
 

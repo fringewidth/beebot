@@ -205,8 +205,10 @@ def local_scene_summary(world, i):
     return {"gravity": bool(world.gravity[i]), "terrain": terrain, "robots": robots, "cheeses": cheeses}
 
 
-# The switch to the suite's own versions: canonical_record, scene_summary = S.canonical_record, S.scene_summary
-canonical_record, scene_summary = local_canonical_record, local_scene_summary
+# The suite's own versions: the same records for the six families (tests/test_vla_voxel_coverage.py
+# checks it against the stand-ins above), records for the coverage families, and the scene with its
+# robots' groups, towers and robots standing on robots added.
+canonical_record, scene_summary = S.canonical_record, S.scene_summary
 
 LOCAL_NOTES = {
     "eat": "eat: colours that must all be eaten. any_of: eat one of these (either/or). order: the colours in the order they must be eaten, only when the order matters, else []. No other cheese may be eaten; an instruction to eat nothing has all three lists empty.",
