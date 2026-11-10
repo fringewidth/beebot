@@ -63,6 +63,7 @@ class ThinkConfig:
     stores: str = ""  # comma-separated demonstration stores for ThinkData
     haiku_dirs: str = ""  # comma-separated Haiku label directories for ThinkData
     data_kwargs: str = "{}"  # JSON: further ThinkData (or FakeThinkData) keyword arguments
+    views: str = "scene"  # ThinkData's views: "scene" (views.scene_views, randomized at DEFAULT_STRENGTH) or "stand_in" (one isometric image)
     val_seed: int = 0
     val_examples: int = 256
     channels: int = N_CHANNELS
@@ -119,7 +120,12 @@ def make_data(cfg, tokenizer):
     else:
         from beebot.vla.voxel.think_data import ThinkData
 
-        source = ThinkData(split(cfg.stores), split(cfg.haiku_dirs), tokenizer, cfg.seed, **kwargs)
+        from beebot.vla.voxel.think_data import stand_in_views
+        from beebot.vla.voxel.views import ViewSpec, scene_views
+
+        spec = ViewSpec()
+        views = {"scene": lambda obs, rng: scene_views(obs, rng, spec), "stand_in": stand_in_views}[cfg.views]
+        source = ThinkData(split(cfg.stores), split(cfg.haiku_dirs), tokenizer, cfg.seed, views=views, **kwargs)
     return source
 
 
