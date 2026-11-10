@@ -6,3 +6,5 @@ runs/*/demo/
 data/
 queue/
 BOARD.md
+ROADMAP.md
+.claude/worktrees/
