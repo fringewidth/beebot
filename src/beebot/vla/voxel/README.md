@@ -1130,6 +1130,15 @@ Proposal, to decide (sizes and licences recalled from memory, to verify before f
     PYTHONPATH=src OMP_NUM_THREADS=4 python -m beebot.vla.voxel.build --per-object 4 --seed 777 --out runs/build/expert.jsonl
     PYTHONPATH=src OMP_NUM_THREADS=4 python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_build --scenes 6000 --cube --rule switch_cube --counts log --compact --build 0.5 --steps 144
 
+Build tasks alone (`--only build`, in `demos` and `haiku export`): no suite, coverage or object
+tasks are drawn; the build generator keeps its own `(seed, 13)` seeding and each chunk its run
+seed, so the tasks are exactly the build part of the full draw with the same seed, chunk and
+`--build` share (tested). Indices then count build tasks only: a Haiku export joins to a store
+only when both were made with `--only build` (`export --store` reads it from the store's config).
+
+    PYTHONPATH=src OMP_NUM_THREADS=4 python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_build_only --scenes 6000 --cube --rule switch_cube --counts log --compact --build 1.0 --only build --steps 144
+    PYTHONPATH=src python -m beebot.vla.voxel.haiku export --name build-s0 --seed 0 --items 50 --cube --rule switch_cube --counts log --build 1.0 --only build
+
 Tests: `tests/test_vla_voxel_build.py`.
 
 ## Compact store

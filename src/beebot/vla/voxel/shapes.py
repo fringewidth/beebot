@@ -359,7 +359,7 @@ def group_sentence(label, members):
     if alike and first.prim == "col":
         return f"{count_word(n) if n > 1 else 'a'} {label} {h} tall" + ("" if (d, w) == (1, 1) else f", {d} by {w}")
     if alike and first.prim in ("slab", "box") and n == 1:
-        return f"a {d} by {w} {label}{on_top}" + ("" if h == 1 else f", {h} thick")
+        return f"a {d} by {w} {label}{on_top}" + ("" if h == 1 else f", {h} tall")
     if alike and first.prim in ("wall", "beam"):
         length = max(d, w)
         return f"{lead} {label} {length} long" + ("" if h == 1 else f" and {h} tall") + on_top
