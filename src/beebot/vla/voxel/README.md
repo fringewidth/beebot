@@ -1033,9 +1033,11 @@ setting, so one item is 0.033 and a standard error is about 0.08. Run on 2026-11
 1. **Shapes do not depend on strength.** They stay at 0.63-0.77 across all settings. The old
    isometric renderer scored 0.68.
 1. **Colours fall slowly.** They read 0.90 clean (the old renderer: 0.85; white on the light
-   floor is no longer missed), then 0.77 at 0.5 and 0.75, and 0.70 at 1. Almost every error is
-   an extra colour named that is not in the scene (yellow, green, pink): the model names
-   terrain, table or noise colours as cheeses. No error is a named colour read as another.
+   floor is no longer missed), then 0.77 at 0.5 and 0.75, and 0.70 at 1. Of the 31 colour
+   errors, 22 only add a colour that is not in the scene (mostly yellow, green or pink): the
+   model names terrain, table or noise colours as cheeses. The other 9 miss a colour. In 4 an
+   orange cheese is read as yellow (at 0.5 and 1), 4 miss a white cheese (from 0.25 up), and 1
+   misses purple.
 1. **Letters depend on the camera's side, not on strength.** The azimuth is drawn from all four
    sides at any strength above 0, so a letter on the floor is usually seen turned or upside
    down. Over the four randomized settings, front views score 16/26 (0.62, like clean). Back
