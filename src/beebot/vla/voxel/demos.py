@@ -78,6 +78,24 @@ def contrast(rng, world, metas, tasks, check=False):
     return VoxelWorld(*(torch.cat([getattr(x, f) for x in worlds]) for f in FIELDS)), out_metas, out
 
 
+def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False, rule=None, spaced=False):
+    """(c, world, metas, tasks, run_seed) of each chunk of scenes, in the order write() plays them:
+    the scene sample, its contrast tasks, gravity on under a rule and the swarms set apart. The
+    episodes of chunk c are the next len(tasks) rows of attempts.jsonl, so the n-th task drawn
+    here (counting from 0 over all chunks) is attempts.jsonl's line n (voxel/haiku.py joins
+    language labels to a store this way)."""
+    rng = np.random.default_rng(seed)
+    for c in range(0, n_scenes, chunk):
+        world, metas, tasks = S.sample_tasks(rng, min(chunk, n_scenes - c), "train", robots=robots, check=check, counts=counts)
+        world, metas, tasks = contrast(rng, world, metas, tasks, check=check)
+        run_seed = seed * 1_000_003 + c
+        if rule is not None:
+            world = replace(world, gravity=torch.ones_like(world.gravity))
+        if spaced:
+            world = apart(world, np.random.default_rng(run_seed))
+        yield c, world, metas, tasks, run_seed
+
+
 def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False):
     """Write the store. moves: "all" or "cube" (MOVES). robots: (low, high) robot counts, with
     tasks fitted to the swarm (None: the world's density range). failure: (27,) per-action
@@ -91,7 +109,6 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     robots touching before it is played (free_cube.apart). Returns the number of demonstrations."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    rng = np.random.default_rng(seed)
     dims = (S.SIZE,) * 3
     writer = CompactWriter(out, dims) if compact else DenseWriter(out, dims, n_scenes * len(S.FAMILIES), steps)
     check = fit or robots is not None
@@ -101,14 +118,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     attempts = open(out / "attempts.jsonl", "w")
     row, tried, kept = 0, {}, {}
     t0 = time.time()
-    for c in range(0, n_scenes, chunk):
-        world, metas, tasks = S.sample_tasks(rng, min(chunk, n_scenes - c), "train", robots=robots, check=check, counts=counts)
-        world, metas, tasks = contrast(rng, world, metas, tasks, check=check)
-        run_seed = seed * 1_000_003 + c
-        if rule is not None:
-            world = replace(world, gravity=torch.ones_like(world.gravity))
-        if spaced:
-            world = apart(world, np.random.default_rng(run_seed))
+    for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced):
         player = FreeCubeExpert(tasks, seed=run_seed, rule=rule) if expert == "planner" else S.Expert(tasks, moves=MOVES[moves], seed=run_seed, rule=rule)
         results, arrays = S.run(world, metas, tasks, player, steps=steps, seed=run_seed, record=True, failure=failure, rule=rule)
         for i, ((score, unasked), task) in enumerate(zip(results, tasks)):
