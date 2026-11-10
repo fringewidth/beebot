@@ -882,10 +882,11 @@ printed, nothing written under `data/vla/haiku`.
 ## Think-then-act training examples (`think_data.py`)
 
 `ThinkData(stores, haiku_dirs, tokenizer)` turns demo stores and verified Haiku labels into one
-example per sampled step: the scene at step t, the text before the reply (memory, then the user
-turn with the instruction in force and one `<|image_pad|>` where the scene tokens go), the reply
-(a thought in Qwen3's `<think>` tags, empty on most steps, then `<tool_call>`, or a text answer
-for a refusal) and the expert's action codes. The module docstring has the interface and the exact
+example per sampled step: the scene at step t (the voxel observation, and images of it from a
+pluggable `views(obs, rng)`, rendered at sample time), the text before the reply (memory, then the
+user turn with `<IMAGES>` and the instruction in force), the reply (a thought in Qwen3.5's
+`<think>` tags, empty on most steps, then `<tool_call>`, or a text answer for a refusal) and the
+expert's action codes. The module docstring has the interface and the exact
 text layout; `python -m beebot.vla.voxel.think_data --stores ... --haiku ... --show` prints the
 counts, one rendered example of each kind and the sampling speed.
 

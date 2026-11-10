@@ -1,6 +1,8 @@
-"""Training examples for the think-then-act voxel policy: one example per sampled step of an expert
-demonstration (demos.py stores), with the instruction in force, a thought where the policy should
-think, the policy's own earlier thoughts as memory, and the expert's action codes.
+"""Training examples for the think-then-act voxel policy (Qwen3.5-4B, a vision-language model): one
+example per sampled step of an expert demonstration (demos.py stores), with the scene as images,
+the instruction in force, a thought where the policy should think, the policy's own earlier
+thoughts as memory, the voxel observation (the action slots are built from it) and the expert's
+action codes.
 
     data = ThinkData(["data/vla/voxel_full/s0", ...], ["data/vla/haiku/run-s0", "data/vla/haiku/run-s0-later", ...], tokenizer, seed=0)
     example = data.sample(np.random.default_rng(1))
@@ -10,7 +12,8 @@ think, the policy's own earlier thoughts as memory, and the expert's action code
 Interface (the trainer codes against exactly this)
 --------------------------------------------------
 ThinkData(stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1/3, haiku_share=None,
-          refusal_share=0.05, held_share=0.05, channels=world.N_CHANNELS, system=None)
+          refusal_share=0.05, held_share=0.05, channels=world.N_CHANNELS, system=None,
+          views=stand_in_views, validation_views=None)
   stores        demo store directories (demos.write --compact or dense; small.pt must hold
                 "instructions", i.e. written after the coverage commit)
   haiku_dirs    Haiku label directories (haiku.Labels: verified pairs only; the test set is refused).
@@ -20,28 +23,39 @@ ThinkData(stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1/3, haiku_s
   tokenizer     optional; when given, check_tokens(tokenizer) runs (the fixed tokens below)
   seed          not used for sampling (sample takes an rng); kept for the caller's bookkeeping
   thought_share share of act examples drawn at a thought step (first step, instruction change,
-                sub-goal switch, done); the rest at a uniformly drawn step without a thought
+                sub-goal switch, done); the rest at a uniformly drawn step without a thought.
+                With refusals (which always think) about 0.37 of all examples carry a thought.
   haiku_share   None: episodes drawn uniformly (the natural share of Haiku-labelled ones);
                 a float: that share of act examples from Haiku-labelled episodes
   refusal_share share of examples that are Haiku refuse/clarify pairs (when any exist)
   held_share    episodes held out for validation by a stable hash of (seed, index)
   channels      observation channels (world.observe)
   system        optional system message text
+  views         views(obs, rng) -> list of PIL images of the observation, called at sample time
+                with the sampler's rng (fresh randomization on every draw). The stand-in is one
+                isometric render; the switch to the randomized views is one line:
+                views=lambda obs, rng: scene_views(obs, rng, ViewSpec())  (voxel/views.py)
+  validation_views  the views of validation examples (e.g. a clean mode); None: `views`, with the
+                validation seed's rng, so validation examples are the same on every call and run
 
 .sample(rng: numpy.random.Generator) -> Example        (training episodes only)
 .validation(n, seed=0) -> list[Example]                (fixed: held-out episodes, same sampler)
 .counts() -> dict                                      (episodes, labelled, template, refusals, ...)
-tokenize(example, tokenizer, scene_tokens=64, slots=False) -> (input_ids (L,) long, labels (L,) long)
-  The SCENE token is expanded to scene_tokens copies of SCENE_ID (the model writes its scene
-  embeddings over them); labels are -100 except on the reply's tokens. slots=True appends
-  scene_tokens copies of SLOT_ID after the act marker (label -100) for a model that wants the
-  action slots in the id sequence; by default the model appends its slots after the last token,
-  which on an act example is the act marker.
-still(obs) -> (D, H, W) long: STAY everywhere (the action of a refusal, if a trainer needs one)
+tokenize(example, tokenizer, counts=None, slots=0) -> (input_ids (L,) long, labels (L,) long)
+  IMAGES is expanded as the Qwen3-VL processor expands an image: <|vision_start|>, n x
+  <|image_pad|>, <|vision_end|> per image, n = counts[i] or image_tokens(image) (Qwen3.5's resize:
+  sides rounded to multiples of 32 pixels, one token per 32 x 32; the stand-in's 272 x 272 image
+  is 256 x 256, 64 tokens). Labels are -100 except on the reply's tokens. slots=n appends n SLOT
+  ids after an act reply (label -100) for a model that wants its action slots in the id sequence;
+  otherwise the model appends its slots after the last token, which on an act example is the act
+  marker.
+image_tokens(image) -> int; still(obs) -> (D, H, W) long, STAY everywhere (a refusal's action,
+  if a trainer needs one); stand_in_views(obs, rng=None) -> [PIL image]
 
 Example (dataclass)
   obs          (channels, D, H, W) float, the scene at step t (world.observe of the store's frame)
-  context_text the text before the reply, with exactly one SCENE in the user turn
+  images       views(obs, rng): list of PIL images of that scene
+  context_text the text before the reply, with "<IMAGES>" exactly once, at the start of the user turn
   reply_text   act: "<think>\\n{thought}\\n</think>\\n\\n<tool_call>" or, on a step without a thought,
                "<think>\\n\\n</think>\\n\\n<tool_call>"; refusal: "<think>\\n{thought}\\n</think>\\n\\n{answer}<|im_end|>"
   act          True for an act example
@@ -55,20 +69,24 @@ Example (dataclass)
   instruction  the user instruction in the current turn
   store        the store directory
 
-Fixed tokens (Qwen3, checked by check_tokens on Qwen/Qwen3-0.6B): "<think>" 151667, "</think>"
-151668, "<tool_call>" 151657 (ACT), "<|im_start|>" 151644, "<|im_end|>" 151645, SCENE =
-"<|image_pad|>" 151655, SLOT = "<|video_pad|>" 151656 are single tokens, so they split the text
-before BPE: the empty thought "<think>\\n\\n</think>\\n\\n" is always [151667, 271, 151668, 271], a
-thought is [151667, 198, <thought tokens>, 151668, 271] where the thought's own tokens end in
-198 ("\\n") or a merged ".\\n" (624), and tokenizing context and reply separately gives the same
-ids as tokenizing their concatenation. This is Qwen3's own chat template for an assistant turn
-with reasoning (reasoning.strip() between "<think>\\n" and "\\n</think>\\n\\n", then content).
+Fixed tokens (checked by check_tokens on Qwen/Qwen3.5-4B, local_files_only): "<think>" 248068,
+"</think>" 248069, "<tool_call>" 248058 (ACT), "<|im_start|>" 248045, "<|im_end|>" 248046,
+"<|vision_start|>" 248053, "<|image_pad|>" 248056, "<|vision_end|>" 248054, SLOT =
+"<|video_pad|>" 248057 are single tokens (added tokens: they split the text before BPE). The
+empty thought "<think>\\n\\n</think>\\n\\n<tool_call>" is always [248068, 271, 248069, 271, 248058]; a
+thought is [248068, 198, <thought tokens>, 248069, 271] followed by 248058 (act) or the answer, the
+thought's own tokens ending in 198 ("\\n") or a merged ".\\n"; tokenizing context and reply apart
+gives the ids of their concatenation. This is the Qwen3.5 chat template's own assistant turn
+(reasoning between "<think>\\n" and "\\n</think>\\n\\n", then the content; its generation prompt
+with thinking off is "<think>\\n\\n</think>\\n\\n"). "<IMAGES>" itself is not a token (3 tokens):
+it never reaches the model unexpanded. Qwen3-0.6B has the same tokens with ids 151667, 151668,
+151657, 151644, 151645, 151652, 151655, 151653, 151656.
 
 Text layout
 -----------
     [<|im_start|>system\\n{system}<|im_end|>\\n]                                  only with system
     [<|im_start|>assistant\\n{first thought}[\\n{latest line}]<|im_end|>\\n]       memory, t > 0
-    <|im_start|>user\\n{instruction}\\n<|image_pad|><|im_end|>\\n<|im_start|>assistant\\n
+    <|im_start|>user\\n<IMAGES>\\n{instruction}<|im_end|>\\n<|im_start|>assistant\\n
     reply_text
 
 Memory is fixed in size: the latest first thought emitted before step t (of the instruction in
@@ -686,15 +704,17 @@ def render_examples(data, rng=None):
     rng = np.random.default_rng(0) if rng is None else rng
     out = {}
     for ep in data.episodes:
+        source = ":haiku" if ep.labelled else ":template"
         parts = data.labelling(ep, rng)
-        for ev in data.episode_events(ep):
-            out.setdefault(ev.kind + (":haiku" if ep.labelled else ":template"), data.example(ep, ev.t, parts))
         events = data.episode_events(ep)
+        for ev in events:
+            if ev.kind + source not in out:
+                out[ev.kind + source] = data.example(ep, ev.t, parts, rng)
         plain = [t for t in range(data.steps(ep)) if t not in {ev.t for ev in events} and memory_before(events, t)]
-        if plain:
-            out.setdefault("plain" + (":haiku" if ep.labelled else ":template"), data.example(ep, plain[len(plain) // 2], parts))
-        for pair in ep.refusals[:1]:
-            out.setdefault(REFUSAL, data.refusal(ep, pair))
+        if plain and "plain" + source not in out:
+            out["plain" + source] = data.example(ep, plain[len(plain) // 2], parts, rng)
+        if ep.refusals and REFUSAL not in out:
+            out[REFUSAL] = data.refusal(ep, ep.refusals[0], rng)
     return out
 
 
