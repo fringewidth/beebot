@@ -241,7 +241,7 @@ def store_options(store):
 
     config = torch.load(Path(store) / "small.pt", map_location="cpu", weights_only=False)["config"]
     attempts = [json.loads(line) for line in (Path(store) / "attempts.jsonl").read_text().splitlines() if line.strip()]
-    options = {"seed": config["seed"], "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart")), "coverage": float(config.get("coverage", 0.0)), "build": float(config.get("build", 0.0))}
+    options = {"seed": config["seed"], "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart")), "coverage": float(config.get("coverage", 0.0)), "objects": float(config.get("objects", 0.0)), "build": float(config.get("build", 0.0))}
     return options, attempts
 
 
@@ -254,7 +254,7 @@ def drawn_items(options, limit, attempts=None, keep=None):
     scenes = 10**9  # full chunks until the limit or the store's attempts run out
     index = 0
     out = []
-    for _, world, _, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart")), float(options.get("coverage", 0.0)), float(options.get("build", 0.0))):
+    for _, world, _, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart")), float(options.get("coverage", 0.0)), float(options.get("objects", 0.0)), float(options.get("build", 0.0))):
         for i, task in enumerate(tasks):
             e = None
             if attempts is not None:
@@ -265,7 +265,7 @@ def drawn_items(options, limit, attempts=None, keep=None):
                     raise ValueError(f"attempt {index} is {row['family']}/{row['kind']} in the store but {task.family}/{S.task_kind(task)} here: different options, chunk or suite code")
                 e = row["e"]
             if e is None or e >= 0:
-                item = {"id": item_id(seed, index), "seed": seed, "index": index, "e": e, "record": canonical_record(task), "scene": scene_summary(world, i)}
+                item = {"id": item_id(seed, index), "seed": seed, "index": index, "e": e, "record": canonical_record(task), "scene": scene_summary(world, i, task)}
                 if keep is None or keep(item):
                     out.append(item)
             index += 1
@@ -480,7 +480,7 @@ For each item write three instructions a person might type to ask for exactly th
 1. "close": a close paraphrase of the task in different words.
 2. "indirect": it names the targets indirectly, so that working out what is meant takes a step of thought: a category of colours, a description (the colour of the sky), a relation in this scene (the cheese nearest the back, the one on the plateau), a count (both of them, all three) or a negation (everything but ...). It must pick out exactly the task's targets in this scene and nothing else.
 3. "casual": the way people type in a chat: lower case, loose grammar, a typo or two, slang; now and then in Spanish or French.
-Every instruction asks for the same thing as the task: the same targets, the same order where the task has one, nothing added and nothing left out. Vary the wording from item to item.
+Every instruction asks for the same thing as the task: the same targets, the same order where the task has one, nothing added and nothing left out. The sub-goals are only the order the swarm will choose to work in: unless the task sentence itself says an order (first, then, before, after), never put an order into the instruction. Vary the wording from item to item.
 
 For each instruction write the swarm's first thought, in lower case and at most 35 words besides the quoted instruction, in this shape:
 "you asked: <the instruction>. i see <the scene contents that matter>. <what the instruction means here, resolved to concrete colours, places or numbers>. first: <the first sub-goal>."
@@ -599,15 +599,19 @@ def verify_prompt(entries, menu):
 
 
 def parse_json(text):
-    """The JSON object a reply holds (code fences and text around it allowed), or None."""
-    start = text.find("{")
-    if start < 0:
-        return None
-    try:
-        answer, _ = json.JSONDecoder().raw_decode(text[start:])
-    except ValueError:
-        return None
-    return answer if isinstance(answer, dict) else None
+    """The JSON object a reply holds (code fences and text around it allowed), or None. A reply
+    that gives one object per item (several top-level objects) is merged into one."""
+    decoder, merged, at = json.JSONDecoder(), {}, 0
+    while (start := text.find("{", at)) >= 0:
+        try:
+            part, end = decoder.raw_decode(text, start)
+        except ValueError:
+            at = start + 1
+            continue
+        if isinstance(part, dict):
+            merged.update(part)
+        at = end
+    return merged or None
 
 
 def clean(text):
@@ -1196,6 +1200,7 @@ def options_of(args):
         "rule": args.rule or ("free_cube" if args.free_cube else None),
         "apart": args.apart,
         "coverage": getattr(args, "coverage", 0.0),
+        "objects": getattr(args, "objects", 0.0),
         "build": getattr(args, "build", 0.0),
     }
 
@@ -1254,6 +1259,7 @@ def main(argv=None):
     parser.add_argument("--rule", default=None)
     parser.add_argument("--apart", action="store_true")
     parser.add_argument("--coverage", type=float, default=0.0, help="as demos --coverage: coverage tasks (suite.sample_coverage) per scene, after the suite's own")
+    parser.add_argument("--objects", type=float, default=0.0, help="as demos --objects: object tasks (objects.sample_objects) per scene, after the coverage tasks")
     parser.add_argument("--build", type=float, default=0.0, help="as demos --build: build tasks (voxel/build.py) per scene, after the coverage tasks")
     parser.add_argument("--cube", action="store_true", help="as demos --cube: robots in suite.ROBOTS")
     parser.add_argument("--free-cube", action="store_true", help="as demos --free-cube: --cube and --rule free_cube")

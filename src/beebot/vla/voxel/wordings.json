@@ -17,7 +17,11 @@
   "-colored",
   " flag",
   "-",
-  " "
+  " ",
+  " to",
+  " from",
+  " two",
+  " l"
  ],
  "predicative": [
   " is ",
@@ -2468,6 +2472,313 @@
     "haul yourselves atop the {plateau} on the {x}"
    ]
   },
+  "thing.eat": {
+   "slots": {
+    "o": "thing"
+   },
+   "canonical": "eat {o}",
+   "train": [
+    "eat {o}",
+    "go eat {o}",
+    "gobble up {o}",
+    "devour {o}",
+    "munch {o}",
+    "eat up {o}",
+    "your target is {o}: eat it",
+    "please eat {o}",
+    "have {o} for lunch",
+    "I want {o} eaten",
+    "chow down on {o}",
+    "finish off {o}"
+   ],
+   "held_out": [
+    "polish off {o}",
+    "make a meal of {o}",
+    "{o} is dinner, dig in"
+   ]
+  },
+  "thing.push_region": {
+   "slots": {
+    "o": "thing",
+    "r": "region"
+   },
+   "canonical": "push {o} to the {r} of the floor",
+   "train": [
+    "push {o} to the {r} of the floor",
+    "push {o} to the {r}",
+    "shove {o} over to the {r}",
+    "move {o} to the {r}",
+    "slide {o} into the {r} area",
+    "get {o} to the {r}",
+    "roll {o} toward the {r} and leave it there",
+    "I want {o} over at the {r}",
+    "nudge {o} all the way to the {r}",
+    "take {o} to the {r} of the floor"
+   ],
+   "held_out": [
+    "steer {o} into the {r}",
+    "{o} belongs at the {r}; put it there",
+    "relocate {o} to the {r}"
+   ]
+  },
+  "thing.push_trench": {
+   "slots": {
+    "o": "thing"
+   },
+   "canonical": "push {o} into the trench",
+   "train": [
+    "push {o} into the {trench}",
+    "shove {o} down into the {trench}",
+    "knock {o} into the {trench}",
+    "get {o} into the {trench}",
+    "tip {o} over the edge into the {trench}",
+    "roll {o} into the {trench}",
+    "move {o} until it drops into the {trench}",
+    "send {o} down the {trench}"
+   ],
+   "held_out": [
+    "drop {o} into the {trench}",
+    "{o} should end up at the bottom of the {trench}",
+    "topple {o} into the {trench}"
+   ]
+  },
+  "thing.push_zone": {
+   "slots": {
+    "o": "thing",
+    "c": "colour"
+   },
+   "canonical": "push {o} onto the {c} zone",
+   "train": [
+    "push {o} onto the {c} zone",
+    "shove {o} onto the {c} patch",
+    "move {o} onto the {c} zone",
+    "slide {o} onto the zone that is {c}",
+    "get {o} onto the {c} zone",
+    "park {o} on the {c} zone",
+    "put {o} on the zone that's {c}",
+    "nudge {o} until it sits on the {c} zone"
+   ],
+   "held_out": [
+    "steer {o} onto the {c} zone",
+    "{o} goes on the zone that is {c}",
+    "set {o} down on the {c} patch"
+   ]
+  },
+  "thing.surround": {
+   "slots": {
+    "o": "thing"
+   },
+   "canonical": "surround {o}",
+   "train": [
+    "surround {o}",
+    "gather around {o}",
+    "encircle {o}",
+    "form a ring around {o}",
+    "crowd around {o} without eating it",
+    "close in around {o}",
+    "stand all around {o}",
+    "make a circle around {o}",
+    "box in {o}",
+    "huddle around {o}"
+   ],
+   "held_out": [
+    "hem in {o}",
+    "ring {o} on every side",
+    "fence in {o} with your bodies"
+   ]
+  },
+  "thing.catch": {
+   "slots": {
+    "o": "thing"
+   },
+   "canonical": "catch {o} and eat it",
+   "train": [
+    "catch {o} and eat it",
+    "catch {o}",
+    "chase down {o} and eat it",
+    "hunt {o}",
+    "go after {o} and eat it",
+    "run down {o}",
+    "don't let {o} get away: eat it",
+    "track down {o} and eat it"
+   ],
+   "held_out": [
+    "corner {o} and eat it",
+    "{o} is trying to escape; catch it",
+    "pounce on {o}"
+   ]
+  },
+  "blocks.line_x": {
+   "slots": {},
+   "canonical": "line the blocks up in one row from left to right",
+   "train": [
+    "line the blocks up in one row from left to right",
+    "line up the blocks from left to right",
+    "push the blocks into one row running left to right",
+    "put all the blocks in a row, left to right",
+    "arrange the blocks in a line across, left to right",
+    "make one row of the blocks from left to right",
+    "line the blocks up left to right"
+   ],
+   "held_out": [
+    "align every block in a single left-to-right row",
+    "get the blocks side by side in a row, left to right"
+   ]
+  },
+  "blocks.line_y": {
+   "slots": {},
+   "canonical": "line the blocks up in one row from back to front",
+   "train": [
+    "line the blocks up in one row from back to front",
+    "line up the blocks from back to front",
+    "push the blocks into one row running back to front",
+    "put all the blocks in a row, back to front",
+    "arrange the blocks in a line from back to front",
+    "make one row of the blocks from back to front",
+    "line the blocks up back to front"
+   ],
+   "held_out": [
+    "align every block in a single back-to-front row",
+    "get the blocks one behind another, back to front"
+   ]
+  },
+  "zone.goto": {
+   "slots": {
+    "c": "colour"
+   },
+   "canonical": "go to the {c} zone",
+   "train": [
+    "go to the {c} zone",
+    "head for the {c} zone",
+    "everyone onto the {c} patch",
+    "move to the zone that is {c}",
+    "gather on the {c} zone",
+    "get over to the {c} zone",
+    "go stand on the zone that's {c}",
+    "make your way to the {c} zone"
+   ],
+   "held_out": [
+    "assemble on the {c} zone",
+    "the zone that is {c} is where you should be",
+    "converge on the {c} patch"
+   ]
+  },
+  "zone.line": {
+   "slots": {
+    "c": "colour"
+   },
+   "canonical": "line up along the {c} stripe",
+   "train": [
+    "line up along the {c} stripe",
+    "line up on the {c} stripe",
+    "stand in a row on the {c} strip",
+    "form a line along the stripe that is {c}",
+    "get in line on the {c} stripe",
+    "follow the {c} stripe in a row",
+    "spread out along the stripe that's {c}",
+    "fill the {c} stripe in a line"
+   ],
+   "held_out": [
+    "queue along the {c} stripe",
+    "trace the stripe that is {c} with a line of robots",
+    "occupy the {c} strip end to end"
+   ]
+  },
+  "cond.eat_tower": {
+   "slots": {
+    "c": "colour",
+    "n": "count"
+   },
+   "canonical": "eat the {c} cheese if there is one, otherwise build a tower {n} robots tall",
+   "train": [
+    "eat the {c} cheese if there is one, otherwise build a tower {n} robots tall",
+    "if you see a cheese that is {c}, eat it; if not, build a tower {n} high",
+    "eat the {c} cheese if it's here, else stack up {n} high",
+    "is there any {c} cheese? eat it. no? make a column {n} robots high",
+    "if there's any {c} cheese, eat it, and if there isn't, build a tower {n} high",
+    "eat any {c} cheese; without one, pile up into a tower of height {n}",
+    "should a cheese that's {c} be here, eat it; otherwise a tower {n} tall",
+    "go for the {c} cheese if it exists, else build a tower {n} robots tall"
+   ],
+   "held_out": [
+    "when a cheese that is {c} is present, devour it; when not, erect a tower {n} high",
+    "the {c} cheese if there is one, to eat; failing that, a tower of {n}"
+   ]
+  },
+  "cond.surround_goto": {
+   "slots": {
+    "c": "colour",
+    "r": "region"
+   },
+   "canonical": "surround the {c} cheese if there is one, otherwise go to the {r} of the floor",
+   "train": [
+    "surround the {c} cheese if there is one, otherwise go to the {r} of the floor",
+    "if you see a cheese that is {c}, surround it; if not, go to the {r}",
+    "surround the {c} cheese if it's here, else head to the {r}",
+    "is there any {c} cheese? encircle it. no? move over to the {r}",
+    "if there's any {c} cheese, gather around it, and if there isn't, go to the {r}",
+    "ring the {c} cheese if there is one; otherwise everyone to the {r}",
+    "should a cheese that's {c} be here, surround it; otherwise the {r}",
+    "go around the {c} cheese if it exists, else go to the {r} of the floor"
+   ],
+   "held_out": [
+    "when a cheese that is {c} is present, hem it in; when not, regroup at the {r}",
+    "the {c} cheese, if any, to be surrounded; failing that, the {r}"
+   ]
+  },
+  "cond.eat_goto": {
+   "slots": {
+    "c": "colour",
+    "r": "region"
+   },
+   "canonical": "eat the {c} cheese if there is one, otherwise go to the {r} of the floor",
+   "train": [
+    "eat the {c} cheese if there is one, otherwise go to the {r} of the floor",
+    "if you see a cheese that is {c}, eat it; if not, go to the {r}",
+    "eat the {c} cheese if it's here, else head to the {r}",
+    "is there any {c} cheese? eat it. no? move over to the {r}"
+   ],
+   "held_out": [
+    "when a cheese that is {c} is present, devour it; when not, regroup at the {r}",
+    "the {c} cheese if there is one, to eat; failing that, the {r}"
+   ]
+  },
+  "count.tower": {
+   "slots": {
+    "k": "plural"
+   },
+   "canonical": "build a tower as tall as the number of {k}",
+   "train": [
+    "build a tower as tall as the number of {k}",
+    "stack up as many robots high as there are {k}",
+    "make a column with one robot per {k}",
+    "count the {k} and build a tower that many robots tall",
+    "build a tower whose height is the number of {k}",
+    "pile up into a tower as high as the count of {k}",
+    "how many {k} are there? build a tower that tall",
+    "a tower with as many levels as there are {k}, please"
+   ],
+   "held_out": [
+    "erect a tower whose height matches how many {k} you see",
+    "tally the {k}, then stack that high"
+   ]
+  },
+  "count.groups": {
+   "slots": {
+    "k": "plural"
+   },
+   "canonical": "split into as many groups as there are {k}",
+   "train": [
+    "split into as many groups as there are {k}",
+    "form one group for each of the {k}",
+    "count the {k} and break up into that many groups",
+    "divide yourselves into as many groups as the {k}"
+   ],
+   "held_out": [
+    "make a group per one of the {k}",
+    "tally the {k}, then form that many separate groups"
+   ]
+  },
   "build": {
    "slots": {
     "o": "object"
@@ -3719,6 +4030,243 @@
   "rot (German red), Hindi numerals (teen, chaar), Chinese 青色": "out: rot and teen read as English words, romanised numerals have no settled spelling, 青 is blue in Japanese and cyan in Chinese",
   "rainbow-coloured, candy-cane-coloured, bare warm or cool": "out as adjectives: they read as multicoloured, or as temperature; the categories are used as \"a rainbow colour\", \"warm-coloured\"",
   "heart, core (centre)": "out: they need \"of the floor\" after them; \"central part\" and \"midpoint\" stand alone",
-  "far corner on the left": "out: cannot be followed by 'of the floor'; 'far left corner' says the same"
+  "far corner on the left": "out: cannot be followed by 'of the floor'; 'far left corner' says the same",
+  "to, from, two, l (shared tokens)": "shared: to and from are function words of the nearness and relation phrases (next to, furthest from); two is the pattern word two-tone and already in many training templates (two groups, two teams); l is the letter of L-shaped and a sub-word of the held-out lila",
+  "two-tone, striped (patterns)": "in: a pattern runs along the object's longest side; striped alternates the two colours voxel by voxel, two-tone splits it in halves",
+  "small, large (sizes)": "in, as absolute sizes by the longest side (tiny 1, small 2, large 3, huge 4 voxels); biggest and smallest compare by voxel count"
+ },
+ "properties": {
+  "about": "Words for object properties (README Objects): canonical word -> training and held-out expressions. A thing phrase (slot kind thing) is built from these in a fixed order: the, [superlative], [size] [weight] [pattern] [colour] [shape] noun, then an optional relation; a comparative phrase is 'the smaller of the two [adjectives] plural'.",
+  "size": {
+   "tiny": {
+    "train": [
+     "teeny"
+    ],
+    "held_out": [
+     "minuscule"
+    ]
+   },
+   "small": {
+    "train": [
+     "little"
+    ],
+    "held_out": [
+     "petite"
+    ]
+   },
+   "large": {
+    "train": [
+     "big"
+    ],
+    "held_out": [
+     "sizeable"
+    ]
+   },
+   "huge": {
+    "train": [
+     "giant",
+     "enormous"
+    ],
+    "held_out": [
+     "colossal"
+    ]
+   }
+  },
+  "weight": {
+   "heavy": {
+    "train": [
+     "weighty"
+    ],
+    "held_out": [
+     "hefty"
+    ]
+   },
+   "light": {
+    "train": [
+     "lightweight"
+    ],
+    "held_out": [
+     "airy"
+    ]
+   }
+  },
+  "pattern": {
+   "striped": {
+    "train": [
+     "stripy"
+    ],
+    "held_out": [
+     "banded"
+    ]
+   },
+   "two-tone": {
+    "train": [
+     "two-coloured"
+    ],
+    "held_out": [
+     "bicolour"
+    ]
+   }
+  },
+  "shape": {
+   "cube-shaped": {
+    "train": [
+     "cubic"
+    ],
+    "held_out": []
+   },
+   "flat": {
+    "train": [
+     "thin"
+    ],
+    "held_out": [
+     "plate-like"
+    ]
+   },
+   "long": {
+    "train": [
+     "rod-shaped",
+     "stick-shaped"
+    ],
+    "held_out": [
+     "elongated"
+    ]
+   },
+   "L-shaped": {
+    "train": [
+     "bent"
+    ],
+    "held_out": [
+     "angled"
+    ]
+   }
+  },
+  "noun": {
+   "cheese": {
+    "train": [],
+    "held_out": []
+   },
+   "block": {
+    "train": [
+     "brick"
+    ],
+    "held_out": [
+     "crate"
+    ]
+   },
+   "object": {
+    "train": [
+     "thing"
+    ],
+    "held_out": [
+     "item"
+    ]
+   }
+  },
+  "plural": {
+   "cheeses": {
+    "train": [],
+    "held_out": []
+   },
+   "blocks": {
+    "train": [
+     "bricks"
+    ],
+    "held_out": [
+     "crates"
+    ]
+   },
+   "objects": {
+    "train": [
+     "things"
+    ],
+    "held_out": [
+     "items"
+    ]
+   }
+  },
+  "superlative": {
+   "biggest": {
+    "train": [
+     "largest"
+    ],
+    "held_out": [
+     "bulkiest"
+    ]
+   },
+   "smallest": {
+    "train": [
+     "littlest"
+    ],
+    "held_out": [
+     "puniest"
+    ]
+   }
+  },
+  "comparative": {
+   "smaller": {
+    "train": [
+     "littler"
+    ],
+    "held_out": [
+     "punier"
+    ]
+   },
+   "larger": {
+    "train": [
+     "bigger"
+    ],
+    "held_out": [
+     "greater"
+    ]
+   }
+  },
+  "nearness": {
+   "nearest": {
+    "train": [
+     "closest to"
+    ],
+    "held_out": [
+     "handiest to"
+    ]
+   },
+   "furthest from": {
+    "train": [
+     "farthest from"
+    ],
+    "held_out": [
+     "most distant from"
+    ]
+   }
+  },
+  "relation": {
+   "next to": {
+    "train": [
+     "beside",
+     "right by"
+    ],
+    "held_out": [
+     "alongside"
+    ]
+   }
+  },
+  "zone": {
+   "zone": {
+    "train": [
+     "patch"
+    ],
+    "held_out": [
+     "pad"
+    ]
+   },
+   "stripe": {
+    "train": [
+     "strip"
+    ],
+    "held_out": [
+     "streak"
+    ]
+   }
+  }
  }
 }

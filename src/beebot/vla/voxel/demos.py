@@ -47,10 +47,11 @@ import torch
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel.play_store import CompactWriter, DenseWriter
 from beebot.vla.voxel.free_cube import FreeCubeExpert, apart
-from beebot.vla.voxel.world import CUBE_MOVES, FAILURE_RATE, RULES, VoxelWorld, failure_rates
+from beebot.vla.voxel.world import CUBE_MOVES, FAILURE_RATE, MAX_OBJECTS, RULES, VoxelWorld, concat, failure_rates, with_objects
 
 SUCCESS = S.SUCCESS  # checker score an episode needs to count as a demonstration
 FIELDS = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
+OBJECT_FIELDS = ("form", "colour2", "pattern", "friction", "food", "zones")  # per episode in small.pt when the draw has objects (README "Objects")
 MOVES = {"all": None, "cube": CUBE_MOVES}
 EXPERTS = ("attractor", "planner")  # suite.Expert; free_cube.FreeCubeExpert (needs a rule)
 
@@ -78,19 +79,22 @@ def contrast(rng, world, metas, tasks, check=False):
     return VoxelWorld(*(torch.cat([getattr(x, f) for x in worlds]) for f in FIELDS)), out_metas, out
 
 
-def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False, rule=None, spaced=False, coverage=0.0, build=0.0):
+def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False, rule=None, spaced=False, coverage=0.0, objects=0.0, build=0.0):
     """(c, world, metas, tasks, run_seed) of each chunk of scenes, in the order write() plays them:
     the scene sample, its contrast tasks, then round(coverage x the chunk's scenes) coverage tasks
     (suite.sample_coverage, one per scene, from a generator of their own seeded by (seed, 7), so
-    the suite's draws are the same with or without them), gravity on under a rule and the swarms
-    set apart. The
+    the suite's draws are the same with or without them), then round(objects x the chunk's scenes)
+    object tasks (objects.sample_objects, from a generator seeded by (seed, 11); with objects every
+    world of the draw carries the object fields and world.MAX_OBJECTS slots), gravity on under a
+    rule and the swarms set apart. The
     episodes of chunk c are the next len(tasks) rows of attempts.jsonl, so the n-th task drawn
     here (counting from 0 over all chunks) is attempts.jsonl's line n (voxel/haiku.py joins
     language labels to a store this way). build: round(build x the chunk's scenes) build tasks
-    (voxel/build.py) after those, from a generator seeded by (seed, 11)."""
+    (voxel/build.py) after those, from a generator seeded by (seed, 13)."""
     rng = np.random.default_rng(seed)
     extra = np.random.default_rng((seed, 7))
-    builds = np.random.default_rng((seed, 11))
+    things = np.random.default_rng((seed, 11))
+    builds = np.random.default_rng((seed, 13))
     for c in range(0, n_scenes, chunk):
         world, metas, tasks = S.sample_tasks(rng, min(chunk, n_scenes - c), "train", robots=robots, check=check, counts=counts)
         world, metas, tasks = contrast(rng, world, metas, tasks, check=check)
@@ -99,12 +103,21 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
             more, more_metas, more_tasks = S.sample_coverage(extra, n_coverage, robots=robots, counts=counts)
             world = VoxelWorld(*(torch.cat([getattr(world, f), getattr(more, f)]) for f in FIELDS))
             metas, tasks = metas + more_metas, tasks + more_tasks
+        if objects:
+            from beebot.vla.voxel import objects as O
+
+            world = with_objects(world, MAX_OBJECTS)
+            n_objects = int(round(objects * min(chunk, n_scenes - c)))
+            if n_objects:
+                more, more_metas, more_tasks = O.sample_objects(things, n_objects, robots=robots, counts=counts)
+                world = concat([world, more])
+                metas, tasks = metas + more_metas, tasks + more_tasks
         n_build = int(round(build * min(chunk, n_scenes - c)))
         if n_build:
             from beebot.vla.voxel.build import sample_build
 
             more, more_metas, more_tasks = sample_build(builds, n_build, robots=robots, counts=counts)
-            world = VoxelWorld(*(torch.cat([getattr(world, f), getattr(more, f)]) for f in FIELDS))
+            world = concat([world, more])
             metas, tasks = metas + more_metas, tasks + more_tasks
         run_seed = seed * 1_000_003 + c
         if rule is not None:
@@ -114,7 +127,7 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
         yield c, world, metas, tasks, run_seed
 
 
-def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, build=0.0):
+def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, objects=0.0, build=0.0):
     """Write the store. moves: "all" or "cube" (MOVES). robots: (low, high) robot counts, with
     tasks fitted to the swarm (None: the world's density range). failure: (27,) per-action
     failure probabilities (world.failure_rates) or None. compact: write mass and actions in
@@ -125,21 +138,32 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     every scene; None: the voxel world's own moves. expert: "attractor", or with a rule
     "planner" (free_cube.FreeCubeExpert). spaced: every swarm is set down again with no two
     robots touching before it is played (free_cube.apart). coverage: coverage tasks per scene
-    drawn (draws). build: build tasks per scene drawn (draws; played by build.make_expert, the
-    others as without them, build.Mixed). Returns the number of demonstrations."""
+    drawn (draws). objects: object tasks per scene drawn (draws), played by objects.ObjectExpert
+    (the attractor expert only); small.pt then holds each episode's object fields (OBJECT_FIELDS).
+    build: build tasks per scene drawn (draws), played by build.make_expert while the others play
+    as without them (build.Mixed). Returns the number of demonstrations."""
+    if objects and expert != "attractor":
+        raise ValueError("object tasks are demonstrated by the attractor expert (objects.ObjectExpert) only")
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     dims = (S.SIZE,) * 3
-    writer = CompactWriter(out, dims) if compact else DenseWriter(out, dims, int(np.ceil(n_scenes * (len(S.FAMILIES) + coverage + build))) + 1, steps)
+    writer = CompactWriter(out, dims) if compact else DenseWriter(out, dims, int(np.ceil(n_scenes * (len(S.FAMILIES) + coverage + objects + build))) + 1, steps)
     check = fit or robots is not None
-    small = {k: [] for k in ("cheese_pos", "cheese_alive", "walls", "cheese_color", "gravity")}
+    small = {k: [] for k in ("cheese_pos", "cheese_alive", "walls", "cheese_color", "gravity") + (OBJECT_FIELDS if objects else ())}
     subgoals, swarm, instructions = [], [], []
     labels = open(out / "labels.jsonl", "w")
     attempts = open(out / "attempts.jsonl", "w")
     row, tried, kept = 0, {}, {}
     t0 = time.time()
-    for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced, coverage, build):
-        other = (lambda some: FreeCubeExpert(some, seed=run_seed, rule=rule)) if expert == "planner" else (lambda some: S.Expert(some, moves=MOVES[moves], seed=run_seed, rule=rule))
+    for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced, coverage, objects, build):
+        if objects:
+            from beebot.vla.voxel.objects import ObjectExpert
+
+            other = lambda some: ObjectExpert(some, moves=MOVES[moves], seed=run_seed, rule=rule)  # noqa: E731
+        elif expert == "planner":
+            other = lambda some: FreeCubeExpert(some, seed=run_seed, rule=rule)  # noqa: E731
+        else:
+            other = lambda some: S.Expert(some, moves=MOVES[moves], seed=run_seed, rule=rule)  # noqa: E731
         if any(task.family == "build" for task in tasks):
             from beebot.vla.voxel import build as B
 
@@ -161,6 +185,8 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
             small["walls"].append(world.walls[i])
             small["cheese_color"].append(world.cheese_color[i])
             small["gravity"].append(world.gravity[i])
+            for name in OBJECT_FIELDS if objects else ():
+                small[name].append(getattr(world, name)[i])
             subgoals.append(player.subgoals[i])
             swarm.append(n_robots)
             instructions.append(instruction_entries(task, steps))
@@ -173,7 +199,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         attempts.flush()
         print(f"{min(c + chunk, n_scenes)} scenes, {row} demos, {time.time() - t0:.0f} s; kept/tried {json.dumps({f: f'{kept.get(f, 0)}/{tried[f]}' for f in sorted(tried)})}", flush=True)
     writer.close()
-    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "build": build}
+    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "objects": objects, "build": build}
     torch.save({**{k: torch.stack(v) for k, v in small.items()}, "phases": [[] for _ in range(row)], "count": row, "robots": torch.tensor(swarm), "subgoals": subgoals, "instructions": instructions, "config": config}, out / "small.pt")
     (out / "done").write_text(str(row))
     return row
@@ -215,6 +241,7 @@ def main():
     parser.add_argument("--compact", action="store_true", help="store mass and actions by robot (play_store's compact format) instead of dense grids")
     parser.add_argument("--counts", choices=S.COUNTS, default="uniform", help="how the robot count is drawn over --robots; log makes small swarms as common as large ones")
     parser.add_argument("--coverage", type=float, default=0.0, help="coverage tasks (suite.sample_coverage: stay, selectors, switches, ...) per scene, drawn after the suite's own")
+    parser.add_argument("--objects", type=float, default=0.0, help="object tasks (objects.sample_objects: properties, blocks, zones, reasoning) per scene, drawn after the coverage tasks")
     parser.add_argument("--build", type=float, default=0.0, help="build tasks (voxel/build.py: build a named object or something for a use) per scene, drawn after the coverage tasks; they need long episodes (build.episode_steps), so give --steps")
     parser.add_argument("--fit", action="store_true", help="draw only tasks the scene's swarm can do, also without --robots (with --robots or --cube this is always on)")
     args = parser.parse_args()
@@ -228,7 +255,7 @@ def main():
     expert = args.expert or ("planner" if args.free_cube else "attractor")
     if expert == "planner" and rule is None:
         parser.error("--expert planner needs --rule")
-    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.build)
+    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.objects, args.build)
 
 
 if __name__ == "__main__":

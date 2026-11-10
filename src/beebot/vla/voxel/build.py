@@ -334,7 +334,7 @@ class BuildExpert(BuildSegments, S.Expert):
         super().__init__(tasks, moves=moves, seed=seed, rule=rule)
         self.frontier = {}  # scene -> (filled voxels, voxels placeable now)
 
-    def adjust(self, world, codes, segs, move_mask, generator=None):
+    def adjust_build(self, world, codes, segs, move_mask, generator=None):
         return self.crew(world, codes, segs, move_mask, generator)
 
 
