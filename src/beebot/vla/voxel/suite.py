@@ -32,7 +32,7 @@ from beebot.vla import tasks as T2
 from beebot.vla.shapes import FONT, text_mask
 from beebot.vla.voxel.controller import act
 from beebot.vla.voxel.facts import BLOB_SHARE, bridges, groups, shell_share, solid_grid, tallest_run
-from beebot.vla.voxel.world import CHEESE_SIDE, COLOUR_NAMES, EAT_MIN_SHARE, EAT_SHARE, FRICTION, FULL_SHELL, MAX_CHEESES, STAY, VoxelWorld, _face, cheese_id_map, fail_moves, sample_scenes, shell, step
+from beebot.vla.voxel.world import CHEESE_SIDE, COLOUR_NAMES, EAT_MIN_SHARE, EAT_SHARE, FRICTION, FULL_SHELL, MAX_CHEESES, STAY, VoxelWorld, _face, cheese_id_map, fail_moves, rule_moves, sample_scenes, shell, step
 
 SIZE = 16
 HELD_OUT = {
@@ -782,15 +782,17 @@ class Expert:
     segment holds to the end of the episode.
 
     moves: (27,) bool, the actions the robots can make (world.CUBE_MOVES for pivoting cubes; None
-    for all 27). seed: the expert's own random generator for tie-breaks and jitter (None: torch's
-    global one). subgoals[i] records what scene i's expert was after at every step, as entries
+    for all 27). rule: a pivot rule (world.RULES); the expert then chooses, each step, only among
+    the moves the rule lets each robot make from where it is. seed: the expert's own random
+    generator for tie-breaks and jitter (None: torch's global one). subgoals[i] records what scene i's expert was after at every step, as entries
     {"t": first step, "index": plan segment, "goal": its content} added whenever either changes:
     the action at step t was chosen under subgoal_at(subgoals[i], t). index is -1 with goal
     {"kind": "stay"} for a task with no plan, and len(plan) with {"kind": "done"} once the last
     eat or push segment is finished and the robots idle."""
 
-    def __init__(self, tasks, moves=None, seed=None):
+    def __init__(self, tasks, moves=None, seed=None, rule=None):
         self.tasks = tasks
+        self.rule = rule
         self.index = [0] * len(tasks)
         self.since = [0] * len(tasks)
         self.surround = {}
@@ -885,10 +887,12 @@ class Expert:
             return pts, None, sum(caps)
         raise ValueError(kind)
 
-    def __call__(self, world, t, generator=None):
-        b = len(self.tasks)
+    def segments(self, world, t):
+        """Advance every scene's plan to step t and note its sub-goal. Returns, per scene, the
+        target points, the press ((cheese, direction) or None), the cap on taking part (None: all
+        robots) and the segment in force (None when the robots idle)."""
         shells = shell(world)
-        lists, presses, caps = [], [], []
+        lists, presses, caps, segs = [], [], [], []
         for i, task in enumerate(self.tasks):
             plan = task.plan
             if not plan:
@@ -896,6 +900,7 @@ class Expert:
                 lists.append([])
                 presses.append(None)
                 caps.append(None)
+                segs.append(None)
                 continue
             seg = plan[self.index[i]]
             while self.index[i] < len(plan) - 1 and (self.done(i, seg, world) or self.since[i] >= SEGMENT_STEPS):
@@ -908,12 +913,20 @@ class Expert:
                 lists.append([])
                 presses.append(None)
                 caps.append(None)
+                segs.append(None)
                 continue
             self.note(i, t, self.index[i], self.describe(i, seg, world))
             pts, press, cap = self.targets_of(i, seg, world, shells)
             lists.append(pts)
             presses.append(press)
             caps.append(cap)
+            segs.append(seg)
+        return lists, presses, caps, segs
+
+    def tensors(self, lists, presses):
+        """The controller's inputs from per-scene target lists and presses: targets (B, S, 3),
+        valid (B, S), press_cheese (B,), press_dir (B, 3)."""
+        b = len(self.tasks)
         s = max(1, max(len(p) for p in lists))
         targets = torch.zeros(b, s, 3, dtype=torch.long)
         valid = torch.zeros(b, s, dtype=torch.bool)
@@ -926,7 +939,14 @@ class Expert:
             if press is not None:
                 press_cheese[i] = press[0]
                 press_dir[i] = torch.tensor(press[1])
+        return targets, valid, press_cheese, press_dir
+
+    def __call__(self, world, t, generator=None):
+        lists, presses, caps, _ = self.segments(world, t)
+        targets, valid, press_cheese, press_dir = self.tensors(lists, presses)
         allowed = None if self.moves is None else self.moves.unsqueeze(0).expand(int((world.mass > 0.5).sum()), -1)
+        if self.rule is not None:
+            allowed = rule_moves(world, self.rule) if allowed is None else rule_moves(world, self.rule) & allowed
         codes = act(world, targets, valid, press_cheese, press_dir, generator=self.generator if generator is None else generator, allowed=allowed)
         for i, (pts, cap) in enumerate(zip(lists, caps)):
             if cap is None or not pts:
@@ -940,11 +960,12 @@ class Expert:
         return codes
 
 
-def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, failure=None):
+def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, failure=None, rule=None):
     """Roll out a batch: actor(world, t) -> action codes (B, D, H, W). Returns per episode
     (score, unasked), and with record the store arrays (mass, actions, cheese_pos, cheese_alive)
     of the episodes. failure: (27,) per-action probability that a robot's move does not happen
-    this step (world.failure_rates); the recorded action stays the one the actor chose."""
+    this step (world.failure_rates); the recorded action stays the one the actor chose. rule: a
+    pivot rule (world.RULES) the world enforces: a move it forbids does not happen either."""
     generator = torch.Generator().manual_seed(seed)
     failures = torch.Generator().manual_seed(seed + 7_919)
     runners = torch.zeros(world.cheese_alive.shape, dtype=torch.bool)
@@ -957,7 +978,7 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, f
         codes = actor(world, t)
         before = world.cheese_alive.clone()
         effective_codes = codes if failure is None else fail_moves(codes, failure, failures)
-        world, _ = step(world, effective_codes.long(), torch.rand(world.mass.shape, generator=generator))
+        world, _ = step(world, effective_codes.long(), torch.rand(world.mass.shape, generator=generator), rule)
         if runners.any() and (t + 1) % RUNNER_PERIOD == 0:
             world = replace(world, cheese_pos=flee(world, runners))
         for i, k in (before & ~world.cheese_alive).nonzero().tolist():
