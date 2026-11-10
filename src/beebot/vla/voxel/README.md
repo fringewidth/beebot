@@ -1331,7 +1331,7 @@ pixels register to voxels from any viewpoint.
    passive block. Food is channel 6, or every object of a 6-channel observation.
 
 **Randomizations.** Each group has a strength in [0, 1]: its own `ViewSpec` field, or None to
-use the global `spec.strength` (`DEFAULT_STRENGTH`, 0.5). Strength 0 gives the clean value. The
+use the global `spec.strength` (`DEFAULT_STRENGTH`, 0.75). Strength 0 gives the clean value. The
 ranges below are at strength s and shrink linearly to the clean value; a probability p means
 p * s. Any item can be turned off by name: `ViewSpec(off={"jpeg"})`.
 
@@ -1409,6 +1409,34 @@ hardware would:
 1. `--qwen` asks Qwen3.5-4B the probe questions zero-shot under each setting:
    `runs/views/qwen.txt`.
 1. `--speed` times rendering: `runs/views/speed.txt`.
+
+Zero-shot Qwen3.5-4B (bf16, MPS, greedy) on both views. There are 30 items per probe and
+setting, so one item is 0.033 and a standard error is about 0.08. Run on 2026-11-10
+(`runs/views/qwen.txt`, items in `runs/views/qwen.jsonl`):
+
+| setting | strength | colours | letters | shapes | mean |
+| --- | --- | --- | --- | --- | --- |
+| clean | 0 | 0.90 | 0.63 | 0.63 | 0.72 |
+| s25 | 0.25 | 0.83 | 0.33 | 0.67 | 0.61 |
+| medium | 0.5 | 0.77 | 0.33 | 0.73 | 0.61 |
+| s75 | 0.75 | 0.77 | 0.50 | 0.77 | 0.68 |
+| strong | 1 | 0.70 | 0.33 | 0.73 | 0.59 |
+
+1. **Shapes do not depend on strength.** They stay at 0.63-0.77 across all settings. The old
+   isometric renderer scored 0.68.
+1. **Colours fall slowly.** They read 0.90 clean (the old renderer: 0.85; white on the light
+   floor is no longer missed), then 0.77 at 0.5 and 0.75, and 0.70 at 1. Of the 31 colour
+   errors, 22 only add a colour that is not in the scene (mostly yellow, green or pink): the
+   model names terrain, table or noise colours as cheeses. The other 9 miss a colour. In 4 an
+   orange cheese is read as yellow (at 0.5 and 1), 4 miss a white cheese (from 0.25 up), and 1
+   misses purple.
+1. **Letters depend on the camera's side, not on strength.** The azimuth is drawn from all four
+   sides at any strength above 0, so a letter on the floor is usually seen turned or upside
+   down. Over the four randomized settings, front views score 16/26 (0.62, like clean). Back
+   views score 15/42 and left and right views 14/52.
+1. **Default.** The default is 0.75, the strongest strength at which colours and shapes stay at
+   the 0.5 level. At strength 1, colours drop a further 0.07. Zero-shot readability is a floor:
+   training on these views teaches the model what counts as an object.
 
 ## Think-then-act scorecard (`rollout.py`, `scorecard.py`)
 
