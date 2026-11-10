@@ -2,15 +2,16 @@
 distilling the frozen original LM on general text so the policy keeps its language.
 
     python -m beebot.vla.voxel.think_train --name vox-think --stores S1,S2 --haiku_dirs H1 --device cuda
-    torchrun --standalone --nproc_per_node 2 -m beebot.vla.voxel.think_train ...      # Kaggle's two T4s
+    torchrun --standalone --nproc_per_node 2 -m beebot.vla.voxel.think_train ...      # two GPUs
     python -m beebot.vla.voxel.think_train --name think-smoke --data fake --device mps --steps 40 \\
         --distill_weight 0 --val_every_minutes 1                                       # a Mac smoke run
 
 A step: `accumulate` micro-batches of `batch` examples on every process (text and action losses,
-think.py), one distillation batch of general text (KL to the frozen original; for LoRA the LM with
-its adapters off), gradients averaged over processes, clipped to norm 1, AdamW with one learning
-rate for the LM's weights and another for the new ones (scene and slot embeddings, positions,
-readout), linear warmup then cosine down to min_lr_ratio over `steps`.
+think.py; the step's examples sorted by length before they are split into micro-batches, so each
+micro-batch pads little), one distillation batch of general text (KL to the frozen original; for
+LoRA the LM with its adapters off), gradients averaged over processes, clipped to norm 1, AdamW
+with one learning rate for the LM's weights and another for the new ones (scene and slot
+embeddings, positions, readout), linear warmup then cosine down to min_lr_ratio over `steps`.
 
 No rollouts and no scorecards here (the Mac scores the checkpoints): every val_every_minutes the
 held-out losses on ThinkData.validation, every save_every_minutes a step-named checkpoint
@@ -19,8 +20,15 @@ the policy) and runs/<name>/resume.pt (fp32 weights, optimizer and scaler state,
 Progress lines are JSON on stdout and in runs/<name>/history.jsonl.
 
 Precision (--precision auto): CUDA with bf16 (compute capability 8+, e.g. GH200) bf16 autocast;
-older CUDA (T4) fp16 autocast with a gradient scaler; MPS and CPU fp32. Weights and optimizer state
-stay fp32 throughout.
+older CUDA (T4) fp16 autocast with a gradient scaler; MPS and CPU fp32. The LM's weights and the
+optimizer state are fp32 unless --weights_dtype bf16 (the LM stored in bf16: for LoRA or frozen
+parts, or to fit a large LM; full fine-tuning on bf16 weights loses small updates). The new weights
+are always fp32.
+
+Vision-language LMs (Qwen3.5): the examples' images go through the vision encoder (frozen unless
+--train_vision; its projector trains unless --train_projector false). For hybrid LMs the log says
+which linear-attention kernels are in use (fla and causal_conv1d when installed, else transformers'
+torch fallback).
 
 On several GPUs (torchrun) every process trains on its own examples; process 0 keeps the clock
 (stop, validation and saving) and broadcasts it, validates and saves while the others wait.
@@ -43,28 +51,31 @@ import torch.distributed as dist
 
 from beebot.train import parse_config
 from beebot.vla.lm_train import distill_loss, general_text, setup_distributed
-from beebot.vla.voxel.think import ThinkVoxelPolicy, checkpoint_meta, trainable_state
+from beebot.vla.voxel.think import ThinkVoxelPolicy, checkpoint_meta, linear_attention_kernels, load_lm, trainable_state
 from beebot.vla.voxel.world import N_CHANNELS
 
 
 @dataclass
 class ThinkConfig:
     name: str = "vox-think"
-    model: str = "Qwen/Qwen3-0.6B"  # from the local Hugging Face cache (Qwen/Qwen3-4B for the large run)
+    model: str = "Qwen/Qwen3.5-4B"  # from the local Hugging Face cache: a vision-language LM (Qwen3.5) or a text LM (Qwen3)
     data: str = "think"  # "think": think_data.ThinkData; "fake": think_fake.FakeThinkData (smoke runs, throughput)
     stores: str = ""  # comma-separated demonstration stores for ThinkData
     haiku_dirs: str = ""  # comma-separated Haiku label directories for ThinkData
-    data_kwargs: str = "{}"  # JSON: further ThinkData keyword arguments
+    data_kwargs: str = "{}"  # JSON: further ThinkData (or FakeThinkData) keyword arguments
     val_seed: int = 0
     val_examples: int = 256
     channels: int = N_CHANNELS
     lora_rank: int = 0  # 0: full fine-tuning
-    train_embeddings: bool = False  # also train the token embeddings (tied to the output head in Qwen3 0.6B and 4B)
+    train_embeddings: bool = False  # also train the token embeddings (tied to the output head in Qwen3 and Qwen3.5-4B)
+    train_vision: bool = False  # vision-language LMs: train the vision encoder
+    train_projector: bool = True  # vision-language LMs: train the vision projector (merger)
+    weights_dtype: str = "fp32"  # the LM's weights: fp32 or bf16
     init: str = ""  # weights to start from: a think checkpoint or any dict of policy weights (matching names load, the rest stay)
     resume: str = ""  # a resume.pt: weights, optimizer, scaler and step
     batch: int = 16  # examples per micro-batch per process
     accumulate: int = 1  # micro-batches per optimizer step
-    pack_length: int = 0  # > 0: pack examples into rows of at most this many tokens; 0: one example per row
+    bucket: bool = True  # sort each step's examples by length before splitting them into micro-batches
     text_weight: float = 1.0
     action_weight: float = 1.0
     ce_chunk: int = 512  # reply positions per chunk of vocabulary-wide logits
@@ -86,7 +97,7 @@ class ThinkConfig:
     val_every_minutes: float = 30.0
     save_every_minutes: float = 60.0
     save_resume: bool = True
-    prefetch: int = 4  # batches made ahead by a background thread; 0: in the training loop
+    prefetch: int = 4  # steps of examples made ahead by a background thread; 0: in the training loop
     device: str = "cuda"
     seed: int = 0
 
@@ -113,16 +124,17 @@ def make_data(cfg, tokenizer):
 
 
 class Prefetch:
-    """Batches of examples made by a background thread, depth ahead (depth 0: made on demand)."""
+    """Each step's examples (count of them) as prepared rows, made by a background thread depth
+    steps ahead (depth 0: made on demand). Tokenizing and image processing happen there too."""
 
-    def __init__(self, data, batch, rng, depth):
-        self.data, self.batch, self.rng = data, batch, rng
+    def __init__(self, data, prepare, count, rng, depth):
+        self.data, self.prepare, self.count, self.rng = data, prepare, count, rng
         self.queue = queue.Queue(depth) if depth else None
         if depth:
             threading.Thread(target=self.fill, daemon=True).start()
 
     def make(self):
-        return [self.data.sample(self.rng) for _ in range(self.batch)]
+        return [self.prepare(self.data.sample(self.rng)) for _ in range(self.count)]
 
     def fill(self):
         try:
@@ -171,8 +183,6 @@ def lr_factor(step, cfg):
 
 
 def run():
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-
     t_start = time.time()
     cfg = parse_config(ThinkConfig)
     rank, world, device = setup_distributed(cfg)
@@ -188,19 +198,21 @@ def run():
     if lead:
         run_dir.mkdir(parents=True, exist_ok=True)
         (run_dir / "config.json").write_text(json.dumps({**asdict(cfg), "world": world, "precision_used": precision}, indent=1))
-    tokenizer = AutoTokenizer.from_pretrained(cfg.model, local_files_only=True)
-    lm = AutoModelForCausalLM.from_pretrained(cfg.model, dtype=torch.float32, local_files_only=True)
+    lm, tokenizer, image_processor = load_lm(cfg.model, {"fp32": torch.float32, "bf16": torch.bfloat16}[cfg.weights_dtype])
     teacher = None  # LoRA: the student with its adapters off is the original model
     if cfg.distill_weight > 0 and not cfg.lora_rank:
-        teacher = copy.deepcopy(lm).to(device, amp_dtype or torch.float32).eval()
+        teacher = copy.deepcopy(lm)
+        if hasattr(teacher.model, "visual"):
+            del teacher.model.visual  # distillation is on text alone
+        teacher = teacher.to(device, amp_dtype or lm.dtype).eval()
         for p in teacher.parameters():
             p.requires_grad_(False)
-    policy = ThinkVoxelPolicy(lm, tokenizer, lora_rank=cfg.lora_rank, freeze_embeddings=not cfg.train_embeddings, channels=cfg.channels, text_weight=cfg.text_weight, action_weight=cfg.action_weight, pack_length=cfg.pack_length, ce_chunk=cfg.ce_chunk)
+    policy = ThinkVoxelPolicy(lm, tokenizer, image_processor, lora_rank=cfg.lora_rank, freeze_embeddings=not cfg.train_embeddings, train_vision=cfg.train_vision, train_projector=cfg.train_projector, channels=cfg.channels, text_weight=cfg.text_weight, action_weight=cfg.action_weight, ce_chunk=cfg.ce_chunk)
     if cfg.init:
         saved = torch.load(cfg.init, map_location="cpu")
         weights = saved.get("weights", saved)
         own = dict(policy.named_parameters())
-        matching = {k: v.float() for k, v in weights.items() if k in own and own[k].shape == v.shape}
+        matching = {k: v.to(own[k].dtype) for k, v in weights.items() if k in own and own[k].shape == v.shape}
         assert matching, f"init: no matching weights in {cfg.init}"
         policy.load_state_dict(matching, strict=False)
         stage(f"init from {cfg.init}: {len(matching)} of {len(weights)} tensors")
@@ -224,11 +236,14 @@ def run():
     if world > 1:
         for p in params:
             dist.broadcast(p.data, 0)
-    stage(f"trainable: {sum(p.numel() for p in groups[1]['params']) / 1e6:.2f}M new, {sum(p.numel() for p in groups[0]['params']) / 1e6:.1f}M in the LM; precision {precision}; {world} process(es) x {cfg.batch} x {cfg.accumulate} examples per step")
+    stage(f"trainable: {sum(p.numel() for p in groups[1]['params']) / 1e6:.2f}M new, {sum(p.numel() for p in groups[0]['params']) / 1e6:.1f}M in the LM; precision {precision}, LM weights {cfg.weights_dtype}; {world} process(es) x {cfg.batch} x {cfg.accumulate} examples per step")
+    kernels = linear_attention_kernels(lm)
+    if kernels:
+        stage(f"linear-attention kernels: {json.dumps(kernels)}")
 
     data = make_data(cfg, tokenizer)
-    batches = Prefetch(data, cfg.batch, np.random.default_rng((cfg.seed, rank, step)), cfg.prefetch)
-    val_set = data.validation(cfg.val_examples, cfg.val_seed) if lead else None
+    batches = Prefetch(data, policy.prepare_example, cfg.batch * cfg.accumulate, np.random.default_rng((cfg.seed, rank, step)), cfg.prefetch)
+    val_set = sorted((policy.prepare_example(e) for e in data.validation(cfg.val_examples, cfg.val_seed)), key=lambda p: p.length) if lead else None
     text_stream = None
     if cfg.distill_weight > 0:
         text_cfg = SimpleNamespace(general=cfg.general, lm_length=cfg.lm_length, gsm8k_share=0.1, instruct_share=0.3, seed=cfg.seed, gsm8k_problems=0)
@@ -244,6 +259,9 @@ def run():
         print(json.dumps(row), flush=True)
         history.write(json.dumps(row) + "\n")
         history.flush()
+
+    if lead and kernels:
+        log({"step": step, "linear_attention_kernels": kernels})
 
     @torch.no_grad()
     def validate():
@@ -301,12 +319,14 @@ def run():
         for g, lr in zip(optimizer.param_groups, base_lrs):
             g["lr"] = lr * lr_factor(step, cfg)
         optimizer.zero_grad(set_to_none=True)
-        for _ in range(cfg.accumulate):
-            t_wait = time.time()
-            examples = batches.next()
-            counts["wait"] += time.time() - t_wait
+        t_wait = time.time()
+        rows = batches.next()
+        counts["wait"] += time.time() - t_wait
+        if cfg.bucket:
+            rows = sorted(rows, key=lambda p: p.length)
+        for k in range(cfg.accumulate):
             with autocast():
-                out = policy(examples)
+                out = policy(rows[k * cfg.batch : (k + 1) * cfg.batch])
             scaler.scale(out["loss"] / cfg.accumulate).backward()
             for key in ("loss", "text", "action"):
                 window[key].append(out[key].item())
