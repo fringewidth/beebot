@@ -205,8 +205,10 @@ def local_scene_summary(world, i):
     return {"gravity": bool(world.gravity[i]), "terrain": terrain, "robots": robots, "cheeses": cheeses}
 
 
-# The switch to the suite's own versions: canonical_record, scene_summary = S.canonical_record, S.scene_summary
-canonical_record, scene_summary = local_canonical_record, local_scene_summary
+# The suite's own versions: the same records for the six families (tests/test_vla_voxel_coverage.py
+# checks it against the stand-ins above), records for the coverage families, and the scene with its
+# robots' groups, towers and robots standing on robots added.
+canonical_record, scene_summary = S.canonical_record, S.scene_summary
 
 LOCAL_NOTES = {
     "eat": "eat: colours that must all be eaten. any_of: eat one of these (either/or). order: the colours in the order they must be eaten, only when the order matters, else []. No other cheese may be eaten; an instruction to eat nothing has all three lists empty.",
@@ -239,7 +241,7 @@ def store_options(store):
 
     config = torch.load(Path(store) / "small.pt", map_location="cpu", weights_only=False)["config"]
     attempts = [json.loads(line) for line in (Path(store) / "attempts.jsonl").read_text().splitlines() if line.strip()]
-    options = {"seed": config["seed"], "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart"))}
+    options = {"seed": config["seed"], "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart")), "coverage": float(config.get("coverage", 0.0))}
     return options, attempts
 
 
@@ -252,7 +254,7 @@ def drawn_items(options, limit, attempts=None, keep=None):
     scenes = 10**9  # full chunks until the limit or the store's attempts run out
     index = 0
     out = []
-    for _, world, _, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart"))):
+    for _, world, _, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart")), float(options.get("coverage", 0.0))):
         for i, task in enumerate(tasks):
             e = None
             if attempts is not None:
@@ -1193,6 +1195,7 @@ def options_of(args):
         "fit": args.fit,
         "rule": args.rule or ("free_cube" if args.free_cube else None),
         "apart": args.apart,
+        "coverage": getattr(args, "coverage", 0.0),
     }
 
 
@@ -1249,6 +1252,7 @@ def main(argv=None):
     parser.add_argument("--fit", action="store_true")
     parser.add_argument("--rule", default=None)
     parser.add_argument("--apart", action="store_true")
+    parser.add_argument("--coverage", type=float, default=0.0, help="as demos --coverage: coverage tasks (suite.sample_coverage) per scene, after the suite's own")
     parser.add_argument("--cube", action="store_true", help="as demos --cube: robots in suite.ROBOTS")
     parser.add_argument("--free-cube", action="store_true", help="as demos --free-cube: --cube and --rule free_cube")
     parser.add_argument("--store", default=None, help="export: a demo store to join to; its options are read from small.pt and only its kept episodes exported")
