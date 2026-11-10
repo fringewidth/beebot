@@ -473,6 +473,49 @@ where they are.
 | at the same time (two jobs) | "half of you go left, the other half build a tower" | exists (parallel) |
 | only N / at most N robots | "use only 3 robots" | added as the count selector |
 
+### What the expert does on them
+
+The coverage jobs run through the suite's `Expert` as one `{"kind": "job"}` plan segment.
+`JobSetup` makes a job concrete on the scene as the job starts: which robots take part (a count
+selector takes the N nearest where the job goes, and targets no voxel a robot started on, since
+the checker counts the robots off their start voxels), which are frozen (they stay, jitter or
+not), and the target voxels (piles grown outward and up from a floor point, a ring at distance
+1 to 3 from a cheese, one level row, the shape shifted three cells, piles around the centres of
+two or three far-apart regions, a 2 x 2 column). Spreading and following are recomputed every
+step. Robots on a target of a line or a spread hold still (`HOLD_STILL`); elsewhere the jitter
+stays, since a ring or pile needs it to let the last robots in. When the targets stand on raised
+ground at least 3 high, robots that are neither up there nor at the foot of its cliff go to the
+foot first (`JobSetup.detour`): the greedy controller never steps down a cliff by itself.
+
+```
+PYTHONPATH=src OMP_NUM_THREADS=4 python scripts/vla_voxel_coverage.py --scenes 144 --out runs/coverage/expert.jsonl
+```
+
+144 fresh scenes per family and arm (seed 777, not a seed the tests or the pinned draws use).
+Cells are mean checker score / share passed (score at least 0.75 and nothing forbidden eaten), as
+`demos` keeps a demonstration. default: all 27 moves, 48 steps, 51 to 115 robots. cube: `demos
+--cube` (14 moves, 72 steps, 6 to 115 robots log-uniform, failures 0.15). switch: cube with
+`--rule switch_cube`, gravity on everywhere: the training set-up. Table and rows in
+`runs/coverage/expert.{txt,jsonl}`.
+
+| | default | cube | switch |
+| --- | --- | --- | --- |
+| motion | 0.91 / 0.83 | 0.95 / 0.93 | 0.95 / 0.92 |
+| subset | 0.78 / 0.69 | 0.92 / 0.89 | 0.92 / 0.88 |
+| switch | 0.89 / 0.79 | 0.95 / 0.92 | 0.95 / 0.92 |
+
+The suite's own families under the same arms passed 0.79 (cube) and 0.71 (switch) in the free-cube
+comparison above. Per kind under `switch_cube` (n): stay 1.00 (20), goto 1.00 (18), approach 1.00
+(19), follow 0.94 (16), gather 0.85 (13), groups 0.95 (19), line 0.86 (21), climb 0.77 (13), spread
+0.75 (4); selected robots: goto 0.86 to 1.00, approach 0.71 to 0.90, line 0.80 to 1.00, climb
+(N of you) 0.80, move 0.80 to 1.00, groups (one group splits) 0.70, spread 0.67 to 1.00, tower
+1.00 (4); switch episodes scored on the second instruction: then stay 1.00 (80), then gather 1.00
+(19), then goto 0.91 (33), then spread 0.33 (12). Weak spots: spreading a large swarm that a first
+instruction has just packed together (close to the floor's capacity of spaced cells), large
+swarms climbing a plateau in 72 steps (scores still rising at the end), and eating by a selected
+group in 48 steps (default arm 0.11 of 9; the cube arms drew none, since a group of 30 robots is
+rare in log-uniform swarms). A failed attempt costs nothing but its row: demos keeps passes only.
+
 ### Drawing them into demonstrations and labels
 
 `demos --coverage F` (and `haiku.py export --coverage F`) adds round(F x scenes) coverage tasks
