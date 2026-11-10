@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swarm 3D</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07090c;
+    --panel: #0d1116;
+    --ink: #d9e2ea;
+    --muted: #6c7a87;
+    --faint: #2a333d;
+    --accent: #9fe7ff;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; font-weight: 300; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; overflow-x: hidden; }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 40%, rgba(80, 140, 170, 0.07), transparent 60%); }
+  .frame { width: min(640px, 100%, max(300px, calc(100vh - 280px))); position: relative; }
+  .bar { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; white-space: nowrap; }
+  .bar .name { color: var(--ink); }
+  button { background: none; border: none; color: var(--muted); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; padding: 0; }
+  .bar button { padding-left: 14px; }
+  .bar button:hover, .modes button:hover { color: var(--ink); }
+  .stage { position: relative; width: 100%; aspect-ratio: 1; border: 1px solid var(--faint); border-radius: 4px; background: var(--panel); overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+  .stage.dragging { cursor: grabbing; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .corner { position: absolute; width: 10px; height: 10px; border-color: rgba(159, 231, 255, 0.35); border-style: solid; pointer-events: none; }
+  .tl { top: 6px; left: 6px; border-width: 1px 0 0 1px; } .tr { top: 6px; right: 6px; border-width: 1px 1px 0 0; }
+  .bl { bottom: 6px; left: 6px; border-width: 0 0 1px 1px; } .br { bottom: 6px; right: 6px; border-width: 0 1px 1px 0; }
+  /* thoughts: the newest line is typed out at the bottom, older ones fade above it */
+  .scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 38%; pointer-events: none; background: linear-gradient(transparent, rgba(7, 9, 12, 0.78)); opacity: 0; transition: opacity 0.8s; }
+  .scrim.on { opacity: 1; }
+  .thoughts { position: absolute; left: 18px; right: 18px; bottom: 16px; display: flex; flex-direction: column; gap: 5px; pointer-events: none; transition: opacity 1.6s; }
+  .thoughts.quiet { opacity: 0.4; }
+  .thoughts div { font-size: 14px; line-height: 1.35; color: var(--ink); transition: opacity 0.9s; overflow-wrap: anywhere; text-shadow: 0 0 8px rgba(7, 9, 12, 0.9); }
+  .thoughts .question { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
+  .thoughts .question::before { content: "? "; color: var(--accent); opacity: 0.7; }
+  .thoughts .answer { font-family: var(--mono); font-size: 12.5px; color: var(--accent); padding-left: 10px; border-left: 1px solid rgba(159, 231, 255, 0.45); }
+  .thoughts .typing::after { content: ""; display: inline-block; width: 6px; height: 0.95em; margin-left: 3px; vertical-align: -2px; background: var(--accent); opacity: 0.7; animation: pulse 0.9s steps(2) infinite; }
+  .status { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 10px; min-height: 16px; letter-spacing: 0.06em; }
+  .status > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--faint); margin-right: 8px; vertical-align: 1px; }
+  .running .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  #events { white-space: nowrap; }
+  #events span { margin-left: 12px; animation: fade 2.6s forwards; }
+  @keyframes fade { 0% { opacity: 0; } 10% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+  .modes { margin-top: 16px; display: flex; gap: 16px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .modes button { padding: 2px 0; border-bottom: 1px solid transparent; }
+  .modes button.on { color: var(--ink); border-color: rgba(159, 231, 255, 0.5); }
+  form { margin-top: 2px; display: flex; align-items: center; border-bottom: 1px solid var(--faint); transition: border-color 0.3s; }
+  form:focus-within { border-color: rgba(159, 231, 255, 0.5); }
+  form .prompt { font-family: var(--mono); color: var(--accent); margin-right: 10px; opacity: 0.8; width: 9px; }
+  input { flex: 1; background: none; border: none; outline: none; color: var(--ink); font: 400 17px/1.2 Inter, system-ui, sans-serif; padding: 12px 0; min-width: 0; }
+  input::placeholder { color: #4a5663; }
+  .hint { margin-top: 12px; font-size: 14px; color: var(--muted); min-height: 20px; }
+  .hint button { font: inherit; letter-spacing: 0; text-transform: none; color: var(--ink); border-bottom: 1px dotted var(--muted); text-align: left; }
+  .hint button:hover { color: var(--accent); border-color: var(--accent); }
+  .note { margin-top: 26px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: #3c4651; text-align: center; padding: 0 16px; max-width: 640px; }
+  .message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.1em; pointer-events: none; text-align: center; padding: 0 16px; }
+  .message.down { flex-direction: column; gap: 10px; background: rgba(6, 8, 12, 0.84); color: #c9d3e0; font-size: 13px; z-index: 3; }
+  .message.down small { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+  @media (max-width: 480px) { .thoughts div { font-size: 13px; } .thoughts { left: 14px; right: 14px; bottom: 14px; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="frame">
+  <div class="bar"><span class="name">Swarm &middot; 3D</span><span><span id="units">&mdash;</span><button id="sound" type="button">sound off</button><button id="reset" type="button">new field</button></span></div>
+  <div class="stage" id="stage">
+    <canvas id="view"></canvas>
+    <div class="scrim" id="scrim"></div>
+    <div class="thoughts" id="thoughts" aria-live="polite"></div>
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+    <div class="message" id="message">connecting</div>
+  </div>
+  <div class="status" id="status"><span><span class="dot"></span><span id="state">idle</span></span><span id="events"></span></div>
+  <div class="modes"><button id="mode-command" type="button" class="on">command</button><button id="mode-ask" type="button">ask</button></div>
+  <form id="form" autocomplete="off"><span class="prompt" id="prompt">&rsaquo;</span><input id="input" maxlength="140" placeholder="tell the swarm what to do" aria-label="Instruction"></form>
+  <div class="hint" id="hint"></div>
+</div>
+<div class="note" id="note"></div>
+<script>
+  // if the renderer never arrives (the CDN is unreachable), say so instead of "connecting" forever
+  setTimeout(() => { if (!window.swarmReady) document.getElementById("message").textContent = "could not load the 3D renderer"; }, 9000);
+</script>
+<script type="module">
+import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), view = $("view");
+let N = 16, sid = null, palette = null, ready = false;
+let prev = [], curr = [], lastT = -1, tickAt = 0, tickGap = 200, after = 0, gravity = true;
+try { sid = localStorage.getItem("voxel-sid"); } catch (e) {}
+
+// --- scene: x right, y up (the world's z), z toward the viewer (the world's y) ---
+const renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, alpha: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(34, 1, 1, 200);
+scene.add(new THREE.HemisphereLight(0xcfe6f5, 0x0a0e13, 1.1));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5); sun.position.set(7, 16, 9); scene.add(sun);
+const at = (z, y, x) => [x - N / 2 + 0.5, z + 0.5, y - N / 2 + 0.5];
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(N, N), new THREE.MeshStandardMaterial({ color: 0x161c23, roughness: 1 }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const lines = new THREE.GridHelper(N, N, 0x202a33, 0x1a222a); lines.position.y = 0.01; scene.add(lines);
+const cage = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(N, N, N)), new THREE.LineBasicMaterial({ color: 0x9fe7ff, transparent: true, opacity: 0.07 }));
+cage.position.y = N / 2; scene.add(cage);
+
+const terrain = new THREE.InstancedMesh(new THREE.BoxGeometry(0.95, 0.95, 0.95), new THREE.MeshStandardMaterial({ color: 0x35424f, roughness: 0.92 }), N * N * 8);
+terrain.count = 0; scene.add(terrain);
+const MAX = 256;
+const cubes = new THREE.InstancedMesh(new RoundedBoxGeometry(0.84, 0.84, 0.84, 2, 0.13), new THREE.MeshStandardMaterial({ color: 0xa9cbd9, emissive: 0x9fe7ff, emissiveIntensity: 0.1, roughness: 0.42, metalness: 0.05 }), MAX);
+cubes.count = 0; cubes.frustumCulled = false; scene.add(cubes);
+
+function halo() {  // a soft round sprite, drawn once
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d"), fill = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  fill.addColorStop(0, "rgba(255,255,255,1)"); fill.addColorStop(0.35, "rgba(255,255,255,0.35)"); fill.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = fill; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const soft = halo();
+const glowAt = new THREE.BufferAttribute(new Float32Array(MAX * 3), 3); glowAt.setUsage(THREE.DynamicDrawUsage);
+const glowGeometry = new THREE.BufferGeometry(); glowGeometry.setAttribute("position", glowAt); glowGeometry.setDrawRange(0, 0);
+const glow = new THREE.Points(glowGeometry, new THREE.PointsMaterial({ map: soft, color: 0x9fe7ff, size: 3, sizeAttenuation: true, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
+glow.frustumCulled = false; scene.add(glow);
+
+const cheeseGeometry = new RoundedBoxGeometry(1.86, 1.86, 1.86, 3, 0.3);
+const cheeses = [0, 1, 2].map(() => {  // one per slot: the block and its glow
+  const mesh = new THREE.Mesh(cheeseGeometry, new THREE.MeshStandardMaterial({ roughness: 0.5, emissiveIntensity: 0.5 }));
+  const shine = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
+  shine.scale.set(7, 7, 1); mesh.add(shine); mesh.visible = false; scene.add(mesh);
+  return { mesh, shine, from: new THREE.Vector3(), to: new THREE.Vector3(), alive: false, size: 0 };
+});
+
+function buildTerrain(heights) {
+  const m = new THREE.Matrix4(); let n = 0;
+  for (let i = 0; i < N * N; i++) {
+    const h = parseInt(heights[i], 16), y = Math.floor(i / N), x = i % N;
+    for (let z = 0; z < h; z++) { m.setPosition(...at(z, y, x)); terrain.setMatrixAt(n++, m); }
+  }
+  terrain.count = n; terrain.instanceMatrix.needsUpdate = true;
+}
+function robotsOf(text) {
+  const out = [];
+  for (let i = 0; i + 2 < text.length; i += 3) out.push(at(parseInt(text[i], 16), parseInt(text[i + 1], 16), parseInt(text[i + 2], 16)));
+  return out;
+}
+
+// --- camera: orbits slowly; drag to turn, pinch or wheel to zoom ---
+const orbit = { az: 0.7, el: 0.5, dist: 37, touched: -1e9 };
+const pointers = new Map(); let pinch = 0;
+stage.addEventListener("pointerdown", (e) => { pointers.set(e.pointerId, [e.clientX, e.clientY]); stage.setPointerCapture(e.pointerId); stage.classList.add("dragging"); pinch = 0; });
+stage.addEventListener("pointermove", (e) => {
+  const was = pointers.get(e.pointerId); if (!was) return;
+  pointers.set(e.pointerId, [e.clientX, e.clientY]); orbit.touched = performance.now();
+  if (pointers.size === 1) {
+    orbit.az -= (e.clientX - was[0]) * 0.008;
+    orbit.el = Math.max(0.1, Math.min(1.4, orbit.el + (e.clientY - was[1]) * 0.006));
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()], gap = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (pinch) orbit.dist = Math.max(20, Math.min(70, orbit.dist * pinch / gap));
+    pinch = gap;
+  }
+});
+const release = (e) => { pointers.delete(e.pointerId); pinch = 0; if (!pointers.size) stage.classList.remove("dragging"); };
+stage.addEventListener("pointerup", release); stage.addEventListener("pointercancel", release);
+stage.addEventListener("wheel", (e) => { e.preventDefault(); orbit.dist = Math.max(20, Math.min(70, orbit.dist * Math.exp(e.deltaY * 0.0012))); orbit.touched = performance.now(); }, { passive: false });
+
+const dummy = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0), axis = new THREE.Vector3();
+let lastFrame = performance.now(), frames = 0, fpsAt = performance.now();
+function draw(now) {
+  requestAnimationFrame(draw);
+  const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+  frames++; if (now - fpsAt >= 1000) { window.swarmFps = frames * 1000 / (now - fpsAt); frames = 0; fpsAt = now; }
+  const w = stage.clientWidth, h = stage.clientHeight;
+  if (view.width !== Math.round(w * renderer.getPixelRatio())) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  if (!pointers.size && now - orbit.touched > 2500) orbit.az += dt * 0.07;
+  const flat = Math.cos(orbit.el) * orbit.dist;
+  camera.position.set(Math.sin(orbit.az) * flat, 3 + Math.sin(orbit.el) * orbit.dist, Math.cos(orbit.az) * flat);
+  camera.lookAt(0, 3, 0);
+  if (!ready) { renderer.render(scene, camera); return; }
+  const raw = Math.min(1, (now - tickAt) / tickGap), k = raw * raw * (3 - 2 * raw);
+  // robots: each slides (or tips over its edge) from its last voxel to the current one
+  for (let i = 0; i < curr.length; i++) {
+    const a = prev[i] || curr[i], b = curr[i];
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+    dummy.position.set(a[0] + dx * k, a[1] + dy * k, a[2] + dz * k);
+    dummy.quaternion.identity();
+    const one = Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && Math.abs(dz) <= 1 && (dx || dz);
+    if (one && k < 1) {
+      axis.set(dx, 0, dz).normalize(); axis.crossVectors(up, axis);
+      dummy.quaternion.setFromAxisAngle(axis, Math.PI / 2 * (1 + Math.abs(dy)) * k);
+      dummy.position.y += 0.2 * Math.sin(Math.PI * k);
+    }
+    dummy.updateMatrix(); cubes.setMatrixAt(i, dummy.matrix);
+    glowAt.setXYZ(i, dummy.position.x, dummy.position.y, dummy.position.z);
+  }
+  cubes.count = curr.length; cubes.instanceMatrix.needsUpdate = true;
+  glowGeometry.setDrawRange(0, curr.length); glowAt.needsUpdate = true;
+  for (const c of cheeses) {  // cheeses slide when pushed and shrink away when eaten
+    c.size += ((c.alive ? 1 : 0) - c.size) * Math.min(1, dt * 7);
+    c.mesh.visible = c.size > 0.02;
+    c.mesh.position.lerpVectors(c.from, c.to, k);
+    c.mesh.scale.setScalar(Math.max(0.001, c.size));
+  }
+  renderer.render(scene, camera);
+}
+
+// --- thoughts ---
+const panel = $("thoughts"); let typing = null, waiting = [], quietTimer = 0;
+function age() {
+  const rows = [...panel.children];
+  rows.forEach((row, i) => { const back = rows.length - 1 - i; row.style.opacity = [1, 0.5, 0.28, 0.13][back] ?? 0; });
+  while (panel.children.length > 4) panel.firstChild.remove();
+}
+function say(kind, text) { waiting.push([kind, text]); if (!typing) nextLine(); }
+function nextLine() {
+  const item = waiting.shift(); if (!item) { typing = null; return; }
+  const [kind, text] = item, row = document.createElement("div");
+  row.className = `${kind} typing`; panel.appendChild(row); age();
+  panel.classList.remove("quiet"); $("scrim").classList.add("on");
+  clearTimeout(quietTimer); quietTimer = setTimeout(() => panel.classList.add("quiet"), 9000);
+  if (kind !== "question") sounds.thought();
+  const pace = kind === "question" ? 0 : waiting.length > 2 ? 8 : 20, began = performance.now();
+  const tick = () => {  // by the clock, so a slow frame does not slow the typing
+    const i = pace ? Math.min(text.length, 1 + Math.floor((performance.now() - began) / pace)) : text.length;
+    row.textContent = text.slice(0, i);
+    if (i < text.length) typing = setTimeout(tick, pace);
+    else { row.classList.remove("typing"); typing = setTimeout(nextLine, pace ? 260 : 0); }
+  };
+  typing = setTimeout(tick, 0);
+}
+function hush() { clearTimeout(typing); typing = null; waiting = []; panel.innerHTML = ""; $("scrim").classList.remove("on"); }
+
+// --- sound: synthesized, quiet, off until asked for ---
+let audio = null, soundOn = false, armed = false;  // armed: the visitor has clicked or typed, so the browser lets audio start
+let soundPref = null; try { soundPref = localStorage.getItem("swarm-sound"); } catch (e) {}
+soundOn = soundPref !== "off";  // on unless turned off; audio starts at the first click or key
+function ensureAudio() {
+  if (audio || !soundOn || !armed) return audio;
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ac.createGain(); master.gain.value = 0.9;
+  const comp = ac.createDynamicsCompressor(); master.connect(comp); comp.connect(ac.destination);
+  const delay = ac.createDelay(1); delay.delayTime.value = 0.23; const fb = ac.createGain(); fb.gain.value = 0.32;
+  const wet = ac.createGain(); wet.gain.value = 0.35; delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(master);
+  // a low pad that swells while the swarm is moving
+  const pad = ac.createGain(); pad.gain.value = 0; const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 260; lp.Q.value = 6;
+  for (const [f, type, g] of [[55, "sawtooth", 0.5], [82.4, "sine", 0.7], [110.3, "triangle", 0.25]]) {
+    const o = ac.createOscillator(); o.type = type; o.frequency.value = f; const og = ac.createGain(); og.gain.value = g; o.connect(og); og.connect(lp); o.start();
+  }
+  const lfo = ac.createOscillator(); lfo.frequency.value = 0.09; const lfoGain = ac.createGain(); lfoGain.gain.value = 140; lfo.connect(lfoGain); lfoGain.connect(lp.frequency); lfo.start();
+  lp.connect(pad); pad.connect(master);
+  const noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  audio = { ac, master, delay, pad, noise };
+  return audio;
+}
+function tone(freqs, dur, type, gain, toDelay) {
+  const a = ensureAudio(); if (!a) return;
+  const t = a.ac.currentTime;
+  freqs.forEach(([f0, f1], i) => {
+    const o = a.ac.createOscillator(), g = a.ac.createGain(); o.type = type;
+    o.frequency.setValueAtTime(f0, t + i * 0.06); o.frequency.exponentialRampToValueAtTime(f1, t + i * 0.06 + dur);
+    g.gain.setValueAtTime(0.0001, t + i * 0.06); g.gain.exponentialRampToValueAtTime(gain, t + i * 0.06 + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.06 + dur);
+    o.connect(g); g.connect(a.master); if (toDelay) g.connect(a.delay); o.start(t + i * 0.06); o.stop(t + i * 0.06 + dur + 0.05);
+  });
+}
+function shimmer(moved) {
+  const a = ensureAudio(); if (!a || moved === 0) return;
+  const t = a.ac.currentTime, src = a.ac.createBufferSource(); src.buffer = a.noise;
+  const bp = a.ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2400 + Math.random() * 2600; bp.Q.value = 9;
+  const g = a.ac.createGain(); const level = Math.min(1, moved / 60) * 0.11;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(level + 0.0001, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+  src.connect(bp); bp.connect(g); g.connect(a.master); g.connect(a.delay); src.start(t, Math.random() * 0.8, 0.15);
+}
+function swell(on) { const a = ensureAudio(); if (!a) return; a.pad.gain.setTargetAtTime(on ? 0.05 : 0, a.ac.currentTime, on ? 0.6 : 1.2); }
+const sounds = {
+  command: () => tone([[300, 900], [450, 1350]], 0.28, "sine", 0.06, true),
+  eat: () => tone([[880, 880], [1318, 1318]], 0.16, "triangle", 0.07, true),
+  reset: () => tone([[700, 140]], 0.5, "sine", 0.04, true),
+  done: () => tone([[523, 523], [392, 392]], 0.22, "sine", 0.04, true),
+  thought: () => tone([[1175, 1100]], 0.09, "sine", 0.018, true),
+  ask: () => tone([[392, 587]], 0.2, "sine", 0.04, true),
+};
+function setSound(on) {
+  soundOn = on; try { localStorage.setItem("swarm-sound", on ? "on" : "off"); } catch (e) {}
+  $("sound").textContent = on ? "sound on" : "sound off";
+  if (on && ensureAudio()) { audio.ac.resume(); audio.master.gain.value = 0.9; swell(running); } else if (audio) audio.master.gain.value = 0;
+}
+$("sound").onclick = () => setSound(!soundOn);
+$("sound").textContent = soundOn ? "sound on" : "sound off";
+
+// --- server ---
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const data = await r.json(); if (!r.ok) throw Object.assign(new Error(data.error || "error"), { status: r.status }); return data;
+}
+let running = false, polling = false, lastOk = performance.now(), down = false, suggestion = "", first = true;
+function offline(on) {  // the server (one laptop) stopped answering
+  if (on === down) return; down = on;
+  const m = $("message"); m.classList.toggle("down", on);
+  if (on) { m.innerHTML = "too late, i already closed the laptop :(<small>the swarm runs on one macbook. it will pick up here when the lid opens.</small>"; swell(false); }
+  else m.textContent = "";
+}
+function reached() { lastOk = performance.now(); offline(false); }
+function missed(e) { if (!e.status && performance.now() - lastOk > 4000) offline(true); }
+function apply(f) {
+  if (f.t !== lastT) {
+    const next = robotsOf(f.robots), same = next.length === curr.length;
+    const moved = same ? next.reduce((n, p, i) => n + (p[0] !== curr[i][0] || p[1] !== curr[i][1] || p[2] !== curr[i][2] ? 1 : 0), 0) : 0;
+    prev = same ? curr : next; curr = next;
+    tickGap = Math.max(80, Math.min(450, performance.now() - tickAt)); tickAt = performance.now(); lastT = f.t;
+    for (const c of cheeses) { c.from.copy(c.to); c.alive = false; }
+    for (const [slot, z, y, x, colour] of f.cheeses) {
+      const c = cheeses[slot], p = at(z + 0.5, y + 0.5, x + 0.5), rgb = palette.rgb[palette.colours[colour]] || [1, 1, 1];
+      c.to.set(...p); if (c.size < 0.02) c.from.copy(c.to);
+      c.alive = true; c.mesh.material.color.setRGB(...rgb, THREE.SRGBColorSpace); c.mesh.material.emissive.setRGB(...rgb, THREE.SRGBColorSpace); c.shine.material.color.setRGB(...rgb, THREE.SRGBColorSpace);
+    }
+    if (running) shimmer(moved);
+  }
+  $("units").textContent = `${curr.length} cubes`;
+  const active = f.state !== "idle";
+  if (active !== running) { running = active; swell(running); }
+  $("status").classList.toggle("running", running);
+  $("state").textContent = running ? `${f.state} · ${f.command}` : gravity ? "idle" : "idle · no gravity here";
+  for (const note of f.notes) {
+    if (note.n <= after) continue;
+    if (note.kind === "done") sounds.done();
+    else if (note.kind === "ate") { const s = document.createElement("span"); s.textContent = note.text; $("events").appendChild(s); setTimeout(() => s.remove(), 2600); sounds.eat(); }
+    else say(note.kind, note.text);
+  }
+  after = Math.max(after, f.n);
+  suggestion = f.suggestion; first = f.first; hint();
+}
+const QUESTIONS = ["which cheeses do you see?", "how many cubes are there?", "is there gravity here?", "what has been eaten?"];
+let mode = "command", asked = 0, hintKey = "";
+function hint() {
+  const key = [mode, asked, suggestion, first, running].join("|");
+  if (key === hintKey) return;  // rebuilt only on a change, so a tap is never lost to a poll
+  hintKey = key;
+  const h = $("hint"); h.innerHTML = "";
+  const offer = (lead, text, act) => { h.append(lead); const b = document.createElement("button"); b.type = "button"; b.textContent = text; b.onclick = act; h.append(b); };
+  if (mode === "ask") { const q = QUESTIONS[asked % QUESTIONS.length]; offer("try ", `“${q}”`, () => { $("input").value = q; send(q); }); }
+  else if (suggestion) offer(first ? "try " : "next, try ", `“${suggestion}”`, () => { $("input").value = suggestion; send(suggestion); });
+  else if (!running && !first) offer("this field has played out. take a ", "new field", fresh);
+}
+function setMode(next) {
+  mode = next;
+  $("mode-command").classList.toggle("on", mode === "command"); $("mode-ask").classList.toggle("on", mode === "ask");
+  $("prompt").textContent = mode === "ask" ? "?" : "›";
+  $("input").placeholder = mode === "ask" ? "ask the swarm what it sees" : "tell the swarm what to do";
+  $("input").setAttribute("aria-label", mode === "ask" ? "Question" : "Instruction");
+  $("input").value = ""; hint();
+}
+$("mode-command").onclick = () => setMode("command"); $("mode-ask").onclick = () => setMode("ask");
+$("prompt").onclick = () => setMode(mode === "ask" ? "command" : "ask");
+async function fresh() {
+  $("message").textContent = "";
+  try {
+    const f = await api("/api/new", { sid });
+    sid = f.sid; try { localStorage.setItem("voxel-sid", sid); } catch (e) {}
+    N = f.size; gravity = f.gravity; buildTerrain(f.heights); prev = []; curr = []; lastT = -1; after = f.n;
+    for (const c of cheeses) { c.alive = false; c.size = 0; }
+    hush(); apply(f); ready = true; reached(); sounds.reset();
+  } catch (e) { if (e.status) $("message").textContent = e.message; else offline(true); }
+}
+async function send(text) {
+  ensureAudio(); if (audio) audio.ac.resume();
+  const ask = mode === "ask";
+  try { apply(await api(ask ? "/api/ask" : "/api/command", { sid, text, after })); reached(); if (ask) { sounds.ask(); asked++; hint(); } else sounds.command(); }
+  catch (e) { if (e.status === 404) { await fresh(); } else if (!e.status) offline(true); }
+}
+async function poll() {
+  if (polling || !sid || !ready) return; polling = true;
+  try { apply(await api(`/api/frame?sid=${encodeURIComponent(sid)}&after=${after}`)); reached(); }
+  catch (e) { if (e.status === 404) await fresh(); else missed(e); }
+  finally { polling = false; }
+}
+for (const kind of ["pointerdown", "keydown"]) document.addEventListener(kind, () => { armed = true; ensureAudio(); if (audio) audio.ac.resume(); }, { once: true, capture: true });
+$("form").onsubmit = (e) => { e.preventDefault(); const text = $("input").value.trim(); if (text) send(text); $("input").select(); };
+$("reset").onclick = fresh;
+window.swarmReady = true;
+requestAnimationFrame(draw);
+(async () => {
+  try { palette = await api("/api/palette"); } catch (e) { offline(true); return; }
+  $("note").textContent = palette.note || "";
+  await fresh(); setInterval(poll, 100);
+})();
+</script>
+</body>
+</html>
