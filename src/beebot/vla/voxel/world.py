@@ -119,6 +119,30 @@ def shell(world):
 
 
 DIR_TABLE = torch.tensor(DIRS + ((0, 0, 0),))  # (27, 3), STAY last
+CUBE_MOVES = ~((DIR_TABLE[:, 1] != 0) & (DIR_TABLE[:, 2] != 0))  # (27,) bool: the 14 moves a pivoting cube can make (none along both horizontal axes), and STAY
+MOVE_CLASSES = ("level", "up_over", "down_over", "vertical")  # how a move fails is set per class (failure_rates)
+_SIDEWAYS = (DIR_TABLE[:, 1:] != 0).any(dim=1)
+MOVE_CLASS = torch.where(DIR_TABLE[:, 0] == 0, 0, torch.where(~_SIDEWAYS, 3, torch.where(DIR_TABLE[:, 0] > 0, 1, 2)))  # (27,) index into MOVE_CLASSES
+FAILURE_RATE = 0.15
+
+
+def failure_rates(rate=FAILURE_RATE, **by_class):
+    """(27,) float: the probability that each action does not happen (the robot stays), `rate`
+    for every move unless its class (MOVE_CLASSES) is named, e.g. failure_rates(0.15,
+    up_over=0.3). STAY never fails."""
+    unknown = set(by_class) - set(MOVE_CLASSES)
+    if unknown:
+        raise ValueError(f"unknown move classes {sorted(unknown)}")
+    per_class = torch.tensor([float(by_class.get(name, rate)) for name in MOVE_CLASSES])
+    rates = per_class[MOVE_CLASS]
+    rates[STAY] = 0.0
+    return rates
+
+
+def fail_moves(codes, rates, generator=None):
+    """Action codes with each move dropped to STAY with its action's probability in rates (27,)."""
+    fails = torch.rand(codes.shape, generator=generator) < rates[codes.long()]
+    return torch.where(fails, torch.full_like(codes, STAY), codes)
 
 
 def move_robots(world, codes, ids, score=None):
@@ -322,10 +346,11 @@ def world_from_arrays(mass, walls=None, cheeses=(), gravity=False):
 LAYOUTS = ("flat", "hills", "gap")
 
 
-def sample_scenes(rng, b, size=SIZE, gravity_prob=0.5):
+def sample_scenes(rng, b, size=SIZE, gravity_prob=0.5, robots=None):
     """b random scenes on a size^3 grid. Terrain is a heightmap of walls: flat, low hills, or two
     plateaus with a trench between them (a gap to bridge). Robots rest on the terrain in random
     columns (stacked when a column is drawn twice), cheeses sit on level 2 x 2 footprints.
+    robots: how many robots each scene gets (None: a density of 0.2 to 0.45 per floor cell).
     Returns (world, meta): meta[i] holds the layout name, the heightmap (size, size) and, for a
     gap, the trench: (transposed, start, width, plateau height)."""
     d = h = w = size
@@ -374,7 +399,7 @@ def sample_scenes(rng, b, size=SIZE, gravity_prob=0.5):
             colour[i, placed] = int(colours[placed])
             taken[base : base + 2, y : y + 2, x : x + 2] = True
             placed += 1
-        n_robots = int(h * w * rng.uniform(0.2, 0.45))
+        n_robots = int(h * w * rng.uniform(0.2, 0.45)) if robots is None else int(robots)
         fill = height.clone()
         for y, x in zip(rng.integers(0, h, 3 * n_robots), rng.integers(0, w, 3 * n_robots)):
             if n_robots == 0:
