@@ -60,7 +60,7 @@ camera (episode-level, Look)
                       the image refit so its corners stay in view
     crop              zoom in x U(1, 1 + 0.1 s), shifted anywhere the crop stays inside the
                       render (zooming out is the distance item)
-    resolution        rendered at U(1 - 0.45 s, 1 + 0.25 s) x size, resized to size
+    resolution        rendered at U(1 - 0.5 s, 1) x size, upsampled to size (a low-res sensor)
     top_jitter        top view: rotation +-6 s deg on top of the azimuth, tilt up to 8 s deg
     top_perspective   p 0.5: the top view is a perspective camera high above (fov 20-45 deg),
                       else orthographic
@@ -71,7 +71,7 @@ lighting (episode-level)
     intensity         0.75 x U(1 - 0.35 s, 1 + 0.35 s)
     ambient           0.4 +- 0.22 s, tinted toward the light colour or a cool sky
     temperature       colour temperature 5500 +- 2700 s K for each light
-    shadows           shadow map from the main light; p 0.35 off; softness 1-3 taps
+    shadows           shadow map from the main light; p 0.35 off; 1 or 4 taps (clean 4)
     specular          Blinn-Phong highlights: robots ks U(0, 0.55 s) shininess 8-64, steel
                       floor ks U(0.1, 0.5), objects ks up to 0.15 s
 style (episode-level, per view)
@@ -331,8 +331,8 @@ class Noise:
         x1, row1 = (x0 + 1) & (n - 1), ((y0 + 1) & (n - 1)) * n
         row0 = y0 * n
         g = self.flat
-        top = np.take(g, row0 + x0) * (1 - fx) + np.take(g, row0 + x1) * fx
-        bottom = np.take(g, row1 + x0) * (1 - fx) + np.take(g, row1 + x1) * fx
+        top = g[row0 + x0] * (1 - fx) + g[row0 + x1] * fx
+        bottom = g[row1 + x0] * (1 - fx) + g[row1 + x1] * fx
         return top * (1 - fy) + bottom * fy
 
     def fbm(self, x, y, octaves=3):
@@ -541,16 +541,16 @@ class Camera:
         return self.cx + self.fx * x / zs, self.cy - self.fy * y / zs, z
 
     def rays(self):
-        """Ray origins (N, 3) (or (3,) for a perspective camera) and directions (N, 3) of every
-        pixel centre, row-major; t along a ray is depth along the optical axis."""
-        xn = ((np.arange(self.width) + 0.5 - self.cx) / self.fx).astype(np.float32)[None, :, None]
-        yn = (-(np.arange(self.height) + 0.5 - self.cy) / self.fy).astype(np.float32)[:, None, None]
+        """Ray origins and directions of every pixel centre, row-major and channel first: (3, N)
+        each, or (3,) where every pixel shares it (a perspective camera's origin, an orthographic
+        camera's direction). t along a ray is depth along the optical axis."""
+        xn = ((np.arange(self.width) + 0.5 - self.cx) / self.fx).astype(np.float32)
+        yn = (-(np.arange(self.height) + 0.5 - self.cy) / self.fy).astype(np.float32)
         r, u, f = (v.astype(np.float32) for v in (self.right, self.up, self.forward))
-        across = (xn * r + yn * u).reshape(-1, 3)
+        across = (r[:, None, None] * xn[None, None, :] + u[:, None, None] * yn[None, :, None]).reshape(3, -1)
         if self.ortho:
-            origin = self.position.astype(np.float32) + across
-            return origin, np.broadcast_to(f, origin.shape)
-        return self.position.astype(np.float32), across + f
+            return self.position.astype(np.float32)[:, None] + across, f
+        return self.position.astype(np.float32), across + f[:, None]
 
 
 def _box_corners(d, h, w, top):
@@ -583,8 +583,16 @@ def fit_scale(cam, corners, margin=0.07):
 # Rasterizing faces
 
 
+def _component(values, axis, pix, n):
+    """values (3,) or (3, n): the axis-th component (per entry of axis) at pixels pix."""
+    if values.ndim == 1:
+        return values[axis]
+    return values.ravel()[axis * n + pix]
+
+
 def splat(cam, faces, origin, direction):
-    """Nearest face per pixel: (face index (N,) int, -1 none; depth (N,), inf none; u, v (N,))."""
+    """Nearest face per pixel: (face index (N,) int, -1 none; depth (N,), inf none; u, v (N,)).
+    origin and direction are (3,) or (3, N) (Camera.rays)."""
     n = cam.width * cam.height
     face_buf = np.full(n, -1, np.int64)
     depth = np.full(n, np.inf, np.float32)
@@ -624,32 +632,28 @@ def splat(cam, faces, origin, direction):
     if total == 0:
         return face_buf, depth, u_buf, v_buf
     f_rep = np.repeat(np.arange(len(fs)), count)
-    start = np.repeat(np.cumsum(count) - count, count)
-    off = np.arange(total) - start
+    off = np.arange(total) - np.repeat(np.cumsum(count) - count, count)
     w_rep = bw[f_rep]
     pix = (y0[f_rep] + off // w_rep) * cam.width + x0[f_rep] + off % w_rep
     ax_rep, b1, b2 = ax[f_rep], a1[f_rep], a2[f_rep]
-    d_a = direction[pix, ax_rep]
-    if cam.ortho:
-        o_a, o_1, o_2 = origin[pix, ax_rep], origin[pix, b1], origin[pix, b2]
-    else:
-        o_a, o_1, o_2 = origin[ax_rep], origin[b1], origin[b2]
     with np.errstate(divide="ignore", invalid="ignore"):
-        t = (fs.c[f_rep] - o_a) / d_a
-    h1 = o_1 + t * direction[pix, b1]
-    h2 = o_2 + t * direction[pix, b2]
+        t = (fs.c[f_rep] - _component(origin, ax_rep, pix, n)) / _component(direction, ax_rep, pix, n)
+        h1 = _component(origin, b1, pix, n) + t * _component(direction, b1, pix, n)
+        h2 = _component(origin, b2, pix, n) + t * _component(direction, b2, pix, n)
     eps = 1e-4
     lo1, hi1, lo2, hi2 = fs.lo1[f_rep], fs.hi1[f_rep], fs.lo2[f_rep], fs.hi2[f_rep]
-    keep = (t > 1e-4) & np.isfinite(t) & (h1 >= lo1 - eps) & (h1 <= hi1 + eps) & (h2 >= lo2 - eps) & (h2 <= hi2 + eps)
+    keep = np.nonzero((t > 1e-4) & (h1 >= lo1 - eps) & (h1 <= hi1 + eps) & (h2 >= lo2 - eps) & (h2 <= hi2 + eps))[0]
     pix, t, f_rep = pix[keep], t[keep].astype(np.float32), f_rep[keep]
     u = ((h1[keep] - lo1[keep]) / (hi1[keep] - lo1[keep])).astype(np.float32)
     v = ((h2[keep] - lo2[keep]) / (hi2[keep] - lo2[keep])).astype(np.float32)
     np.minimum.at(depth, pix, t)
-    win = t <= depth[pix]
-    face_buf[pix[win]] = index[f_rep[win]]
-    u_buf[pix[win]] = u[win]
-    v_buf[pix[win]] = v[win]
+    win = np.nonzero(t <= depth[pix])[0]
+    pix_win = pix[win]
+    face_buf[pix_win] = index[f_rep[win]]
+    u_buf[pix_win] = u[win]
+    v_buf[pix_win] = v[win]
     return face_buf, depth, u_buf, v_buf
+
 
 
 # ---------------------------------------------------------------------------------------------
@@ -839,7 +843,7 @@ def _camera_look(rng, spec, name):
     k1 = 0.0
     if rng.random() < 0.6 * amt("distortion"):
         k1 = rng.uniform(-0.04, 0.22) * amt("distortion")
-    resolution = _between(rng, 1.0, 0.55, 1.25, amt("resolution"))
+    resolution = _between(rng, 1.0, 0.5, 1.0, amt("resolution"))
     zoom = _between(rng, 1.0, 1.0, 1.1, amt("crop"))
     room = (1 - 1 / zoom) / 2  # the crop stays inside the render
     shift = (rng.uniform(-room, room), rng.uniform(-room, room))
@@ -922,7 +926,7 @@ def sample_look(rng, spec=None):
     tint = spec.amount("ambient") * rng.uniform(0, 0.6)
     ambient = (ambient_level * ((1 - tint) + tint * sky)).astype(np.float32)
     shadows = not (rng.random() < 0.35 * spec.amount("shadows"))
-    shadow_taps = 1 + int(rng.integers(0, 3)) if spec.amount("shadows") > 0 else 2
+    shadow_taps = (1, 4)[int(rng.integers(2))] if spec.amount("shadows") > 0 else 4
 
     mat = spec.level("materials")
     robot_level = spec.amount("robots")
@@ -1069,63 +1073,59 @@ def _rotate(x, y, angle):
     return c * x - s * y, s * x + c * y
 
 
+def _mix(rgb, rgb2, amount):
+    """(3, n): rgb where amount is 0, rgb2 where it is 1."""
+    return rgb[:, None] + (rgb2 - rgb)[:, None] * amount
+
+
 def surface_albedo(surface, x, y, noise):
-    """(n, 3) albedo of a Surface at plane coordinates x, y (world units)."""
+    """(3, n) albedo of a Surface at plane coordinates x, y (world units)."""
     rgb, rgb2 = surface.rgb, surface.rgb2
-    xr, yr = _rotate(x, y, surface.angle)
     k = surface.scale
+    if surface.type in ("steel", "brushed", "wood", "paper", "tiles"):
+        xr, yr = _rotate(x, y, surface.angle)
     if surface.type in ("steel", "brushed"):
         streak = noise(xr * 0.5 * k, yr * 18 * k) * 0.6 + noise(xr * 1.3 * k + 40, yr * 45 * k) * 0.4
-        smudge = noise.fbm(x * 0.25 + 9, y * 0.25 - 3, 2)
-        shade = 1 + surface.amp * (streak - 0.5) * 2 + 0.6 * surface.amp * (smudge - 0.5)
-        return rgb * shade[:, None]
+        smudge = noise(x * 0.25 + 9, y * 0.25 - 3)
+        return rgb[:, None] * (1 + surface.amp * (streak - 0.5) * 2 + 0.6 * surface.amp * (smudge - 0.5))
     if surface.type == "wood":
         width = 1.5 * k
         plank = np.floor(yr / width)
-        ring = np.sin(2 * math.pi * (xr * 0.08 / k + noise.fbm(xr * 0.15, yr * 1.5, 2) * 1.2 + _hash01(plank, 1, 2, 7) * 3) * 3)
-        mix = (0.5 + 0.5 * ring) * surface.amp
-        out = rgb * (1 - mix[:, None]) + rgb2 * mix[:, None]
-        out = out * (0.92 + 0.16 * _hash01(plank, 3, 4, 11))[:, None]
-        groove = np.abs(yr / width - plank - 0.5) > 0.47
-        return np.where(groove[:, None], out * 0.7, out)
+        ring = np.sin(2 * math.pi * (xr * 0.08 / k + noise(xr * 0.15, yr * 1.5) * 1.2 + _hash01(plank, 1, 2, 7) * 3) * 3)
+        shade = (0.92 + 0.16 * _hash01(plank, 3, 4, 11)) * np.where(np.abs(yr / width - plank - 0.5) > 0.47, 0.7, 1.0)
+        return _mix(rgb, rgb2, (0.5 + 0.5 * ring) * surface.amp) * shade
     if surface.type == "paper":
-        grain = noise(x * 25 * k, y * 25 * k)
-        out = rgb * (1 + surface.amp * (grain - 0.5) * 2)[:, None]
+        out = rgb[:, None] * (1 + surface.amp * (noise(x * 25 * k, y * 25 * k) - 0.5) * 2)
         if surface.lines > 0:
-            fx, fy = np.abs(xr * 2 - np.round(xr * 2)), np.abs(yr * 2 - np.round(yr * 2))
-            line = (np.minimum(fx, fy) < 0.03) * surface.lines
-            out = out * (1 - line[:, None]) + np.array([0.4, 0.55, 0.8], np.float32) * line[:, None]
+            line = (np.minimum(np.abs(xr * 2 - np.round(xr * 2)), np.abs(yr * 2 - np.round(yr * 2))) < 0.03) * surface.lines
+            out = out * (1 - line) + np.array([0.4, 0.55, 0.8], np.float32)[:, None] * line
         return out
     if surface.type == "noise":
-        mix = np.clip(noise.fbm(x * k, y * k, 4) * surface.amp * 2 - surface.amp + 0.5, 0, 1)
-        return rgb * (1 - mix[:, None]) + rgb2 * mix[:, None]
+        return _mix(rgb, rgb2, np.clip(noise.fbm(x * k, y * k, 3) * surface.amp * 2 - surface.amp + 0.5, 0, 1))
     if surface.type == "tiles":
         tx, ty = xr / k, yr / k
         checker = (np.floor(tx) + np.floor(ty)) % 2
-        out = np.where(checker[:, None] > 0, rgb2, rgb) * (1 + surface.amp * (noise(x * 2, y * 2) - 0.5))[:, None]
         grout = (np.minimum(np.abs(tx - np.round(tx)), np.abs(ty - np.round(ty))) * k) < 0.05
-        return np.where(grout[:, None], out * 0.6, out)
+        return _mix(rgb, rgb2, checker) * ((1 + surface.amp * (noise(x * 2, y * 2) - 0.5)) * np.where(grout, 0.6, 1.0))
     if surface.amp == 0:
-        return np.broadcast_to(rgb, (len(x), 3))
-    shade = 1 + surface.amp * (noise.fbm(x * 0.7, y * 0.7, 2) - 0.5) * 2
-    return rgb * shade[:, None]
+        return np.repeat(rgb[:, None], len(x), 1)
+    return rgb[:, None] * (1 + surface.amp * (noise.fbm(x * 0.7, y * 0.7, 2) - 0.5) * 2)
 
 
 def terrain_albedo(surface, a, b, noise):
-    """Terrain blocks: a solid texture on face coordinates (a, b)."""
+    """(3, n) terrain blocks: a solid texture on face coordinates (a, b)."""
     k = surface.scale
     if surface.type == "wood":
-        ring = np.sin(2 * math.pi * (a * 0.3 / k + noise.fbm(a * 0.4, b * 2.5, 2)) * 3)
-        mix = (0.5 + 0.5 * ring) * surface.amp
-        return surface.rgb * (1 - mix[:, None]) + surface.rgb2 * mix[:, None]
+        ring = np.sin(2 * math.pi * (a * 0.3 / k + noise(a * 0.4, b * 2.5)) * 3)
+        return _mix(surface.rgb, surface.rgb2, (0.5 + 0.5 * ring) * surface.amp)
     if surface.type == "stone":
         cells = noise(a * 1.7 * k + 3, b * 1.7 * k) * 0.6 + noise(a * 6 * k, b * 6 * k) * 0.4
-        return surface.rgb * (1 + surface.amp * (cells - 0.5) * 2)[:, None]
+        return surface.rgb[:, None] * (1 + surface.amp * (cells - 0.5) * 2)
     if surface.type == "cardboard":
         ribs = 0.5 + 0.5 * np.sin(a * 2 * math.pi * 3 / k)
-        return surface.rgb * (1 + surface.amp * (ribs - 0.5) + 0.05 * (noise(a * 9, b * 9) - 0.5))[:, None]
-    grain = noise(a * 8 * k + 5, b * 8 * k) * 0.5 + noise.fbm(a * 0.8, b * 0.8, 2) * 0.5
-    return surface.rgb * (1 + surface.amp * (grain - 0.5) * 2)[:, None]
+        return surface.rgb[:, None] * (1 + surface.amp * (ribs - 0.5) + 0.05 * (noise(a * 9, b * 9) - 0.5))
+    grain = noise(a * 8 * k + 5, b * 8 * k) * 0.5 + noise(a * 0.8, b * 0.8) * 0.5
+    return surface.rgb[:, None] * (1 + surface.amp * (grain - 0.5) * 2)
 
 
 def _marking_mask(kind, u, v, size):
@@ -1204,32 +1204,46 @@ def _shadow_camera(look, d, h, w):
     return look.cache[key]
 
 
-def _shadow_lookup(look, faces, points, normals, d, h, w):
-    """(n,) visibility in [0, 1] of world points from the main light (a shadow map: the faces seen
-    from the light, a normal offset and a slope bias against self-shadowing)."""
+def _shadow_lookup(look, faces, points, nid, d, h, w):
+    """(n,) visibility in [0, 1] of world points (3, n) with normal ids nid from the main light:
+    a shadow map (the faces seen from the light), a normal offset and a slope bias against
+    self-shadowing, 1 or 4 taps."""
     cam, (origin, direction) = _shadow_camera(look, d, h, w)
     _, depth_map, _, _ = splat(cam, faces, origin, direction)
     texel = 1.0 / cam.fy
-    cos = np.clip(normals @ look.lights[0].direction.astype(np.float32), 0.05, 1)
+    cos = np.clip(NORMALS @ look.lights[0].direction, 0.05, 1)
     slope = np.minimum(np.sqrt(1 - cos * cos) / cos, 4.0)
-    offset = points + normals * (1.5 * texel)
-    px, py, z = cam.project(offset)
-    bias = texel * (0.5 + slope) + 0.01
-    taps = [(0.0, 0.0)] if look.shadow_taps <= 1 else ((-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5))[: 2 * look.shadow_taps]
+    basis = np.stack([cam.right * cam.fx, -cam.up * cam.fy, cam.forward]).astype(np.float32)  # world to (px, py, depth)
+    shift = (NORMALS * (1.5 * texel)) @ basis.T  # (7, 3): the normal offset per normal id
+    shift[:, 2] -= texel * (0.5 + slope) + 0.01  # minus the bias
+    shift += np.array([cam.cx, cam.cy, 0.0], np.float32) - (basis @ cam.position).astype(np.float32)
+    coords = basis @ points
+    px = coords[0] + shift[:, 0][nid]
+    py = coords[1] + shift[:, 1][nid]
+    z = coords[2] + shift[:, 2][nid]
     res = cam.width
-    light_hits = np.zeros(len(points), np.float32)
-    for dx, dy in taps:
-        i = np.clip((px + dx).astype(np.int64), 0, res - 1)
-        j = np.clip((py + dy).astype(np.int64), 0, res - 1)
-        light_hits += z <= depth_map[j * res + i] + bias
-    return light_hits / len(taps)
+    if look.shadow_taps <= 1:
+        i = np.clip(px.astype(np.int32), 0, res - 1)
+        j = np.clip(py.astype(np.int32), 0, res - 1)
+        return (z <= depth_map[j * res + i]).astype(np.float32)
+    i0 = np.clip((px - 0.5).astype(np.int32), 0, res - 2)
+    k0 = np.clip((py - 0.5).astype(np.int32), 0, res - 2) * res + i0
+    light_hits = np.zeros(len(nid), np.float32)
+    for k in (k0, k0 + 1, k0 + res, k0 + res + 1):
+        light_hits += z <= depth_map[k]
+    return light_hits * 0.25
 
 
 SHADOW_RES = 160
 NORMALS = np.array([[-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, -1], [0, 0, 1], [0, 0, 1]], np.float32)  # normal id: 2 axis + (sign > 0); 6 the floor
-NORMAL_AXIS = np.array([0, 0, 1, 1, 2, 2, 2])
-NORMAL_SIGN = np.array([-1, 1, -1, 1, -1, 1, 1], np.float32)
 FLAT_SHADE = np.array([0.8, 0.8, 0.66, 0.66, 1.0, 1.0, 1.0], np.float32)  # flat style per normal id
+
+
+def _rows(values, index):
+    """values (3,) or (3, N): the columns at index, (3, len(index)) (broadcast when (3,))."""
+    if values.ndim == 1:
+        return values[:, None]
+    return values[:, index]
 
 
 def render_view(scene, faces, look, view, size):
@@ -1242,22 +1256,24 @@ def render_view(scene, faces, look, view, size):
     origin, direction = camera_rays(cam)
     face_buf, depth, u, v = splat(cam, faces, origin, direction)
     n = cam.width * cam.height
-    dz = direction[:, 2]
-    oz = origin[:, 2] if cam.ortho else origin[2]
-    with np.errstate(divide="ignore", invalid="ignore"):
-        t_floor = np.where(dz < -1e-6, -oz / dz, np.inf).astype(np.float32)
-    on_floor = np.isfinite(t_floor) & (t_floor < depth)
+    dz = np.broadcast_to(direction[2], (n,))
+    oz = np.broadcast_to(origin[2], (n,))
+    down = np.nonzero(dz < -1e-6)[0]
+    t_floor = np.full(n, np.inf, np.float32)
+    t_floor[down] = -oz[down] / dz[down]
+    on_floor = t_floor < depth
     fi = np.nonzero((face_buf >= 0) & ~on_floor)[0]
     fl = np.nonzero(on_floor)[0]
     hit = np.concatenate([fi, fl])  # every pixel that sees a surface: faces, then floor
     t_hit = np.concatenate([depth[fi], t_floor[fl]])
-    point = (origin[hit] if cam.ortho else origin) + direction[hit] * t_hit[:, None]
+    ray = _rows(direction, hit)
+    point = _rows(origin, hit) + ray * t_hit
     nf = len(fi)
     nid = np.full(len(hit), 6, np.int64)
-    albedo = np.empty((len(hit), 3), np.float32)
+    albedo = np.empty((3, len(hit)), np.float32)
     ks = np.zeros(len(hit), np.float32)
     shininess = np.full(len(hit), 16.0, np.float32)
-    key = np.zeros(n, np.int64)  # segment id for outlines: kind and colour
+    key = np.zeros(n, np.int32)  # segment id for outlines: kind and colour
     protect = np.zeros(n, bool)
     noise = look.noise
 
@@ -1266,25 +1282,23 @@ def render_view(scene, faces, look, view, size):
         axis, sign, kind, cell = faces.axis[f].astype(np.int64), faces.sign[f], faces.kind[f], faces.cell[f]
         nid[:nf] = 2 * axis + (sign > 0)
         fu, fv = u[fi], v[fi]
-        pf = point[:nf]
-        pa = np.take_along_axis(pf, np.array(OTHER_AXES)[axis, :1], 1)[:, 0]
-        pb = np.take_along_axis(pf, np.array(OTHER_AXES)[axis, 1:], 1)[:, 0]
+        px, py, pz = point[0, :nf], point[1, :nf], point[2, :nf]
+        pa = np.where(axis == 0, py, px)  # plane coordinates of the face (OTHER_AXES)
+        pb = np.where(axis == 2, py, pz)
         key[fi] = kind
-        out = albedo[:nf]
+        out = albedo[:, :nf]
         z, y, x = cell[:, 0], cell[:, 1], cell[:, 2]
 
         r = np.nonzero(kind == KIND_ROBOT)[0]
         if len(r):
-            base = np.empty((len(r), 3), np.float32)
-            base[:] = look.robot_rgb
+            base = np.repeat(look.robot_rgb[:, None], len(r), 1)
             if look.robot_variation > 0:
-                base *= (1 + look.robot_variation * (2 * _hash01(z[r], y[r], x[r], look.seed) - 1))[:, None]
+                base *= 1 + look.robot_variation * (2 * _hash01(z[r], y[r], x[r], look.seed) - 1)
             ru, rv = fu[r], fv[r]
             if look.marking != "none":
-                base[_marking_mask(look.marking, ru, rv, look.marking_size)] = look.marking_rgb
-            edge = np.minimum(np.minimum(ru, 1 - ru), np.minimum(rv, 1 - rv)) < look.robot_edge_width
-            base[edge] = look.robot_edge_rgb
-            out[r] = base
+                base[:, _marking_mask(look.marking, ru, rv, look.marking_size)] = look.marking_rgb[:, None]
+            base[:, np.minimum(np.minimum(ru, 1 - ru), np.minimum(rv, 1 - rv)) < look.robot_edge_width] = look.robot_edge_rgb[:, None]
+            out[:, r] = base
             ks[r] = look.robot_ks
             shininess[r] = look.robot_shininess
 
@@ -1292,27 +1306,26 @@ def render_view(scene, faces, look, view, size):
         if len(wl):
             base = terrain_albedo(look.terrain, pa[wl] + 31.0 * axis[wl], pb[wl], noise)
             side = axis[wl] != 2
-            base[side] *= look.terrain_side
             wu, wv = fu[wl], fv[wl]
             edge = np.minimum(np.minimum(wu, 1 - wu), np.minimum(wv, 1 - wv)) < 0.04
-            base[edge] *= 1 - look.terrain_edge
+            base *= np.where(side, look.terrain_side, 1.0) * np.where(edge, 1 - look.terrain_edge, 1.0)
             zw, yw, xw = z[wl], y[wl], x[wl]
-            paint_mask = ~side & (sign[wl] > 0) & (scene.zone[yw, xw] >= 0) & (scene.zone_level[yw, xw] == zw + 1)
-            if paint_mask.any():
+            paint_mask = np.nonzero(~side & (sign[wl] > 0) & (scene.zone[yw, xw] >= 0) & (scene.zone_level[yw, xw] == zw + 1))[0]
+            if len(paint_mask):
                 colour = scene.zone[yw[paint_mask], xw[paint_mask]]
-                paint = look.zone_rgb[colour] * (1 + 0.04 * (noise(pa[wl][paint_mask] * 6, pb[wl][paint_mask] * 6) - 0.5))[:, None]
-                base[paint_mask] = paint * 0.92 + base[paint_mask] * 0.08
-                key[fi[wl][paint_mask]] = 100 + colour
-                protect[fi[wl][paint_mask]] = True
-            out[wl] = base
+                paint = look.zone_rgb[colour].T * (1 + 0.04 * (noise(pa[wl][paint_mask] * 6, pb[wl][paint_mask] * 6) - 0.5))
+                base[:, paint_mask] = paint * 0.92 + base[:, paint_mask] * 0.08
+                key[fi[wl[paint_mask]]] = 100 + colour
+                protect[fi[wl[paint_mask]]] = True
+            out[:, wl] = base
 
         ob = np.nonzero(kind == KIND_OBJECT)[0]
         if len(ob):
             zo, yo, xo = z[ob], y[ob], x[ob]
             colour = np.clip(scene.colour[zo, yo, xo].astype(np.int64), 0, len(PALETTE) - 1)
-            base = look.object_rgb[colour]
+            base = look.object_rgb[colour].T.copy()
             if look.object_noise > 0:
-                base = base * (1 + look.object_noise * (noise(pa[ob] * 3 + 11 * axis[ob], pb[ob] * 3) - 0.5) * 2)[:, None]
+                base *= 1 + look.object_noise * (noise(pa[ob] * 3 + 11 * axis[ob], pb[ob] * 3) - 0.5) * 2
             food = scene.food[zo, yo, xo]
             if food.any():
                 ou, ov = fu[ob], fv[ob]
@@ -1321,30 +1334,29 @@ def render_view(scene, faces, look, view, size):
                 hole = np.zeros(len(zo), bool)
                 for cu, cv, rad in ((0.25 + 0.5 * seed_a, 0.25 + 0.5 * seed_b, look.hole_radius), (1 - 0.5 * seed_b, 0.5 * seed_a, look.hole_radius * 0.7)):
                     hole |= (ou - cu) ** 2 + (ov - cv) ** 2 < rad * rad
-                base[hole & food] *= look.hole_dark
-            out[ob] = base
+                base *= np.where(hole & food, look.hole_dark, 1.0)
+            out[:, ob] = base
             ks[ob] = look.object_ks
             key[fi[ob]] = 10 + colour
             protect[fi[ob]] = True
 
         cl = np.nonzero(kind == KIND_CLUTTER)[0]
         if len(cl):
-            base = look.clutter_rgb[np.clip(cell[cl, 0], 0, max(len(look.clutter_rgb) - 1, 0))]
-            out[cl] = base * (1 + 0.1 * (noise(pa[cl] * 2, pb[cl] * 2) - 0.5))[:, None]
+            base = look.clutter_rgb[np.clip(cell[cl, 0], 0, max(len(look.clutter_rgb) - 1, 0))].T
+            out[:, cl] = base * (1 + 0.1 * (noise(pa[cl] * 2, pb[cl] * 2) - 0.5))
             key[fi[cl]] = 50
         if view.height_cue > 0:
-            height = np.clip(pf[:, 2], 0, 6) / 6
             cue = view.height_cue * np.where(kind == KIND_OBJECT, 0.4, 1.0)
-            out *= (1 - cue + cue * height)[:, None]
+            out *= 1 - cue + cue * np.clip(pz, 0, 6) / 6
 
     if len(fl):
-        x, y = point[nf:, 0], point[nf:, 1]
-        out = albedo[nf:]
+        x, y = point[0, nf:], point[1, nf:]
+        out = albedo[:, nf:]
         m = look.sheet_margin
         sheet = (x >= -m) & (x <= w + m) & (y >= -m) & (y <= h + m)
         si = np.nonzero(sheet)[0]
         if len(si):
-            out[si] = surface_albedo(look.floor, x[si], y[si], noise)
+            out[:, si] = surface_albedo(look.floor, x[si], y[si], noise)
             ks[nf + si] = look.floor.ks
             shininess[nf + si] = look.floor.shininess
         ti = np.nonzero(~sheet)[0]
@@ -1359,46 +1371,51 @@ def render_view(scene, faces, look, view, size):
                     inside = (np.abs(lx) < rx) & (np.abs(ly) < ry)
                 else:
                     inside = (np.abs(lx) < rx * 2) & (np.abs(ly) < 0.12)
-                part[inside] = rgb
+                part[:, inside] = rgb[:, None]
             far = np.maximum(np.maximum(-tx - m, tx - w - m), np.maximum(-ty - m, ty - h - m))
-            fade = np.clip((far - 10) / 30, 0, 1)[:, None]
-            out[ti] = part * (1 - fade) + look.background[1] * fade
+            fade = np.clip((far - 10) / 30, 0, 1)
+            out[:, ti] = part * (1 - fade) + look.background[1][:, None] * fade
             ks[nf + ti] = look.table.ks
         xi = np.clip(np.floor(x).astype(np.int64), 0, w - 1)
         yi = np.clip(np.floor(y).astype(np.int64), 0, h - 1)
         zi = np.nonzero((x >= 0) & (x <= w) & (y >= 0) & (y <= h) & (scene.zone[yi, xi] >= 0) & (scene.zone_level[yi, xi] == 0))[0]
         if len(zi):
             colour = scene.zone[yi[zi], xi[zi]]
-            paint = look.zone_rgb[colour] * (1 + 0.04 * (noise(x[zi] * 6, y[zi] * 6) - 0.5))[:, None]
-            out[zi] = paint * 0.92 + out[zi] * 0.08
+            paint = look.zone_rgb[colour].T * (1 + 0.04 * (noise(x[zi] * 6, y[zi] * 6) - 0.5))
+            out[:, zi] = paint * 0.92 + out[:, zi] * 0.08
             key[fl[zi]] = 100 + colour
             protect[fl[zi]] = True
         gw = look.grid_width / 2
         grid = ((np.abs(x - np.round(x)) < gw) | (np.abs(y - np.round(y)) < gw)) & (x >= -gw) & (x <= w + gw) & (y >= -gw) & (y <= h + gw)
-        out[grid] = out[grid] * (1 - look.grid_alpha) + look.grid_rgb * look.grid_alpha
+        out *= np.where(grid, 1 - look.grid_alpha, 1.0)
+        out += look.grid_rgb[:, None] * (grid * look.grid_alpha)
         mi = np.nonzero(sheet & ((x < 0) | (x > w) | (y < 0) | (y > h)))[0]
         if len(mi):
-            marker = _corner_markers(look, x[mi], y[mi], w, h)
-            out[mi[marker]] = look.marker_rgb
-            key[fl[mi[marker]]] = 60
+            marker = mi[_corner_markers(look, x[mi], y[mi], w, h)]
+            out[:, marker] = look.marker_rgb[:, None]
+            key[fl[marker]] = 60
 
-    colour = np.zeros((n, 3), np.float32)
+    colour = np.empty((3, n), np.float32)
     if len(hit):
         if view.style == "flat":
-            colour[hit] = albedo * FLAT_SHADE[nid][:, None]
+            shaded = albedo * FLAT_SHADE[nid]
         else:
-            colour[hit] = _light(look, view, faces, albedo, nid, point, direction[hit], ks, shininess, d, h, w)
+            shaded = _light(look, view, faces, albedo, nid, point, ray, ks, shininess, d, h, w)
+        for c in range(3):
+            colour[c][hit] = shaded[c]
     sky = np.ones(n, bool)
     sky[hit] = False
     sky_px = np.nonzero(sky)[0]
     if len(sky_px):
-        colour[sky_px] = _background(look, direction[sky_px])
-    image = colour.reshape(cam.height, cam.width, 3)
+        background = _background(look, _rows(direction, sky_px), len(sky_px))
+        for c in range(3):
+            colour[c][sky_px] = background[c]
+    colour = colour.reshape(3, cam.height, cam.width)
     if view.outline > 0:
         depth_all = np.full(n, 1e4, np.float32)
         depth_all[hit] = t_hit
-        image = _outline(image, key.reshape(cam.height, cam.width), depth_all.reshape(cam.height, cam.width), cam.ortho, view.outline)
-    return image, protect.reshape(cam.height, cam.width), cam
+        colour *= _outline(key.reshape(cam.height, cam.width), depth_all.reshape(cam.height, cam.width), cam.ortho, view.outline)
+    return np.ascontiguousarray(colour.transpose(1, 2, 0)), protect.reshape(cam.height, cam.width), cam
 
 
 def _corner_markers(look, x, y, w, h):
@@ -1423,9 +1440,9 @@ def _corner_markers(look, x, y, w, h):
 
 
 def _light(look, view, faces, albedo, nid, point, ray, ks, shininess, d, h, w):
-    """Lit colour of surface pixels: ambient, Lambert per light (toon: three bands), the main
-    light shadowed, Blinn-Phong highlights where ks > 0 (lit style)."""
-    first, rest = None, look.ambient[None].repeat(len(NORMALS), 0)
+    """Lit colour (3, n) of surface pixels: ambient, Lambert per light (toon: three bands), the
+    main light shadowed, Blinn-Phong highlights where ks > 0 (lit style)."""
+    first, rest = None, np.repeat(look.ambient[:, None], len(NORMALS), 1)  # (3, normal ids)
     lams = []
     for k, light in enumerate(look.lights):
         lam = np.clip(NORMALS @ light.direction, 0, 1)
@@ -1433,51 +1450,57 @@ def _light(look, view, faces, albedo, nid, point, ray, ks, shininess, d, h, w):
             lam = np.where(lam > 0.66, 1.0, np.where(lam > 0.25, 0.6, 0.25)).astype(np.float32)
         lams.append(lam)
         if k == 0:
-            first = lam[:, None] * light.rgb
+            first = light.rgb[:, None] * lam
         else:
-            rest = rest + lam[:, None] * light.rgb
+            rest = rest + light.rgb[:, None] * lam
     visibility = None
+    colour = np.empty_like(albedo)
     if look.shadows:
-        visibility = _shadow_lookup(look, faces, point.astype(np.float32), NORMALS[nid], d, h, w)
-        diffuse = rest[nid] + visibility[:, None] * first[nid]
+        visibility = np.zeros(len(nid), np.float32)
+        facing = np.nonzero((lams[0] > 0)[nid])[0]  # only these can be shadowed
+        visibility[facing] = _shadow_lookup(look, faces, point[:, facing], nid[facing], d, h, w)
+        for c in range(3):
+            colour[c] = albedo[c] * (rest[c][nid] + visibility * first[c][nid])
     else:
-        diffuse = (rest + first)[nid]
-    colour = albedo * diffuse
+        both = rest + first
+        for c in range(3):
+            colour[c] = albedo[c] * both[c][nid]
     if view.style != "lit":
         return colour
     s = np.nonzero(ks > 0)[0]
     if len(s):
-        view_dir = -ray[s]
-        view_dir /= np.linalg.norm(view_dir, axis=1, keepdims=True)
+        view_dir = -(ray[:, s] if ray.shape[1] > 1 else ray)
+        view_dir = view_dir / np.sqrt((view_dir * view_dir).sum(0))
         ns = nid[s]
-        axis, sign = NORMAL_AXIS[ns], NORMAL_SIGN[ns]
-        total = np.zeros((len(s), 3), np.float32)
+        normal = NORMALS.T[:, ns]
+        weight = ks[s]
         for k, light in enumerate(look.lights):
-            half = view_dir + light.direction
-            length = np.sqrt(np.einsum("ij,ij->i", half, half))
-            nh = np.clip(half[np.arange(len(s)), axis] * sign / length, 1e-6, 1)
-            spec = np.exp(shininess[s] * np.log(nh)) * (lams[k][ns] > 0)
+            half = view_dir + light.direction[:, None]
+            nh = np.clip((half * normal).sum(0) / np.sqrt((half * half).sum(0)), 1e-6, 1)
+            spec = np.exp(shininess[s] * np.log(nh)) * (lams[k][ns] > 0) * weight
             if k == 0 and visibility is not None:
                 spec = spec * visibility[s]
-            total += spec[:, None] * light.rgb
-        colour[s] += ks[s][:, None] * total
+            for c in range(3):
+                colour[c][s] += spec * light.rgb[c]
     return colour
 
 
-def _background(look, ray):
+def _background(look, ray, n):
+    """(3, n) backdrop colour of rays (3, n) or (3, 1) that miss the floor."""
     top_rgb, bottom_rgb, blob_rgb, blob = look.background
-    dd = ray / np.linalg.norm(ray, axis=1, keepdims=True)
-    up = np.clip(dd[:, 2] * 2 + 0.5, 0, 1)[:, None]
-    bg = bottom_rgb * (1 - up) + top_rgb * up
+    dd = np.broadcast_to(ray / np.sqrt((ray * ray).sum(0)), (3, n))
+    up = np.clip(dd[2] * 2 + 0.5, 0, 1)
+    bg = _mix(bottom_rgb, top_rgb, up)
     if blob > 0:
-        az = np.arctan2(dd[:, 0], dd[:, 1])
-        mix = np.clip((look.noise.fbm(az * 4 + 50, dd[:, 2] * 8, 3) - 0.45) * 4, 0, 1)[:, None] * blob
-        bg = bg * (1 - mix) + blob_rgb * mix
+        az = np.arctan2(dd[0], dd[1])
+        amount = np.clip((look.noise.fbm(az * 4 + 50, dd[2] * 8, 3) - 0.45) * 4, 0, 1) * blob
+        bg = bg * (1 - amount) + blob_rgb[:, None] * amount
     return bg
 
 
-def _outline(image, key, depth, ortho, strength):
-    """Darken pixels on a change of segment (kind, colour) or a depth step (the nearer side)."""
+def _outline(key, depth, ortho, strength):
+    """(h, w) factor darkening pixels on a change of segment (kind, colour) or a depth step (the
+    nearer side)."""
     edge = np.zeros(key.shape, bool)
     for a, b, da, db, ea, eb in (
         (key[:-1], key[1:], depth[:-1], depth[1:], edge[:-1], edge[1:]),
@@ -1488,9 +1511,8 @@ def _outline(image, key, depth, ortho, strength):
         nearer = da <= db
         ea |= step & nearer
         eb |= step & ~nearer
-    out = image.copy()
-    out[edge] *= 1 - strength
-    return out
+    return np.where(edge, np.float32(1 - strength), np.float32(1))
+
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1539,18 +1561,20 @@ def _soft_mask(rng, kind, res):
 
 
 def _bilinear(img, xs, ys):
-    """Sample img (R, R, C) at pixel coordinates xs, ys (S, S) with edge clamping."""
+    """Sample img (R, R, C) at pixel coordinates xs, ys (S, S) with edge clamping: (S, S, C)."""
     rh, rw, c = img.shape
     xs = np.clip(xs - 0.5, 0, rw - 1.001)
     ys = np.clip(ys - 0.5, 0, rh - 1.001)
     x0, y0 = xs.astype(np.int32), ys.astype(np.int32)
-    fx, fy = (xs - x0)[..., None], (ys - y0)[..., None]
-    flat = img.reshape(-1, c)
+    fx, fy = (xs - x0).ravel(), (ys - y0).ravel()
     i00 = (y0 * rw + x0).ravel()
-    shape = xs.shape + (c,)
-    a = np.take(flat, i00, axis=0).reshape(shape) * (1 - fx) + np.take(flat, i00 + 1, axis=0).reshape(shape) * fx
-    b = np.take(flat, i00 + rw, axis=0).reshape(shape) * (1 - fx) + np.take(flat, i00 + rw + 1, axis=0).reshape(shape) * fx
-    return a * (1 - fy) + b * fy
+    out = np.empty((c, i00.size), np.float32)
+    for k in range(c):
+        flat = np.ascontiguousarray(img[..., k]).ravel()
+        top = flat[i00] * (1 - fx) + flat[i00 + 1] * fx
+        bottom = flat[i00 + rw] * (1 - fx) + flat[i00 + rw + 1] * fx
+        out[k] = top * (1 - fy) + bottom * fy
+    return out.T.reshape(xs.shape + (c,))
 
 
 def warp(rgb, protect, size, k1=0.0, zoom=1.0, shift=(0.0, 0.0), chromatic=0.0):
