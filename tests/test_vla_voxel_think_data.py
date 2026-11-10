@@ -130,9 +130,9 @@ def tokenizer():
     try:
         import transformers
 
-        return transformers.AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B", local_files_only=True)
+        return transformers.AutoTokenizer.from_pretrained("Qwen/Qwen3.5-4B", local_files_only=True)
     except Exception:
-        pytest.skip("the Qwen tokenizer is not cached")
+        pytest.skip("the Qwen3.5 tokenizer is not cached")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ def test_examples_at_each_kind_of_step(data, store):
     assert parts[0]["rung"] == "template" and parts[0]["instruction"] == "eat red, then blue"
     first = data.example(ep, 0, parts)
     assert first.kind == "first" and first.act and first.rung == "template" and first.family == "logic"
-    assert first.context_text == "<|im_start|>user\neat red, then blue\n<|image_pad|><|im_end|>\n<|im_start|>assistant\n"
+    assert first.context_text == "<|im_start|>user\n<IMAGES>\neat red, then blue<|im_end|>\n<|im_start|>assistant\n"
     assert re.fullmatch(r"<think>\nyou asked: eat red, then blue\. i see .+\. that means: .+\. first: eat the red cheese\.\n</think>\n\n<tool_call>", first.reply_text)
     plain = data.example(ep, 2, parts)
     assert plain.kind == "plain" and plain.reply_text == "<think>\n\n</think>\n\n<tool_call>"
@@ -188,7 +188,7 @@ def test_examples_at_each_kind_of_step(data, store):
     assert torch.equal(switch.codes, raw["actions"][4, 4].long()) and switch.codes.dtype == torch.long
     assert torch.equal(switch.obs, observe(world_at(raw, [(4, 4)]))[0]) and switch.obs.shape == (10, 16, 16, 16)
     for example in (first, plain, switch, done):
-        assert example.context_text.count(T.SCENE) == 1
+        assert example.context_text.count(T.IMAGES) == 1 and len(example.images) == 1 and example.images[0].size == (272, 272)
 
 
 def test_an_instruction_change_puts_the_new_instruction_in_the_user_turn(data):
@@ -197,12 +197,12 @@ def test_an_instruction_change_puts_the_new_instruction_in_the_user_turn(data):
     before = data.example(ep, 5, parts)
     change = data.example(ep, 6, parts)
     later = data.example(ep, 8, parts)
-    assert "user\ngo to the front\n" in before.context_text
-    assert change.kind == "change" and "user\nstay where you are\n" in change.context_text
+    assert "<IMAGES>\ngo to the front<|im_end|>" in before.context_text
+    assert change.kind == "change" and "<IMAGES>\nstay where you are<|im_end|>" in change.context_text
     assert change.reply_text.startswith("<think>\nyou asked: stay where you are. i see") and "first: stay where you are." in change.reply_text
     assert "you asked: go to the front." in change.context_text  # memory: the old instruction's thought
     assert "you asked: stay where you are." in later.context_text and "you asked: go to the front." not in later.context_text
-    assert "user\nstay where you are\n" in later.context_text and later.kind == "plain"
+    assert "<IMAGES>\nstay where you are<|im_end|>" in later.context_text and later.kind == "plain"
 
 
 def test_haiku_labels_replace_the_template_and_rungs_are_drawn(data):
@@ -214,7 +214,7 @@ def test_haiku_labels_replace_the_template_and_rungs_are_drawn(data):
         rungs.add(parts[0]["rung"])
         first = data.example(ep, 0, parts)
         assert first.reply_text == f"<think>\n{parts[0]['thought']}\n</think>\n\n<tool_call>"
-        assert f"user\n{parts[0]['instruction']}\n" in first.context_text and first.rung == parts[0]["rung"]
+        assert f"<IMAGES>\n{parts[0]['instruction']}<|im_end|>" in first.context_text and first.rung == parts[0]["rung"]
         assert data.example(ep, 4, parts).reply_text == "<think>\nnow the blue one\n</think>\n\n<tool_call>"
         assert parts[0]["thought"] in data.example(ep, 7, parts).context_text
     assert rungs == {"close", "casual"}
@@ -226,7 +226,7 @@ def test_haiku_switch_parts_label_each_instruction(data):
     parts = data.labelling(ep, np.random.default_rng(0))
     assert [p["instruction"] for p in parts] == ["head to the front", "could you all freeze"]
     change = data.example(ep, 6, parts)
-    assert "user\ncould you all freeze\n" in change.context_text and change.rung == "indirect"
+    assert "<IMAGES>\ncould you all freeze<|im_end|>" in change.context_text and change.rung == "indirect"
     assert change.reply_text.startswith("<think>\nyou asked: could you all freeze.")
     assert "you asked: head to the front." in change.context_text
     assert data.example(ep, 3, parts).rung == "close"
@@ -237,9 +237,10 @@ def test_refusals_are_a_thought_and_a_text_answer_at_the_first_frame(data, store
     example = data.refusal(ep, ep.refusals[0])
     assert not example.act and example.codes is None and example.t == 0 and example.kind == "refusal" and example.rung == "refusal"
     assert example.reply_text == "<think>\nyou asked: make the blue cheese fly. gravity is on, so i will not act.\n</think>\n\nthe blue cheese cannot fly, so i will do nothing.<|im_end|>"
-    assert T.ACT not in example.reply_text and "user\nmake the blue cheese fly\n" in example.context_text
+    assert T.ACT not in example.reply_text and "<IMAGES>\nmake the blue cheese fly<|im_end|>" in example.context_text
     assert torch.equal(example.obs, observe(world_at(load(store), [(2, 0)]))[0])
     assert (T.still(example.obs) == STAY).all()
+    assert np.array_equal(np.asarray(example.images[0]), np.asarray(T.stand_in_views(example.obs)[0]))
     ids, labels = T.tokenize(example, tokenizer)
     assert ids[-1].item() == tokenizer.convert_tokens_to_ids(T.END) and labels[-1].item() == ids[-1].item()
 
@@ -301,6 +302,28 @@ def test_sampling_shares_and_the_held_out_split(store, labels):
     assert {(ex.seed, ex.index) for ex in first} <= held
 
 
+def randomized(obs, rng):
+    """A fake views function: one 'image' per view, its randomization drawn from rng."""
+    return [("oblique", int(obs[0].sum()), int(rng.integers(1 << 30))), ("top", int(obs[0].sum()), None)]
+
+
+def clean(obs, rng):
+    return [("clean", int(obs[0].sum()))]
+
+
+def test_views_get_the_observation_and_the_samplers_rng_and_validation_is_fixed(store):
+    data = T.ThinkData([store], [], held_share=0.25, views=randomized)
+    rng = np.random.default_rng(0)
+    drawn = [data.sample(rng) for _ in range(40)]
+    for example in drawn:
+        assert [view[0] for view in example.images] == ["oblique", "top"] and example.images[0][1] == int(example.obs[0].sum())
+    assert len({example.images[0][2] for example in drawn}) == len(drawn)  # fresh randomization every draw
+    again = T.ThinkData([store], [], held_share=0.25, views=randomized).validation(20, seed=3)
+    assert [ex.images for ex in data.validation(20, seed=3)] == [ex.images for ex in again]  # a fixed seed
+    plain = T.ThinkData([store], [], held_share=0.25, views=randomized, validation_views=clean).validation(20, seed=3)
+    assert all(ex.images == [("clean", int(ex.obs[0].sum()))] for ex in plain)
+
+
 def test_haiku_share_sets_the_share_of_labelled_episodes(store, labels):
     data = T.ThinkData([store], [labels], held_share=0.0, refusal_share=0.0, haiku_share=0.5)
     rng = np.random.default_rng(0)
@@ -350,7 +373,7 @@ def test_a_real_store_gives_an_example_at_every_step_of_every_episode(real_store
         for t in range(data.steps(ep)):
             example = data.example(ep, t, parts)
             assert example.codes.shape == (16, 16, 16) and example.obs.shape == (10, 16, 16, 16)
-            assert example.context_text.count(T.SCENE) == 1 and example.reply_text.endswith(T.ACT)
+            assert example.context_text.count(T.IMAGES) == 1 and example.reply_text.endswith(T.ACT)
             assert (example.codes[example.obs[0] == 0] == STAY).all()
     kinds = {kind.split(":")[0] for kind in T.render_examples(data)}
     assert {"first", "plain"} <= kinds
@@ -362,27 +385,29 @@ def test_a_real_store_gives_an_example_at_every_step_of_every_episode(real_store
 
 def test_fixed_tokens_are_single_tokens_and_the_thought_forms_are_fixed(tokenizer):
     ids = T.check_tokens(tokenizer)
-    assert ids == {"<think>": 151667, "</think>": 151668, "<tool_call>": 151657, "<|im_start|>": 151644, "<|im_end|>": 151645, "<|image_pad|>": 151655, "<|video_pad|>": 151656}
-    assert tokenizer(T.act_reply(""), add_special_tokens=False).input_ids == [151667, 271, 151668, 271, 151657]
+    assert ids == {"<think>": 248068, "</think>": 248069, "<tool_call>": 248058, "<|im_start|>": 248045, "<|im_end|>": 248046, "<|image_pad|>": 248056, "<|vision_start|>": 248053, "<|vision_end|>": 248054, "<|video_pad|>": 248057}
+    assert tokenizer(T.act_reply(""), add_special_tokens=False).input_ids == [248068, 271, 248069, 271, 248058]
     thought = tokenizer(T.act_reply("first: eat the red cheese."), add_special_tokens=False).input_ids
-    assert thought[:2] == [151667, 198] and thought[-3:] == [151668, 271, 151657]
+    assert thought[:2] == [248068, 198] and thought[-3:] == [248069, 271, 248058]
 
 
-def test_tokenize_expands_the_scene_and_labels_only_the_reply(data, tokenizer):
+def test_tokenize_expands_the_images_and_labels_only_the_reply(data, tokenizer):
     ep = ep_of(data, 0)
     parts = data.labelling(ep, np.random.default_rng(0))
+    assert T.image_tokens(data.example(ep, 0, parts).images[0]) == 64  # 272 x 272 resized to 256 x 256: 8 x 8 tokens of 32 pixels
     for t in (0, 5):
         example = data.example(ep, t, parts)
-        ids, labels = T.tokenize(example, tokenizer, scene_tokens=64)
-        joint = tokenizer(example.context_text + example.reply_text, add_special_tokens=False).input_ids
-        scene = tokenizer.convert_tokens_to_ids(T.SCENE)
-        at = joint.index(scene)
-        assert ids.tolist() == joint[:at] + [scene] * 64 + joint[at + 1 :]
+        ids, labels = T.tokenize(example, tokenizer)
+        vision = "<|vision_start|>" + "<|image_pad|>" * 64 + "<|vision_end|>"
+        joint = tokenizer(example.context_text.replace(T.IMAGES, vision) + example.reply_text, add_special_tokens=False).input_ids
+        assert ids.tolist() == joint
         reply = tokenizer(example.reply_text, add_special_tokens=False).input_ids
         assert labels.tolist() == [-100] * (len(ids) - len(reply)) + reply
         assert ids[-1].item() == tokenizer.convert_tokens_to_ids(T.ACT)
-        with_slots, slot_labels = T.tokenize(example, tokenizer, scene_tokens=64, slots=True)
+        two, _ = T.tokenize(example, tokenizer, counts=[4, 6])
+        assert two.tolist().count(tokenizer.convert_tokens_to_ids(T.IMAGE_PAD)) == 10 and two.tolist().count(tokenizer.convert_tokens_to_ids(T.VISION_START)) == 2
+        with_slots, slot_labels = T.tokenize(example, tokenizer, slots=64)
         assert with_slots.tolist() == ids.tolist() + [tokenizer.convert_tokens_to_ids(T.SLOT)] * 64 and (slot_labels[-64:] == -100).all()
-    broken = T.Example(**{**example.__dict__, "context_text": example.context_text + T.SCENE})
-    with pytest.raises(ValueError, match="SCENE"):
+    broken = T.Example(**{**example.__dict__, "context_text": example.context_text + T.IMAGES})
+    with pytest.raises(ValueError, match="IMAGES"):
         T.tokenize(broken, tokenizer)

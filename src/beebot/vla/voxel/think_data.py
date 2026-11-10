@@ -123,15 +123,21 @@ from beebot.vla.voxel.lm import world_at
 from beebot.vla.voxel.play_store import load
 from beebot.vla.voxel.world import N_CHANNELS, STAY, observe
 
-SCENE = "<|image_pad|>"  # where the scene tokens go: exactly one in the user turn
-SLOT = "<|video_pad|>"  # optional action-slot placeholder (tokenize(slots=True))
+IMAGES = "<IMAGES>"  # where the scene's images go: exactly once in the user turn (plain text, not a token)
+IMAGE_PAD = "<|image_pad|>"  # one per visual token of an image (Qwen3-VL processor layout)
+VISION_START = "<|vision_start|>"
+VISION_END = "<|vision_end|>"
+SLOT = "<|video_pad|>"  # optional action-slot placeholder (tokenize(slots=n))
 ACT = "<tool_call>"  # the act marker (stream.ACT)
 THINK = "<think>"
 UNTHINK = "</think>"
 START = "<|im_start|>"
 END = "<|im_end|>"
 EMPTY_THOUGHT = f"{THINK}\n\n{UNTHINK}\n\n"
-SINGLE_TOKENS = (THINK, UNTHINK, ACT, START, END, SCENE, SLOT)
+SINGLE_TOKENS = (THINK, UNTHINK, ACT, START, END, IMAGE_PAD, VISION_START, VISION_END, SLOT)
+PATCH, MERGE = 16, 2  # Qwen3.5-4B's image processor: 16-pixel patches merged 2 x 2 into one visual token
+MIN_PIXELS, MAX_PIXELS = 65536, 16777216  # its preprocessor_config.json size bounds
+ISO_SCALE = 8  # the stand-in view: render.render_scene at 8 pixels a voxel, 272 x 272 (81 visual tokens)
 DONE_LINE = H.DONE_LINE  # "done."
 TEMPLATE = "template"
 REFUSAL = H.REFUSAL  # "refusal"
@@ -160,11 +166,41 @@ def text_reply(thought, answer):
 
 def context(instruction, memory=(), system=None):
     """The text before the reply: system, memory (earlier assistant text) and the user turn with
-    the instruction and SCENE."""
+    IMAGES, then the instruction."""
     out = f"{START}system\n{system}{END}\n" if system else ""
     if memory:
         out += f"{START}assistant\n" + "\n".join(memory) + f"{END}\n"
-    return out + f"{START}user\n{instruction.strip()}\n{SCENE}{END}\n{START}assistant\n"
+    return out + f"{START}user\n{IMAGES}\n{instruction.strip()}{END}\n{START}assistant\n"
+
+
+def stand_in_views(obs, rng=None, scale=ISO_SCALE):
+    """[one isometric image] of an observation (channels, D, H, W), drawn as render.render_scene
+    draws (robots grey, terrain sandy, objects in their per-voxel colour; no zones), ignoring rng.
+    It stands in for views.scene_views(obs, rng, ViewSpec()) until that exists; ThinkData's
+    `views` argument switches."""
+    from PIL import Image, ImageDraw
+
+    from beebot.vla.voxel.render import BACKGROUND, ROBOT, SHADES, WALL
+
+    grid = obs.numpy() if isinstance(obs, torch.Tensor) else np.asarray(obs)
+    robots, walls, things = grid[0] > 0.5, grid[1] > 0.5, grid[2] > 0.5
+    solid = robots | walls | things
+    covered = np.zeros_like(solid)  # solid on all three visible sides (+z, +y, +x): never seen
+    covered[:-1, :-1, :-1] = solid[1:, :-1, :-1] & solid[:-1, 1:, :-1] & solid[:-1, :-1, 1:]
+    d, h, w = solid.shape
+    s = scale
+    image = Image.new("RGB", ((w + h) * s + 2 * s, (w + h) * s // 2 + d * s + 2 * s), BACKGROUND)
+    draw = ImageDraw.Draw(image)
+    ox, oy = h * s + s, d * s + s
+    draw.polygon([(ox + (x - y) * s, oy + (x + y) * s / 2) for y, x in ((0, 0), (0, w), (h, w), (h, 0))], outline=(200, 200, 195), fill=(236, 236, 230))
+    cells = np.argwhere(solid & ~covered)
+    order = np.lexsort((cells[:, 0], cells.sum(axis=1)))
+    for z, y, x in cells[order]:
+        rgb = ROBOT if robots[z, y, x] else WALL if walls[z, y, x] else tuple(int(v * 255) for v in grid[3:6, z, y, x])
+        cx, cy = ox + (x - y) * s, oy + (x + y) * s / 2 - z * s
+        for face, k in zip(([(cx, cy - s), (cx + s, cy - s / 2), (cx, cy), (cx - s, cy - s / 2)], [(cx - s, cy - s / 2), (cx, cy), (cx, cy + s), (cx - s, cy + s / 2)], [(cx, cy), (cx + s, cy - s / 2), (cx + s, cy + s / 2), (cx, cy + s)]), SHADES):
+            draw.polygon(face, fill=tuple(int(c * k) for c in rgb))
+    return [image]
 
 
 def article(phrase):
@@ -358,6 +394,7 @@ def held_out(seed, index, share):
 @dataclass
 class Example:
     obs: torch.Tensor
+    images: list
     context_text: str
     reply_text: str
     act: bool
@@ -383,7 +420,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -393,6 +430,8 @@ class ThinkData:
         self.held_share = held_share
         self.channels = channels
         self.system = system
+        self.views = views
+        self.validation_views = validation_views
         self.stores = [str(s) for s in stores]
         self.data = [load(s) for s in self.stores]
         self.labels = []
@@ -496,8 +535,9 @@ class ThinkData:
 
     # -- examples
 
-    def example(self, ep, t, parts):
-        """The act example of episode ep at step t under labelling parts (one per instruction)."""
+    def example(self, ep, t, parts, rng=None, views=None):
+        """The act example of episode ep at step t under labelling parts (one per instruction);
+        rng: the generator the views draw their randomization from."""
         events = self.episode_events(ep)
         starts = [int(entry["t"]) for entry in self.instructions(ep)]
         j = part_at(starts, t)
@@ -505,8 +545,10 @@ class ThinkData:
         memory = [self.thought_of(ep, parts, ev) for ev in memory_before(events, t)]
         thought = self.thought_of(ep, parts, here) if here is not None else ""
         codes = self.data[ep.store]["actions"][ep.e, t].long()
+        obs = self.observation(ep, t)
         return Example(
-            obs=self.observation(ep, t),
+            obs=obs,
+            images=(views or self.views)(obs, rng),
             context_text=context(parts[j]["instruction"], memory, self.system),
             reply_text=act_reply(thought),
             act=True,
@@ -522,9 +564,11 @@ class ThinkData:
             store=self.stores[ep.store],
         )
 
-    def refusal(self, ep, pair):
+    def refusal(self, ep, pair, rng=None, views=None):
+        obs = self.observation(ep, 0)
         return Example(
-            obs=self.observation(ep, 0),
+            obs=obs,
+            images=(views or self.views)(obs, rng),
             context_text=context(pair["instruction"], (), self.system),
             reply_text=text_reply(pair["thought"], pair["reply"]),
             act=False,
@@ -540,11 +584,11 @@ class ThinkData:
             store=self.stores[ep.store],
         )
 
-    def draw(self, pool, rng):
+    def draw(self, pool, rng, views=None):
         """One example from a pool of episodes (Pool: the sampler of sample and validation)."""
         if pool.refusing and self.refusal_share and rng.random() < self.refusal_share:
             ep = pool.refusing[int(rng.integers(len(pool.refusing)))]
-            return self.refusal(ep, ep.refusals[int(rng.integers(len(ep.refusals)))])
+            return self.refusal(ep, ep.refusals[int(rng.integers(len(ep.refusals)))], rng, views)
         episodes = pool.episodes
         if self.haiku_share is not None and pool.labelled and pool.unlabelled:
             episodes = pool.labelled if rng.random() < self.haiku_share else pool.unlabelled
@@ -557,7 +601,7 @@ class ThinkData:
         else:
             others = sorted(set(range(steps)) - set(thought_steps))
             t = others[int(rng.integers(len(others)))] if others else int(rng.integers(steps))
-        return self.example(ep, t, self.labelling(ep, rng))
+        return self.example(ep, t, self.labelling(ep, rng), rng, views)
 
     def sample(self, rng):
         return self.draw(self.train_pool, rng)
@@ -568,7 +612,7 @@ class ThinkData:
             if not self.held:
                 raise ValueError("no held-out episodes (too few episodes for held_share)")
             rng = np.random.default_rng(seed)
-            self.validation_cache[key] = [self.draw(self.held_pool, rng) for _ in range(n)]
+            self.validation_cache[key] = [self.draw(self.held_pool, rng, self.validation_views) for _ in range(n)]
         return self.validation_cache[key]
 
     def counts(self):
@@ -607,19 +651,31 @@ def check_tokens(tokenizer):
     return {text: token_id(tokenizer, text) for text in SINGLE_TOKENS}
 
 
-def tokenize(example, tokenizer, scene_tokens=64, slots=False):
-    """(input_ids, labels): the context with SCENE expanded to scene_tokens copies of its id, then
-    the reply (labels: the reply's ids, -100 elsewhere); with slots, scene_tokens copies of SLOT's
-    id after an act reply (label -100)."""
-    scene_id = token_id(tokenizer, SCENE)
-    head = tokenizer(example.context_text, add_special_tokens=False).input_ids
-    where_scene = [i for i, v in enumerate(head) if v == scene_id]
-    if len(where_scene) != 1:
-        raise ValueError(f"the context holds {len(where_scene)} SCENE tokens, not one")
-    i = where_scene[0]
-    head = head[:i] + [scene_id] * scene_tokens + head[i + 1 :]
-    reply = tokenizer(example.reply_text, add_special_tokens=False).input_ids
-    tail = [token_id(tokenizer, SLOT)] * scene_tokens if slots and example.act else []
+def image_tokens(image, patch=PATCH, merge=MERGE, min_pixels=MIN_PIXELS, max_pixels=MAX_PIXELS):
+    """Visual tokens of a PIL image after Qwen3.5's resize (smart_resize to multiples of
+    patch x merge pixels within the pixel bounds): one per merge x merge patches."""
+    from transformers.models.qwen2_vl.image_processing_pil_qwen2_vl import smart_resize
+
+    height, width = smart_resize(image.height, image.width, factor=patch * merge, min_pixels=min_pixels, max_pixels=max_pixels)
+    return (height // (patch * merge)) * (width // (patch * merge))
+
+
+def tokenize(example, tokenizer, counts=None, slots=0):
+    """(input_ids, labels): the context with IMAGES expanded as the Qwen3-VL processor does,
+    <|vision_start|> + <|image_pad|> x n + <|vision_end|> per image (n: counts, or image_tokens of
+    each of example.images), then the reply (labels: the reply's ids, -100 elsewhere); slots: that
+    many SLOT ids after an act reply (label -100), for a model that wants its action slots in the
+    id sequence."""
+    if example.context_text.count(IMAGES) != 1:
+        raise ValueError(f"the context holds {example.context_text.count(IMAGES)} {IMAGES} placeholders, not one")
+    before, after = example.context_text.split(IMAGES)
+    counts = [image_tokens(image) for image in example.images] if counts is None else list(counts)
+    pad, opening, closing = (token_id(tokenizer, text) for text in (IMAGE_PAD, VISION_START, VISION_END))
+    vision = [i for n in counts for i in [opening] + [pad] * n + [closing]]
+    encode = lambda text: tokenizer(text, add_special_tokens=False).input_ids  # noqa: E731
+    head = encode(before) + vision + encode(after)
+    reply = encode(example.reply_text)
+    tail = [token_id(tokenizer, SLOT)] * slots if slots and example.act else []
     ids = head + reply + tail
     labels = [-100] * len(head) + reply + [-100] * len(tail)
     return torch.tensor(ids, dtype=torch.long), torch.tensor(labels, dtype=torch.long)
