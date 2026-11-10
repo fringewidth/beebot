@@ -1,0 +1,6 @@
+clean   look fresh    21.0 pairs/s (256 x 256, one thread, best of 3 x 16)
+clean   look reused   24.7 pairs/s (256 x 256, one thread, best of 3 x 16)
+medium  look fresh    15.6 pairs/s (256 x 256, one thread, best of 3 x 16)
+medium  look reused   12.2 pairs/s (256 x 256, one thread, best of 3 x 16)
+strong  look fresh    12.3 pairs/s (256 x 256, one thread, best of 3 x 16)
+strong  look reused   14.3 pairs/s (256 x 256, one thread, best of 3 x 16)

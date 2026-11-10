@@ -1344,7 +1344,7 @@ p * s. Any item can be turned off by name: `ViewSpec(off={"jpeg"})`.
 | | aspect | fx/fy +-4 s %, principal point +-3 s % (0) |
 | | distortion | p 0.6: radial k1 in U(-0.04, 0.22) s, mostly barrel, refit so the corners stay (0) |
 | | crop | zoom in x U(1, 1 + 0.1 s), shifted anywhere inside the render (1) |
-| | resolution | rendered at U(1 - 0.45 s, 1 + 0.25 s) x size, then resized (1) |
+| | resolution | rendered at U(1 - 0.5 s, 1) x size, then upsampled to size, as a low-resolution sensor (1) |
 | | top_jitter | top view: +-6 s deg rotation, up to 8 s deg tilt (0) |
 | | top_perspective | p 0.5: the top view becomes a perspective camera high above, fov 20-45 deg (orthographic) |
 | lighting | lights | p 0.5 each for a second and a third light of 0.2-0.6 (one light) |
@@ -1352,7 +1352,7 @@ p * s. Any item can be turned off by name: `ViewSpec(off={"jpeg"})`.
 | | intensity | 0.75 x U(1 - 0.35 s, 1 + 0.35 s) (0.75) |
 | | ambient | 0.4 +- 0.22 s, tinted toward the light or a cool sky (0.4, white) |
 | | temperature | 5500 +- 2700 s K per light (5500 K) |
-| | shadows | p 0.35 off; 1-3 PCF taps (on, 2) |
+| | shadows | p 0.35 off; 1 or 4 PCF taps (on, 4) |
 | | specular | Blinn-Phong. Robots ks U(0, 0.55 s), shininess 8-64; steel floors ks 0.1-0.5; objects ks up to 0.15 s (robots 0.15) |
 | style | style | p 0.3 flat (no lighting, a fixed shade per face direction); p 0.2 toon (three light bands, dark outlines); otherwise lit. Outlines p 0.35 (lit, outlined) |
 | materials | floor | steel, brushed metal, wood, paper (p 0.3 graph lines), fractal noise or rotated tiles, at low saturation. Its mean is at least 20 Lab units from every object colour and 15 from the robots (dark slate) |
