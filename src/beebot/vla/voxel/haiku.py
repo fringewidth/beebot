@@ -480,7 +480,7 @@ For each item write three instructions a person might type to ask for exactly th
 1. "close": a close paraphrase of the task in different words.
 2. "indirect": it names the targets indirectly, so that working out what is meant takes a step of thought: a category of colours, a description (the colour of the sky), a relation in this scene (the cheese nearest the back, the one on the plateau), a count (both of them, all three) or a negation (everything but ...). It must pick out exactly the task's targets in this scene and nothing else.
 3. "casual": the way people type in a chat: lower case, loose grammar, a typo or two, slang; now and then in Spanish or French.
-Every instruction asks for the same thing as the task: the same targets, the same order where the task has one, nothing added and nothing left out. Vary the wording from item to item.
+Every instruction asks for the same thing as the task: the same targets, the same order where the task has one, nothing added and nothing left out. The sub-goals are only the order the swarm will choose to work in: unless the task sentence itself says an order (first, then, before, after), never put an order into the instruction. Vary the wording from item to item.
 
 For each instruction write the swarm's first thought, in lower case and at most 35 words besides the quoted instruction, in this shape:
 "you asked: <the instruction>. i see <the scene contents that matter>. <what the instruction means here, resolved to concrete colours, places or numbers>. first: <the first sub-goal>."
