@@ -1419,8 +1419,8 @@ docstrings hold the details; in short:
     PYTHONPATH=src python -m beebot.vla.voxel.scorecard --arms expert --out runs/card_expert       # no model, CPU
     PYTHONPATH=src python -m beebot.vla.voxel.scorecard compare runs/A/card/episodes.jsonl runs/B/card/episodes.jsonl
 
-1. **A step.** Render the views (`views=`: the stand-in isometric image until `views.py` lands),
-   build the context (instruction in force, the user's place that keeps the world's frame, memory
+1. **A step.** Render the views (`views.scene_views`, the episode's look),
+   build the context (instruction in force said in the user's frame, where the user stands, memory
    = the latest first thought and the latest switch line after it), `think_then_act` for every
    live episode of the batch, argmax (or `--sample`) per robot, `world.step` under switch_cube
    with failures 0.10 (0.23 up and over). A switch task's second instruction comes at its step; a
@@ -1452,9 +1452,12 @@ docstrings hold the details; in short:
    (`logs/think_act_loop.jsonl`), and `scorecard3d_mean` per arm and split, then
    `scorecard3d_noise` (the standard deviation of the mean across `--repeats` cards on fresh scenes
    and seeds, or the macro standard error of a single card) to `--log` (`logs/scorecard3d.jsonl`).
-1. **Stand-ins until ThinkData and views land.** `rollout.build_context` (for
-   `think_data.context`), `rollout.canonical_thought` (for `think_data.template_thought`) and
-   `rollout.stand_in_views` (for `views.scene_views`, `--views scene`).
+1. **Training's text and views.** Contexts come from `think_data.context` (a test checks that the
+   rollout's context at every step of a training episode equals ThinkData's), oracle thoughts from
+   `think_data.template_thought` cut by `visible`, views from `views.scene_views` with one
+   `sample_look` per episode (`--views stand_in` for think_data's isometric image). The user's
+   place is drawn per episode as think_data draws it and every instruction is said in that frame
+   (`in_user_frame`); one whose direction words cannot be turned keeps the world's frame.
 
 ## Left out, and extension points
 

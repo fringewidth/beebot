@@ -1,39 +1,44 @@
 """Closed-loop episodes of the think-then-act voxel policy (voxel/think.py), and of the scripted
 expert on the same scenes.
 
-Each step of a policy episode: render the scene's views, build the context (the instruction in
-force, the user's place round the arena, memory = the latest first thought and the latest switch
-line after it), call ThinkVoxelPolicy.think_then_act for every live episode of the batch at once,
-turn each acting row's slot logits into action codes (argmax, or sampled with the episode's own
-generator), and step the world under the run's pivot rule and move failure rates. Thoughts are
-recorded when non-empty. A switch task's instruction changes at its step (Task.spec["steps"]);
-the memory still holds the old instruction's thought on that step, as in training. A reply in
-words (refuse or clarify: the row reached END without the act marker) ends the episode: no robot
-moves again and the episode is scored on the scene as it is. A reply that runs out of tokens
-before the act marker or END moves nothing that step (counted as unfinished).
+Each step of a policy episode: render the scene's views, build the context exactly as training
+does (think_data.context: the memory turn = the latest first thought and the latest switch line
+after it, then the user turn with the images, where the user stands and the instruction in force),
+call ThinkVoxelPolicy.think_then_act for every live episode of the batch at once, turn each acting
+row's slot logits into action codes (argmax, or sampled with the episode's own generator), and
+step the world under the run's pivot rule and move failure rates. Thoughts are recorded when
+non-empty. A switch task's instruction changes at its step (Task.spec["steps"]); the memory still
+holds the old instruction's thought on that step, as in training. A reply in words (refuse or
+clarify: the row reached END without the act marker) ends the episode: no robot moves again and
+the episode is scored on the scene as it is. A reply that runs out of tokens before the act marker
+or END moves nothing that step (counted as unfinished).
+
+Views: views.scene_views with one look (views.sample_look: cameras, lights, materials) per
+episode, kept for all its steps (SceneViews); think_data.stand_in_views only when asked for.
+
+The user's frame, as think_data draws it: on an episode's first step the user's place round the
+camera is drawn (think_data.USER_NAMES, from the episode's own generator) and with the camera's
+azimuth gives the quarter turns of the user's frame; every instruction is said in that frame
+(think_data.in_user_frame), and the user turn says where the user stands. An instruction whose
+direction words cannot be turned (think_data.mappable) keeps the world's frame: the place that
+makes it so is used instead, as training does when no other label fits. Episode.user pins the place.
 
 Oracle thoughts (Episode.oracle): on the first step of each instruction the context is followed by
-the canonical first thought (canonical_thought) in the reply's own form, "<think>\\n{thought}\\n
-</think>\\n\\n", and the policy generates from there: the act marker (then its slots) or an answer.
-Later steps generate freely, with the forced thought in memory.
+the canonical first thought (oracle_thought: think_data.template_thought cut to what images show
+and said in the user's frame, the training template's thought) in the reply's own form,
+"<think>\\n{thought}\\n</think>\\n\\n", and the policy generates from there: the act marker (then
+its slots) or an answer. Later steps generate freely, with the forced thought in memory.
 
 Determinism: every episode carries a seed; its world noise (step's move order), move failures,
-action sampling and view randomization come from generators of its own seeded from it, so an
-episode plays the same whatever else is in its batch (up to the LM's batch numerics) and on every
-run. The expert arm is the exception: the suite's experts keep one generator for their batch, so
-expert episodes are deterministic for a given seed and batch.
+action sampling, user place and view randomization come from generators of its own seeded from it,
+so an episode plays the same whatever else is in its batch (up to the LM's batch numerics) and on
+every run. The expert arm is the exception: the suite's experts keep one generator for their
+batch, so expert episodes are deterministic for a given seed and batch.
 
 Conditions (the training stores, data/vla/voxel_full/s*/small.pt config): pivot rule switch_cube,
 gravity on, cube moves for the expert, failure 0.10 per move and 0.23 for up-and-over moves
 (FAILURE), 72 steps (STEPS) and 144 for build tasks (BUILD_STEPS, data/vla/voxel_build), every
 world with the object fields (world.with_objects, MAX_OBJECTS slots).
-
-Stand-ins, one function each, until the real ones land:
-  build_context      -> think_data.context(instruction, memory, standing=...) (voxel/think_data.py)
-  canonical_thought  -> think_data.template_thought(instruction, record, summary)
-  stand_in_views     -> views.scene_views(obs, rng, ViewSpec()) (voxel/views.py; pass views=...)
-The user's place is always the one that makes the user's frame the world's (quarter_turns 0), so
-instructions and thoughts need no turning; USER_POSITIONS and quarter_turns follow think_data.
 """
 
 from dataclasses import dataclass, field, replace
@@ -42,6 +47,7 @@ import numpy as np
 import torch
 
 from beebot.vla.voxel import suite as S
+from beebot.vla.voxel import think_data as T
 from beebot.vla.voxel.lm import unpatchify3
 from beebot.vla.voxel.world import CUBE_MOVES, MAX_OBJECTS, STAY, concat, failure_rates, observe, step, with_objects
 
@@ -50,98 +56,48 @@ FAILURE = failure_rates(0.10, up_over=0.23)
 STEPS = 72
 BUILD_STEPS = 144
 MAX_NEW_TOKENS = 160
-START, END = "<|im_start|>", "<|im_end|>"
-IMAGES = "<IMAGES>"
 FIRST_SHAPE = "you asked:"  # a first thought starts so (Haiku and template thoughts); any other thought is a switch or done line
 
 
 # ---------------------------------------------------------------------------------------------
-# Stand-ins for think_data and views (see the module docstring)
-
-USER_POSITIONS = {  # think_data.USER_POSITIONS: (degrees added to the camera's azimuth, what the user turn says)
-    "behind": (0, "(i'm standing behind the camera)"),
-    "left": (-90, "(i'm standing to the left of the camera)"),
-    "right": (90, "(i'm standing to the right of the camera)"),
-    "opposite": (180, "(i'm standing opposite the camera, facing it)"),
-}
-STAND_IN_AZIMUTH = 45.0  # render.render_scene looks from the front right corner
-STAY_LINE = "stay where you are"
+# Training's text and views
 
 
-def quarter_turns(degrees):
-    """think_data.quarter_turns: the quarter turn (0 front, 1 right, 2 back, 3 left) of a place
-    round the arena at this azimuth."""
-    return int(((float(degrees) + 45.0) % 360.0) // 90.0)
+def oracle_thought(instruction, record, summary, turns=0):
+    """The training template's first thought of an instruction (think_data.template_thought, cut to
+    what images show by think_data.visible, said in the user's frame) from its world-frame text,
+    its canonical record and the scene summary (suite.scene_summary) where it starts."""
+    raw = T.template_thought(instruction, record, summary)
+    return T.in_user_frame(T.visible(raw, instruction, record), turns)
 
 
-def standing_for(azimuth):
-    """The user-place sentence whose frame is the world's (quarter turn 0) for this camera."""
-    for offset, sentence in USER_POSITIONS.values():
-        if quarter_turns(azimuth + offset) == 0:
-            return sentence
-    raise AssertionError("four places cover the four quarter turns")
+class SceneViews:
+    """views.scene_views with one look (views.sample_look) per episode, kept for all its steps; the
+    rollout gives each episode its own rng, which keys the look. spec: a views.ViewSpec (default
+    ViewSpec())."""
+
+    def __init__(self, spec=None):
+        from beebot.vla.voxel import views as V
+
+        self.V = V
+        self.spec = V.ViewSpec() if spec is None else spec
+        self.looks = {}
+
+    def __call__(self, obs, rng):
+        if id(rng) not in self.looks:
+            self.looks[id(rng)] = (rng, self.V.sample_look(rng, self.spec))  # the rng is kept so that its id is not reused
+        return self.V.scene_views(obs, rng, self.spec, look=self.looks[id(rng)][1])
 
 
-def build_context(instruction, memory=(), standing=None):
-    """Stand-in for think_data.context: memory as an earlier assistant turn, then the user turn with
-    the images, where the user stands and the instruction; it ends where the reply starts."""
-    out = f"{START}assistant\n" + "\n".join(memory) + f"{END}\n" if memory else ""
-    where = f"{standing}\n" if standing else ""
-    return out + f"{START}user\n{IMAGES}\n{where}{instruction.strip()}{END}\n{START}assistant\n"
-
-
-def bare(text):
-    return text.strip().rstrip(".!?").strip()
-
-
-def canonical_thought(instruction, record, summary):
-    """Stand-in for think_data.template_thought: the first thought of an instruction from its
-    canonical record and the scene summary (suite.scene_summary)."""
-    terrain = summary.get("terrain", {}).get("layout", "flat floor")
-    things = [f"a {c['colour']} cheese at the {c['area']}" for c in summary.get("cheeses", [])[:4]]
-    sight = ", ".join([f"the swarm on {'a ' if terrain.startswith('trench') else ''}{terrain}"] + things)
-    if record.get("spec", {}).get("kind") == "refuse":
-        meaning = "nothing here matches it, so there is nothing to do"
-    else:
-        meaning = f"that means: {bare(record['plain'])}"
-    subgoals = record.get("subgoals") or []
-    first = bare(subgoals[0]) if subgoals else STAY_LINE
-    return f"you asked: {bare(instruction)}. i see {sight}. {meaning}. first: {first}.".lower()
-
-
-def stand_in_views(obs, rng=None, scale=8):
-    """([one isometric image], {"azimuth": 45}) of an observation (channels, D, H, W): robots grey,
-    terrain sandy, objects in their per-voxel colour, as render.render_scene draws (rng unused)."""
-    from PIL import Image, ImageDraw
-
-    from beebot.vla.voxel.render import BACKGROUND, ROBOT, SHADES, WALL
-
-    grid = obs.numpy() if isinstance(obs, torch.Tensor) else np.asarray(obs)
-    robots, walls, things = grid[0] > 0.5, grid[1] > 0.5, grid[2] > 0.5
-    solid = robots | walls | things
-    covered = np.zeros_like(solid)  # solid on all three visible sides: never seen
-    covered[:-1, :-1, :-1] = solid[1:, :-1, :-1] & solid[:-1, 1:, :-1] & solid[:-1, :-1, 1:]
-    d, h, w = solid.shape
-    s = scale
-    image = Image.new("RGB", ((w + h) * s + 2 * s, (w + h) * s // 2 + d * s + 2 * s), BACKGROUND)
-    draw = ImageDraw.Draw(image)
-    ox, oy = h * s + s, d * s + s
-    draw.polygon([(ox + (x - y) * s, oy + (x + y) * s / 2) for y, x in ((0, 0), (0, w), (h, w), (h, 0))], outline=(200, 200, 195), fill=(236, 236, 230))
-    cells = np.argwhere(solid & ~covered)
-    order = np.lexsort((cells[:, 0], cells.sum(axis=1)))
-    for z, y, x in cells[order]:
-        rgb = ROBOT if robots[z, y, x] else WALL if walls[z, y, x] else tuple(int(v * 255) for v in grid[3:6, z, y, x])
-        cx, cy = ox + (x - y) * s, oy + (x + y) * s / 2 - z * s
-        faces = ([(cx, cy - s), (cx + s, cy - s / 2), (cx, cy), (cx - s, cy - s / 2)], [(cx - s, cy - s / 2), (cx, cy), (cx, cy + s), (cx - s, cy + s / 2)], [(cx, cy), (cx + s, cy - s / 2), (cx + s, cy + s / 2), (cx, cy + s)])
-        for face, k in zip(faces, SHADES):
-            draw.polygon(face, fill=tuple(int(c * k) for c in rgb))
-    return [image], {"azimuth": STAND_IN_AZIMUTH}
-
-
-def views_and_pose(result):
-    """(images, camera azimuth) from what a views function returns: images, or (images, pose)."""
-    images, pose = result if isinstance(result, tuple) else (result, None)
-    return list(images), float((pose or {}).get("azimuth", 0.0))
+def user_frame(texts, azimuth, rng, user=None):
+    """(user place, quarter turns) of an episode: the place drawn as think_data draws it (or `user`),
+    turned to the world's frame when an instruction cannot be turned (think_data.mappable)."""
+    position = user if user is not None else T.USER_NAMES[int(rng.integers(len(T.USER_NAMES)))]
+    turns = T.user_turns(azimuth, position)
+    if turns and not all(T.mappable(text) for text in texts):
+        position = next(name for name in T.USER_NAMES if T.user_turns(azimuth, name) == 0)
+        turns = 0
+    return position, turns
 
 
 # ---------------------------------------------------------------------------------------------
@@ -153,7 +109,8 @@ class Episode:
     """One episode to play. world: the scene (a batch of one); task: what is scored (a switch task
     carries its parts); texts[j]: the instruction given from step starts[j] on; records[j]: the
     canonical record (suite.canonical_record) of the instruction in force then, for oracle thoughts
-    and thought checks; oracle: feed canonical first thoughts; key: what identifies it in reports."""
+    and thought checks; oracle: feed canonical first thoughts; key: what identifies it in reports;
+    user: the user's place (think_data.USER_NAMES) instead of a drawn one."""
 
     world: object
     meta: dict
@@ -165,6 +122,7 @@ class Episode:
     seed: int
     oracle: bool = False
     key: dict = field(default_factory=dict)
+    user: str | None = None
 
 
 @dataclass
@@ -172,7 +130,8 @@ class Played:
     """What happened in an episode. thoughts: [{"t", "part", "text", "forced"}] of every non-empty
     thought; spoke: {"t", "text"} of the reply in words that ended it, or None; unfinished: steps
     whose reply ran out of tokens; moves: per step, the share of robots whose chosen action was not
-    STAY; actions: (steps, D, H, W) int8 chosen codes when recorded."""
+    STAY; actions: (steps, D, H, W) int8 chosen codes when recorded; user, turns, camera: the user's
+    place, the quarter turns of the user's frame and the camera's azimuth (policy episodes)."""
 
     score: float
     unasked: bool
@@ -182,6 +141,9 @@ class Played:
     unfinished: int = 0
     moves: list = field(default_factory=list)
     actions: torch.Tensor | None = None
+    user: str | None = None
+    turns: int = 0
+    camera: float | None = None
 
 
 def part_at(starts, t):
@@ -276,28 +238,48 @@ def play(episodes, actor, rule=RULE, failure=FAILURE, record=False):
 class PolicyActor:
     """The policy as an actor for play(): one think_then_act call per step over the batch's live
     episodes. sample: draw each robot's action from its softmax (with the episode's generator)
-    instead of the argmax. views(obs, rng) -> images or (images, pose)."""
+    instead of the argmax. views(obs, rng) -> images or (images, pose); None: SceneViews()."""
 
-    def __init__(self, policy, episodes, views=stand_in_views, sample=False, max_new_tokens=MAX_NEW_TOKENS):
-        self.policy, self.episodes, self.views = policy, episodes, views
-        self.sample, self.max_new_tokens = sample, max_new_tokens
+    def __init__(self, policy, episodes, views=None, sample=False, max_new_tokens=MAX_NEW_TOKENS, system=None):
+        self.policy, self.episodes = policy, episodes
+        self.views = SceneViews() if views is None else views
+        self.sample, self.max_new_tokens, self.system = sample, max_new_tokens, system
         self.vision = getattr(policy, "visual", None) is not None
         n = len(episodes)
         self.memory = [[] for _ in range(n)]
         self.thoughts = [[] for _ in range(n)]
         self.spoke = [None] * n
         self.unfinished = [0] * n
+        self.frames = [None] * n  # (user place, quarter turns, camera azimuth), set on the first step
         self.view_rng = [np.random.default_rng([int(e.seed), 3]) for e in episodes]
+        self.frame_rng = [np.random.default_rng([int(e.seed), 5]) for e in episodes]
         self.draws = [torch.Generator().manual_seed(int(e.seed) + 104_729) for e in episodes]
 
     def note(self, i, t, part, text, forced):
         """Record a thought and carry it in memory: a first thought replaces the memory, any other
-        line becomes its second line."""
+        line becomes its second line (think_data.memory_before)."""
         self.thoughts[i].append({"t": t, "part": part, "text": text, "forced": forced})
         if text.startswith(FIRST_SHAPE) or not self.memory[i]:
             self.memory[i] = [text]
         else:
             self.memory[i] = [self.memory[i][0], text]
+
+    def context(self, i, t, world, azimuth):
+        """(context text, forced thought or None) of episode i at step t, as think_data.example
+        builds it; the user's frame is drawn on the episode's first step."""
+        e = self.episodes[i]
+        if self.frames[i] is None:
+            position, turns = user_frame(e.texts, azimuth, self.frame_rng[i], e.user)
+            self.frames[i] = (position, turns, azimuth)
+        position, turns, _ = self.frames[i]
+        j = part_at(e.starts, t)
+        text = T.context(T.in_user_frame(e.texts[j], turns), self.memory[i], self.system, T.USER_POSITIONS[position][1])
+        thought = None
+        if e.oracle and t == e.starts[j]:
+            part = S.instruction_at(e.task, t) if e.task.parts else e.task
+            thought = oracle_thought(e.texts[j], e.records[j], S.scene_summary(world, i, part), turns)
+            text += f"<think>\n{thought}\n</think>\n\n"
+        return text, thought
 
     def __call__(self, world, t):
         obs = observe(world)
@@ -307,16 +289,9 @@ class PolicyActor:
             return codes
         contexts, images, forced = [], [], []
         for i in rows:
-            e = self.episodes[i]
-            j = part_at(e.starts, t)
-            pictures, azimuth = views_and_pose(self.views(obs[i], self.view_rng[i]))
-            context = build_context(e.texts[j], self.memory[i], standing_for(azimuth))
-            thought = None
-            if e.oracle and t == e.starts[j]:
-                part = S.instruction_at(e.task, t) if e.task.parts else e.task
-                thought = canonical_thought(e.texts[j], e.records[j], S.scene_summary(world, i, part))
-                context += f"<think>\n{thought}\n</think>\n\n"
-            contexts.append(context)
+            pictures, azimuth = T.views_and_pose(self.views(obs[i], self.view_rng[i]))
+            text, thought = self.context(i, t, world, azimuth)
+            contexts.append(text)
             images.append(pictures if self.vision else [])
             forced.append(thought)
         result = self.policy.think_then_act(obs[rows], contexts, images if self.vision else None, max_new_tokens=self.max_new_tokens)
@@ -360,12 +335,15 @@ class ExpertActor:
         return self.player(world, t)
 
 
-def play_policy(policy, episodes, views=stand_in_views, sample=False, max_new_tokens=MAX_NEW_TOKENS, rule=RULE, failure=FAILURE, record=False):
-    """Play a batch with the policy: Played per episode with its thoughts, reply and unfinished steps."""
+def play_policy(policy, episodes, views=None, sample=False, max_new_tokens=MAX_NEW_TOKENS, rule=RULE, failure=FAILURE, record=False):
+    """Play a batch with the policy: Played per episode with its thoughts, reply, unfinished steps
+    and user frame. views None: SceneViews (one look per episode)."""
     actor = PolicyActor(policy, episodes, views, sample, max_new_tokens)
     out = play(episodes, actor, rule, failure, record)
     for i, played in enumerate(out):
         played.thoughts, played.spoke, played.unfinished = actor.thoughts[i], actor.spoke[i], actor.unfinished[i]
+        if actor.frames[i] is not None:
+            played.user, played.turns, played.camera = actor.frames[i]
     return out
 
 
