@@ -5,7 +5,8 @@ checked by a second Haiku call that sees only the instruction and the scene.
 
 Commands (each takes --dry-run: a fake provider, the exact prompts and the parsed fake outputs
 printed, nothing written under --root):
-  export    draw tasks exactly as voxel/demos.py draws them and write items.jsonl
+  export    draw tasks exactly as voxel/demos.py draws them and write items.jsonl (--from-items: the
+            items of an earlier export, with start voxels attached and a fresh menu)
   generate  three instructions per item on a ladder of indirection (close, indirect, casual), each
             with a first thought and one line per later sub-goal; about 10% of items also get an
             instruction that cannot or should not be followed (kind refuse or clarify)
@@ -21,7 +22,8 @@ printed, nothing written under --root):
 Files under <root>/<name>/ (root: data/vla/haiku), all JSONL appended one row at a time:
   config.json      the draw (seed, chunk, robots, counts, fit, rule, apart, store) and the items count
   menu.json        the verifier's menu: spec kinds, their fields and values, a plain example of each
-  items.jsonl      {id, seed, index, e, record, scene}
+  items.jsonl      {id, seed, index, e, record, scene}, and for the coverage families voxels (the
+                   start robots and cheese centres a robot selector is resolved on, start_voxels)
   generated.jsonl  one row per item answered: {id, seed, index, family, kind, pairs, rejects, call}
                    pairs: {pair_id, rung, instruction, thought, switches, done} (and kind, reply for
                    the refusal rung); rejects: {rung, reason, answer} of answers that failed checks
@@ -31,6 +33,13 @@ Files under <root>/<name>/ (root: data/vla/haiku), all JSONL appended one row at
   calls.jsonl      one row per call; throughput.jsonl one row per minute (items/min, calls/min)
   report.json      keep rates per family and per rung (verify)
 Every command is resumable: ids already answered are skipped, so a run that stops is re-run as is.
+
+Switch episodes (an instruction change at step t) are separate user messages: generate and verify
+split each into one item per part (instruction_items: "<id>#p<j>", the part's record and t, the
+episode's start scene, the later parts marked so that Haiku does not refer to start positions),
+and Labels.switch_parts gives each part's instructions with its step. Robot selectors (who, by,
+which, count, except) are compared by the robots they pick at the start (same_task), so that
+"the larger group" verifies as "everyone except the group at the back" when they are the same robots.
 
 Records and scenes. The pipeline only reads canonical records {family, kind, plain, spec, subgoals}
 (subgoals: the plain sentence of each expert plan segment, in plan order) and scene summaries
@@ -266,12 +275,110 @@ def drawn_items(options, limit, attempts=None, keep=None):
                 e = row["e"]
             if e is None or e >= 0:
                 item = {"id": item_id(seed, index), "seed": seed, "index": index, "e": e, "record": canonical_record(task), "scene": scene_summary(world, i, task)}
+                if task.family in S.COVERAGE:
+                    item["voxels"] = start_voxels(world, i)
                 if keep is None or keep(item):
                     out.append(item)
             index += 1
             if limit is not None and len(out) >= limit:
                 return out
     return out
+
+
+def start_voxels(world, i):
+    """What a robot selector is resolved on (selection): the robots' voxels (z, y, x) and the
+    centres of the alive cheeses in scene i at the start."""
+    occupied = world.mass[i].numpy() > 0.5
+    centres = S.cheese_centres(world.cheese_color[i].tolist(), S.snapshot(world, i))
+    return {"shape": list(occupied.shape), "robots": np.argwhere(occupied).tolist(), "cheeses": {c: [float(v) for v in centre] for c, centre in centres.items()}}
+
+
+def attach_voxels(items, options):
+    """Items of an earlier export with start_voxels added to those of the coverage families, read
+    off a fresh draw with the export's options (config.json); a record that differs from the
+    draw's means other options or suite code and raises."""
+    wanted = {item["index"]: item for item in items if item["record"]["family"] in S.COVERAGE and "voxels" not in item}
+    if wanted:
+        drawn = {item["index"]: item for item in drawn_items(options, max(wanted) + 1)}
+        for index, item in wanted.items():
+            if json.loads(json.dumps(drawn[index]["record"])) != item["record"]:
+                raise ValueError(f"item {item['id']} is {item['record']['kind']} here but {drawn[index]['record']['kind']} in the draw: different options or suite code")
+    return [{**item, "voxels": drawn[item["index"]]["voxels"]} if item["index"] in wanted else item for item in items]
+
+
+def instruction_items(items):
+    """One item per instruction: a switch episode (spec kind switch) becomes one item per part,
+    "<id>#p<j>", with the episode's seed, index, e, scene (the start: the state at step t is not
+    known before the rollout) and voxels, the part's record (family kept as the episode's), its
+    step t, its number and the number of parts; every other item as it is."""
+    out = []
+    for item in items:
+        record = item["record"]
+        if record["spec"]["kind"] != "switch":
+            out.append(item)
+            continue
+        parts = record["spec"]["parts"]
+        for j, part in enumerate(parts):
+            out.append({**item, "id": f"{item['id']}#p{j}", "record": {**part["record"], "family": record["family"]}, "part": j, "parts": len(parts), "t": int(part["t"])})
+    return out
+
+
+SELECTOR_KEYS = ("who", "by", "which", "except")  # with count when who is count (suite.who_fields)
+
+
+def job_fields(spec):
+    """A spec without its robot selector fields."""
+    drop = set(SELECTOR_KEYS) | ({"count"} if spec.get("who") == "count" else set())
+    return {k: v for k, v in spec.items() if k not in drop}
+
+
+def side_group(groups, which):
+    """The group furthest toward a side or a corner ("front right": furthest front plus right)."""
+    words = which.split()
+    if not words or not all(w in S.SIDE_AXES for w in words):
+        return None
+    return max(groups, key=lambda g: sum(S.SIDE_AXES[w][1] * g[:, S.SIDE_AXES[w][0]].mean() for w in words))
+
+
+def selection(spec, voxels):
+    """The robots a spec's selector fields pick at the start (suite.chosen): a frozenset of voxels,
+    ("any", n) for count and half (any n robots do), or None when the selector names nothing in
+    the scene or cannot be read. No selector: every robot."""
+    occupied = np.zeros(voxels["shape"], bool)
+    cells = np.asarray(voxels["robots"], int).reshape(-1, 3)
+    occupied[tuple(cells.T)] = True
+    who = str(spec.get("who", "all")).strip().lower()
+    try:
+        if who in ("count", "half"):
+            return ("any", int(spec["count"]) if who == "count" else len(cells) // 2)
+        selector = {"select": who, "by": str(spec.get("by", "")).strip().lower(), "which": str(spec.get("which", "")).strip().lower(), "except": spec.get("except") is True}
+        if who == "group" and selector["by"] == "side" and selector["which"] not in S.SIDE_AXES:
+            groups = S.components(occupied)
+            group = side_group(groups, selector["which"]) if len(groups) >= 2 else None
+            if group is None:
+                return None
+            pick = np.zeros_like(occupied)
+            pick[tuple(group.T)] = True
+            pick = occupied & ~pick if selector["except"] else pick
+        else:
+            pick = S.chosen(selector, occupied, {c: tuple(v) for c, v in voxels["cheeses"].items()})
+    except (KeyError, ValueError, TypeError, IndexError):
+        return None
+    return None if pick is None else frozenset(map(tuple, np.argwhere(pick).tolist()))
+
+
+def same_task(answer, want, voxels=None):
+    """same_spec, or the same job fields and a selector that picks the same robots in the start
+    scene's voxels (start_voxels): another selector for the same robots, "the larger group" for
+    "everyone except the group at the back"."""
+    if same_spec(answer, want):
+        return True
+    if not isinstance(answer, dict) or voxels is None or not ("who" in answer or "who" in want):
+        return False
+    if normal(job_fields(answer)) != normal(job_fields(want)):
+        return False
+    picked = selection(answer, voxels)
+    return picked is not None and picked == selection(want, voxels)
 
 
 def values_of(value):
@@ -293,13 +400,21 @@ def describe(values):
 
 def menu_from(records):
     """The verifier's menu: per spec kind its fields with the values seen, a note (SPEC_NOTES) and
-    one plain example; refuse and clarify always. Read off records, so it names no family."""
+    one plain example; refuse and clarify always. Read off records, so it names no family. A
+    switch record contributes its parts (each is verified as its own instruction); the robot
+    selector fields (SELECTOR_KEYS) are left out of the kinds and described once, after them,
+    with the note SPEC_NOTES["who"] and an example."""
+    records = [part["record"] for record in records for part in (record["spec"]["parts"] if record["spec"]["kind"] == "switch" else [{"record": record}])]
     kinds = {}
+    selector_example = None
+    fullness = lambda s: sum(bool(v) or v is False for v in s.values())  # noqa: E731
     for record in records:
         spec = record["spec"]
+        if "who" in spec and record.get("plain") and (selector_example is None or fullness(spec) > fullness(selector_example[1])):
+            selector_example = [record["plain"], spec]
+        spec = job_fields(spec)
         entry = kinds.setdefault(spec["kind"], {"fields": {}, "example": None})
-        fullness = lambda s: sum(bool(v) or v is False for v in s.values())  # noqa: E731
-        if record.get("plain") and spec["kind"] not in REFUSAL_KINDS and (entry["example"] is None or fullness(spec) > fullness(entry["example"][1])):  # the fullest example
+        if record.get("plain") and "who" not in record["spec"] and spec["kind"] not in REFUSAL_KINDS and (entry["example"] is None or fullness(spec) > fullness(entry["example"][1])):  # the fullest example of everyone acting
             entry["example"] = [record["plain"], spec]
         for key, value in spec.items():
             if key == "kind":
@@ -333,13 +448,15 @@ def menu_from(records):
                 words = "a list, each " + describe(widest(field["values"])) if field["values"] else "a list"
             else:
                 words = describe(widest(field["values"]))
-            parts.append(f'"{key}": {words}{" (order matters)" if key in ORDERED_KEYS else ""}')
+            parts.append(f'"{key}": {words}{" (order matters)" if key in ORDERED_KEYS and field["list"] else ""}')
         line = f'- "{kind}"' + (" with " + "; ".join(parts) if parts else " (no fields)")
         if kind in SPEC_NOTES:
             line += ". " + SPEC_NOTES[kind]
         if entry["example"] is not None:
             line += f' Example: "{entry["example"][0]}" -> {json.dumps(entry["example"][1])}'
         lines.append(line)
+    if selector_example is not None:
+        lines.append('\nOnly some robots: any task kind above may add "who", "by", "which", "count" and "except". ' + SPEC_NOTES.get("who", "") + f' Example: "{selector_example[0]}" -> {json.dumps(selector_example[1])}')
     return "\n".join(lines)
 
 
@@ -373,6 +490,29 @@ def export(directory, options, limit, store=None, dry_run=False, keep=None):
     (directory / "config.json").write_text(json.dumps({**options, "store": None if store is None else str(store), "items": len(items), "time": now()}, indent=1))
     (directory / "menu.json").write_text(json.dumps({"menu": menu}))
     print(f"{len(items)} items -> {directory / 'items.jsonl'}; families {count_by(items, lambda x: x['record']['family'])}")
+    return items
+
+
+def export_from(directory, path, dry_run=False):
+    """A new dataset from the items of an earlier export (path: its items.jsonl or a subset in the
+    same format, next to its config.json): start voxels attached by a fresh draw with that
+    config's options (attach_voxels), the menu written anew."""
+    path = Path(path)
+    options = json.loads((path.parent / "config.json").read_text())
+    items = attach_voxels(read_jsonl(path), options)
+    menu = menu_from(list(menu_records()) + [item["record"] for item in items])
+    if dry_run:
+        print(f"(dry run) {len(items)} items would go to {directory / 'items.jsonl'}\n\nverifier menu:\n{menu}")
+        return items
+    if (directory / "items.jsonl").exists():
+        raise FileExistsError(f"{directory / 'items.jsonl'} exists; answers key off its ids, so use a new --name")
+    directory.mkdir(parents=True, exist_ok=True)
+    with open(directory / "items.jsonl", "w") as f:
+        for item in items:
+            f.write(json.dumps(item) + "\n")
+    (directory / "config.json").write_text(json.dumps({**options, "from_items": str(path), "items": len(items), "time": now()}, indent=1))
+    (directory / "menu.json").write_text(json.dumps({"menu": menu}))
+    print(f"{len(items)} items from {path} -> {directory / 'items.jsonl'}; families {count_by(items, lambda x: x['record']['family'])}")
     return items
 
 
@@ -489,6 +629,8 @@ If the task has no sub-goals, end with what the swarm does instead (it stays whe
 Then "switches": one short lower-case line for each later sub-goal, in order, said when the swarm moves on to it ("now the green one", "green next"): one fewer than the sub-goals, none for a single sub-goal.
 Thoughts mention only colours, cheeses and terrain that the scene has, by their plain names (red, green, blue, yellow, orange, purple, white, cyan, trench, plateau, hills); never invent anything.
 
+Items with "later": true are a new instruction that arrives later, mid-task: the swarm has been working on an earlier instruction for a while and is then told this one as a separate message. The scene shows the start, so the robots (and anything they pushed) are no longer where it shows them: never refer to where the robots or things are or were in the instruction or the thought (no "the group at the back", "the cheese on the left"); "i see" names only what cannot have moved (the terrain, which cheeses there are). Write the instruction as a message of its own, without mentioning any earlier task.
+
 Never use any of these words or phrases in an instruction or a thought (they are kept for testing): @AVOID@. Other languages: Spanish or French only.
 
 Items with "refusal": true get one more instruction, one that cannot or should not be followed in this scene: it asks for a colour or thing the scene does not have, it could mean two different tasks here, or it makes no sense. Give its "kind" ("refuse" when the swarm should do nothing, "clarify" when it should ask), its "text", its "thought" (same shape, ending in why the swarm will not act or what is unclear) and its "reply": what the swarm says back, a short statement that it will do nothing and why, or a clarifying question.
@@ -525,6 +667,8 @@ Task kinds and their fields:
 Rules:
 - Resolve the instruction in its own scene: every colour, area and number you write is a concrete value from the lists above, and colours are cheeses that are in the scene.
 - Lists are sets unless the field says the order matters.
+- A task needs only what its note says: line, gather, spread, stay, groups and move need nothing in the scene but the robots.
+- Add "who" and its fields only when the instruction names some of the robots; "all of you", "everyone" or a count of every robot means no "who".
 - "refuse" when the instruction cannot or should not be followed in its scene (it asks for a colour or thing the scene does not have, or it makes no sense); "clarify" when it could mean two different tasks there.
 - Instructions may be casual, misspelt or in another language.
 
@@ -537,13 +681,21 @@ Instructions (one JSON object per line):
 
 def generate_entry(item, refusal_share):
     entry = {"id": item["id"], "task": item["record"]["plain"], "sub_goals": item["record"]["subgoals"], "scene": item["scene"]}
-    if wants_refusal(item["id"], refusal_share):
+    if item.get("part", 0) > 0:
+        entry["later"] = True
+    if refusal_wanted(item, refusal_share):
         entry["refusal"] = True
     return entry
 
 
 def wants_refusal(identifier, share):
     return int(hashlib.sha1(identifier.encode()).hexdigest()[:8], 16) % 1000 < share * 1000
+
+
+def refusal_wanted(item, share):
+    """Whether an item also gets a refusal instruction: never a switch's later part (a refusal
+    pairs with the episode's first frame)."""
+    return item.get("part", 0) == 0 and wants_refusal(item["id"], share)
 
 
 def test_offers(item, rng, per=4):
@@ -711,7 +863,7 @@ def check_item(item, answer, mode, refusal_share):
             by_rung[entry["rung"]] = entry
     pairs, rejects = [], []
     checks = [(rung, by_rung.get(rung), (lambda a, r=rung: check_test(a, item, r)) if mode == "test" else (lambda a, r=rung: check_follow(a, item, r))) for rung in rungs]
-    if mode != "test" and wants_refusal(item["id"], refusal_share):
+    if mode != "test" and refusal_wanted(item, refusal_share):
         checks.append((REFUSAL, answer.get("refusal"), lambda a: check_refusal(a, item)))
     for rung, entry, check in checks:
         pair, reason = check(entry) if entry is not None else (None, "missing")
@@ -882,7 +1034,7 @@ def chunks(rows, size):
 
 def generate(directory, provider, mode="train", batch=None, workers=WORKERS, limit=None, passes=2, refusal_share=REFUSAL_SHARE, log_every=LOG_EVERY, sleep=time.sleep, verbose=False):
     """Answer every item of items.jsonl not yet in generated.jsonl; returns the rows written."""
-    items = read_jsonl(directory / "items.jsonl")[:limit]
+    items = instruction_items(read_jsonl(directory / "items.jsonl"))[:limit]
     batch = batch or (TEST_BATCH if mode == "test" else GENERATE_BATCH)
     entry_of = test_entry if mode == "test" else (lambda item: generate_entry(item, refusal_share))
     prompt_of = test_prompt if mode == "test" else generate_prompt
@@ -894,7 +1046,7 @@ def generate(directory, provider, mode="train", batch=None, workers=WORKERS, lim
         for identifier, answer in answers.items():
             item = by_id[identifier]
             pairs, rejects = check_item(item, answer, mode, refusal_share)
-            row = {"id": identifier, "seed": item["seed"], "index": item["index"], "e": item.get("e"), "family": item["record"]["family"], "kind": item["record"]["kind"], "pairs": pairs, "rejects": rejects, "call": call, "time": now()}
+            row = {"id": identifier, "seed": item["seed"], "index": item["index"], "e": item.get("e"), **part_keys(item), "family": item["record"]["family"], "kind": item["record"]["kind"], "pairs": pairs, "rejects": rejects, "call": call, "time": now()}
             append(out_path, row)
             rows.append(row)
             if verbose:
@@ -931,6 +1083,11 @@ def same_spec(answer, want):
     return isinstance(answer, dict) and normal(answer) == normal(want)
 
 
+def part_keys(item):
+    """A switch part's place in its episode (instruction_items): part, parts and t; {} otherwise."""
+    return {key: item[key] for key in ("part", "parts", "t") if key in item}
+
+
 def pair_record(item, pair):
     """The record a pair must verify to: its item's, or refuse/clarify for the refusal rung."""
     if pair["rung"] == REFUSAL:
@@ -940,7 +1097,7 @@ def pair_record(item, pair):
 
 def verify(directory, provider, batch=VERIFY_BATCH, workers=WORKERS, passes=2, log_every=LOG_EVERY, sleep=time.sleep, verbose=False, seed=0):
     """Read back every generated pair not yet decided; keep it if the spec matches."""
-    items = {item["id"]: item for item in read_jsonl(directory / "items.jsonl")}
+    items = {item["id"]: item for item in instruction_items(read_jsonl(directory / "items.jsonl"))}
     menu = json.loads((directory / "menu.json").read_text())["menu"]
     kept_path, rejected_path = directory / "verified.jsonl", directory / "rejected.jsonl"
     pairs = {}
@@ -952,13 +1109,14 @@ def verify(directory, provider, batch=VERIFY_BATCH, workers=WORKERS, passes=2, l
         for pair_id, answer in answers.items():
             item, pair = pairs[pair_id]
             record = pair_record(item, pair)
-            row = {**pair, "id": item["id"], "seed": item["seed"], "index": item["index"], "e": item.get("e"), "family": record["family"], "kind": record["kind"], "spec": record["spec"], "read_as": answer, "call": call, "time": now()}
-            if same_spec(answer, record["spec"]):
+            row = {**pair, "id": item["id"], "seed": item["seed"], "index": item["index"], "e": item.get("e"), **part_keys(item), "family": record["family"], "kind": record["kind"], "spec": record["spec"], "read_as": answer, "call": call, "time": now()}
+            kept = same_task(answer, record["spec"], item.get("voxels"))
+            if kept:
                 append(kept_path, row)
             else:
                 append(rejected_path, {**row, "reason": "read as a different task" if isinstance(answer, dict) else "malformed answer"})
             if verbose:
-                print(("KEPT " if same_spec(answer, record["spec"]) else "REJECTED ") + json.dumps({"pair_id": pair_id, "instruction": pair["instruction"], "spec": record["spec"], "read_as": answer}, ensure_ascii=False), flush=True)
+                print(("KEPT " if kept else "REJECTED ") + json.dumps({"pair_id": pair_id, "instruction": pair["instruction"], "spec": record["spec"], "read_as": answer}, ensure_ascii=False), flush=True)
 
     for _ in range(passes):
         verdict_ids = {row["pair_id"] for row in read_jsonl(kept_path) + read_jsonl(rejected_path)}
@@ -982,7 +1140,7 @@ def report(directory, show=True):
     generated_rows = read_jsonl(directory / "generated.jsonl")
     keeps = read_jsonl(directory / "verified.jsonl")
     rejects = read_jsonl(directory / "rejected.jsonl")
-    out = {"items": len(read_jsonl(directory / "items.jsonl")), "answered": len(generated_rows), "pairs": sum(len(r["pairs"]) for r in generated_rows), "kept": len(keeps), "by_family": {}, "by_rung": {}, "check_rejects": {}, "time": now()}
+    out = {"items": len(instruction_items(read_jsonl(directory / "items.jsonl"))), "answered": len(generated_rows), "pairs": sum(len(r["pairs"]) for r in generated_rows), "kept": len(keeps), "by_family": {}, "by_rung": {}, "check_rejects": {}, "time": now()}
     for name, key in (("by_family", lambda r: r["family"]), ("by_rung", lambda r: r["rung"])):
         table = {}
         for row in generated_rows:
@@ -1018,8 +1176,8 @@ def report(directory, show=True):
 
 def review(directory, path=None):
     """Every item with its pairs and verdicts, as text to read by hand."""
-    items = read_jsonl(directory / "items.jsonl")
-    answers_by_id = {row["id"]: row for row in read_jsonl(directory / "generated.jsonl")}
+    items = instruction_items(read_jsonl(directory / "items.jsonl"))
+    answers_by_id ={row["id"]: row for row in read_jsonl(directory / "generated.jsonl")}
     verdicts = {row["pair_id"]: ("KEPT", row) for row in read_jsonl(directory / "verified.jsonl")}
     verdicts.update({row["pair_id"]: ("READ AS " + json.dumps(row["read_as"]), row) for row in read_jsonl(directory / "rejected.jsonl")})
     lines = []
@@ -1125,7 +1283,7 @@ class SpecHints:
 
     def __init__(self, fake, items):
         self.fake = fake
-        self.specs = {item["id"]: item["record"]["spec"] for item in items}
+        self.specs = {item["id"]: item["record"]["spec"] for item in instruction_items(items)}
 
     def __call__(self, prompt):
         head, sep, body = prompt.partition("one JSON object per line):\n")
@@ -1149,8 +1307,10 @@ class Labels:
     """Verified labels of a training set: choices(seed, index) -> [{rung, instruction, thought,
     switches, done}], refusals(seed, index) -> [{kind, instruction, thought, reply}] (these pair
     with the episode's first frame and doing nothing, not with its actions), by_episode(store)
-    -> {store row e: choices}. Refuses the test set, and checks that no training pair shares an
-    episode key or an instruction with it."""
+    -> {store row e: choices}. A switch episode's instructions are separate user messages:
+    switch_parts(seed, index) -> [{part, t, choices}] (part j's instruction is given at step t;
+    choices() has none for it) and switches_by_episode(store) -> {e: switch_parts}. Refuses the
+    test set, and checks that no training pair shares an episode key or an instruction with it."""
 
     def __init__(self, name, root=ROOT):
         self.directory = Path(root) / name
@@ -1163,21 +1323,44 @@ class Labels:
             texts = {row["instruction"].lower() for row in test_rows if "instruction" in row}
             assert not keys & {(row["seed"], row["index"]) for row in self.rows}, "training labels share episodes with the test set"
             assert not texts & {row["instruction"].lower() for row in self.rows}, "training labels share instructions with the test set"
-        self.by_key = {}
+        self.by_key, self.part_key = {}, {}
         for row in self.rows:
             self.by_key.setdefault((row["seed"], row["index"]), []).append(row)
+            if "part" in row:
+                self.part_key.setdefault((row["seed"], row["index"]), []).append(row)
 
     def choices(self, seed, index):
-        return [{"rung": r["rung"], "instruction": r["instruction"], "thought": r["thought"], "switches": r["switches"], "done": r["done"]} for r in self.by_key.get((seed, index), []) if r["rung"] != REFUSAL]
+        return [choice_of(r) for r in self.by_key.get((seed, index), []) if r["rung"] != REFUSAL and "part" not in r]
 
     def refusals(self, seed, index):
         return [{"kind": r["kind"], "instruction": r["instruction"], "thought": r["thought"], "reply": r["reply"]} for r in self.by_key.get((seed, index), []) if r["rung"] == REFUSAL]
 
+    def switch_parts(self, seed, index):
+        """[{part, t, choices}] of a switch episode in part order; [] unless every part has a
+        verified instruction."""
+        rows = [r for r in self.part_key.get((seed, index), []) if r["rung"] != REFUSAL]
+        if not rows:
+            return []
+        parts = [{"part": j, "t": next((r["t"] for r in rows if r["part"] == j), None), "choices": [choice_of(r) for r in rows if r["part"] == j]} for j in range(rows[0]["parts"])]
+        return parts if all(part["choices"] for part in parts) else []
+
     def by_episode(self, store, seed=None):
         """{e: choices} for a demo store written from the same draw: row n of attempts.jsonl is index n."""
+        seed, attempts = self.store_rows(store, seed)
+        return {row["e"]: self.choices(seed, n) for n, row in enumerate(attempts) if row["e"] >= 0 and (seed, n) in self.by_key and (seed, n) not in self.part_key}
+
+    def switches_by_episode(self, store, seed=None):
+        """{e: switch_parts} of the switch episodes of a demo store written from the same draw."""
+        seed, attempts = self.store_rows(store, seed)
+        return {row["e"]: self.switch_parts(seed, n) for n, row in enumerate(attempts) if row["e"] >= 0 and self.switch_parts(seed, n)}
+
+    def store_rows(self, store, seed):
         seed = json.loads((self.directory / "config.json").read_text())["seed"] if seed is None else seed
-        attempts = read_jsonl(Path(store) / "attempts.jsonl")
-        return {row["e"]: self.choices(seed, n) for n, row in enumerate(attempts) if row["e"] >= 0 and (seed, n) in self.by_key}
+        return seed, read_jsonl(Path(store) / "attempts.jsonl")
+
+
+def choice_of(row):
+    return {"rung": row["rung"], "instruction": row["instruction"], "thought": row["thought"], "switches": row["switches"], "done": row["done"]}
 
 
 def is_test(directory):
@@ -1262,6 +1445,7 @@ def main(argv=None):
     parser.add_argument("--cube", action="store_true", help="as demos --cube: robots in suite.ROBOTS")
     parser.add_argument("--free-cube", action="store_true", help="as demos --free-cube: --cube and --rule free_cube")
     parser.add_argument("--store", default=None, help="export: a demo store to join to; its options are read from small.pt and only its kept episodes exported")
+    parser.add_argument("--from-items", default=None, help="export: the items of an earlier export (its items.jsonl or a file of its items, next to its config.json) into a new --name, with start voxels and a fresh menu")
     parser.add_argument("--batch", type=int, default=None, help=f"items per generate call (default {GENERATE_BATCH}; testset {TEST_BATCH})")
     parser.add_argument("--verify-batch", type=int, default=VERIFY_BATCH)
     parser.add_argument("--workers", type=int, default=WORKERS)
@@ -1278,7 +1462,9 @@ def main(argv=None):
     if args.command != "testset" and is_test(directory) and args.command not in ("report",):
         parser.error(f"{directory} is the test set; build it with the testset command")
 
-    if args.command == "export":
+    if args.command == "export" and args.from_items:
+        export_from(directory, args.from_items, args.dry_run)
+    elif args.command == "export":
         export(directory, options_of(args), args.dry_items if args.dry_run else args.items, args.store, args.dry_run)
     elif args.command == "generate":
         work = dry_copy(directory, args.dry_run)
@@ -1288,7 +1474,7 @@ def main(argv=None):
         work = dry_copy(directory, args.dry_run)
         if args.dry_run:
             generated_rows = read_jsonl(work / "generated.jsonl")[: args.dry_items]
-            (work / "generated.jsonl").write_text("".join(json.dumps(row) + "\n" for row in generated))
+            (work / "generated.jsonl").write_text("".join(json.dumps(row) + "\n" for row in generated_rows))
         verify(work, provider_for(args, read_jsonl(work / "items.jsonl")), args.verify_batch, args.workers, log_every=args.log_every, verbose=args.dry_run)
     elif args.command == "testset":
         build_testset(directory, args, lambda items: provider_for(args, items))
