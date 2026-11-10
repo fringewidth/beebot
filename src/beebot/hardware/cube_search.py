@@ -1,20 +1,30 @@
 """Score a pivoting-cube design (hardware/cube.py) on the moves the voxel policy issues, and
 hill-climb designs.
 
-Per primitive, the controller's one knob, the flywheel speed, is tuned the way a real module would
-be calibrated: a geometric grid of speeds, TUNE_TRIALS jittered trials each, and the speed whose
-success rate (averaged with its grid neighbours, so a lucky lone speed is not picked) is highest.
-The primitive is then scored on VALIDATE_TRIALS fresh jittered trials at that speed. Trials use
-common random numbers: the same seeds for every design. Primitives with neighbours are scored
+Per primitive, the controller's knob, the flywheel speed, is tuned the way a real module would be
+calibrated. A geometric grid of speeds, TUNE_TRIALS jittered trials each, finds the band where the
+move works (the speed whose success rate, averaged with its grid neighbours, is highest). Between
+that speed's grid neighbours, REFINE start speeds are then compared on shared tuning trials (more
+trials for the better ones, LADDER_STAGES), and the one with the highest value (success rate minus
+Control.harm_weight times the harmful rate) is kept; if none has a positive value the move is not
+attempted. The primitive is then scored on VALIDATE_TRIALS fresh jittered trials. Trials
+use common random numbers: the same seeds for every design. Primitives with neighbours are scored
 twice, once with the neighbours anchored (part of a large lattice) and once free (lone modules),
 and the two are averaged.
 
+A move may be a ladder of attempts (Control.attempts): whenever the module finds itself still
+aligned in its start cell, it tries again, at the same speed or a step faster (STEPS; the tuning
+picks the step along with the start speed). A ladder that starts low crosses the threshold of the
+scene it is in from below, instead of at one speed chosen for the average scene.
+
 The design's move score weights each primitive by how often the voxel suite's expert issues that
-move to a crawler swarm (MOVE_MIX). A horizontal diagonal is not one pivot but two, so it scores
-the square of the matching straight move.
+move to a crawler swarm (MOVE_MIX). The policy issues single pivots only: the expert's horizontal
+diagonals (two pivots each) are left out and the remaining shares renormalised.
 
     uv run python -m beebot.hardware.cube_search eval --side 0.03
     uv run python -m beebot.hardware.cube_search climb --side 0.03 --out runs/cube/climb-3cm.jsonl
+    uv run python -m beebot.hardware.cube_search eval --side 0.05 --brake-scale 2.56 --steel-floor 0.3 \\
+        --harm-weight 3 --attempts 6 --phase test --trials 120 --first-trial 120
 """
 
 import argparse
@@ -33,6 +43,8 @@ SPEEDS = 20  # grid points from MIN_RPM to the motor's max
 MIN_RPM = 1000.0
 TUNE_TRIALS = 5
 REFINE = 9  # speeds between the best coarse speed's neighbours
+LADDER_STAGES = ((8, None), (24, 6), (64, 2))  # (further tuning trials, candidates kept for them; None: all)
+STEPS = (1.0, 1.06)  # speed ratio from one attempt to the next
 VALIDATE_TRIALS = 40
 OUTCOMES = ("success", "stay", "off", "knock")
 PHASES = ("tune", "validate", "test")
@@ -40,7 +52,7 @@ PHASES = ("tune", "validate", "test")
 # Share of the moves the voxel suite's expert issues to a 3 cm permanent-magnet crawler swarm
 # (L3cm-magnet-c0.12-a0.25-f0, 192 training tasks, seed 0), by pivot primitive. Diagonals are
 # horizontal moves along two axes at once.
-MOVE_MIX = {
+EXPERT_MIX = {
     "convex_up": 0.3319,
     "diagonal_up": 0.1967,
     "diagonal_floor": 0.1516,
@@ -52,6 +64,10 @@ MOVE_MIX = {
     "concave_up": 0.0162,
     "traverse": 0.005,
 }
+# The policy issues single pivots only (decided 2026-11-10): the expert's mix without the diagonal
+# rows, renormalised. The mix of an expert that plans without diagonals has not been measured.
+SINGLE_PIVOTS = sum(share for move, share in EXPERT_MIX.items() if move in PRIMITIVES)
+MOVE_MIX = {move: share / SINGLE_PIVOTS for move, share in EXPERT_MIX.items() if move in PRIMITIVES}
 
 # Reference: the 3D M-Blocks (Romanishin et al., ICRA 2015) as calibrated in HARDWARE.md.
 REF_SIDE = 0.05
@@ -93,6 +109,17 @@ class Build:
         return f"L{self.side * 100:g}cm-fw{self.flywheel_share:.3g}-rpm{self.max_rpm:.0f}-brake{self.brake_scale:.3g}-mag{self.magnet_scale:.3g}-steel{self.steel_floor:g}"
 
 
+@dataclass(frozen=True)
+class Control:
+    """How a module makes a move. The defaults are one attempt at the speed with the highest
+    success rate, as in rounds 2 and 2b."""
+
+    harm_weight: float = 0.0  # tuning maximises success rate - harm_weight * harmful rate
+    attempts: int = 1  # most attempts per move; a further attempt follows only a harmless failure
+    trials: int = VALIDATE_TRIALS  # scored moves per primitive and neighbour kind
+    first_trial: int = 0  # seed index of the first scored move (to score on seeds not used before)
+
+
 BOUNDS = {"flywheel_share": (0.05, 0.35), "max_rpm": (8000.0, 40000.0), "brake_scale": (0.25, 3.0), "magnet_scale": (0.2, 3.0), "steel_floor": (0.05, 1.0)}
 STEEL_START = 0.3  # floor grip when the climb first lays steel
 
@@ -105,36 +132,86 @@ def speed_grid(cube):
     return np.geomspace(MIN_RPM, cube.max_rpm, SPEEDS) * 2 * math.pi / 60
 
 
-def score_primitive(args):
-    """Tune the speed for one primitive, then score it on `phase` seeds. Returns a dict of rates."""
-    cube, primitive, anchored, phase, jitter = args
-    grid = speed_grid(cube)
-    rates = np.array([np.mean([trial(cube, primitive, omega, rng_for("tune", primitive, i, k), jitter, anchored)["outcome"] == "success" for k in range(TUNE_TRIALS)]) for i, omega in enumerate(grid)])
-    smooth = np.convolve(np.pad(rates, 1, mode="edge"), np.ones(3) / 3, mode="valid")
-    coarse = int(smooth.argmax())
-    # refine between the best grid point's neighbours, where narrow windows live
-    fine = np.geomspace(grid[max(coarse - 1, 0)], grid[min(coarse + 1, SPEEDS - 1)], REFINE)
-    fine_rates = np.array([np.mean([trial(cube, primitive, omega, rng_for("tune", primitive, SPEEDS + i, k), jitter, anchored)["outcome"] == "success" for k in range(TUNE_TRIALS)]) for i, omega in enumerate(fine)])
-    fine_smooth = np.convolve(np.pad(fine_rates, 1, mode="edge"), np.ones(3) / 3, mode="valid")
-    best = int(fine_smooth.argmax())
-    omega = fine[best]
+def tune_rates(cube, primitive, anchored, jitter, speeds, first_index):
+    """(success rate, harmful rate) per speed, each (len(speeds),), over TUNE_TRIALS tuning trials."""
+    outcomes = [[trial(cube, primitive, omega, rng_for("tune", primitive, first_index + i, k), jitter, anchored)["outcome"] for k in range(TUNE_TRIALS)] for i, omega in enumerate(speeds)]
+    success = np.array([np.mean([o == "success" for o in row]) for row in outcomes])
+    harm = np.array([np.mean([o in ("off", "knock") for o in row]) for row in outcomes])
+    return success, harm
+
+
+def smooth(values):
+    return np.convolve(np.pad(values, 1, mode="edge"), np.ones(3) / 3, mode="valid")
+
+
+def ladder_from(start, step, attempts, cube):
+    """Flywheel speeds (rad/s) of a move's attempts: `start`, then `step` times faster each time, up
+    to the motor's top speed."""
+    return [min(start * step**i, cube.max_omega()) for i in range(attempts)]
+
+
+def run_ladder(cube, primitive, anchored, jitter, ladder, phase, index, trials):
+    """Outcome counts and total attempts of the moves made with `ladder` on `phase` seeds
+    `trials` (a range)."""
     counts = dict.fromkeys(OUTCOMES, 0)
-    for k in range(VALIDATE_TRIALS):
-        counts[trial(cube, primitive, omega, rng_for(phase, primitive, 0, k), jitter, anchored)["outcome"]] += 1
+    attempts = 0
+    for k in trials:
+        result = trial(cube, primitive, ladder[0], rng_for(phase, primitive, index, k), jitter, anchored, retries=ladder[1:])
+        counts[result["outcome"]] += 1
+        attempts += result["attempts"]
+    return counts, attempts
+
+
+def pick_ladder(cube, primitive, anchored, jitter, candidates, harm_weight, idle):
+    """The candidate ladder with the highest value (successes minus harm_weight times harmful
+    failures) on shared tuning seeds, by successive halving over LADDER_STAGES: each stage keeps
+    the best candidates so far and runs them on more trials. Ties go to the earlier candidate.
+    When even the best one harms more than it helps, the move is not worth making: `idle`."""
+    values = np.zeros(len(candidates))
+    alive = list(range(len(candidates)))
+    count = 0
+    for trials, keep in LADDER_STAGES:
+        alive = sorted(sorted(alive, key=lambda i: -values[i])[:keep])  # stable: ties keep the earlier candidate
+        for i in alive:
+            counts, _ = run_ladder(cube, primitive, anchored, jitter, candidates[i], "tune", SPEEDS, range(count, count + trials))
+            values[i] += counts["success"] - harm_weight * (counts["off"] + counts["knock"])
+        count += trials
+    best = max(alive, key=lambda i: values[i])
+    return candidates[best] if values[best] > 0 else idle
+
+
+def score_primitive(args):
+    """Tune the speed ladder for one primitive, then score it on `phase` seeds. Returns a dict of
+    rates per move (after all its attempts)."""
+    cube, primitive, anchored, phase, jitter, control = args
+    grid = speed_grid(cube)
+    rates, harms = tune_rates(cube, primitive, anchored, jitter, grid, 0)
+    coarse = int(smooth(rates).argmax())
+    ladder = [grid[0]]  # a move that never works is not attempted: one pulse too slow to move anything
+    if rates.any():
+        # refine between the best grid point's neighbours, where narrow windows live
+        fine = np.geomspace(grid[max(coarse - 1, 0)], grid[min(coarse + 1, SPEEDS - 1)], REFINE)
+        candidates = [ladder_from(start, step, control.attempts, cube) for start in fine for step in (STEPS if control.attempts > 1 else STEPS[:1])]
+        ladder = pick_ladder(cube, primitive, anchored, jitter, candidates, control.harm_weight, ladder)
+    counts, attempts = run_ladder(cube, primitive, anchored, jitter, ladder, phase, 0, range(control.first_trial, control.first_trial + control.trials))
     return {
         "primitive": primitive,
         "anchored": anchored,
-        "rpm": round(float(omega) * 60 / (2 * math.pi)),
+        "rpm": round(float(ladder[0]) * 60 / (2 * math.pi)),
+        "last_rpm": round(float(ladder[-1]) * 60 / (2 * math.pi)),
+        "attempts": attempts / control.trials,
+        "trials": control.trials,
         "tune_curve": [round(float(r), 2) for r in rates],
-        **{o: counts[o] / VALIDATE_TRIALS for o in OUTCOMES},
+        "tune_harm": [round(float(r), 2) for r in harms],
+        **{o: counts[o] / control.trials for o in OUTCOMES},
     }
 
 
-def jobs(cube, phase="validate", jitter=Jitter()):
+def jobs(cube, phase="validate", jitter=Jitter(), control=Control()):
     out = []
     for p, spec in PRIMITIVES.items():
         for anchored in (True, False) if spec["substrate"] else (False,):
-            out.append((cube, p, anchored, phase, jitter))
+            out.append((cube, p, anchored, phase, jitter, control))
     return out
 
 
@@ -145,20 +222,14 @@ def combine(parts):
     for p in PRIMITIVES:
         rows = [r for r in parts if r["primitive"] == p]
         rates[p] = {"success": float(np.mean([r["success"] for r in rows])), "harm": float(np.mean([r["off"] + r["knock"] for r in rows]))}
-    floor_weight = MOVE_MIX.get("floor_roll", 0) + MOVE_MIX.get("floor_peel", 0)
-    floor = {k: (MOVE_MIX.get("floor_roll", 0) * rates["floor_roll"][k] + MOVE_MIX.get("floor_peel", 0) * rates["floor_peel"][k]) / max(floor_weight, 1e-9) for k in ("success", "harm")}
-    moves = {p: rates[p] for p in PRIMITIVES}
-    moves["diagonal_floor"] = {"success": floor["success"] ** 2, "harm": 1 - (1 - floor["harm"]) ** 2}
-    moves["diagonal_up"] = {"success": rates["traverse"]["success"] ** 2, "harm": 1 - (1 - rates["traverse"]["harm"]) ** 2}
-    total = sum(MOVE_MIX.values())
-    score = sum(w * moves[m]["success"] for m, w in MOVE_MIX.items()) / total
-    harm = sum(w * moves[m]["harm"] for m, w in MOVE_MIX.items()) / total
+    score = sum(w * rates[m]["success"] for m, w in MOVE_MIX.items())
+    harm = sum(w * rates[m]["harm"] for m, w in MOVE_MIX.items())
     return round(score, 4), round(harm, 4), {p: {k: round(v, 3) for k, v in r.items()} for p, r in rates.items()}
 
 
-def evaluate_many(cubes, phase="validate", workers=5):
+def evaluate_many(cubes, phase="validate", workers=5, control=Control()):
     """[(score, harm, rates, parts)] for each cube, all primitives run in one pool."""
-    tasks = [(i, job) for i, c in enumerate(cubes) for job in jobs(c, phase)]
+    tasks = [(i, job) for i, c in enumerate(cubes) for job in jobs(c, phase, control=control)]
     with ProcessPoolExecutor(workers) as pool:
         results = list(pool.map(score_primitive, [job for _, job in tasks], chunksize=1))
     out = []
@@ -190,34 +261,35 @@ def record(path, row):
             f.write(json.dumps(row) + "\n")
 
 
-def row_for(build, result, phase):
+def row_for(build, result, phase, control=Control()):
     score, harm, rates, parts = result
-    return {"design": build.label(), "build": asdict(build), "cube": asdict(build.cube()), "phase": phase, "score": score, "harm": harm, "rates": rates, "parts": parts}
+    return {"design": build.label(), "build": asdict(build), "cube": asdict(build.cube()), "control": asdict(control), "phase": phase, "score": score, "harm": harm, "rates": rates, "parts": parts}
 
 
-def climb(start, out, rounds=12, step=1.6, min_step=1.08, margin=0.01, workers=5):
-    """Greedy hill-climb from `start`: move to the best neighbour when it beats the current design
-    by `margin`, else shrink the step. Every evaluation is appended to `out`."""
+def climb(start, out, rounds=12, step=1.6, min_step=1.08, margin=0.01, workers=5, control=Control()):
+    """Greedy hill-climb from `start` on move score - control.harm_weight * harm: move to the best
+    neighbour when it beats the current design by `margin`, else shrink the step. Every evaluation
+    is appended to `out`."""
     current = start
-    (best,) = evaluate_many([current.cube()], workers=workers)
-    record(out, {**row_for(current, best, "validate"), "round": 0, "accepted": True})
+    (best,) = evaluate_many([current.cube()], workers=workers, control=control)
+    record(out, {**row_for(current, best, "validate", control), "round": 0, "accepted": True})
     print(f"start {current.label()} score {best[0]:.3f} harm {best[1]:.3f}", flush=True)
     for r in range(1, rounds + 1):
         if step < min_step:
             break
         candidates = neighbours(current, step)
-        results = evaluate_many([c.cube() for c in candidates], workers=workers)
-        top = int(np.argmax([res[0] for res in results]))
-        accept = results[top][0] > best[0] + margin
+        results = evaluate_many([c.cube() for c in candidates], workers=workers, control=control)
+        top = int(np.argmax([res[0] - control.harm_weight * res[1] for res in results]))
+        accept = results[top][0] - control.harm_weight * results[top][1] > best[0] - control.harm_weight * best[1] + margin
         for i, (c, res) in enumerate(zip(candidates, results)):
-            record(out, {**row_for(c, res, "validate"), "round": r, "accepted": accept and i == top})
-        print(f"round {r} step {step:.3f}: best neighbour {candidates[top].label()} {results[top][0]:.3f} vs {best[0]:.3f} -> {'move' if accept else 'shrink'}", flush=True)
+            record(out, {**row_for(c, res, "validate", control), "round": r, "accepted": accept and i == top})
+        print(f"round {r} step {step:.3f}: best neighbour {candidates[top].label()} {results[top][0]:.3f} harm {results[top][1]:.3f} vs {best[0]:.3f} harm {best[1]:.3f} -> {'move' if accept else 'shrink'}", flush=True)
         if accept:
             current, best = candidates[top], results[top]
         else:
             step = math.sqrt(step)
-    (test,) = evaluate_many([current.cube()], phase="test", workers=workers)
-    record(out, {**row_for(current, test, "test"), "round": "final"})
+    (test,) = evaluate_many([current.cube()], phase="test", workers=workers, control=control)
+    record(out, {**row_for(current, test, "test", control), "round": "final"})
     print(f"final {current.label()} validate {best[0]:.3f} test {test[0]:.3f} harm {test[1]:.3f}", flush=True)
     print(json.dumps(test[2], indent=1), flush=True)
     return current
@@ -232,17 +304,27 @@ def main():
     parser.add_argument("--phase", default="validate", choices=PHASES[1:])
     for field, value in asdict(Build()).items():
         parser.add_argument(f"--{field.replace('_', '-')}", type=float, default=value)
+    parser.add_argument("--harm-weight", type=float, default=Control().harm_weight)
+    parser.add_argument("--attempts", type=int, default=Control().attempts)
+    parser.add_argument("--trials", type=int, default=Control().trials)
+    parser.add_argument("--first-trial", type=int, default=Control().first_trial)
     args = parser.parse_args()
     build = Build(**{f: getattr(args, f) for f in asdict(Build())})
+    control = Control(
+        harm_weight=args.harm_weight,
+        attempts=args.attempts,
+        trials=args.trials,
+        first_trial=args.first_trial,
+    )
     start = time.time()
     if args.command == "eval":
-        (result,) = evaluate_many([build.cube()], phase=args.phase, workers=args.workers)
-        record(args.out, row_for(build, result, args.phase))
+        (result,) = evaluate_many([build.cube()], phase=args.phase, workers=args.workers, control=control)
+        record(args.out, row_for(build, result, args.phase, control))
         print(f"{build.label()} score {result[0]:.3f} harm {result[1]:.3f}")
         for part in result[3]:
-            print(f"  {part['primitive']:13s} {'anchored' if part['anchored'] else 'free    '} rpm {part['rpm']:6d}  success {part['success']:.2f}  stay {part['stay']:.2f}  off {part['off']:.2f}  knock {part['knock']:.2f}")
+            print(f"  {part['primitive']:13s} {'anchored' if part['anchored'] else 'free    '} rpm {part['rpm']:6d} to {part['last_rpm']:6d}  attempts {part['attempts']:.2f}  success {part['success']:.3f}  stay {part['stay']:.3f}  off {part['off']:.3f}  knock {part['knock']:.3f}")
     else:
-        climb(build, args.out, rounds=args.rounds, workers=args.workers)
+        climb(build, args.out, rounds=args.rounds, workers=args.workers, control=control)
     print(f"({time.time() - start:.0f} s)")
 
 
