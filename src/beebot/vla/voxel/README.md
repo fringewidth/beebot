@@ -9,6 +9,8 @@ modules.
 | `world.py` | rules, scene sampling, observations |
 | `controller.py` | the attractor controller (target voxels to actions) |
 | `scripted.py` | random task sequences and the data store |
+| `suite.py` | instruction families, checkers, the expert that demonstrates them |
+| `demos.py` | expert demonstrations as a store, also for pivoting cubes |
 | `facts.py` | window facts as hashable atoms |
 | `render.py` | isometric PNG/GIF |
 
@@ -133,6 +135,74 @@ hashable tuples, so the 2D facts score applies unchanged; `facts_score` is the J
 Directions name each axis whose component is at least 0.4 of the largest one, vertical first.
 The axis words are up and down, forward and back (y), and left and right (x). Examples: `"up"`,
 `"forward left"`, `"down back right"`.
+
+## Expert demonstrations for pivoting cubes
+
+`demos.py` plays the suite's training tasks (`suite.py`) with the expert and keeps the episodes
+the checker passes. `--cube` turns on four options that make the data fit a policy for pivoting
+cubes; each can also be set alone, and without them the generator behaves as before.
+
+```
+OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_cube --scenes 6000 --cube
+```
+
+| option | `--cube` value | what |
+| --- | --- | --- |
+| `--moves cube` | on | only the 14 moves with no horizontal diagonal (`world.CUBE_MOVES`): one axis, or up/down with one horizontal axis. The controller picks among them and jitter draws among them. |
+| `--steps` | 72 | episode length (48 otherwise). |
+| `--robots LOW HIGH` | 6 115 | each scene's robot count, uniform over the range (otherwise a density of 0.2 to 0.45, 51 to 115 robots). Tasks are fitted to the swarm, see below. |
+| `--failure` | 0.15 | the probability that a robot's move does not happen this step (it stays). `0.15,up_over=0.3` sets single move classes: `level`, `up_over`, `down_over`, `vertical` (`world.failure_rates`). |
+
+1. **Labels.** The recorded action is the one the expert chose, whether or not the move
+   happened. The expert plans again from the current state every step, so the recording shows
+   the recovery. Which moves failed is not stored; the rates are, in `small.pt` under `config`.
+1. **Tasks that fit the swarm.** With `--robots`, a task is drawn only if `suite.fits` says the
+   swarm is large enough: `suite.score_bound`, the best checker score that many robots could
+   reach, must reach the family's pass mark (0.5 for formations, 0.75 otherwise). The bound comes
+   from the rules and the plan's target sets, not from tuning:
+   1. Formation: F1 of n robots against the mask, so between a third of and three times the mask's voxels.
+   1. Tower of height h: the plan fills a 2 x 2 column, so 3 h robots (heights 3 to 8 need 9 to 24).
+   1. Bridge: three quarters of its two lanes (5 or 6 robots). Fill: any count.
+   1. Eating a cheese: three quarters of its open shell and at least 23 robots, 30 on open floor;
+      never for a cheese in a corner. A runner counts as 23, since it moves.
+   1. Herd: two robots (the press that slides a cheese).
+   1. Parallel: the best split of the swarm between the two jobs. A region job takes a tenth of
+      the swarm, a surround job half the open shell (20 robots) for full marks.
+   1. Eating nothing ("none", "absent"): any count.
+
+   So swarms under 23 robots get herding, towers, bridges, trench filling, small formations,
+   "eat nothing" and parallel pairs of region, tower and surround; they never get eating or
+   runners. The bound is necessary, not sufficient: the kept/tried rates are still below 1.
+1. **Sub-goals.** `small.pt` holds `subgoals`: for each kept episode a list of entries
+   `{"t": step, "index": plan segment, "goal": {...}}`, one whenever the expert's sub-goal
+   changes. The action at step `t` was chosen under the last entry with `entry["t"] <= t`
+   (`suite.subgoal_at`). Goals:
+
+   | goal | fields |
+   | --- | --- |
+   | `letters` | `word`, `standing` |
+   | `shape` | `shape` |
+   | `tower` | `height`, `at` (lowest corner of the column, z y x) |
+   | `bridge`, `fill` | none |
+   | `region` | `region` (only inside a union) |
+   | `eat`, `surround` | `colour` |
+   | `push` | `colour`, `direction` (dz, dy, dx), `to` (a floor region or `trench`); a change of direction within the segment is a new entry with the same index |
+   | `union` | `parts`: the two jobs of a parallel task, each one of the above |
+   | `stay` | the task has no plan (eat nothing); index -1 |
+   | `done` | the last eat or push segment is finished and the robots idle; index = the plan's length |
+
+   A plan moves to its next segment when the segment is done (the cheese is gone, the cheese is
+   in its region) or after 24 steps.
+1. **Other files.** `small.pt` also holds `robots` (swarm size per kept episode). `attempts.jsonl`
+   has one row per episode played, kept or not: family, kind, robots, score, unasked, and the
+   store row `e` (-1 when dropped). `labels.jsonl` and the store fields are unchanged, so
+   `lm.batch_of` reads the store as before.
+
+A 300-scene sample (seed 0, `--cube`) took 37 s on 4 threads, about 12 s per 100 scenes, and
+kept 875 of 1098 episodes (0.5 GB; an episode is 0.6 MB). The store files are allocated for six
+episodes per scene and are sparse, so their apparent size is about twice what they use.
+
+Tests: `tests/test_vla_voxel_cube.py`.
 
 ## Left out, and extension points
 

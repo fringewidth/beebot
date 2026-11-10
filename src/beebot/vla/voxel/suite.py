@@ -31,8 +31,8 @@ import torch
 from beebot.vla import tasks as T2
 from beebot.vla.shapes import FONT, text_mask
 from beebot.vla.voxel.controller import act
-from beebot.vla.voxel.facts import bridges, groups, shell_share, solid_grid, tallest_run
-from beebot.vla.voxel.world import CHEESE_SIDE, COLOUR_NAMES, MAX_CHEESES, STAY, VoxelWorld, _face, cheese_id_map, sample_scenes, shell, step
+from beebot.vla.voxel.facts import BLOB_SHARE, bridges, groups, shell_share, solid_grid, tallest_run
+from beebot.vla.voxel.world import CHEESE_SIDE, COLOUR_NAMES, EAT_MIN_SHARE, EAT_SHARE, FRICTION, FULL_SHELL, MAX_CHEESES, STAY, VoxelWorld, _face, cheese_id_map, fail_moves, sample_scenes, shell, step
 
 SIZE = 16
 HELD_OUT = {
@@ -58,6 +58,10 @@ RUNNER_RADIUS = 5
 RUNNER_PERIOD = 2
 EPISODE_STEPS = 48
 SEGMENT_STEPS = 24
+CUBE_STEPS = 72  # episode length of pivoting-cube demonstrations (world.CUBE_MOVES)
+ROBOTS = (6, int(0.45 * SIZE * SIZE))  # the range of swarm sizes when scenes draw a robot count: a handful up to the densest sampled scene
+SUCCESS = {"formation": 0.5}  # checker score an episode needs to count as done (a demonstration), per family
+PASS_MARK = 0.75  # and for the families not named there
 WORDINGS = {
     "letter_floor": ["write the letter {w} on the floor", "lie down in the shape of {w}", "spell {w} flat on the ground", "draw a big {w} on the floor", "form a letter {w} lying flat"],
     "letter_stand": ["stand up as the letter {w}", "form a standing letter {w}", "make a {w} standing upright", "build the letter {w} in the air"],
@@ -171,13 +175,14 @@ def f1(mass, mask):
 # Scenes
 
 
-def scenes(rng, n, layout=None, gravity=None, cheeses=(0, 3), colours=TRAIN_COLOURS, require=()):
+def scenes(rng, n, layout=None, gravity=None, cheeses=(0, 3), colours=TRAIN_COLOURS, require=(), robots=None):
     """(world, meta) of n scenes drawn until they match: layout ("flat", "hills", "gap" or None),
     gravity (bool or None), a cheese count in [low, high] (extra cheeses removed), colours drawn
-    from `colours` with `require` among them."""
+    from `colours` with `require` among them. robots: the robot count of every scene (None: the
+    world's density range)."""
     picked, metas = [], []
     while len(picked) < n:
-        world, meta = sample_scenes(rng, 32, SIZE, gravity_prob=0.5 if gravity is None else float(gravity))
+        world, meta = sample_scenes(rng, 32, SIZE, gravity_prob=0.5 if gravity is None else float(gravity), robots=robots)
         for i in range(32):
             if len(picked) == n:
                 break
@@ -223,6 +228,11 @@ def region_targets(meta, name, n=9):
     cy, cx = (y0 + y1) // 2, (x0 + x1) // 2
     pts = [ground_point(meta, y, x) for y in range(cy - 1, cy + 2) for x in range(cx - 1, cx + 2)]
     return pts[:n]
+
+
+def tower_label(n, points):
+    """The sub-goal record of a tower segment: its height and the lowest corner of its column."""
+    return {"kind": "tower", "height": n, "at": list(points[0])}
 
 
 def tower_targets(meta, n, rng, size=SIZE):
@@ -335,15 +345,17 @@ def make_formation(rng, held):
                 word = str(rng.choice(allowed))
             standing = not bool(world.gravity[i]) and len(word) == 1 and rng.random() < 0.5
             mask = letter_mask(word, standing)
+            label = {"kind": "letters", "word": word, "standing": standing}
             text = say(rng, "letter_stand" if standing else "letter_floor", held, w=word)
         else:
             pool = HELD_OUT["shapes"] if held == "shapes" else [s for s in SHAPES if s not in HELD_OUT["shapes"] and (s == "wall" or not bool(world.gravity[i]))]  # floating shapes need gravity off
             name = str(rng.choice(pool))
             mask = shape_mask(name)
+            label = {"kind": "shape", "shape": name}
             text = say(rng, "shape", held, s=SHAPE_WORDS[name])
         if (mask & world.walls[i].numpy()).any() or not mask.any():
             return None
-        plan = [] if held not in ("", "wording") else [{"kind": "targets", "points": [tuple(int(v) for v in p) for p in np.argwhere(mask)]}]
+        plan = [] if held not in ("", "wording") else [{"kind": "targets", "points": [tuple(int(v) for v in p) for p in np.argwhere(mask)], "label": label}]
         return Task("formation", text, {"kind": "mask", "mask": mask, "forbid": set(c for _, c in present(world, i))}, plan, held)
 
     return {"layout": "flat", "cheeses": (0, 0)}, make
@@ -359,7 +371,7 @@ def make_construction(rng, held):
             pts = tower_targets(meta, n, rng)
             if pts is None:
                 return None
-            return Task("construction", say(rng, "tower", held, n=n), {"kind": "tower", "height": n, "forbid": forbid}, [{"kind": "targets", "points": pts}] if not held or held == "wording" else [], held)
+            return Task("construction", say(rng, "tower", held, n=n), {"kind": "tower", "height": n, "forbid": forbid}, [{"kind": "targets", "points": pts, "label": tower_label(n, pts)}] if not held or held == "wording" else [], held)
         if trench(meta) is None:
             return None
         axis, start, width, top = trench(meta)
@@ -368,11 +380,11 @@ def make_construction(rng, held):
             pts = [(top - 1, lane + a, x) for a in range(2) for x in range(start, start + width)]
             if axis == 1:
                 pts = [(z, x, y) for z, y, x in pts]
-            return Task("construction", say(rng, "bridge", held), {"kind": "bridge", "width": width, "forbid": forbid}, [{"kind": "targets", "points": pts}] if held in ("", "wording") else [], held)
+            return Task("construction", say(rng, "bridge", held), {"kind": "bridge", "width": width, "forbid": forbid}, [{"kind": "targets", "points": pts, "label": {"kind": "bridge"}}] if held in ("", "wording") else [], held)
         if kind == "fill":
             mask = trench_mask(meta)
             pts = sorted((tuple(int(v) for v in p) for p in np.argwhere(mask)), key=lambda p: p[0])
-            return Task("construction", say(rng, "fill", held), {"kind": "fill", "mask": mask, "forbid": forbid}, [{"kind": "targets", "points": pts[:96]}] if held in ("", "wording") else [], held)
+            return Task("construction", say(rng, "fill", held), {"kind": "fill", "mask": mask, "forbid": forbid}, [{"kind": "targets", "points": pts[:96], "label": {"kind": "fill"}}] if held in ("", "wording") else [], held)
         return Task("construction", say(rng, "stairs", held), {"kind": "stairs", "masks": stairs_masks(meta), "forbid": forbid}, [], held)
 
     needs = {"tower": {"gravity": True, "cheeses": (0, 1)}, "bridge": {"gravity": True, "layout": "gap", "cheeses": (0, 1)}, "fill": {"gravity": True, "layout": "gap", "cheeses": (0, 1)}, "stairs": {"gravity": True, "layout": "gap", "cheeses": (0, 1)}}[kind]
@@ -425,14 +437,14 @@ def make_parallel(rng, held):
             if kind == "region":
                 options = [r for r in FLOOR_REGIONS if r not in used]
                 x = str(rng.choice(options))
-                plan_parts.append({"kind": "targets", "points": region_targets(meta, x)})
+                plan_parts.append({"kind": "targets", "points": region_targets(meta, x), "label": {"kind": "region", "region": x}})
             elif kind == "tower":
                 n = int(rng.integers(3, 7))
                 pts = tower_targets(meta, n, rng)
                 if pts is None:
                     return None
                 x = n
-                plan_parts.append({"kind": "targets", "points": pts})
+                plan_parts.append({"kind": "targets", "points": pts, "label": tower_label(n, pts)})
             else:
                 options = [c for c in colours if c not in used]
                 if not options:
@@ -504,19 +516,26 @@ def make_runner(rng, held):
 MAKERS = {"formation": make_formation, "construction": make_construction, "logic": make_logic, "parallel": make_parallel, "herd": make_herd, "runner": make_runner}
 
 
-def sample_tasks(rng, n, split="train", family=None):
+def sample_tasks(rng, n, split="train", family=None, robots=None, check=True):
     """(world, metas, tasks) of n scenes with one task each. split: "train", "test" (in
-    distribution) or a HELD_OUT key (forces that held-out item)."""
+    distribution) or a HELD_OUT key (forces that held-out item). robots: (low, high), each
+    scene's robot count drawn uniformly from that range, and its task one the swarm is large
+    enough for (fits; check=False skips that): families are redrawn for the same count until one
+    fits, so the counts stay uniform. None: the world's density range and no size check."""
     held = split if split in HELD_OUT else ""
     worlds, metas, out = [], [], []
+    count = None
     while len(out) < n:
+        if robots is not None and count is None:
+            count = int(rng.integers(robots[0], robots[1] + 1))
         fam = HELD_FAMILY.get(held) or family or str(rng.choice(FAMILIES))
         needs, make = MAKERS[fam](rng, held)
         colours = needs.pop("colours", TRAIN_COLOURS)
-        world, meta = scenes(rng, 1, colours=colours, **needs)
+        world, meta = scenes(rng, 1, colours=colours, robots=count, **needs)
         task = make(world, meta[0], 0)
-        if task is None:
+        if task is None or (robots is not None and check and not fits(task, world, 0)):
             continue
+        count = None
         worlds.append(world)
         metas.append(meta[0])
         out.append(task)
@@ -618,6 +637,86 @@ def score(task, static, start, end, eaten):
 
 
 # ---------------------------------------------------------------------------------------------
+# Swarm size: which tasks a swarm of n robots can do
+
+
+def task_kind(task):
+    """A short name of what a task asks, finer than its family: the spec kind, with the form of
+    an eat task ("eat:ordered") and the jobs of a parallel one ("parallel:region+tower")."""
+    spec = task.spec
+    detail = spec.get("form", "") if spec["kind"] == "eat" else "+".join(job for job, _ in spec["jobs"]) if spec["kind"] == "parallel" else ""
+    return f"{spec['kind']}:{detail}" if detail else spec["kind"]
+
+
+def eat_need(world, i, k, runner=False):
+    """The fewest robots that can eat scene i's cheese k where it stands: EAT_SHARE of its open
+    shell and EAT_MIN_SHARE of the full shell (30 on open floor), infinite when its open shell
+    is too small for the latter (a cheese in a corner). A runner moves, so it counts as the
+    least any cheese takes."""
+    least = int(np.ceil(EAT_MIN_SHARE * FULL_SHELL))
+    open_ = int(shell(world.index(i))[1][0, k].sum())
+    return least if runner else max(int(np.ceil(EAT_SHARE * open_)), least) if open_ >= least else float("inf")
+
+
+def job_bound(job, x, n, total, world, i, slot):
+    """The best score n of a swarm of `total` robots can give one job of a parallel task."""
+    if job == "region":  # a group counts from BLOB_SHARE of the swarm
+        bound = float(n >= max(1, int(np.ceil(BLOB_SHARE * total))))
+    elif job == "tower":
+        bound = min(1.0, n / (CHEESE_SIDE * CHEESE_SIDE * x))
+    elif job == "eat":
+        bound = float(n >= eat_need(world, i, slot[x]))
+    else:  # surround: half the open shell is full marks
+        open_ = int(shell(world.index(i))[1][0, slot[x]].sum())
+        bound = min(1.0, n / max(open_, 1) / 0.5)
+    return bound
+
+
+def score_bound(task, world, i, n=None):
+    """An upper bound on the checker score a swarm of n robots (default: scene i's) can reach on
+    the task, from the rules and from the plan's target sets:
+      mask      F1 of n robots against the mask, all on it or all of it covered.
+      tower     the plan fills a 2 x 2 column, so a run of r takes 4 r robots; bridge: two lanes.
+      eat       each cheese needs eat_need robots (robots stay after a meal, so the largest need
+                decides); the score is the share of the asked cheeses the swarm can eat.
+      herd      a cheese slides under a press of FRICTION robots.
+      parallel  the best split of the swarm between the two jobs (job_bound).
+      fill, stairs and eating nothing do not depend on the count."""
+    spec = task.spec
+    n = int(world.mass[i].sum()) if n is None else n
+    slot = {c: k for k, c in present(world, i)}
+    kind = spec["kind"]
+    bound = 1.0
+    if kind == "mask":
+        m = int(spec["mask"].sum())
+        bound = 2 * min(n, m) / (n + m)
+    elif kind == "tower":
+        bound = min(1.0, n / (CHEESE_SIDE * CHEESE_SIDE * spec["height"]))
+    elif kind == "bridge":
+        bound = min(1.0, n / (2 * spec["width"]))
+    elif kind == "eat":
+        able = {c for c in spec["eat"] | spec["any_of"] if n >= eat_need(world, i, slot[c], slot[c] in task.runners)}
+        if spec["any_of"]:
+            bound = float(bool(able))
+        elif spec["order"]:
+            bound = len(list(itertools.takewhile(lambda c: c in able, spec["order"]))) / len(spec["order"])
+        elif spec["eat"]:
+            bound = len(able) / len(spec["eat"])
+    elif kind in ("herd_region", "herd_trench"):
+        bound = float(n >= FRICTION)
+    elif kind == "parallel":
+        (job_a, a), (job_b, b) = spec["jobs"]
+        bound = max((job_bound(job_a, a, part, n, world, i, slot) + job_bound(job_b, b, n - part, n, world, i, slot)) / 2 for part in range(n + 1))
+    return bound
+
+
+def fits(task, world, i):
+    """Whether scene i's swarm is large enough for the task: score_bound reaches the family's
+    pass mark (SUCCESS). Necessary, not sufficient: the expert can still fail a task that fits."""
+    return score_bound(task, world, i) >= SUCCESS.get(task.family, PASS_MARK)
+
+
+# ---------------------------------------------------------------------------------------------
 # Episodes: runners, the expert, the runner loop
 
 
@@ -655,15 +754,66 @@ def flee(world, runners):
     return pos
 
 
+def subgoal_at(entries, t):
+    """The sub-goal entry ({"t", "index", "goal"}) in force at step t of an episode's record
+    (Expert.subgoals[i]): the last one that starts at or before t."""
+    return [entry for entry in entries if entry["t"] <= t][-1]
+
+
 class Expert:
     """Runs each scene's plan: segments in order, each until done or SEGMENT_STEPS; the last
-    segment holds to the end of the episode."""
+    segment holds to the end of the episode.
 
-    def __init__(self, tasks):
+    moves: (27,) bool, the actions the robots can make (world.CUBE_MOVES for pivoting cubes; None
+    for all 27). seed: the expert's own random generator for tie-breaks and jitter (None: torch's
+    global one). subgoals[i] records what scene i's expert was after at every step, as entries
+    {"t": first step, "index": plan segment, "goal": its content} added whenever either changes:
+    the action at step t was chosen under subgoal_at(subgoals[i], t). index is -1 with goal
+    {"kind": "stay"} for a task with no plan, and len(plan) with {"kind": "done"} once the last
+    eat or push segment is finished and the robots idle."""
+
+    def __init__(self, tasks, moves=None, seed=None):
         self.tasks = tasks
         self.index = [0] * len(tasks)
         self.since = [0] * len(tasks)
         self.surround = {}
+        self.moves = moves
+        self.generator = None if seed is None else torch.Generator().manual_seed(seed)
+        self.subgoals = [[] for _ in tasks]
+
+    def note(self, i, t, index, goal):
+        """Record scene i's sub-goal at step t if it differs from the one in force."""
+        entries = self.subgoals[i]
+        if not entries or entries[-1]["index"] != index or entries[-1]["goal"] != goal:
+            entries.append({"t": t, "index": index, "goal": goal})
+
+    def push_direction(self, i, seg, world):
+        """The unit step a push segment presses along now: its own, or toward the goal region
+        along the larger horizontal offset."""
+        direction = seg.get("direction")
+        if direction is None:
+            y0, y1, x0, x1 = region_box(seg["goal"]["region"])
+            cy, cx = cheese_centre(snapshot(world, i), seg["cheese"])[1:]
+            off = np.array([(y0 + y1) / 2 - cy, (x0 + x1) / 2 - cx])
+            axis = 1 + int(np.abs(off).argmax())
+            direction = [0, 0, 0]
+            direction[axis] = 1 if off[axis - 1] > 0 else -1
+        return tuple(int(v) for v in direction)
+
+    def describe(self, i, seg, world):
+        """A segment's content for the sub-goal record: its kind and what identifies its target
+        (cheese colour, region, tower height, shape or word, push direction as (dz, dy, dx))."""
+        kind = seg["kind"]
+        if kind == "targets":
+            goal = dict(seg.get("label", {"kind": "targets"}))
+        elif kind == "union":
+            goal = {"kind": "union", "parts": [self.describe(i, part, world) for part in seg["parts"]]}
+        else:
+            goal = {"kind": kind, "colour": COLOUR_NAMES[int(world.cheese_color[i, seg["cheese"]])]}
+            if kind == "push":
+                goal["direction"] = list(self.push_direction(i, seg, world))
+                goal["to"] = seg["goal"].get("region", "trench")
+        return goal
 
     def done(self, i, seg, world):
         if seg["kind"] == "eat":
@@ -703,14 +853,7 @@ class Expert:
             return self.surround[key], None, len(self.surround[key])
         if kind == "push":
             k = seg["cheese"]
-            direction = seg.get("direction")
-            if direction is None:  # toward the goal region along the larger horizontal offset
-                y0, y1, x0, x1 = region_box(seg["goal"]["region"])
-                cy, cx = cheese_centre(snapshot(world, i), k)[1:]
-                off = np.array([(y0 + y1) / 2 - cy, (x0 + x1) / 2 - cx])
-                axis = 1 + int(np.abs(off).argmax())
-                direction = [0, 0, 0]
-                direction[axis] = 1 if off[axis - 1] > 0 else -1
+            direction = self.push_direction(i, seg, world)
             axis = int(np.abs(np.array(direction)).argmax())
             sign = direction[axis]
             pos = world.cheese_pos[i : i + 1, k]
@@ -732,6 +875,7 @@ class Expert:
         for i, task in enumerate(self.tasks):
             plan = task.plan
             if not plan:
+                self.note(i, t, -1, {"kind": "stay"})
                 lists.append([])
                 presses.append(None)
                 caps.append(None)
@@ -743,10 +887,12 @@ class Expert:
                 seg = plan[self.index[i]]
             self.since[i] += 1
             if self.done(i, seg, world) and seg["kind"] in ("eat", "push"):
+                self.note(i, t, len(plan), {"kind": "done"})
                 lists.append([])
                 presses.append(None)
                 caps.append(None)
                 continue
+            self.note(i, t, self.index[i], self.describe(i, seg, world))
             pts, press, cap = self.targets_of(i, seg, world, shells)
             lists.append(pts)
             presses.append(press)
@@ -763,7 +909,8 @@ class Expert:
             if press is not None:
                 press_cheese[i] = press[0]
                 press_dir[i] = torch.tensor(press[1])
-        codes = act(world, targets, valid, press_cheese, press_dir, generator=generator)
+        allowed = None if self.moves is None else self.moves.unsqueeze(0).expand(int((world.mass > 0.5).sum()), -1)
+        codes = act(world, targets, valid, press_cheese, press_dir, generator=self.generator if generator is None else generator, allowed=allowed)
         for i, (pts, cap) in enumerate(zip(lists, caps)):
             if cap is None or not pts:
                 continue
@@ -776,11 +923,13 @@ class Expert:
         return codes
 
 
-def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False):
+def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, failure=None):
     """Roll out a batch: actor(world, t) -> action codes (B, D, H, W). Returns per episode
     (score, unasked), and with record the store arrays (mass, actions, cheese_pos, cheese_alive)
-    of the episodes."""
+    of the episodes. failure: (27,) per-action probability that a robot's move does not happen
+    this step (world.failure_rates); the recorded action stays the one the actor chose."""
     generator = torch.Generator().manual_seed(seed)
+    failures = torch.Generator().manual_seed(seed + 7_919)
     runners = torch.zeros(world.cheese_alive.shape, dtype=torch.bool)
     for i, task in enumerate(tasks):
         runners[i, list(task.runners)] = True
@@ -790,7 +939,8 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False):
     for t in range(steps):
         codes = actor(world, t)
         before = world.cheese_alive.clone()
-        world, _ = step(world, codes.long(), torch.rand(world.mass.shape, generator=generator))
+        effective_codes = codes if failure is None else fail_moves(codes, failure, failures)
+        world, _ = step(world, effective_codes.long(), torch.rand(world.mass.shape, generator=generator))
         if runners.any() and (t + 1) % RUNNER_PERIOD == 0:
             world = replace(world, cheese_pos=flee(world, runners))
         for i, k in (before & ~world.cheese_alive).nonzero().tolist():

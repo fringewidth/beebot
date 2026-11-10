@@ -4,7 +4,8 @@ Each robot heads for the nearest target voxel no robot holds yet (or, when every
 the nearest target), taking the one of its 27 actions whose destination is closest to that goal
 among destinations that are inside the grid and not a wall or cheese. A robot already on a
 target stays. Optionally, robots touching a chosen cheese on its back side press into it along a
-push direction. A share of robots take a random action instead (jitter).
+push direction. A share of robots take a random action instead (jitter). An `allowed` mask limits
+both the chosen and the jittered actions to what the hardware can do (world.CUBE_MOVES).
 
 Every intent of the scripted player is expressed as such a target set: a point (go somewhere),
 two points (split), a cheese's shell (eat), a column (tower), a span (bridge), the face behind a
@@ -35,7 +36,8 @@ def act(world, targets, valid, press_cheese=None, press_dir=None, jitter=JITTER_
     targets (B, S, 3) long, valid (B, S) bool: each scene's target voxels (a scene with none
     stays put). press_cheese (B,) long (-1 for none) and press_dir (B, 3) long: robots whose
     move along press_dir lands on that cheese take that move. allowed (N, 27) bool, over the robots
-    in robot_list order: actions the robots can carry out (hardware limits); None allows all."""
+    in robot_list order: actions the robots can carry out (hardware limits); None allows all.
+    Jittered robots draw their random action among the allowed ones."""
     b, d, h, w = world.mass.shape
     device = world.mass.device
     robots, scene, here = robot_list(world)
@@ -75,7 +77,10 @@ def act(world, targets, valid, press_cheese=None, press_dir=None, jitter=JITTER_
         move = torch.where(on, step_code, move)
 
     jittered = torch.rand(move.shape, generator=generator, device=device) < jitter
-    random_move = torch.randint(N_ACTIONS, move.shape, generator=generator, device=device)
+    if allowed is None:
+        random_move = torch.randint(N_ACTIONS, move.shape, generator=generator, device=device)
+    else:
+        random_move = torch.multinomial(allowed.float(), 1, generator=generator).squeeze(1)
     move = torch.where(jittered, random_move, move)
     codes[robots] = move.to(torch.int8)
     return codes.view(b, d, h, w)
