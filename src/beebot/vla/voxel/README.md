@@ -879,6 +879,34 @@ printed, nothing written under `data/vla/haiku`.
    own `canonical_record` and `scene_summary`; one line switches. A suite task whose colour is
    not in the scene (`eat:absent`) has the spec `{"kind": "refuse"}`.
 
+## Think-then-act training examples (`think_data.py`)
+
+`ThinkData(stores, haiku_dirs, tokenizer)` turns demo stores and verified Haiku labels into one
+example per sampled step: the scene at step t, the text before the reply (memory, then the user
+turn with the instruction in force and one `<|image_pad|>` where the scene tokens go), the reply
+(a thought in Qwen3's `<think>` tags, empty on most steps, then `<tool_call>`, or a text answer
+for a refusal) and the expert's action codes. The module docstring has the interface and the exact
+text layout; `python -m beebot.vla.voxel.think_data --stores ... --haiku ... --show` prints the
+counts, one rendered example of each kind and the sampling speed.
+
+1. **Thought steps.** The first step ("you asked: ... i see ... first: ..."), each instruction
+   change of a switch task (the new part's first thought), each sub-goal switch (a short line) and
+   "done." where the expert records an eat or push task as finished. Switches are read from
+   `small.pt["subgoals"]` (`Expert.subgoals`: an entry whenever the segment index or its goal
+   changes; a switch is a rise of the segment index within one instruction), so no store needs
+   rewriting and no draw changes.
+1. **Memory.** An earlier assistant turn with the latest first thought before step t and the
+   latest line after it: fixed size, never the whole history. On the step an instruction changes
+   it still holds the old instruction's thought.
+1. **Labels.** Haiku choices where verified pairs exist (one rung drawn per sample; a switch
+   episode only when every part is verified), otherwise the store's template instruction with a
+   templated thought from `canonical_record` and `scene_summary` at the part's first step. The join
+   is by (seed, index) through `attempts.jsonl`; a label directory drawn with other options than
+   the store, or a label whose family differs from the attempt's, is an error.
+1. **Sampling.** `thought_share` (default 1/3) of act examples at a thought step; `refusal_share`
+   (default 0.05) refusal examples; `haiku_share` None draws episodes uniformly. 5% of episodes
+   (a hash of (seed, index)) are held out for `validation(n, seed)`.
+
 ## Left out, and extension points
 
 1. **Simple machines** (a lever: a rigid bar on a pivot) are not implemented. The natural place
