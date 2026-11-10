@@ -11,6 +11,7 @@ modules.
 | `scripted.py` | random task sequences and the data store |
 | `suite.py` | instruction families, checkers, the expert that demonstrates them |
 | `demos.py` | expert demonstrations as a store, also for pivoting cubes |
+| `free_cube.py` | the planner for cubes that cannot leave a bond, and the comparison of rules and experts |
 | `facts.py` | window facts as hashable atoms |
 | `render.py` | isometric PNG/GIF |
 
@@ -224,6 +225,179 @@ Small swarms never get runners (a cheese takes 23 robots to eat) and logic gives
 "eat nothing".
 
 Tests: `tests/test_vla_voxel_cube.py`, `tests/test_vla_voxel_compact.py`.
+
+## Free cubes: the moves a real pivoting cube can make
+
+`--cube` leaves out horizontal diagonals but still lets any robot step into any free neighbouring
+voxel. The MuJoCo studies of the mechanism (HARDWARE.md, "Round 3" and "Ten cubes in one scene")
+say a real cube cannot: it moves by pivoting on a support, and permanent magnets hold it whenever
+a second cube touches one of its faces (0 of 121 attempts, at any flywheel speed). The rule is
+opt-in; without it everything is as before.
+
+```
+OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_free_cube --scenes 6000 --free-cube --counts log --compact
+```
+
+`--free-cube` is `--cube` with `--rule free_cube --expert planner`: the world refuses every move
+the rule forbids, gravity is on in every scene, and the expert is the planner of `free_cube.py`.
+`--rule switch_cube` is the same rule for cubes that can release their bonds (switchable or
+electropermanent magnets). `--apart` sets every swarm down again before the episode so that no
+two robots touch, as a swarm laid out by hand would start; it is off unless given. `small.pt`
+records `rule`, `expert` and `apart` under `config`.
+
+### The rule (`world.pivot_moves`, `world.refuse`)
+
+For a cube at c, on the scene as the step begins:
+
+| move | pivot | needs | must be empty |
+| --- | --- | --- | --- |
+| one axis h, level (4) | quarter turn: floor roll, traverse; wall crawl | a surface under c that continues under c + h; failing that, a surface beside c (at right angles to h) that continues beside c + h | c + h, and the two cells on the far side of c and c + h from the support |
+| straight up or down (2) | quarter turn: concave up, concave down | a surface beside c that continues beside c + h | the same |
+| up and sideways e (4) | half turn: convex up (from the floor or from hanging) | a support at c + e; the cube lands on top of it | c + up, c - e, c + up - e, c + up + e, c + 2 up, c + 2 up + e |
+| down and sideways e (4) | half turn: convex down | a support under c; the cube lands beside it | c + e, c + up, c + e + up, c + e + down, c + 2 e, c + 2 e + down |
+
+1. **Free.** The move happens only if no other cube touches a face of c, except the support
+   itself (`free_cube`). So a cube with a second face neighbour stays, a cube on the floor beside
+   one cube can only climb it, and a cube standing on a cube cannot climb a third. The floor,
+   terrain and cheeses are not bonds. `switch_cube` drops this condition and keeps the rest.
+1. **Supports.** The floor, terrain and cubes on any side but above; a cheese only from below.
+1. **One at a time.** A cube does not pivot on a cube that is itself pivoting in the same step
+   (its support, or the cube it comes to rest against).
+1. **Presses.** A move into a cheese is a press, not a pivot, and is not restricted.
+1. **Consequence.** Every pivot ends face to face with its support or the surface it continues
+   on. A cube that has touched a group can only crawl over it; a group never splits; a group in
+   which every cube has two face neighbours inside it (a 2 x 2 patch) never moves again. Only a
+   cube whose every contact is floor or terrain travels freely.
+
+What was measured and what is extrapolated:
+
+| | basis |
+| --- | --- |
+| one extra face bond holds the cube | measured: 0 of 121 (77 with exactly one bond); floor peel, convex up and down, traverse, wall crawl. Concave moves with a bond were not tried and are assumed held too |
+| free cubes move | measured: floor roll 34 of 34, concave up 12 of 14, concave down 5 of 5, convex up from hanging 21 of 33, convex up 0.77 to 0.91 with retries. Here an allowed move simply happens; `--failure` is the only noise, and a harmful failure (off the lattice, a knocked neighbour: 3 to 9% of convex ups, more in the ten-cube scene) is not modelled |
+| the pivot table (support, swing) | `cube_swarm.plan`, which every measured move went through |
+| terrain as a support and never a bond | extrapolated from the steel floor (grip 0.3); no terrain in MuJoCo |
+| a cheese: rolled over, never climbed, never a bond; presses unrestricted | assumed; no cheese in MuJoCo. A cube held by a bond can still press |
+| an edge contact does not hold | optimistic: hinged movers reached 16 of 23, but a floor roll away from an edge contact stayed 18 of 22 times at the calibrated speed |
+| sliding into a slot beside a cube works | optimistic: 3 of 22 got in, 6 ended off the lattice. `pivot_moves(rubs=True)` refuses it; no named rule uses it, because it rules out every filled 2 x 2 footprint |
+| one at a time | assumed; only single movers were simulated |
+| what holds a structure up | unchanged: the voxel world's support rule |
+
+`hardware/physics.py` (`allowed_moves`) is a different, looser rule for a geared crawler: it
+charges torque for the bonds a move leaves and lets a strong design pry them. Every `free_cube`
+move is allowed there; half of what it allows a permanent-magnet design `free_cube` refuses
+(HARDWARE.md, "The rule in the voxel world").
+
+### The planner (`free_cube.py`)
+
+`FreeCubeExpert` runs the suite's plans and sub-goals with a planner in place of the attractor
+controller. Lone cubes are its material: each step a breadth-first search from the open target
+voxels through the rule's own moves gives every voxel its number of pivots to a target; lone
+cubes descend it nearest first and never land beside another cube in transit; cubes in groups
+crawl by the same distances afterwards. The route up a wall of cubes (roll to it, concave up to
+hang, convex up from hanging) comes out of the search. No jitter, and no recorded action breaks
+the rule, failures or not.
+
+### What the expert can still do
+
+```
+OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.free_cube --scenes 192 --steps 72 144 --out runs/free_cube/compare.jsonl
+```
+
+192 scenes drawn as `demos --cube --counts log` draws them (seed 0), 575 episodes, every arm from
+the same scenes with the same seeds and `--failure 0.15`. Cells are mean checker score (0 when a
+forbidden cheese was eaten) / share of episodes that pass as demonstrations. Rows in
+`runs/free_cube/{attractor,planner,extra}.jsonl`.
+
+| arm | expert | rule | start |
+| --- | --- | --- | --- |
+| cube | attractor | none (any free neighbouring voxel) | as drawn |
+| switch | attractor | `switch_cube`: pivots, bonds released | as drawn, gravity on |
+| free | attractor, choosing among allowed moves | `free_cube` | as drawn, gravity on |
+| free + planner | `FreeCubeExpert` | `free_cube` | as drawn, gravity on |
+| free + planner, apart | `FreeCubeExpert` | `free_cube` | the same swarm set down again with no two robots touching (`demos --apart`) |
+
+72 steps:
+
+| | n | cube | switch | free | free + planner | free + planner, apart |
+| --- | --- | --- | --- | --- | --- | --- |
+| all | 575 | 0.77 / 0.79 | 0.70 / 0.71 | 0.37 / 0.24 | 0.49 / 0.40 | 0.59 / 0.55 |
+| formation | 91 | 0.67 / 0.91 | 0.61 / 0.80 | 0.27 / 0.08 | 0.40 / 0.30 | 0.48 / 0.58 |
+| construction | 123 | 0.95 / 0.93 | 0.92 / 0.92 | 0.58 / 0.33 | 0.80 / 0.72 | 0.85 / 0.80 |
+| logic | 83 | 0.87 / 0.84 | 0.75 / 0.73 | 0.58 / 0.58 | 0.58 / 0.58 | 0.77 / 0.77 |
+| parallel | 86 | 0.83 / 0.77 | 0.80 / 0.77 | 0.61 / 0.36 | 0.68 / 0.44 | 0.69 / 0.51 |
+| herd | 112 | 0.62 / 0.58 | 0.56 / 0.47 | 0.17 / 0.12 | 0.33 / 0.26 | 0.40 / 0.29 |
+| runner | 80 | 0.69 / 0.69 | 0.53 / 0.53 | 0.00 / 0.00 | 0.01 / 0.01 | 0.33 / 0.33 |
+| under 15 robots | 96 | 0.87 / 0.84 | 0.79 / 0.73 | 0.55 / 0.46 | 0.63 / 0.53 | 0.71 / 0.65 |
+| 15 to 40 | 171 | 0.70 / 0.74 | 0.65 / 0.67 | 0.38 / 0.23 | 0.53 / 0.49 | 0.58 / 0.56 |
+| over 40 | 308 | 0.79 / 0.80 | 0.71 / 0.72 | 0.31 / 0.18 | 0.42 / 0.31 | 0.57 / 0.52 |
+| tower | 79 | 0.95 / 0.92 | 0.93 / 0.92 | 0.58 / 0.20 | 0.85 / 0.73 | 0.86 / 0.77 |
+| bridge | 22 | 0.91 / 0.91 | 0.82 / 0.82 | 0.27 / 0.27 | 0.50 / 0.50 | 0.68 / 0.68 |
+| fill | 22 | 1.00 / 1.00 | 1.00 / 1.00 | 0.87 / 0.82 | 0.92 / 0.86 | 0.99 / 1.00 |
+| eat one cheese | 89 | 0.72 / 0.72 | 0.53 / 0.53 | 0.00 / 0.00 | 0.01 / 0.01 | 0.38 / 0.38 |
+| herd to a region | 85 | 0.62 / 0.56 | 0.55 / 0.44 | 0.22 / 0.14 | 0.31 / 0.21 | 0.37 / 0.24 |
+| herd into the trench | 27 | 0.63 / 0.63 | 0.59 / 0.59 | 0.04 / 0.04 | 0.41 / 0.41 | 0.48 / 0.48 |
+
+144 steps, all tasks: cube 0.78 / 0.80, switch 0.76 / 0.77, free 0.38 / 0.24, free + planner
+0.49 / 0.40, free + planner, apart 0.60 / 0.55.
+
+1. **The rule halves what the attractor expert can do** (0.77 to 0.37; passes 0.79 to 0.24), most
+   of all with many robots. At the start 83% of the robots of a swarm under 15 touch no other
+   robot, 67% from 15 to 40 and 31% over 40; of a swarm over 40, 6% sit in a patch that can never
+   move and the rest of the grouped ones can only crawl. The attractor sends everyone at once, so
+   lone cubes meet on the way and are stuck together. Gravity alone costs nothing (cube with
+   gravity on everywhere: 0.78 / 0.78).
+1. **The planner wins back about 30% of the loss** (0.49 / 0.40) and time does not help it:
+   by step 72 every cube that can still move has arrived. Lone cubes alone, with groups left
+   where they are, give 0.45 / 0.35. What limits it is how many cubes can still move, not what
+   they can reach.
+1. **Where the swarm starts matters as much as the planner.** Set down with gaps, the same
+   swarms reach 0.59 / 0.55, and a cheese is eaten in 38% of the tries instead of 1%. The
+   attractor does not profit from the gaps (0.40 / 0.28): it closes them.
+1. **Released bonds make almost all of it go away.** With the unchanged attractor expert,
+   `switch_cube` keeps 0.70 / 0.71 of the cube world's 0.77 / 0.79 at 72 steps and 0.76 / 0.77 of
+   0.78 / 0.80 at 144: the pivot geometry costs time, not tasks. The planner under `switch_cube`
+   scores the same (0.71 / 0.70), so with switchable magnets the existing expert is enough.
+
+What cubes that cannot leave a bond can do in principle:
+
+| | |
+| --- | --- |
+| towers, walls, columns | yes, by the measured route: a lone cube rolls to the foot, hangs on the side, climbs; one cube at a time per side. Tower 0.85 against 0.95 |
+| trench fill, bridge | yes: cubes step off the plateau edge and hang, and a bridge grows as cubes walk over it and step off its end. Bridge 0.50 against 0.91, 0.68 from a spaced start |
+| gathering in a region, surrounding a cheese | yes, as far as lone cubes and crawling pairs get there |
+| flat formations (letters on the floor) | yes when each voxel can be approached from outside, inside first; the score is capped by the robots that cannot leave their group and lie off the shape |
+| eating a cheese | only by accretion: 30 cubes on open floor, lower ring first, each arriving free. Needs that many cubes still lone, so mostly a question of the start |
+| anything in sequence with the same cubes (eat a, then b; a second shape) | no: the cubes around the first cheese are bonded in a ring |
+| herding | by the rule, one voxel per fresh cube at best: two pushers side by side bond and cannot follow the cheese; one more cube has to slide into the slot for every voxel, and a pusher on top can walk along the row they leave behind |
+| catching a runner | no closing in: every approach that fails leaves a frozen group. 0.01; 0.33 from a spaced start, when the first approach succeeds |
+| floating shapes, standing letters | not as asked (gravity); only as far as a pile happens to cover them |
+| anything that needs a cube out of a filled layer or a group split | no |
+
+As demonstrations: the 300-scene sample of the section above (seed 0, `--counts log --compact`,
+915 episodes played, of which `--cube` kept 719) keeps 379 with `--free-cube` (618 s on 2
+threads, 5.3 MB, `data/vla/voxel_demos_free_cube_sample`) and 508 with `--free-cube --apart`
+(7.4 MB, `data/vla/voxel_demos_free_cube_apart_sample`). Kept / tried:
+
+| robots | `--free-cube` | construction | formation | herd | logic | parallel | runner |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| under 15 | 73 / 139 | 28 / 39 | 1 / 3 | 13 / 57 | 22 / 22 | 9 / 18 | none |
+| 15 to 40 | 147 / 305 | 57 / 71 | 26 / 55 | 16 / 55 | 19 / 37 | 29 / 44 | 0 / 43 |
+| over 40 | 159 / 471 | 60 / 86 | 21 / 85 | 11 / 63 | 32 / 74 | 32 / 79 | 3 / 84 |
+
+| robots | `--free-cube --apart` | construction | formation | herd | logic | parallel | runner |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| under 15 | 84 / 139 | 31 / 39 | 2 / 3 | 16 / 57 | 22 / 22 | 13 / 18 | none |
+| 15 to 40 | 177 / 305 | 55 / 71 | 41 / 55 | 16 / 55 | 25 / 37 | 34 / 44 | 6 / 43 |
+| over 40 | 247 / 471 | 68 / 86 | 40 / 85 | 15 / 63 | 49 / 74 | 36 / 79 | 39 / 84 |
+
+Without `--apart` all 73 kept logic episodes are "eat nothing" (0 of 60 eating tasks pass, 3 of
+127 runners); with it 23 of 60 and 45 of 127. A policy trained on the first store alone sees no
+eating. Tasks are still drawn for the
+cube world (`suite.fits` knows nothing of the rule), so tasks no free cube can do are played
+and dropped.
+
+Tests: `tests/test_vla_voxel_free_cube.py`.
 
 ## Compact store
 
