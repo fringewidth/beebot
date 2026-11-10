@@ -18,7 +18,7 @@ import torch
 import torch.nn.functional as F
 
 from beebot.vla.voxel.lm import PATCH, VoxelLMPolicy, patchify3, unpatchify3
-from beebot.vla.voxel.world import N_ACTIONS
+from beebot.vla.voxel.world import N_ACTIONS, N_CHANNELS
 
 ACT = "<tool_call>"  # an existing token of the LM's vocabulary: acting is the reply's first token
 OPEN = "<|im_start|>user\n"
@@ -39,8 +39,8 @@ def right_align(ids, mask):
 
 
 class StreamVoxelPolicy(VoxelLMPolicy):
-    def __init__(self, lm, tokenizer, lora_rank=0, freeze_embeddings=True, marker_weight=0.1):
-        super().__init__(lm, lora_rank=lora_rank, freeze_embeddings=freeze_embeddings)
+    def __init__(self, lm, tokenizer, lora_rank=0, freeze_embeddings=True, marker_weight=0.1, channels=N_CHANNELS):
+        super().__init__(lm, lora_rank=lora_rank, freeze_embeddings=freeze_embeddings, channels=channels)
         encode = lambda s: torch.tensor(tokenizer(s, add_special_tokens=False).input_ids)  # noqa: E731
         self.register_buffer("open_ids", encode(OPEN), persistent=False)
         self.register_buffer("turn_ids", encode(TURN), persistent=False)
