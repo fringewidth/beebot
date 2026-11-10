@@ -16,6 +16,7 @@ modules.
 | `haiku.py` | open-vocabulary instructions and thought labels written by Haiku, verified by a second call, joined to demo stores |
 | `facts.py` | window facts as hashable atoms |
 | `render.py` | isometric PNG/GIF |
+| `views.py` | camera views (oblique and top-down) with visual domain randomization for the vision policy (section "Views and randomization") |
 
 Tests: `OMP_NUM_THREADS=4 uv run pytest -q tests/test_vla_voxel.py`.
 
@@ -878,6 +879,140 @@ printed, nothing written under `data/vla/haiku`.
    summaries. `local_canonical_record` and `local_scene_summary` stand in until the suite has its
    own `canonical_record` and `scene_summary`; one line switches. A suite task whose colour is
    not in the scene (`eat:absent`) has the spec `{"kind": "refuse"}`.
+
+## Views and randomization
+
+`views.py` renders a voxel observation as camera images for the vision-language policy. The
+policy (Qwen3.5-4B) sees images and acts per voxel. Later it must work from a phone camera
+looking at real cubes on a steel sheet, so it never sees one lighting, colour scheme, camera or
+render style: every image is drawn with visual domain randomization, as in robot sim-to-real
+work.
+
+```python
+from beebot.vla.voxel.views import scene_views, sample_look, ViewSpec
+images, pose = scene_views(obs, rng, ViewSpec())          # obs (C, D, H, W), 6 to 10 channels
+look = sample_look(rng, spec)                              # one episode: fixed camera, lights, materials
+images, pose = scene_views(obs_t, rng, spec, look=look)    # every frame of that episode
+```
+
+`images` holds one PIL image per camera of `spec.cameras` (default: the oblique perspective view,
+then the top-down view), each `spec.size` square (default 256). `ViewSpec.clean()` turns every
+randomization off, for evaluation and debugging.
+
+**Rendering.** The renderer is numpy only. Every exposed voxel face that faces the camera is
+splatted over its projected pixel box. The exact ray-plane hit of each pixel decides coverage,
+depth and the face's (u, v), and a z-buffer (`np.minimum.at`) keeps the nearest face. The floor
+is one plane hit per pixel. Textures, lights, a shadow map (the same splatter, seen from the
+main light), outlines and image effects follow. Both cameras are real projections (`Camera`:
+position, look-at, field of view, roll, principal point).
+
+**Frame and pose.** The world frame has x to the right, y to the front and z up, as seen by a
+person at the front (`suite.FLOOR_REGIONS`). `pose["azimuth"]` is the oblique camera's place in
+degrees, in the world frame: 0 at the front (+y), 90 at the right (+x), 180 at the back, 270 at
+the left. With camera randomization on, the azimuth is drawn uniformly within 30 degrees of a
+side. It is therefore never within 15 degrees of a diagonal (45, 135, 225, 315), where a person
+cannot tell front from right. This matters because the data side turns direction words by
+quarter turns from this azimuth. `pose["side"]` names the nearest side. The top-down view turns
+with the same azimuth, plus up to 6 degrees of its own jitter: its image "up" points away from
+the oblique camera. `pose["views"]` lists each camera's projection, azimuth, elevation, field
+of view, position and style. `test_world_frame_of_both_cameras` pins all of this.
+
+**Registration.** Faint grid lines are always drawn on every arena cell boundary and on the
+arena border. Four corner markers are always drawn just outside the arena's corners. Only how
+they look is randomized. The lines are lighter or darker than the sheet, at opacity 0.15-0.5
+and width 0.04-0.1 cells. A marker is an L bracket, square, dot or cross of 0.4-1 cells. So
+pixels register to voxels from any viewpoint.
+
+**Clean mode.**
+
+1. Cameras: the oblique camera sits at azimuth 0 and elevation 45 degrees, with a 50 degree
+   field of view. It is framed on the arena and 4 voxels above it. The top view is
+   orthographic.
+1. Lighting: the lit style, with one light from the front left at 60 degrees, and shadows.
+1. Sheet: dark slate (`CLEAN_FLOOR`), at least 30 CIE Lab units from every object colour. The
+   zero-shot probe missed white cheeses on the old light floor.
+1. Robots and terrain: robots are mid-grey cubes with dark edge lines. Terrain is sandy.
+1. Objects: exact colours, no noise.
+1. Top view: faces are shaded by height (darker low, full brightness at 6 voxels and above) and
+   every height step is outlined, so stacks and stepped pyramids read from above.
+1. Food: food voxels show darker round holes in every mode, so a cheese reads apart from a
+   passive block. Food is channel 6, or every object of a 6-channel observation.
+
+**Randomizations.** Each group has a strength in [0, 1]: its own `ViewSpec` field, or None to
+use the global `spec.strength` (`DEFAULT_STRENGTH`, 0.5). Strength 0 gives the clean value. The
+ranges below are at strength s and shrink linearly to the clean value; a probability p means
+p * s. Any item can be turned off by name: `ViewSpec(off={"jpeg"})`.
+
+| group | item | range at strength s (clean value) |
+| --- | --- | --- |
+| camera | azimuth | uniform within 30 deg of a side, not scaled by s (0) |
+| | elevation | 45 +- 20 s deg (45) |
+| | fov | 50 +- 15 s deg vertical, distance refit to frame the arena (50) |
+| | distance | x U(1 - 0.05 s, 1 + 0.4 s) of the fitted distance (1) |
+| | look_at | target +-1.5 s cells in x, y, +-0.5 s in z (0) |
+| | roll | +-6 s deg (0) |
+| | aspect | fx/fy +-4 s %, principal point +-3 s % (0) |
+| | distortion | p 0.6: radial k1 in U(-0.04, 0.22) s, mostly barrel, refit so the corners stay (0) |
+| | crop | zoom in x U(1, 1 + 0.1 s), shifted anywhere inside the render (1) |
+| | resolution | rendered at U(1 - 0.45 s, 1 + 0.25 s) x size, then resized (1) |
+| | top_jitter | top view: +-6 s deg rotation, up to 8 s deg tilt (0) |
+| | top_perspective | p 0.5: the top view becomes a perspective camera high above, fov 20-45 deg (orthographic) |
+| lighting | lights | p 0.5 each for a second and a third light of 0.2-0.6 (one light) |
+| | light_direction | azimuth uniform, elevation 60 +- 30 s deg (front left, 60) |
+| | intensity | 0.75 x U(1 - 0.35 s, 1 + 0.35 s) (0.75) |
+| | ambient | 0.4 +- 0.22 s, tinted toward the light or a cool sky (0.4, white) |
+| | temperature | 5500 +- 2700 s K per light (5500 K) |
+| | shadows | p 0.35 off; 1-3 PCF taps (on, 2) |
+| | specular | Blinn-Phong. Robots ks U(0, 0.55 s), shininess 8-64; steel floors ks 0.1-0.5; objects ks up to 0.15 s (robots 0.15) |
+| style | style | p 0.3 flat (no lighting, a fixed shade per face direction); p 0.2 toon (three light bands, dark outlines); otherwise lit. Outlines p 0.35 (lit, outlined) |
+| materials | floor | steel, brushed metal, wood, paper (p 0.3 graph lines), fractal noise or rotated tiles, at low saturation. Its mean is at least 20 Lab units from every object colour and 15 from the robots (dark slate) |
+| | table | the surface past the sheet: the same types in any colour, fading into the background. Sheet margin 0.6-3 cells (light grey, 1.2) |
+| | terrain | sand, wood, stone, concrete, cardboard or foam. Sides 0.75-1 of the top, faint cell edges, at least 15 Lab units from every object colour (sand) |
+| | robots | base grey 0.12-0.85 with saturation up to 0.08, at least 15 Lab units from every object colour. Edge lines 0.03-0.12 of a face, darker or lighter; p 0.5 face markings (dot, ring, cross, square, stripe); per-cube brightness +-6 s % (mid grey, dark edges) |
+| | object_noise | object surface texture amplitude up to 0.12 s (0) |
+| | grid_lines, markers | appearance only, see Registration (light lines at 0.35, white L brackets) |
+| colour | colour_jitter | per named colour of objects and zones: hue, saturation and value within `COLOUR_JITTER[name]` x s (exact) |
+| distractors | clutter | Poisson(4 s) boxes on the table outside the sheet: 0.5-4 cells, up to 4 high, saturation up to 0.6. They cast shadows (none) |
+| | stickers | Poisson(5 s) flat ellipses, rectangles and stripes on the table (none) |
+| | background | procedural backdrop where rays miss the floor: a gradient plus fractal blobs (grey gradient) |
+| | hand_shadow | per image, p 0.3: a soft hand shadow (palm and fingers) from an edge, darkening by 0.25-0.5 (none) |
+| | cable_shadow | per image, p 0.3: a soft curved cable shadow, darkening by 0.25-0.5 (none) |
+| corruptions | gaussian_noise | p 0.8: sigma U(0, 0.035 s) |
+| | shot_noise | p 0.6: variance k x intensity, k U(0, 0.02 s) |
+| | motion_blur | p 0.25: a line of 2 to 2 + 6 s pixels at any angle |
+| | defocus | p 0.3: Gaussian radius 0.3 to 0.3 + 1.3 s pixels |
+| | jpeg | p 0.6: quality U(95 - 65 s, 95) |
+| | vignetting | p 0.5: corners darkened by up to 0.45 s |
+| | exposure | p 0.8: x 2^U(-0.6 s, 0.6 s) |
+| | white_balance | p 0.6: per-channel gains 1 +- 0.1 s |
+| | gamma | p 0.6: 1 +- 0.25 s |
+| | chromatic | p 0.4: red and blue at radial scales 1 +- U(0, 0.006 s) |
+| | cutout | p 0.4: 1-3 patches of 4-12% of the side, flat colour or noise, placed only where they cover no object or zone pixel, so a target is never erased from any view |
+
+Camera, lighting, style, materials, colour and clutter are drawn once per look, which is one
+episode. Hand and cable shadows and the corruptions are drawn for every image.
+
+**Colour names survive jitter.** `COLOUR_JITTER` bounds the hue shift, saturation and value of
+each named colour. White gets a small tint and a value range instead.
+`test_colour_jitter_keeps_names` checks, for every colour, a 5 x 5 x 5 grid over its bounds and
+400 draws: the nearest named colour (CIE Lab, `nearest_colour_name`) stays its own. Red and
+green have the tightest bounds, because a dark, desaturated red lies nearest to pink.
+
+**State noise** (`perturb_state(obs, rng, StateNoise())`) is separate and off by default:
+nothing calls it. It corrupts only the robot channel, as imperfect state estimation on real
+hardware would:
+
+1. Each robot is dropped with probability 0.02 (`drop`).
+1. Each robot is moved to a free face neighbour with probability 0.02 (`shift`).
+1. For each robot, a phantom robot is added next to something solid with probability 0.01 (`phantom`).
+
+**Readability and speed** (`scripts/vla_view_probe.py`):
+
+1. `--sheets` writes contact sheets of the zero-shot probe's items (colours, letters, shapes),
+   clean and at strengths 0.25, 0.5, 0.75 and 1: `runs/views/sheet_<setting>_<probe>.jpg`.
+1. `--qwen` asks Qwen3.5-4B the probe questions zero-shot under each setting:
+   `runs/views/qwen.txt`.
+1. `--speed` times rendering: `runs/views/speed.txt`.
 
 ## Left out, and extension points
 
