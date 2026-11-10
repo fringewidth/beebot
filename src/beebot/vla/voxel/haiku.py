@@ -599,15 +599,19 @@ def verify_prompt(entries, menu):
 
 
 def parse_json(text):
-    """The JSON object a reply holds (code fences and text around it allowed), or None."""
-    start = text.find("{")
-    if start < 0:
-        return None
-    try:
-        answer, _ = json.JSONDecoder().raw_decode(text[start:])
-    except ValueError:
-        return None
-    return answer if isinstance(answer, dict) else None
+    """The JSON object a reply holds (code fences and text around it allowed), or None. A reply
+    that gives one object per item (several top-level objects) is merged into one."""
+    decoder, merged, at = json.JSONDecoder(), {}, 0
+    while (start := text.find("{", at)) >= 0:
+        try:
+            part, end = decoder.raw_decode(text, start)
+        except ValueError:
+            at = start + 1
+            continue
+        if isinstance(part, dict):
+            merged.update(part)
+        at = end
+    return merged or None
 
 
 def clean(text):
