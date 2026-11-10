@@ -471,6 +471,30 @@ where they are.
 | at the same time (two jobs) | "half of you go left, the other half build a tower" | exists (parallel) |
 | only N / at most N robots | "use only 3 robots" | added as the count selector |
 
+### Drawing them into demonstrations and labels
+
+`demos --coverage F` (and `haiku.py export --coverage F`) adds round(F x scenes) coverage tasks
+to every chunk of `demos.draws`, after the suite's own tasks and from a generator of their own
+(seeded by `(seed, 7)`), so the suite's part of the draw is the same with or without them. Haiku
+labels join to draws by (seed, index), so the coverage draw is pinned by a digest test
+(`test_the_coverage_draw_is_pinned`). What is drawn depends only on the makers and the frozen
+draw code in `suite.py` (`drawn_score`, `drawn_pile`, `drawn_spread_cells`, `coverage_bound`,
+`COVERAGE_WORDINGS`), never on the expert or the checker: an expert that fails a task only marks
+its row of `attempts.jsonl` with `e = -1`.
+
+The store records which instruction is in force at every step:
+
+1. `labels.jsonl` has one row per instruction: a switch episode has two rows for the same `e`,
+   `w0 = 0, w1 = k` with the first instruction and `w0 = k, w1 = steps` with the second, so
+   `lm.batch_of` reads it as before and labels each step with the instruction in force.
+1. `small.pt` holds `instructions`: per kept episode `[{"t": first step, "text", "record":
+   canonical_record}]`, one entry per instruction. `play_store.instructions_of(store, e, labels)`
+   reads it, and for an older store without it rebuilds `[{"t", "text"}]` from the label rows;
+   `play_store.instruction_at(entries, t)` gives the one in force at step t.
+1. The compact grid files are unchanged; `config` records `coverage`.
+1. `subgoals` go on across the switch: a new entry at step k with plan index 0 of the new
+   instruction.
+
 ### Records for labelling
 
 Two functions give every task and scene in plain JSON (names stable; the Haiku labelling pipeline

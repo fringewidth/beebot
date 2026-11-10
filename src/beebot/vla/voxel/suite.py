@@ -1018,9 +1018,12 @@ class Expert:
             dist = torch.cdist(here.float(), torch.tensor(pts, dtype=torch.float)).min(dim=1).values
             idle = here[dist.argsort()[cap:]]
             codes[i, idle[:, 0], idle[:, 1], idle[:, 2]] = STAY
-        for i, frozen in enumerate(self.frozen):  # robots a coverage job leaves out stay, jitter or not
+        for i, frozen in enumerate(self.frozen):  # robots a coverage job leaves out stay, jitter or not, and so do its robots on a target
             if frozen is not None:
                 codes[i][torch.from_numpy(frozen)] = STAY
+                if lists[i]:
+                    pts = torch.tensor(lists[i]).long()
+                    codes[i, pts[:, 0], pts[:, 1], pts[:, 2]] = STAY
         if self.rule is not None:  # of a cube and the cube it pivots on, one waits
             codes = refuse(world, codes, self.rule, priority=torch.rand(world.mass.shape, generator=self.generator if generator is None else generator))
         return codes
@@ -1100,15 +1103,15 @@ SUBSET_JOBS = {  # job -> the selectors it is drawn with
     "groups": ("group",),
     "line": ("group", "count"),
     "move": ("group", "except"),
-    "perch": ("count",),
+    "climb": ("count",),
     "tower": ("group",),
     "eat": ("group",),
 }
 SWITCH_FIRST = ("goto", "gather", "spread", "approach", "groups", "move", "logic", "construction", "herd")
 SWITCH_THEN = ("stay", "stay", "stay", "goto", "gather", "spread")
 SWITCH_AT = (8, 25)  # the step the second instruction comes, drawn in [low, high)
-HELD_OUT.update({"selector_job": (("half", "approach"),), "switch_then": ()})
-HELD_FAMILY.update({"selector_job": "subset", "switch_then": "switch"})
+HELD_OUT.update({"selector_job": (("half", "approach"),)})
+HELD_FAMILY.update({"selector_job": "subset"})
 SIDE_AXES = {"left": (2, -1), "right": (2, 1), "back": (1, -1), "front": (1, 1)}  # FLOOR_REGIONS: back is low y
 NEAR = 3  # floor-plan (Chebyshev) distance from a cheese's footprint that counts as next to it
 MOVE_STEPS = 3
@@ -1128,14 +1131,14 @@ COVERAGE_WORDINGS = {
     "line.y": ["line up in one row from back to front", "form a line running back to front", "get in a row from back to front", "stand in single file from back to front"],
     "climb": ["climb onto the plateau on the {r}", "get up on the plateau on the {r}", "everyone up onto the plateau on the {r}", "scale the cliff to the plateau on the {r}"],
     "move": ["move three steps toward the {r}", "shift three steps toward the {r}", "take three steps toward the {r}", "step over three toward the {r}"],
-    "subset": ["{who}: {job}; everyone else: stay where you are", "only {who} should move: {job}", "{who}, {job}; the rest of you stay put", "I want {who} to {job} while nobody else moves", "{who}: {job}. the others stay still"],
+    "subset": ["{who}: {job}; everyone else: stay where you are", "{who} should move: {job}", "{who}, {job}; the rest of you stay put", "I want {who} to {job} while nobody else moves", "{who}: {job}. the others stay still"],
     "who.smaller": ["the smaller group", "the small group", "the group with fewer robots"],
     "who.larger": ["the larger group", "the big group", "the group with more robots"],
     "who.smallest": ["the smallest group", "the tiniest group", "the group with the fewest robots"],
     "who.largest": ["the largest group", "the biggest group", "the group with the most robots"],
     "who.side": ["the group on the {r}", "the group over on the {r}", "the robots on the {r}"],
     "who.cheese": ["the group nearest the {c} cheese", "the group closest to the {c} cheese", "the robots by the {c} cheese"],
-    "who.count": ["{n} of you", "any {n} of you", "just {n} robots"],
+    "who.count": ["{n} of you", "{n} robots", "{n} of the robots"],
     "who.half": ["half of you", "half the swarm", "one half of the robots"],
     "who.top": ["the robots standing on other robots", "the ones on top", "the top layer"],
     "who.not": ["everyone except {x}", "all but {x}", "everybody other than {x}"],
@@ -1147,6 +1150,7 @@ COVERAGE_WORDINGS = {
     "do.line_x": ["line up in one row from left to right", "form a line running left to right", "get in a row from left to right"],
     "do.line_y": ["line up in one row from back to front", "form a line running back to front", "get in a row from back to front"],
     "do.move": ["move three steps toward the {r}", "shift three steps toward the {r}", "take three steps toward the {r}"],
+    "do.climb": ["climb onto the plateau on the {r}", "get up on the plateau on the {r}", "scale the cliff to the plateau on the {r}"],
     "do.perch": ["climb on top of the {c} cheese", "get up onto the {c} cheese", "stand on top of the {c} cheese"],
     "do.tower": ["build a tower {n} robots tall", "stack up {n} high", "make a column {n} robots high"],
     "do.eat": ["eat the {c} cheese", "go eat the {c} one", "devour the {c} cheese"],
@@ -1364,8 +1368,139 @@ def coverage_bound(task, world, i, n=None):
     elif kind == "groups":
         bound = float(count >= 2 * spec["count"])
     elif kind == "spread":
-        bound = min(1.0, len(spread_cells(world, i, np.zeros((SIZE,) * 3, bool))) / count)
+        bound = min(1.0, len(drawn_spread_cells(world, i, np.zeros((SIZE,) * 3, bool))) / count)
     return bound
+
+
+# Frozen draw code. What sample_coverage draws depends on these and on the makers, never on the
+# expert or the checker, so the coverage draw stays the same while those change (Haiku labels are
+# joined to draws by seed and index; tests pin the draw's digest). Change them only knowingly.
+
+
+def drawn_value(spec, static, start, end, eaten, movers, n, pick):
+    """How far the robots taking part (movers, at the end) did the job, in [0, 1]; n is how many
+    take part."""
+    kind = spec["kind"]
+    n = max(n, 1)
+    cells = np.argwhere(movers)
+    slot = {COLOUR_NAMES[int(c)]: k for k, c in enumerate(static["cheese_color"]) if c >= 0}
+    if kind in ("approach", "follow", "perch"):
+        k = slot[spec["colour"]]
+        if not end["cheese_alive"][k]:
+            return 0.0
+        pos = end["cheese_pos"][k]
+        if kind == "perch":
+            top = movers[pos[0] + CHEESE_SIDE, pos[1] : pos[1] + CHEESE_SIDE, pos[2] : pos[2] + CHEESE_SIDE] if pos[0] + CHEESE_SIDE < movers.shape[0] else np.zeros(1, bool)
+            return min(1.0, float(top.sum()) / min(n, CHEESE_SIDE * CHEESE_SIDE))
+        reach = NEAR if kind == "approach" else RUNNER_RADIUS
+        return min(1.0, float((floor_distance(cells[:, 1:], pos) <= reach).sum()) / n) if len(cells) else 0.0
+    if kind == "goto":
+        y0, y1, x0, x1 = region_box(spec["region"])
+        inside = (cells[:, 1] >= y0 - 1) & (cells[:, 1] < y1 + 1) & (cells[:, 2] >= x0 - 1) & (cells[:, 2] < x1 + 1)
+        return min(1.0, float(inside.sum()) / n)
+    if kind == "gather":
+        groups = components(movers)
+        return min(1.0, len(groups[0]) / n) if groups else 0.0
+    if kind == "spread":
+        return min(1.0, float((face_alone(end["mass"] > 0.5) & movers).sum()) / n)
+    if kind == "groups":
+        m = spec["count"]
+        shares = [len(g) / n for g in components(movers)] + [0.0] * m
+        return float(min(1.0, sum(shares[:m]) / 0.8) * min(1.0, shares[m - 1] / (0.5 / m)))
+    if kind == "line":
+        return min(1.0, longest_line(movers, 2 if spec["axis"] == "x" else 1) / n)
+    if kind == "climb":
+        y0, y1, x0, x1 = spec["plateau"]
+        on = (cells[:, 0] >= spec["top"]) & (cells[:, 1] >= y0) & (cells[:, 1] < y1) & (cells[:, 2] >= x0) & (cells[:, 2] < x1)
+        return min(1.0, float(on.sum()) / n)
+    if kind == "move":
+        axis, sign = SIDE_AXES[spec["toward"]]
+        before = np.argwhere(pick if pick is not None else start["mass"] > 0.5)
+        if not len(before) or not len(cells):
+            return 0.0
+        shift = sign * (cells[:, axis].mean() - before[:, axis].mean())
+        return float(np.clip(shift / spec["steps"], 0.0, 1.0))
+    if kind == "tower":
+        return min(1.0, tallest_run(movers) / spec["height"])
+    if kind == "eat":
+        return float(spec["colour"] in eaten)
+    raise ValueError(kind)
+
+
+def drawn_score(task, static, start, end, eaten):
+    """job_score as drawn (frozen): (score, unasked) of a coverage task: how far the robots taking part did the job, times the
+    share of the robots left out that are still where they were. "stay" is the share of robots
+    still on their start voxels. A count selector ("N of you", "half of you") picks no robots in
+    advance: the robots off their start voxels are the ones that moved, the job is judged on them,
+    and moving more than N costs N / moved."""
+    spec = task.spec
+    unasked = any(c in spec["forbid"] for c in eaten)
+    before, after = start["mass"] > 0.5, end["mass"] > 0.5
+    if spec["kind"] == "stay":
+        return float((before & after).sum() / max(before.sum(), 1)), unasked
+    who = spec["who"]
+    pick = chosen(who, before, cheese_centres(static["cheese_color"], start))
+    if pick is None and who["select"] not in ("count", "half"):
+        return 0.0, unasked
+    if pick is None:
+        n = take_count(who, int(before.sum()))
+        movers = after & ~before
+        still = min(1.0, n / max(int(movers.sum()), 1))
+    else:
+        n = int(pick.sum())
+        frozen = before & ~pick
+        movers = after & ~frozen
+        still = float((after & frozen).sum() / frozen.sum()) if frozen.any() else 1.0
+    return float(drawn_value(spec, static, start, end, eaten, movers, n, pick) * still), unasked
+
+
+def drawn_pile(heights, avoid, centre, n, cells=None, layers=None):
+    """stack_targets as drawn (frozen; place_groups): the n voxels nearest a floor point centre (y, x), as a pile: (z, y, x) from the ground
+    (heights, (H, W)) up, ranked by squared floor distance plus LAYER_COST per layer squared, so
+    the pile grows outward and up and every voxel's lower neighbour comes first. avoid (D, H, W)
+    bool voxels are left out together with what stands on them; cells (H, W) bool limits the
+    floor plan; layers caps the height of the pile."""
+    d, h, w = avoid.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    floor = (yy - centre[0]) ** 2 + (xx - centre[1]) ** 2
+    open_column = np.ones((h, w), bool) if cells is None else cells.copy()
+    keys, points = [], []
+    for layer in range(d if layers is None else layers):
+        z = heights + layer
+        inside = z < d
+        open_column &= inside
+        open_column[inside] &= ~avoid[z[inside], yy[inside], xx[inside]]
+        if not open_column.any():
+            break
+        ys, xs = np.nonzero(open_column)
+        keys.append(floor[ys, xs] + LAYER_COST * layer * layer)
+        points += list(zip((heights[ys, xs] + layer).tolist(), ys.tolist(), xs.tolist()))
+    if not points:
+        return []
+    order = np.argsort(np.concatenate(keys), kind="stable")[:n]
+    return [points[j] for j in order]
+
+
+def drawn_spread_cells(world, i, frozen):
+    """spread_cells as drawn (frozen; coverage_bound): ground voxels a spread-out swarm can stand on: one floor cell in every 2 x 2 block (the
+    parity with the most free cells), or the checkerboard when that holds more, off cheeses and
+    their shells and away from the faces of frozen robots."""
+    heights = world.walls[i].numpy().sum(0)
+    avoid = world.walls[i].numpy() | (cheese_id_map(world.index(i))[0].numpy() >= 0) | shells_of(world, i)
+    near = frozen.copy()
+    for axis in range(3):
+        for sign in (-1, 1):
+            near |= np.roll(frozen, sign, axis=axis)
+    avoid |= near
+    yy, xx = np.mgrid[0:SIZE, 0:SIZE]
+    ok = (heights < SIZE)
+    ok[ok] &= ~avoid[heights[ok], yy[ok], xx[ok]]
+    best = []
+    for mask in [(yy % 2 == a) & (xx % 2 == b) for a in (0, 1) for b in (0, 1)] + [(yy + xx) % 2 == a for a in (0, 1)]:
+        ys, xs = np.nonzero(ok & mask)
+        if len(ys) > len(best):
+            best = list(zip(heights[ys, xs].tolist(), ys.tolist(), xs.tolist()))
+    return best
 
 
 # Scenes with separate groups
@@ -1392,7 +1527,7 @@ def place_groups(rng, world, count, total, layers=1):
     for size, name in zip(sizes, names):
         y0, y1, x0, x1 = region_box(name)
         centre = ((y0 + y1 - 1) / 2 + rng.uniform(-1, 1), (x0 + x1 - 1) / 2 + rng.uniform(-1, 1))
-        points = stack_targets(heights, avoid, centre, int(size), cells=~taken, layers=layers)
+        points = drawn_pile(heights, avoid, centre, int(size), cells=~taken, layers=layers)
         if len(points) < size:
             return None
         pile = np.zeros_like(mass)
@@ -1488,6 +1623,10 @@ class JobSetup:
                 anchor = self.anchor(world, i, occupied)
                 cells = np.argwhere(occupied)
                 order = np.argsort(((cells[:, 1:] - anchor) ** 2).sum(axis=1) - 0.01 * cells[:, 0], kind="stable")
+                if job["kind"] == "climb":  # robots already on the plateau come last
+                    y0, y1, x0, x1 = job["plateau"]
+                    there = (cells[:, 0] >= job["top"]) & (cells[:, 1] >= y0) & (cells[:, 1] < y1) & (cells[:, 2] >= x0) & (cells[:, 2] < x1)
+                    order = order[np.argsort(there[order], kind="stable")]
                 pick = np.zeros_like(occupied)
                 k = take_count(job["who"], len(cells)) if job["who"]["select"] in ("count", "half") else 0
                 pick[tuple(cells[order[:k]].T)] = True
@@ -1495,6 +1634,8 @@ class JobSetup:
         self.frozen = occupied & ~self.pick
         self.n = int(self.pick.sum())
         self.avoid = self.solid | self.frozen | (shells_of(world, i) if job["kind"] != "eat" else False)
+        if job["who"]["select"] in ("count", "half"):  # the checker counts the robots off their start voxels, so no target is one
+            self.avoid = self.avoid | occupied
         self.fixed = None if job["kind"] == "follow" else self.compute(world, i)
 
     def anchor(self, world, i, occupied):
@@ -1645,7 +1786,7 @@ def static_of(world, meta, i):
 def already_done(task, world, meta, i):
     """Whether the scene as it starts already scores half marks on the task."""
     snap = snapshot(world, i)
-    return job_score(task, static_of(world, meta, i), snap, snap, [])[0] >= 0.5
+    return drawn_score(task, static_of(world, meta, i), snap, snap, [])[0] >= 0.5
 
 
 def has_room(task, world, i):
@@ -1839,6 +1980,8 @@ def make_subset(rng, held, job=None):
         needs["layers"] = 2
     if job in ("tower", "eat"):
         needs["gravity"] = True if job == "tower" else None
+    if job == "climb":
+        needs.update(layout="gap", gravity=True)
     if sel == "count" and job == "perch":
         needs["groups"] = None
     return needs, make
@@ -1898,7 +2041,7 @@ def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uni
     held = split if split in HELD_OUT else ""
     worlds, metas, out = [], [], []
     while len(out) < n:
-        fam = HELD_FAMILY.get(held) if held in ("selector_job", "switch_then") else family or str(rng.choice(COVERAGE))
+        fam = HELD_FAMILY.get(held) if held == "selector_job" else family or str(rng.choice(COVERAGE))
         needs, make = COVERAGE_MAKERS[fam](rng, held, job)
         span = needs.pop("robots", None) or robots
         count = None if span is None else draw_count(rng, span[0], span[1], counts)

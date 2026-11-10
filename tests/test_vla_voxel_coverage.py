@@ -4,6 +4,7 @@ the draws of the existing families left as they were."""
 
 import hashlib
 import json
+import random
 from dataclasses import replace
 
 import numpy as np
@@ -14,6 +15,8 @@ from beebot.vla.voxel import demos
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel import wordings as W
 from beebot.vla.voxel.world import COLOUR_NAMES, CUBE_MOVES, STAY, failure_rates, world_from_arrays
+
+COVERAGE_DIGESTS = ("3d258913fce67e8f", "8a84ab36a810996f")  # draw_digest of test_the_coverage_draw_is_pinned
 
 
 def digest(seed, n, **kw):
@@ -237,3 +240,70 @@ def test_coverage_wordings_round_trip_in_every_split():
                 made = W.render(part.text, slots, choice, split)
                 assert W.parse_canonical(made.canonical)["intent"] == slots["intent"]
                 assert "{" not in made.instruction
+
+
+def draw_digest(seed, n_scenes, coverage, **kw):
+    """Digest of demos.draws (scenes, tasks, their canonical sentences) and its coverage count."""
+    h = hashlib.sha256()
+    count = 0
+    for c, world, metas, tasks, run_seed in demos.draws(n_scenes, seed, 12, coverage=coverage, **kw):
+        for f in ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity"):
+            h.update(getattr(world, f).numpy().tobytes())
+        for t in tasks:
+            h.update((t.family + "|" + t.text + "|" + S.task_kind(t) + "|" + S.canonical_record(t)["plain"]).encode())
+            count += t.family in S.COVERAGE
+    return h.hexdigest()[:16], count
+
+
+def test_the_coverage_draw_is_pinned():
+    """Haiku labels join to draws by (seed, index): what demos.draws --coverage draws must not
+    change. It depends on the makers and the frozen draw code of suite.py, never on the expert or
+    the checker."""
+    assert draw_digest(3, 24, 0.5) == (COVERAGE_DIGESTS[0], 12)
+    assert draw_digest(4, 24, 0.5, robots=S.ROBOTS, counts="log", check=True, rule="switch_cube") == (COVERAGE_DIGESTS[1], 12)
+
+
+def test_coverage_comes_after_the_suite_draw_and_leaves_it_alone():
+    plain = [[S.task_kind(t) for t in tasks] for _, _, _, tasks, _ in demos.draws(24, 5, 12, robots=S.ROBOTS, check=True)]
+    mixed = [[S.task_kind(t) for t in tasks] for _, _, _, tasks, _ in demos.draws(24, 5, 12, robots=S.ROBOTS, check=True, coverage=0.5)]
+    for a, b in zip(plain, mixed):
+        assert b[: len(a)] == a and len(b) == len(a) + 6
+        assert all(kind.split(":")[0].split("@")[0] in S.MOTION_JOBS + tuple(S.SUBSET_JOBS) + ("switch",) for kind in b[len(a) :])
+
+
+def test_the_store_records_the_instruction_in_force(tmp_path):
+    from beebot.vla.voxel.lm import batch_of
+    from beebot.vla.voxel.play_store import instruction_at, instructions_of, load
+
+    steps = 30
+    count = demos.write(tmp_path, 12, seed=1, chunk=12, steps=steps, moves="cube", robots=S.ROBOTS, compact=True, coverage=1.0, rule="switch_cube")
+    store = load(tmp_path)
+    labels = [json.loads(line) for line in open(tmp_path / "labels.jsonl")]
+    attempts = [json.loads(line) for line in open(tmp_path / "attempts.jsonl")]
+    assert store["config"]["coverage"] == 1.0 and len(store["instructions"]) == count
+    switches = 0
+    for e in range(count):
+        entries = instructions_of(store, e)
+        rows = sorted((r for r in labels if r["e"] == e), key=lambda r: r["w0"])
+        assert [r["w0"] for r in rows] == [entry["t"] for entry in entries] and rows[0]["w0"] == 0 and rows[-1]["w1"] == steps
+        assert all(a["w1"] == b["w0"] for a, b in zip(rows, rows[1:]))
+        assert [r["text"] for r in rows] == [entry["text"] for entry in entries]
+        assert all(set(entry["record"]) == {"family", "kind", "plain", "spec", "subgoals"} for entry in entries)
+        if len(entries) > 1:
+            switches += 1
+            assert instruction_at(entries, entries[1]["t"]) is entries[1] and instruction_at(entries, entries[1]["t"] - 1) is entries[0]
+        old = {k: v for k, v in store.items() if k != "instructions"}  # an older store: from its labels
+        assert instructions_of(old, e, labels) == [{"t": entry["t"], "text": entry["text"]} for entry in entries]
+    assert switches > 0 and any(a["kind"].startswith("switch:") for a in attempts)
+    obs, codes, texts = batch_of(store, labels, 4, random.Random(0), "cpu")
+    assert len(texts) == 4
+    assert instructions_of({}, 0) is None
+
+
+def test_haiku_exports_coverage_items():
+    from beebot.vla.voxel import haiku
+
+    items = haiku.drawn_items({"seed": 2, "chunk": 4, "coverage": 0.5, "robots": list(S.ROBOTS), "counts": "log"}, 60)
+    assert {item["record"]["family"] for item in items} & set(S.COVERAGE)
+    for item in items:
+        json.dumps(item)

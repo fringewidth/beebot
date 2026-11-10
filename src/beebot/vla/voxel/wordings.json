@@ -2205,13 +2205,13 @@
    "canonical": "{x} of you",
    "train": [
     "{x} of you",
-    "any {x} of you",
     "just {x} robots",
     "{x} robots",
     "only {x} of you",
     "{x} of the robots",
-    "any {x} robots",
-    "just {x} of you"
+    "just {x} of you",
+    "a group of {x} robots",
+    "{x} robots from the swarm"
    ],
    "held_out": [
     "a squad of {x} from among you",
@@ -2446,6 +2446,26 @@
    "held_out": [
     "polish off the {x} cheese",
     "make a meal of the cheese that is {x}"
+   ]
+  },
+  "do.climb": {
+   "slots": {
+    "x": "region"
+   },
+   "canonical": "climb onto the plateau on the {x}",
+   "train": [
+    "climb onto the plateau on the {x}",
+    "get up on the plateau on the {x}",
+    "scale the cliff to the plateau on the {x}",
+    "climb up to the {plateau} on the {x}",
+    "go up onto the {plateau} on the {x}",
+    "get on top of the plateau on the {x}",
+    "climb the wall up to the plateau on the {x}",
+    "head up onto the plateau on the {x}"
+   ],
+   "held_out": [
+    "mount the high ground over on the {x}",
+    "haul yourselves atop the {plateau} on the {x}"
    ]
   }
  },

@@ -55,7 +55,7 @@ SETS = {"logic.and": ("set.eat", "eat"), "logic.all": ("set.eat", "eat"), "logic
 ALIASES = {"eat": "logic.single", "logic.all_but_two": "logic.neither"}  # intents whose canonical sentence is the same
 SHAPE_NAMES = {words: name for name, words in S.SHAPE_WORDS.items()}
 COMPOSITE = ("sub.", "set.", "who.", "do.")  # parts of other intents, never a whole instruction
-DO = {"goto": ("do.region", "region"), "approach": ("do.approach", "colour"), "gather": ("do.gather", None), "spread": ("do.spread", None), "groups": ("do.groups", None), "move": ("do.move", "toward"), "perch": ("do.perch", "colour"), "tower": ("do.tower", "height"), "eat": ("do.eat", "colour")}
+DO = {"goto": ("do.region", "region"), "approach": ("do.approach", "colour"), "gather": ("do.gather", None), "spread": ("do.spread", None), "groups": ("do.groups", None), "move": ("do.move", "toward"), "perch": ("do.perch", "colour"), "climb": ("do.climb", "side"), "tower": ("do.tower", "height"), "eat": ("do.eat", "colour")}
 MOTION = {"stay": ("stay", None), "goto": ("region", "region"), "approach": ("approach", "colour"), "follow": ("follow", "colour"), "gather": ("gather", None), "spread": ("spread", None), "climb": ("climb", "side"), "move": ("move", "toward")}
 MOTION_SLOT = {"region": "r", "approach": "c", "follow": "c", "climb": "r", "move": "r"}
 
