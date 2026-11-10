@@ -23,7 +23,7 @@ from beebot.vla.model import N_ACTIONS, patchify
 
 PATCH = 4
 MAX_SIDE = 32  # patches per grid side the position embeddings cover (grids up to 128 squares)
-LORA_TARGETS = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
+LORA_TARGETS = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "in_proj_qkv", "in_proj_z", "out_proj")  # the last three: Qwen3.5's linear-attention layers
 
 
 class LoRALinear(nn.Module):
