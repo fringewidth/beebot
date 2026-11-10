@@ -52,6 +52,6 @@ def test_expert_solves_training_logic_and_construction():
     rng = np.random.default_rng(2)
     for family in ("logic", "construction"):
         world, metas, tasks = S.sample_tasks(rng, 6, "train", family)
-        results, _ = S.run(world, metas, tasks, S.Expert(tasks), seed=0)
+        results, _ = S.run(world, metas, tasks, S.Expert(tasks, seed=0), seed=0)
         assert np.mean([s for s, _ in results]) > 0.6
         assert not any(u for _, u in results)
