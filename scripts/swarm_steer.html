@@ -47,7 +47,9 @@
   .hint button { background: none; border: none; padding: 0; font: inherit; color: var(--ink); cursor: pointer; border-bottom: 1px dotted var(--muted); }
   .hint button:hover { color: var(--accent); border-color: var(--accent); }
   .note { margin-top: 28px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: #3c4651; text-align: center; padding: 0 16px; }
-  .message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.1em; }
+  .message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.1em; pointer-events: none; }
+  .message.down { flex-direction: column; gap: 10px; background: rgba(6, 8, 12, 0.84); color: #c9d3e0; font-size: 13px; text-align: center; padding: 0 16px; z-index: 3; }
+  .message.down small { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
 </style>
 </head>
 <body>
@@ -191,7 +193,15 @@ async function api(path, body) {
   const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
   const data = await r.json(); if (!r.ok) throw Object.assign(new Error(data.error || "error"), { status: r.status }); return data;
 }
-let running = false, polling = false;
+let running = false, polling = false, lastOk = performance.now(), down = false;
+function offline(on) {  // the server (one laptop) stopped answering
+  if (on === down) return; down = on;
+  const m = $("message"); m.classList.toggle("down", on);
+  if (on) { m.innerHTML = "too late, i already closed the laptop :(<small>the swarm runs on one macbook. it will pick up here when the lid opens.</small>"; swell(false); }
+  else m.textContent = "";
+}
+function reached() { lastOk = performance.now(); offline(false); }
+function missed(e) { if (!e.status && performance.now() - lastOk > 4000) offline(true); }
 function apply(f) {
   if (f.t !== lastT) {
     const moved = curr ? [...f.mass].reduce((n, ch, i) => n + (ch !== curr[i] ? 1 : 0), 0) : 0;
@@ -221,18 +231,18 @@ async function fresh() {
     const f = await api("/api/new", { sid });
     sid = f.sid; try { localStorage.setItem("swarm-sid", sid); } catch (e) {}
     walls = f.walls; boxes = f.boxes; prev = null; curr = null; lastT = -1;
-    tctx.clearRect(0, 0, trail.width, trail.height); apply(f); sounds.reset();
-  } catch (e) { $("message").textContent = e.message; }
+    tctx.clearRect(0, 0, trail.width, trail.height); apply(f); reached(); sounds.reset();
+  } catch (e) { if (e.status) $("message").textContent = e.message; else offline(true); }
 }
 async function send(text) {
   ensureAudio(); if (audio) audio.ac.resume();
-  try { apply(await api("/api/command", { sid, text })); sounds.command(); }
-  catch (e) { if (e.status === 404) { await fresh(); } }
+  try { apply(await api("/api/command", { sid, text })); reached(); sounds.command(); }
+  catch (e) { if (e.status === 404) { await fresh(); } else if (!e.status) offline(true); }
 }
 async function poll() {
   if (polling || !sid || !walls) return; polling = true;
-  try { apply(await api(`/api/frame?sid=${encodeURIComponent(sid)}`)); }
-  catch (e) { if (e.status === 404) await fresh(); }
+  try { apply(await api(`/api/frame?sid=${encodeURIComponent(sid)}`)); reached(); }
+  catch (e) { if (e.status === 404) await fresh(); else missed(e); }
   finally { polling = false; }
 }
 document.addEventListener("pointerdown", () => { ensureAudio(); if (audio) audio.ac.resume(); }, { once: true });
@@ -240,7 +250,7 @@ document.addEventListener("keydown", () => { ensureAudio(); if (audio) audio.ac.
 $("form").onsubmit = (e) => { e.preventDefault(); const text = $("input").value.trim(); if (text) send(text); $("input").select(); };
 $("reset").onclick = fresh;
 (async () => {
-  try { palette = await api("/api/palette"); } catch (e) { $("message").textContent = "the swarm is offline"; return; }
+  try { palette = await api("/api/palette"); } catch (e) { offline(true); return; }
   await fresh(); setInterval(poll, 90); requestAnimationFrame(draw);
 })();
 </script>
