@@ -132,12 +132,24 @@ def xla_report():
 
 def xla_checkpoint_function():
     """torch_xla's activation checkpointing (it keeps XLA from merging the recomputation back
-    into the forward pass), reentrant; torch's when torch_xla lacks it."""
-    try:
-        from torch_xla.utils.checkpoint import checkpoint
-    except ImportError:
-        from torch.utils.checkpoint import checkpoint
-    return checkpoint
+    into the forward pass), reentrant; torch's when torch_xla lacks it or BEEBOT_TORCH_CHECKPOINT is set."""
+    import inspect
+    import os
+
+    from torch.utils.checkpoint import checkpoint
+
+    if not os.environ.get("BEEBOT_TORCH_CHECKPOINT"):  # set: torch's own
+        try:
+            from torch_xla.utils.checkpoint import checkpoint
+        except ImportError:
+            pass
+    if "use_reentrant" in inspect.signature(checkpoint).parameters:
+        return checkpoint
+
+    def reentrant(function, *args, use_reentrant=True, **kwargs):  # a torch_xla without the argument: reentrant only
+        return checkpoint(function, *args, **kwargs)
+
+    return reentrant
 
 
 def to_cpu(value):

@@ -142,17 +142,36 @@ def summary(phase, chips, rows, batch, weights):
     return last
 
 
-chosen = None
-for batch, weights in ATTEMPTS:
-    result = summary("one-chip", 1, train(f"one-chip-b{batch}-{weights}", 1, probe_args(batch, weights)), batch, weights)
+def out_of_memory(phase):
+    text = open(f"{WORK}/logs/{phase}.out").read()
+    return any(s in text for s in ("RESOURCE_EXHAUSTED", "Ran out of memory", "out of memory", "OOM"))
+
+
+# A setting that runs out of HBM gives way to the next smaller one; any other failure first retries
+# the same setting with torch's checkpoint instead of torch_xla's (BEEBOT_TORCH_CHECKPOINT).
+chosen, attempt, torch_checkpoint, tries = None, 0, False, 0
+while attempt < len(ATTEMPTS) and tries < 5 and chosen is None:
+    batch, weights = ATTEMPTS[attempt]
+    os.environ.pop("BEEBOT_TORCH_CHECKPOINT", None)
+    if torch_checkpoint:
+        os.environ["BEEBOT_TORCH_CHECKPOINT"] = "1"
+    phase = f"one-chip-b{batch}-{weights}{'-torchckpt' if torch_checkpoint else ''}"
+    result = summary("one-chip", 1, train(phase, 1, probe_args(batch, weights)), batch, weights)
     shutil.rmtree(f"{WORK}/runs/probe", ignore_errors=True)
+    tries += 1
     if result:
         chosen = (batch, weights)
+    elif out_of_memory(phase):
+        attempt += 1
+    elif not torch_checkpoint:
+        torch_checkpoint = True
+    else:
         break
 if chosen is None:
     note(phase="gate", passed=False, reason="no one-chip setting ran")
     sys.exit(0)
 batch, weights = chosen
+note(phase="one-chip", chosen=f"batch {batch}, weights {weights}, checkpoint {'torch' if torch_checkpoint else 'torch_xla'}")
 eight = summary("eight-chip", 8, train(f"eight-chip-b{batch}-{weights}", 8, probe_args(batch, weights), first_log_minutes=30), batch, weights)
 shutil.rmtree(f"{WORK}/runs/probe", ignore_errors=True)
 rate = eight["examples_per_s"] if eight else 0.0
