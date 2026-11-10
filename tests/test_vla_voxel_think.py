@@ -220,6 +220,10 @@ def test_trainable_parts():
     out = lora(examples(lora, 3))
     out["loss"].backward()
     assert out["loss"].isfinite()
+    lora = tiny(QWEN35, lora_rank=4)  # LoRA reaches the linear-attention projections too; the projector still trains
+    names = [n for n, p in lora.lm.named_parameters() if p.requires_grad]
+    assert any("linear_attn.in_proj_qkv.a" in n for n in names) and any("self_attn.q_proj.a" in n for n in names)
+    assert all(n.endswith((".a", ".b")) or ".merger." in n for n in names)
 
 
 @pytest.mark.parametrize("name", [QWEN3, QWEN35])
