@@ -54,6 +54,10 @@ SUB = {"region": "sub.region", "tower": "sub.tower", "surround": "sub.surround",
 SETS = {"logic.and": ("set.eat", "eat"), "logic.all": ("set.eat", "eat"), "logic.neither": ("set.except", "forbid"), "logic.all_but_two": ("set.except", "forbid"), "logic.or": ("set.or", "any_of")}
 ALIASES = {"eat": "logic.single", "logic.all_but_two": "logic.neither"}  # intents whose canonical sentence is the same
 SHAPE_NAMES = {words: name for name, words in S.SHAPE_WORDS.items()}
+COMPOSITE = ("sub.", "set.", "who.", "do.")  # parts of other intents, never a whole instruction
+DO = {"goto": ("do.region", "region"), "approach": ("do.approach", "colour"), "gather": ("do.gather", None), "spread": ("do.spread", None), "groups": ("do.groups", None), "move": ("do.move", "toward"), "perch": ("do.perch", "colour"), "tower": ("do.tower", "height"), "eat": ("do.eat", "colour")}
+MOTION = {"stay": ("stay", None), "goto": ("region", "region"), "approach": ("approach", "colour"), "follow": ("follow", "colour"), "gather": ("gather", None), "spread": ("spread", None), "climb": ("climb", "side"), "move": ("move", "toward")}
+MOTION_SLOT = {"region": "r", "approach": "c", "follow": "c", "climb": "r", "move": "r"}
 
 
 @dataclass
@@ -183,9 +187,49 @@ def canonical(slots):
     spec = INTENTS[intent]
     if intent == "split":
         words = {name: INTENTS[SUB[kind]]["canonical"].format(x=plain(INTENTS[SUB[kind]]["slots"]["x"], x)) for name, (kind, x) in zip("ab", slots["jobs"])}
+    elif intent == "subset":
+        words = {"who": who_phrase(slots["who"]), "job": job_phrase(slots["job"])}
     else:
         words = {name: plain(kind, slots[name]) for name, kind in spec["slots"].items()}
     return spec["canonical"].format(**words)
+
+
+def part_phrase(part):
+    """The canonical phrase of a [sub-intent, value] part of a composite intent ("who." or "do."):
+    the sub-intent's canonical with its slot x filled, recursively for "who.not"."""
+    intent, value = part
+    spec = INTENTS[intent]
+    if intent == "who.not":
+        return spec["canonical"].format(x=who_phrase(value))
+    return spec["canonical"].format(x=plain(spec["slots"]["x"], value)) if spec["slots"] else spec["canonical"]
+
+
+who_phrase = part_phrase
+job_phrase = part_phrase
+
+
+def part_words(part):
+    """The canonical slot words inside a composite part (for check_text)."""
+    intent, value = part
+    if intent == "who.not":
+        return part_words(value)
+    return [plain(INTENTS[intent]["slots"]["x"], value)] if INTENTS[intent]["slots"] else []
+
+
+def parse_part(text, prefix):
+    """The [sub-intent, value] of a canonical "who." or "do." phrase, or None."""
+    if prefix == "who.":
+        match = re.fullmatch(INTENTS["who.not"]["canonical"].replace("{x}", "(?P<x>.+)"), text)
+        if match is not None:
+            inner = parse_part(match["x"], "who.")
+            return None if inner is None else ["who.not", inner]
+    for intent, spec in INTENTS.items():
+        if not intent.startswith(prefix) or intent == "who.not":
+            continue
+        match = pattern(spec["canonical"], spec["slots"]).match(text)
+        if match is not None:
+            return [intent, typed(spec["slots"]["x"], match["x"]) if spec["slots"] else None]
+    return None
 
 
 def vocabulary(kind):
@@ -202,7 +246,7 @@ def vocabulary(kind):
         options = ["[A-Z]{1,2}"]
     else:
         options = [".+"]
-    return "|".join(sorted((o if kind in ("count", "letter", "job") else re.escape(o) for o in options), key=len, reverse=True))
+    return "|".join(sorted((o if kind in ("count", "letter", "job", "who", "do") else re.escape(o) for o in options), key=len, reverse=True))
 
 
 def pattern(template, kinds):
@@ -221,12 +265,16 @@ def parse_canonical(text):
     (two intents that say the same thing share a sentence). Raises ValueError on anything else."""
     found = None
     for intent, spec in INTENTS.items():
-        if found is not None or intent in ALIASES or intent.startswith(("sub.", "set.")):
+        if found is not None or intent in ALIASES or intent.startswith(COMPOSITE):
             continue
         match = pattern(spec["canonical"], spec["slots"]).match(text)
         if match is None:
             continue
-        if intent == "split":
+        if intent == "subset":
+            who, job = parse_part(match["who"], "who."), parse_part(match["job"], "do.")
+            if who is not None and job is not None:
+                found = {"intent": intent, "who": who, "job": job}
+        elif intent == "split":
             jobs = []
             for name in "ab":
                 for kind, sub in SUB.items():
@@ -276,7 +324,11 @@ def slots_of(task, present=None):
     arguments its maker passed to say(), neither would be needed."""
     spec = task.spec
     kind = spec["kind"]
-    if kind == "mask":
+    if task.parts:
+        raise ValueError("a switch task has one instruction per part: slots_of(part) for each of task.parts")
+    if "who" in spec:
+        out = coverage_slots(spec)
+    elif kind == "mask":
         key, words = invert(task.text, ("letter_floor", "letter_stand", "shape"))
         out = {"intent": key, "s": SHAPE_NAMES[words["s"]]} if key == "shape" else {"intent": key, "w": words["w"]}
     elif kind == "tower":
@@ -320,9 +372,44 @@ def slots_of(task, present=None):
     return out
 
 
+def who_part(who):
+    """[sub-intent, value] of a suite selector (suite.spec["who"])."""
+    kind = who["select"]
+    if kind == "group":
+        part = ["who.side", who["which"]] if who["by"] == "side" else ["who.cheese", who["which"]] if who["by"] == "cheese" else ["who." + who["which"], None]
+    else:
+        part = ["who.count", int(who["count"])] if kind == "count" else ["who." + kind, None]
+    return ["who.not", part] if who.get("except") else part
+
+
+def job_part(spec):
+    """[sub-intent, value] of a coverage job done by a selected part of the swarm."""
+    kind = spec["kind"]
+    if kind == "line":
+        return ["do.line_" + spec["axis"], None]
+    intent, field_name = DO[kind]
+    return [intent, None if field_name is None else spec[field_name]]
+
+
+def coverage_slots(spec):
+    """Canonical slots of a coverage task (suite: "who" in its spec): a motion intent for
+    everyone, {"intent": "subset", "who": part, "job": part} for a selected part of the swarm."""
+    kind = spec["kind"]
+    if spec["who"]["select"] != "all":
+        return {"intent": "subset", "who": who_part(spec["who"]), "job": job_part(spec)}
+    if kind == "groups":
+        return {"intent": "groups." + ("two" if spec["count"] == 2 else "three")}
+    if kind == "line":
+        return {"intent": "line." + spec["axis"]}
+    intent, field_name = MOTION[kind]
+    return {"intent": intent, MOTION_SLOT[intent]: spec[field_name]} if field_name else {"intent": intent}
+
+
 def check_text(text, slots):
     """Raises ValueError unless every canonical slot word occurs in the suite's instruction."""
-    if slots["intent"] == "split":
+    if slots["intent"] == "subset":
+        words = part_words(slots["who"]) + part_words(slots["job"])
+    elif slots["intent"] == "split":
         words = [plain(INTENTS[SUB[kind]]["slots"]["x"], x) for kind, x in slots["jobs"]]
     else:
         words = [plain(kind, slots[name]) for name, kind in INTENTS[slots["intent"]]["slots"].items()]
@@ -366,6 +453,15 @@ def fill(rng, intent, values, split, present, keep, choices, prefix=""):
     return template, template.format(**words)
 
 
+def fill_part(rng, part, split, present, keep, choices, prefix):
+    """A wording of a [sub-intent, value] part of a composite intent, "who.not" around its inner
+    selector."""
+    intent, value = part
+    if intent == "who.not":
+        return pick(rng, templates(intent, split)).format(x=fill_part(rng, value, split, present, keep, choices, prefix))
+    return fill(rng, intent, {"x": value} if INTENTS[intent]["slots"] else {}, split, present, keep, choices, prefix=prefix)[1]
+
+
 def set_category(rng, slots, split, category):
     """(set intent, colours, category forms) when a category names the task's whole colour set in
     this scene and the draw says to use it; None otherwise."""
@@ -403,6 +499,10 @@ def render(text, canonical_slots, rng, split="train", keep=KEEP, category=CATEGO
         words = {}
         for name, (kind, x) in zip("ab", slots["jobs"]):
             words[name] = fill(rng, SUB[kind], {"x": x}, split, present, keep, choices, prefix=name + ".")[1]
+        template = pick(rng, templates(intent, split))
+        instruction = template.format(**words)
+    elif intent == "subset":
+        words = {"who": fill_part(rng, slots["who"], split, present, keep, choices, "who."), "job": fill_part(rng, slots["job"], split, present, keep, choices, "job.")}
         template = pick(rng, templates(intent, split))
         instruction = template.format(**words)
     else:
