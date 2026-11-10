@@ -227,6 +227,67 @@ def test_trainable_parts():
 
 
 @pytest.mark.parametrize("name", [QWEN3, QWEN35])
+def test_packed_batch_equals_rows(name):
+    """The fixed-shape batch (pack, for XLA) gives forward's losses and gradients, and the
+    matmul gated delta rule gives transformers' torch fallback."""
+    from beebot.vla.voxel.think import chunk_gated_delta_rule_matmul
+
+    policy = tiny(name)
+    rows = policy.rows(examples(policy, 6, seed=3))
+    losses, grads = [], []
+    for batch in (rows, policy.pack(rows, widths=(max(r.length for r in rows) + 7,))):
+        policy.zero_grad(set_to_none=True)
+        out = policy(batch)
+        out["loss"].backward()
+        losses.append([float(out[k]) for k in ("loss", "text", "action")] + [out["text_tokens"], float(out["robots"])])
+        grads.append({n: p.grad.clone() for n, p in policy.named_parameters() if p.grad is not None})
+    assert losses[0] == pytest.approx(losses[1], rel=1e-5)
+    assert grads[0].keys() == grads[1].keys() and all(torch.allclose(grads[0][n], grads[1][n], atol=1e-6) for n in grads[0])
+    if name == QWEN35:
+        from transformers.models.qwen3_5.modeling_qwen3_5 import torch_chunk_gated_delta_rule
+
+        torch.manual_seed(0)
+        q, k, v = (torch.randn(2, 150, 4, 16) for _ in range(3))
+        g, beta = -torch.rand(2, 150, 4), torch.rand(2, 150, 4)
+        reference = torch_chunk_gated_delta_rule(q, k, v, g=g, beta=beta, output_final_state=True, use_qk_l2norm_in_kernel=True)
+        matmul = chunk_gated_delta_rule_matmul(q, k, v, g=g, beta=beta, output_final_state=True, use_qk_l2norm_in_kernel=True)
+        assert all(torch.allclose(a, b, atol=1e-5) for a, b in zip(reference, matmul))
+
+
+@pytest.mark.parametrize("name", [QWEN35])
+def test_trainer_fixed_shapes_path(name, tmp_path, monkeypatch):
+    """think_train's XLA path (packed batches, values read at log time, matmul linear attention,
+    torch_xla calls stubbed) on the CPU."""
+    from beebot.vla import tpu
+    from beebot.vla.voxel import think, think_train
+
+    tokenizer, image_processor = parts(name)
+    monkeypatch.setattr(think_train, "load_lm", lambda model, dtype=torch.float32: (tiny_lm(name).to(dtype), tokenizer, image_processor))
+    monkeypatch.setattr(tpu, "is_xla", lambda device: True)
+    monkeypatch.setattr(tpu, "xla_setup", lambda index=0: (0, 1, torch.device("cpu")))
+    monkeypatch.setattr(tpu, "xla_mark_step", lambda: None)
+    monkeypatch.setattr(tpu, "xla_report", lambda: {"compiles": 0})
+    from torch.utils.checkpoint import checkpoint
+
+    monkeypatch.setattr(tpu, "xla_checkpoint_function", lambda: checkpoint)
+    import transformers.modeling_utils
+    import transformers.models.qwen3_5.modeling_qwen3_5 as qwen35
+
+    monkeypatch.setattr(transformers.modeling_utils, "checkpoint", transformers.modeling_utils.checkpoint)
+    monkeypatch.setattr(qwen35, "torch_chunk_gated_delta_rule", qwen35.torch_chunk_gated_delta_rule)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "general.txt").write_text("\n\n".join(" ".join(f"word{i} number {j} of the text" for j in range(40)) for i in range(20)))
+    fake = {"side": 8, "instruction_words": 3, "thought_words": 6, "images": 2, "image_size": 64, "scene": False}
+    monkeypatch.setattr(sys, "argv", ["think_train", "--name", "x", "--model", name, "--data", "fake", "--data_kwargs", json.dumps(fake), "--device", "xla", "--batch", "3", "--accumulate", "2", "--val_examples", "6", "--log_every", "2", "--general", "general.txt", "--lm_length", "32", "--warmup_steps", "2", "--prefetch", "2", "--steps", "4", "--checkpointing", "true", "--widths", "96,128"])
+    think_train.run()
+    assert qwen35.torch_chunk_gated_delta_rule is think.chunk_gated_delta_rule_matmul
+    rows = [json.loads(line) for line in open(tmp_path / "runs/x/history.jsonl")]
+    trained = [r for r in rows if "text" in r]
+    assert [r["step"] for r in trained] == [1, 2, 4] and all(r["loss"] > 0 and r["step_s"] > 0 and r["compiles"] == 0 for r in trained)
+    assert [r["step"] for r in rows if "val_loss" in r] == [4] and (tmp_path / "runs/x/policy_step4.pt").exists()
+
+
+@pytest.mark.parametrize("name", [QWEN3, QWEN35])
 def test_trainer_runs_saves_and_resumes(name, tmp_path, monkeypatch):
     """think_train end to end on the tiny LM (CPU): fake data, distillation on a local text file,
     a validation, a step checkpoint, then a resumed session that continues the step count."""
