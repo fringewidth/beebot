@@ -1,0 +1,51 @@
+switch things: 57 s
+switch blocks: 117 s
+switch zones: 150 s
+switch reasoning: 187 s
+| | switch |
+| --- | --- |
+| blocks | 0.80 / 0.74 (144) |
+| reasoning | 0.85 / 0.83 (144) |
+| things | 0.80 / 0.76 (144) |
+| zones | 0.86 / 0.83 (144) |
+
+| | switch |
+| --- | --- |
+| blocks: line_blocks | 0.93 / 0.93 (28) |
+| blocks: push_thing:attrs>region | 0.80 / 0.73 (92) |
+| blocks: push_thing:attrs>trench | 0.92 / 0.90 (10) |
+| blocks: push_thing:weight>region | 0.30 / 0.18 (11) |
+| blocks: push_thing:weight>trench | 1.00 / 1.00 (3) |
+| reasoning: conditional:eat_tower@else | 0.96 / 1.00 (4) |
+| reasoning: conditional:eat_tower@then | 1.00 / 1.00 (12) |
+| reasoning: conditional:surround_goto@else | 0.92 / 0.93 (28) |
+| reasoning: conditional:surround_goto@then | 1.00 / 1.00 (19) |
+| reasoning: count:tower | 0.96 / 0.89 (9) |
+| reasoning: eat_thing:compare | 0.33 / 0.33 (9) |
+| reasoning: eat_thing:next_to | 0.86 / 0.86 (7) |
+| reasoning: eat_thing:super | 0.67 / 0.67 (3) |
+| reasoning: push_thing:near>region | 0.72 / 0.50 (6) |
+| reasoning: push_thing:near>trench | 1.00 / 1.00 (1) |
+| reasoning: push_thing:next_to>region | 0.61 / 0.45 (11) |
+| reasoning: push_thing:next_to>trench | 0.57 / 0.33 (3) |
+| reasoning: push_thing:super>region | 0.71 / 0.67 (9) |
+| reasoning: push_thing:super>trench | 1.00 / 1.00 (4) |
+| reasoning: surround_thing:compare | 0.97 / 1.00 (5) |
+| reasoning: surround_thing:near | 0.98 / 1.00 (5) |
+| reasoning: surround_thing:super | 0.99 / 1.00 (9) |
+| things: catch_thing:attrs | 0.73 / 0.73 (22) |
+| things: eat_thing:attrs | 0.76 / 0.76 (38) |
+| things: push_thing:attrs>region | 0.77 / 0.63 (35) |
+| things: push_thing:attrs>trench | 0.74 / 0.71 (7) |
+| things: push_thing:weight>region | 0.23 / 0.00 (3) |
+| things: push_thing:weight>trench | 1.00 / 1.00 (1) |
+| things: surround_thing:attrs | 0.96 / 0.95 (38) |
+| zones: goto_zone | 0.92 / 0.94 (66) |
+| zones: line_zone | 0.85 / 0.77 (48) |
+| zones: push_thing:attrs>zone | 0.74 / 0.67 (30) |
+
+| | switch |
+| --- | --- |
+| 15 to 40 | 0.84 / 0.80 (214) |
+| over 40 | 0.82 / 0.79 (221) |
+| under 15 | 0.82 / 0.76 (141) |
