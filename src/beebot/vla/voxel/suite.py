@@ -32,7 +32,7 @@ from beebot.vla import tasks as T2
 from beebot.vla.shapes import FONT, text_mask
 from beebot.vla.voxel.controller import act
 from beebot.vla.voxel.facts import BLOB_SHARE, bridges, groups, shell_share, solid_grid, tallest_run
-from beebot.vla.voxel.world import CHEESE_SIDE, COLOUR_NAMES, EAT_MIN_SHARE, EAT_SHARE, FRICTION, FULL_SHELL, MAX_CHEESES, STAY, VoxelWorld, _face, cheese_id_map, fail_moves, rule_moves, sample_scenes, shell, step
+from beebot.vla.voxel.world import CHEESE_SIDE, COLOUR_NAMES, EAT_MIN_SHARE, EAT_SHARE, FRICTION, FULL_SHELL, MAX_CHEESES, STAY, VoxelWorld, _face, cheese_id_map, fail_moves, refuse, rule_moves, sample_scenes, shell, step
 
 SIZE = 16
 HELD_OUT = {
@@ -957,6 +957,8 @@ class Expert:
             dist = torch.cdist(here.float(), torch.tensor(pts, dtype=torch.float)).min(dim=1).values
             idle = here[dist.argsort()[cap:]]
             codes[i, idle[:, 0], idle[:, 1], idle[:, 2]] = STAY
+        if self.rule is not None:  # of a cube and the cube it pivots on, one waits
+            codes = refuse(world, codes, self.rule, priority=torch.rand(world.mass.shape, generator=self.generator if generator is None else generator))
         return codes
 
 
