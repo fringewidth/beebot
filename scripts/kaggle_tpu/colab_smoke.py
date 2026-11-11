@@ -101,7 +101,10 @@ def train(stage, args, steps):
                 pass
     logged = [r for r in rows if "examples_per_s" in r]
     last = logged[-1] if logged else {}
-    say(stage, exit=code, minutes=round((time.time() - started) / 60, 1), steps=last.get("step", 0), loss=last.get("loss"), text=last.get("text"), action=last.get("action"), examples_per_s=last.get("examples_per_s"), step_s=last.get("step_s"), compiles=last.get("compiles"), cpu_fallbacks=last.get("cpu_fallbacks"), passed=code == 0 and last.get("step", 0) >= steps, log=log, tail=text[-1500:] if code else "")
+    # the steady rate as the kernel reads it (think_kernel.steady_window): the last window without a compilation
+    quiet = [b for a, b in zip(logged, logged[1:]) if b.get("compiles") == a.get("compiles")]
+    steady = quiet[-1] if quiet else last
+    say(stage, exit=code, minutes=round((time.time() - started) / 60, 1), steps=last.get("step", 0), loss=last.get("loss"), text=last.get("text"), action=last.get("action"), examples_per_s=steady.get("examples_per_s"), step_s=steady.get("step_s"), steady_window_end=steady.get("step"), last_window_examples_per_s=last.get("examples_per_s"), hbm_gb=last.get("gpu_gb"), compiles=last.get("compiles"), compile_minutes=round(last.get("compile_s", 0) / 60, 1), cpu_fallbacks=last.get("cpu_fallbacks"), passed=code == 0 and last.get("step", 0) >= steps, log=log, tail=text[-1500:] if code else "")
 
 
 COMMON = ["--model", MODEL, "--batch", "4", "--accumulate", "1", "--checkpointing", "true", "--warmup_steps", "5", "--log_every", "10", "--val_examples", "0", "--val_every_minutes", "100000", "--save_every_minutes", "100000", "--save_resume", "false", "--widths", "384,512"]  # distillation on (distill_weight 1.0), as in the kernel
