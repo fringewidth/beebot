@@ -63,3 +63,44 @@ def test_culled_pair_search_gives_the_same_forces():
     rot = np.stack([np.eye(3)] * len(pos))
     strength = rng.uniform(0.75, 1.25, len(pos))
     assert np.allclose(Magnets(cube, len(pos), strength).wrench(pos, rot), SwarmMagnets(cube, len(pos), strength).wrench(pos, rot))
+
+
+def test_switched_off_pairs_exert_no_force():
+    cube = DESIGN.cube()
+    cells = np.array([(0, 0, 10), (1, 0, 10), (2, 0, 10)], dtype=float)  # (x, y, z) in L, far above the steel floor
+    pos = cells * cube.side
+    rot = np.stack([np.eye(3)] * 3)
+    magnets = SwarmMagnets(cube, 3, np.ones(3))
+    cut = np.zeros((3, 3), dtype=bool)
+    cut[0, 1] = cut[1, 0] = True
+    magnets.switch(cut)
+    alone = magnets.wrench(pos, rot)
+    assert np.allclose(alone[0], 0, atol=1e-5) and not np.allclose(alone[2], 0, atol=1e-5)  # cube 0 feels only the far floor; cubes 1 and 2 still pull together
+    magnets.switch(None)
+    assert not np.allclose(magnets.wrench(pos, rot)[0], 0, atol=1e-5)
+
+
+def test_release_frees_a_mover_held_by_a_face_bond():
+    for seed in (0, 1):
+        held = Swarm([(0, 0, 0), (0, 0, 1)], seed=seed)
+        assert held.move(0, (0, 0, -1), rpm=6000).detail == "stayed"  # floor peel: the bond holds it
+        free = Swarm([(0, 0, 0), (0, 0, 1)], seed=seed, release=True)
+        moved = free.move(0, (0, 0, -1), rpm=6000)
+        assert (moved.detail, moved.cell) == ("reached", (0, 0, -1))
+        assert free.magnets.cut is None  # switched back on after the move
+
+
+def test_released_pairs_keep_what_the_mover_leans_on():
+    swarm = Swarm([(0, 0, 0), (0, 0, 1), (1, 0, 1), (0, 1, 0)], seed=0, jitter=NOMINAL, settle=0.05)
+    pivot = swarm.plan(0, (1, 0, 0))  # concave up the stack at x = 1, beside the cube at y = 1
+    assert pivot.primitive == "concave_up" and set(pivot.leans) == {(0, 0, 1), (1, 0, 1)}
+    cut = swarm.released([0], [pivot], swarm.lattice())
+    assert cut[0].tolist() == [False, False, False, True] and cut[3, 0] and not cut[1:3, 1:].any()
+
+
+def test_several_cubes_move_at_once():
+    swarm = Swarm([(0, 0, 0), (0, 0, 4), (0, 3, 2)], seed=0)
+    moves = swarm.moves([(0, (0, 0, 1)), (1, (0, 0, -1)), (2, (0, -1, 0))])
+    assert [m.detail for m in moves] == ["reached"] * 3
+    assert [m.cell for m in moves] == [(0, 0, 1), (0, 0, 3), (0, 2, 2)]
+    assert swarm.moves([(0, (0, 0, 1)), (1, (1, 0, 0))])[1].detail == "refused"
