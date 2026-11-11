@@ -917,6 +917,29 @@ class OutcomeModel:
         """(reached, stayed, harmful) of class `index`."""
         return float(self.reach[index]), float(self.stay[index]), float(1 - self.reach[index] - self.stay[index])
 
+    def odds(self, world, rule, scene=None, here=None):
+        """(M, 27, 3) float: the (reached, stayed, harmful) odds of every move of cubes at here
+        (M, 3) in scenes scene (M,) (default: every robot, in grid order as controller.robot_list
+        and rule_moves), for a planner that weighs what its moves risk. A move the rule does not
+        allow, and STAY, is (0, 1, 0)."""
+        occupied = world.mass > 0.5
+        if scene is None:
+            scene, z, y, x = occupied.nonzero(as_tuple=True)
+            here = torch.stack([z, y, x], dim=1)
+        table, side = rule_table(world, rule, sides=True)
+        out = torch.zeros(len(scene), N_ACTIONS, 3)
+        out[..., 1] = 1.0
+        allowed = table[scene, :, here[:, 0], here[:, 1], here[:, 2]].clone()  # (M, 27)
+        allowed[:, STAY] = False
+        row, code = allowed.nonzero(as_tuple=True)
+        if len(row):
+            at = here[row]
+            sides = side[scene[row], code, at[:, 0], at[:, 1], at[:, 2]]
+            index = pivot_class(pivot_features(world, scene[row], at, code, sides))
+            reach, stay = self.reach[index], self.stay[index]
+            out[row, code] = torch.stack([reach, stay, (1 - reach - stay).clamp(min=0.0)], dim=1)
+        return out
+
     def draw(self, world, codes, rule, ids, noise):
         """Outcomes of the pivots among codes (after refuse) drawn with noise (B, D, H, W) uniform:
         returns (codes with every pivot that does not reach its target turned to STAY, the harmful

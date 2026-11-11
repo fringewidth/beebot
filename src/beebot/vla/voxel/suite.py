@@ -868,6 +868,7 @@ class Expert:
         self.part = [0] * len(tasks)  # the instruction in force of a switch task (Task.parts)
         self.jobs = {}  # scene -> (segment index, JobSetup) of the coverage job in force
         self.frozen = [None] * len(tasks)  # (D, H, W) bool per scene: robots that must stay this step
+        self.outcomes = None  # a world.OutcomeModel the expert weighs its moves by, with a rule (controller.act odds); None: every move lands
 
     def plan_of(self, i, t):
         """Scene i's plan at step t: its task's, or for a switch task that of the instruction in
@@ -1018,7 +1019,14 @@ class Expert:
             segs.append(seg)
         return lists, presses, caps, segs
 
-    def detours(self, world, codes, allowed, generator=None):
+    def odds(self, world):
+        """(N, 27, 3) odds of every robot's moves (world.OutcomeModel.odds) when the expert weighs
+        risk (outcomes and a rule), else None."""
+        if self.outcomes is None or self.rule is None:
+            return None
+        return self.outcomes.odds(world, self.rule)
+
+    def detours(self, world, codes, allowed, generator=None, odds=None):
         """Robots a coverage job sends another way first (JobSetup.detour) get the actions toward
         those targets instead (in place)."""
         counts = (world.mass > 0.5).flatten(1).sum(dim=1).tolist()
@@ -1030,7 +1038,7 @@ class Expert:
             start = sum(counts[:i])
             rows = None if allowed is None else allowed[start : start + counts[i]]
             targets = torch.tensor(pts).long().unsqueeze(0)
-            other = act(world.index(i), targets, torch.ones(1, len(pts), dtype=torch.bool), generator=self.generator if generator is None else generator, allowed=rows)[0]
+            other = act(world.index(i), targets, torch.ones(1, len(pts), dtype=torch.bool), generator=self.generator if generator is None else generator, allowed=rows, odds=None if odds is None else odds[start : start + counts[i]])[0]
             mask = torch.from_numpy(mask)
             codes[i][mask] = other[mask]
 
@@ -1067,8 +1075,9 @@ class Expert:
         allowed = None if self.moves is None else self.moves.unsqueeze(0).expand(int((world.mass > 0.5).sum()), -1)
         if self.rule is not None:
             allowed = rule_moves(world, self.rule) if allowed is None else rule_moves(world, self.rule) & allowed
-        codes = act(world, targets, valid, press_cheese, press_dir, generator=self.generator if generator is None else generator, allowed=allowed)
-        self.detours(world, codes, allowed, generator)
+        odds = self.odds(world)
+        codes = act(world, targets, valid, press_cheese, press_dir, generator=self.generator if generator is None else generator, allowed=allowed, odds=odds)
+        self.detours(world, codes, allowed, generator, odds)
         for i, (pts, cap) in enumerate(zip(lists, caps)):
             if cap is None or not pts:
                 continue
