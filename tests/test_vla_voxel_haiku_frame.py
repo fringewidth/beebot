@@ -65,18 +65,46 @@ def test_checks_pass_a_right_row_and_catch_wrong_ones():
     assert problems(e, row("push the red cheese away from me", "away from me is the board's right and your left is the board's back")) == []
 
 
-def test_frame_choices_carry_their_camera_and_views_must_take_a_side():
+def test_frame_choices_take_camera_rows_and_views_must_take_a_side():
     import numpy as np
+    import pytest
 
-    from beebot.vla.voxel.think_data import ORDER, frame_choice, takes_side, user_turns
+    from beebot.vla.voxel.think_data import ORDER, frame_choice, quarter_turns, takes_side
     from beebot.vla.voxel.views import side_azimuth, side_of
 
-    choice = frame_choice({"rung": "plain", "text": "go left", "thought": "t", "camera": "back", "place": "right", "user": "left", "pair_id": "x:plain"})
-    assert choice["rung"] == "frame-plain" and choice["instruction"] == "go left" and choice["camera"] == "back"
+    choice = frame_choice({"rung": "plain", "text": "go left", "thought": "t", "camera": "back", "pair_id": "x:plain"})
+    assert choice["rung"] == "frame-plain" and choice["instruction"] == "go left" and choice["camera"] == "back" and "user" not in choice
+    with pytest.raises(ValueError, match="board-frame row"):
+        frame_choice({"rung": "plain", "text": "go left", "thought": "t", "camera": "back", "place": "right", "user": "left", "pair_id": "x:plain"})
     assert takes_side(lambda obs, rng, side=None: None) and not takes_side(lambda obs, rng: None)
     rng = np.random.default_rng(0)
-    for side in ORDER:
+    for k, side in enumerate(ORDER):
         for _ in range(20):
             azimuth = side_azimuth(side, rng)
-            assert side_of(azimuth) == side
-            assert ORDER[user_turns(azimuth, "right")] == user_side(side, "right")
+            assert side_of(azimuth) == side and quarter_turns(azimuth) == k
+
+
+BOARD_ROWS = [  # verified rows of data/vla/haiku/frame (2026-11-11), as Haiku wrote them
+    {"rung": "plain", "text": "split into two groups: one heads to the near corner on my right, the other builds a 3-high tower", "thought": "you asked: split into two groups: one heads to the near corner on my right, the other builds a 3-high tower. i see a flat floor and a 3-high tower on the left. the camera looks from the board's left and you stand behind the camera, so you face the board from its left. your right is the board's front, and toward you is the board's left, so the near corner on your right is the board's front left. first: split into two groups: one should go to the front left, the other should build a tower 3 high.", "switches": [], "id": "run-s6:s6-0002043", "pair_id": "run-s6:s6-0002043:plain", "camera": "left", "place": "behind", "user": "left"},
+    {"rung": "casual", "text": "shove the yellow cheese south to the edge of the floor, dont eat it", "thought": "you asked: shove the yellow cheese south to the edge of the floor, dont eat it. i see low hills and a yellow cheese on the left. the camera looks from the board's right and you stand to the right of the camera, so you face the board from its back. south is toward you, which is the board's back. first: push the yellow cheese to the back of the floor without eating it.", "switches": [], "id": "run-s2:s2-0001664", "pair_id": "run-s2:s2-0001664:casual", "camera": "right", "place": "right", "user": "back"},
+    {"rung": "plain", "text": "push the red cheese to the near left corner of the floor, and don't eat it", "thought": "you asked: push the red cheese to the near left corner of the floor, and don't eat it. i see red cheese at the board's front left and white cheese at the board's back. the camera looks from the board's right and you stand opposite the camera, facing it, so you face the board from its left. your near left is the board's back left. first: push the red cheese to the back left of the floor without eating it.", "switches": [], "id": "x:s0-1", "pair_id": "x:s0-1:plain", "camera": "right", "place": "opposite", "user": "left"},
+    {"rung": "casual", "text": "shove the cyan cheese over to your right, and don't eat it.", "thought": "you asked: 'shove the cyan cheese over to your right, and don't eat it.' i see a flat floor and a cyan cheese at the back. the camera looks from the board's front and you face the board from its front. your right is the board's right. first: push the cyan cheese to the right of the floor without eating it.", "switches": [], "id": "x:s0-2", "pair_id": "x:s0-2:casual", "camera": "front", "place": "behind", "user": "front"},
+]
+
+
+def test_camera_rows_drop_the_board_mapping_and_say_the_rest_from_the_camera():
+    from beebot.vla.voxel.haiku_frame import camera_problems, camera_row
+
+    rows = [camera_row(row) for row in BOARD_ROWS]
+    assert [row["camera"] for row in rows] == ["left", "back", "left", "front"]  # the camera goes where the user stood
+    assert rows[0]["thought"] == "you asked: split into two groups: one heads to the near corner on my right, the other builds a 3-high tower. i see a flat floor and a 3-high tower at the front. first: split into two groups: one should go to the front right, the other should build a tower 3 high."
+    assert rows[1]["thought"] == "you asked: shove the yellow cheese south to the edge of the floor, dont eat it. i see low hills and a yellow cheese on the right. first: push the yellow cheese to the front of the floor without eating it."
+    assert rows[2]["thought"] == "you asked: push the red cheese to the near left corner of the floor, and don't eat it. i see red cheese at the front right and white cheese at the left. first: push the red cheese to the front left of the floor without eating it."
+    assert rows[3]["thought"] == "you asked: shove the cyan cheese over to your right, and don't eat it. i see a flat floor and a cyan cheese at the back. first: push the cyan cheese to the right of the floor without eating it."  # the quote is the instruction as written
+    for row in rows:
+        assert set(row) == {"rung", "text", "thought", "switches", "id", "pair_id", "camera"}
+        assert "board" not in row["thought"] and "camera" not in row["thought"] and "you face" not in row["thought"]
+    near_right = {"task": "split into two groups: one should go to the front left, the other should build a tower 3 high", "sub_goals": ["split into two groups: one should go to the front left, the other should build a tower 3 high"]}
+    assert camera_problems(near_right, rows[0]) == []  # "near ... my right" is the camera frame's front right
+    assert camera_problems(near_right, dict(rows[0], camera="right")) == ["first_directions", "text_directions"]
+    assert camera_problems(near_right, dict(rows[0], thought=BOARD_ROWS[0]["thought"])) == ["board_words_left", "first_directions"]
