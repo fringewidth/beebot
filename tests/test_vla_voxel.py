@@ -232,7 +232,7 @@ def static(colours=(), walls=None, gravity=True):
 def test_direction_and_region_names():
     assert F.direction_name(0, 0, 3) == "right"
     assert F.direction_name(2, 0, -2) == "up left"
-    assert F.direction_name(0, 3, 0.5) == "forward"
+    assert F.direction_name(0, 3, 0.5) == "front"  # +y: the front, never "forward" (the far side)
     assert F.region_name(0, 7, 0, 8) == "low front left"
     assert F.region_name(4, 4, 4, 8) == "center"
 

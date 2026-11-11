@@ -142,8 +142,8 @@ hashable tuples, so the 2D facts score applies unchanged; `facts_score` is the J
 | `("bridge",)` | a straight horizontal run of robots now has a solid voxel at each end and at least 2 robots over empty voxels; gravity scenes only |
 
 Directions name each axis whose component is at least 0.4 of the largest one, vertical first.
-The axis words are up and down, forward and back (y), and left and right (x). Examples: `"up"`,
-`"forward left"`, `"down back right"`.
+The axis words are up and down, front and back (y; the front is +y, nearest the default viewer,
+as in the regions), and left and right (x). Examples: `"up"`, `"front left"`, `"down back right"`.
 
 ## Expert demonstrations for pivoting cubes
 

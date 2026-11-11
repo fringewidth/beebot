@@ -78,7 +78,9 @@ def maker_problem(task, world, meta, i, arrays, rule, score):
     gravity_shape  a formation shape that needs gravity off, drawn under a rule (gravity on)
     done_at_start  the task (a switch: its last instruction, when it arrives) already passes before
                    any move, unless doing nothing is the task
-    short_tower    a tower that stops short of the asked height
+    short_tower    a tower job that stops short of the asked height, judged by the job's own share
+                   (suite.tower_shares), whatever the task around it: a tower, a parallel task's
+                   tower, counting's, a conditional's tower branch, a selector's ("tower@...")
     (bugs B1, B2/B9 and B3 of the data sweep of 2026-11-11; scripts/vla_quarantine.py lists the
     episodes of older stores that have them.)"""
     kind = S.task_kind(task)
@@ -86,13 +88,15 @@ def maker_problem(task, world, meta, i, arrays, rule, score):
         record = S.record_spec(task)  # the shape and standing live in the record, not task.spec
         if record.get("shape") in FLOATING or record.get("standing"):
             return "gravity_shape"
-    if kind == "tower" and score < 1.0:
-        return "short_tower"
-    if NOTHING_TO_DO.search(kind):
-        return None
     static = {"walls": world.walls[i].numpy(), "cheese_color": world.cheese_color[i].tolist(), "gravity": bool(world.gravity[i]), "meta": meta}
     t0, part = (task.spec["steps"][-1], task.parts[-1]) if task.parts else (0, task)
     snap = {"mass": arrays["mass"][i, t0].numpy().astype(np.float32), "cheese_pos": arrays["cheese_pos"][i, t0].numpy().astype(np.int64), "cheese_alive": arrays["cheese_alive"][i, t0].numpy().copy()}
+    if "tower" in kind:
+        last = {"mass": arrays["mass"][i, -1].numpy().astype(np.float32), "cheese_pos": arrays["cheese_pos"][i, -1].numpy().astype(np.int64), "cheese_alive": arrays["cheese_alive"][i, -1].numpy().copy()}
+        if any(share < 1.0 for share in S.tower_shares(S.record_spec(part), static, snap, last)):
+            return "short_tower"
+    if NOTHING_TO_DO.search(kind):
+        return None
     still, _ = S.score(part, static, snap, snap, [])
     return "done_at_start" if still >= SUCCESS.get(task.family, 0.75) else None
 FIELDS = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
