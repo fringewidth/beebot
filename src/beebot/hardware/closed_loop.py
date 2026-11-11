@@ -69,7 +69,7 @@ from beebot.hardware.cube import ALIGNED, BRAKE_AT, BRAKE_HOLD, DISTURBED, DT, H
 from beebot.hardware.cube_swarm import DESIGN, RPM, Film, Move, Reading, Swarm, swarm_xml
 from beebot.vla.voxel import rollout as R
 from beebot.vla.voxel import suite as S
-from beebot.vla.voxel.world import DIRS, STAY, refuse, step
+from beebot.vla.voxel.world import DIRS, STAY, fall, refuse, step
 
 MODES = ("sequential", "simultaneous")
 SETTLE_MAX = 1.0  # s: longest wait after a step for a scene that is still moving
@@ -735,6 +735,18 @@ def draw_task(rng, family, job, count):
     return world, meta, task
 
 
+def settled(world):
+    """The scene after the grid's gravity has had its way (world.fall until nothing moves).
+    suite.scenes stacks robots on cheeses and then removes the cheeses a draw does not want, so
+    a scene asked to have none can start with robots floating two cells up; the grid drops them in
+    its first steps, and MuJoCo would drop them from that height as it sets the scene down."""
+    while True:
+        after = fall(world)
+        if torch.equal(after.mass, world.mass):
+            return world
+        world = after
+
+
 def episode_seed(seed, kind, index):
     return int.from_bytes(hashlib.sha256(f"closed_loop/{seed}/{kind}/{index}".encode()).digest()[:4], "big") >> 1
 
@@ -757,6 +769,7 @@ def hostable_episodes(kinds=KINDS, per_kind=3, seed=0, robots=ROBOTS, tries=400)
                 if drawn is None:
                     continue
                 world, meta, task = drawn
+                world = settled(world)
                 kind = report_kind(task)
                 if kind not in found or len(found[kind]) >= wanted[kind]:
                     continue

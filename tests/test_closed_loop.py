@@ -157,3 +157,11 @@ def test_snap_puts_a_cube_off_the_lattice_back_on_a_cell():
     assert executor.snap_back(0) == 1
     reading = swarm.lattice()
     assert not reading.off.any() and tuple(reading.cells[1]) == (0, 4, 4)
+
+
+def test_settled_drops_robots_left_floating_by_a_removed_cheese():
+    from beebot.hardware.closed_loop import settled
+
+    world = scene([(0, 1, 1), (2, 3, 3), (2, 3, 4), (1, 1, 1)])
+    cells = {tuple(c) for c in (settled(world).mass[0] > 0.5).nonzero().tolist()}
+    assert cells == {(0, 1, 1), (1, 1, 1), (0, 3, 3), (0, 3, 4)}
