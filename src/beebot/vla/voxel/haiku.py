@@ -253,7 +253,7 @@ def store_options(store):
     config = torch.load(Path(store) / "small.pt", map_location="cpu", weights_only=False)["config"]
     attempts = [json.loads(line) for line in (Path(store) / "attempts.jsonl").read_text().splitlines() if line.strip()]
     chunk = {"chunk": config["chunk"]} if "chunk" in config else {}  # stores of 2026-11-11 and before do not record it: --chunk then
-    options = {"seed": config["seed"], **chunk, "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart")), "coverage": float(config.get("coverage", 0.0)), "objects": float(config.get("objects", 0.0)), "build": float(config.get("build", 0.0)), "only": config.get("only"), "keep": bool(config.get("keep"))}
+    options = {"seed": config["seed"], **chunk, "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart")), "coverage": float(config.get("coverage", 0.0)), "objects": float(config.get("objects", 0.0)), "build": float(config.get("build", 0.0)), "only": config.get("only"), "keep": bool(config.get("keep")), "empty": bool(config.get("empty")), "scaled": bool(config.get("scaled"))}
     return options, attempts
 
 
@@ -266,7 +266,7 @@ def drawn_items(options, limit, attempts=None, keep=None):
     scenes = 10**9  # full chunks until the limit or the store's attempts run out
     index = 0
     out = []
-    for _, world, metas, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart")), float(options.get("coverage", 0.0)), float(options.get("objects", 0.0)), float(options.get("build", 0.0)), options.get("only"), keep=bool(options.get("keep"))):
+    for _, world, metas, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart")), float(options.get("coverage", 0.0)), float(options.get("objects", 0.0)), float(options.get("build", 0.0)), options.get("only"), keep=bool(options.get("keep")), empty=bool(options.get("empty")), scaled=bool(options.get("scaled"))):
         digests = [D.draw_digest(world, metas, tasks, i) for i in range(len(tasks))]
         for i, task in enumerate(tasks):
             e = None
