@@ -769,3 +769,60 @@ refuses a cube that is off. A recovery move would need its own primitive and con
 other, run together and the first mover again alone from the same scene: it ended the same way in
 73 (5 worse with company, 2 better); a knock came in 7% of mover rows together and 5% alone. No
 difference shows at this count.
+
+### Cutting harm (2026-11-11)
+
+Goal: harmful ends at about 2% per pivot or lower for a ten-cube demo. Rows in
+`runs/cube_outcomes/settings/` (`<set>-<setting>.jsonl`), the table in `compare.txt`:
+
+    python -m beebot.hardware.cube_outcomes measure --set stores --replay runs/cube_outcomes/stores-release.jsonl --setting climb85 --speed '{"convex_up": 0.85, "convex_up_hang": 0.85, "convex_down": 0.85, "concave_up": 0.85}' --workers 3 --out runs/cube_outcomes/settings/stores-climb85.jsonl
+    python -m beebot.hardware.cube_outcomes measure --set layouts --trials 20 --moves 8 --setting climb85 --speed '...' --workers 3 --out runs/cube_outcomes/settings/layouts-climb85.jsonl
+    python -m beebot.hardware.cube_outcomes compare runs/cube_outcomes/settings/*.jsonl --draw runs/cube_outcomes/draw
+
+Every setting replays the same 380 store scenes with the same seeds (paired with the rows above)
+and runs the same 100 ten-cube walks (5 layouts x 20 seeds, up to 8 moves, a walk ends at its
+first harmful move), all released.
+
+**Judging fixed, numbers unchanged.** Two quirks in `Swarm.move` could have inflated harm: a cube
+already tilted counted as knocked by every later move, and any motion in the scene put every cube
+off the lattice. Now a knock is a cube this move displaced more than 0.1 L or turned (newly off
+the axes, or turned more than 10 degrees from its pose before: `cube_swarm.disturbed`), each cube
+is judged off on its own, and a move is judged once the scene is at rest. Re-run with the fixes,
+the 380 store moves end exactly as before (380 of 380), and the ten-cube walks give 12.5% harmful
+(537 pivots) against 12.3%: neither set ever met a quirk (one move per fresh scene; a walk stops
+at its first harmful move or any cube off). The harm measured here is all real. The quirks do
+matter for longer closed loops (scripted demonstration, `closed_loop`).
+
+**What holds a released cube in a crowd is a squeeze, not its neighbours' magnets.** Switching off
+the neighbours' faces that touch the mover (`Swarm(faces=True)`) changes nothing in a row or patch
+(the neighbours' net magnet pull points away from the mover) and makes harm worse elsewhere: wall
+crawls 0.06 to 0.28 harmful, store-weighted 0.093 to 0.115, ten-cube 0.125 to 0.147. The magnets
+press neighbours about 0.0007 L into each other (40 to 130 N of contact on the mover's sides), and
+after the switch that squeeze eases only slowly because the steel holds every cube by friction (5
+to 40 N left after 0.5 s). Waiting 0.3 s with the magnets off before the spin (`dwell`): held
+floor rolls 0.31 to 0.34 reached, store harm 0.093 to 0.086, ten-cube 0.125 to 0.138. Neither is
+kept; how real this squeeze is depends on MuJoCo's soft contacts and is worth a bench test.
+
+**Settings** (harmful per pivot store-weighted / ten-cube; reached store-weighted / ten-cube;
+ten-cube pivots in brackets; climbs = convex up, convex up from hanging, convex down, concave up):
+
+| setting | harm, stores | harm, ten-cube | reached, stores | reached, ten-cube | free floor roll reached | lone support harm |
+| --- | --- | --- | --- | --- | --- | --- |
+| as built (v1) | 0.093 | 0.125 (537) | 0.47 | 0.52 | 1.00 | 0.68 |
+| neighbours' faces off | 0.115 | 0.147 (490) | 0.46 | 0.51 | 1.00 | 0.68 |
+| dwell 0.3 s | 0.086 | 0.138 (494) | 0.49 | 0.56 | 1.00 | 0.65 |
+| every speed x 0.85 | 0.044 | 0.049 (669) | 0.20 | 0.28 | 0.16 | 0.19 |
+| magnets x 1.4 | 0.042 | 0.051 (666) | 0.31 | 0.31 | 0.80 | 0.24 |
+| both | 0.008 | 0.019 (746) | 0.05 | 0.07 | 0 | 0.16 |
+| **climbs x 0.85, the rest as built** | **0.056** | **0.057 (648)** | **0.44** | **0.43** | **1.00** | **0.19** |
+
+A single factor buys its harm cut by stopping floor rolls (4,113 rpm does not tip a cube on
+steel; stronger magnets hold it down), so most moves stay. Slowing only the climbs keeps every
+floor roll, traverse and wall crawl as built and cuts climbing harm: convex up 0.18 to 0.06,
+concave up 0.17 to 0.02, from hanging 0.17 to 0.07, lone supports 0.68 to 0.19. Convex down stays
+the main source (0.33 to 0.28 harmful in store scenes, mostly a mover left tilted beside a cube
+it slides past). The recommendation is the climbs at 0.85 of `RPM`, a firmware change; the cube
+design need not change. It halves harm but does not reach 2% per pivot on the stores' mix of
+moves; the rest has to come from choosing moves (the risk-weighing experts,
+`src/beebot/vla/voxel/README.md`). Its table is `outcomes/mujoco_release_v2.json`
+(`--outcomes mujoco_release_v2`, fit on the 380 store moves of this setting).
