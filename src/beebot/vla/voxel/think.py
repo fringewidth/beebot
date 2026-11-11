@@ -37,11 +37,11 @@ from dataclasses import dataclass, replace
 
 import torch
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 
 from beebot.vla.voxel.lm import PATCH, patchify3
 from beebot.vla.voxel.stream import OPEN, TURN, StreamVoxelPolicy, positions
 from beebot.vla.voxel.world import N_ACTIONS, N_CHANNELS
+from beebot.vla.tpu import checkpoint  # torch_xla's on XLA tensors, torch's non-reentrant elsewhere
 
 IMAGES = "<IMAGES>"  # the place of the example's images in context_text
 SCENE = "SCENE"  # the place of the voxel scene tokens in context_text (text-only LMs)
@@ -87,6 +87,126 @@ class Prepared:
 
 
 @dataclass
+class Packed:
+    """A batch of Prepared rows in fixed shapes, for XLA (ThinkVoxelPolicy.pack): rows padded to a
+    width from a short list, every row's scene and slot patches made whether it uses them or not,
+    the reply positions padded to a budget (targets -100), and everything that depends on the data's
+    values (where images, scene and slots go, multimodal rotary positions, the vision encoder's
+    position tables) computed on the CPU. src: per flat position, -1 to keep the token embedding,
+    else a row of the table [image features; scene patches (B * n); slot patches (B * n)]."""
+
+    ids: torch.Tensor  # (B, W)
+    mask: torch.Tensor  # (B, W)
+    pos: torch.Tensor  # (3, B, W) multimodal rotary positions, or (B, W)
+    src: torch.Tensor  # (B * W,)
+    obs: torch.Tensor  # (B, C, D, H, W)
+    reply_index: torch.Tensor  # (R,) flat positions that predict reply tokens (padding: 0)
+    targets: torch.Tensor  # (R,) reply tokens, -100 on padding
+    slot_index: torch.Tensor  # (B * n,) flat slot positions (rows that do not act: 0)
+    codes: torch.Tensor  # (B * n * PATCH^3,) action codes (rows that do not act: 0)
+    weight: torch.Tensor  # (B * n * PATCH^3,) 1 on robot voxels of acting rows
+    pixels: torch.Tensor | None
+    vision: dict  # the vision encoder's precomputed inputs (transformers.vision_utils); grid_thw and cu_seqlens stay on the CPU
+    counts: dict  # text_tokens, robots, tokens, examples, acting (Python numbers)
+    totals: torch.Tensor | None = None  # (2,) the whole step's reply tokens and robots (think_train), or None: this batch's
+
+    def to(self, device):
+        moved = {k: (v.to(device) if isinstance(v, torch.Tensor) else v) for k, v in self.__dict__.items() if k not in ("vision", "counts")}
+        vision = {k: (v.to(device) if k in ("position_ids", "interp_indices", "interp_weights") else v) for k, v in self.vision.items()}
+        return Packed(**moved, vision=vision, counts=self.counts)
+
+
+def unit_lower_inverse(a):
+    """(I + L)^-1 for the strictly lower triangle L of a (..., c, c), c a power of two, by
+    recursive 2 x 2 block inversion, [[A, 0], [C, B]]^-1 = [[A^-1, 0], [-B^-1 C A^-1, B^-1]],
+    done for all blocks of one size at once: log2(c) levels of c x c matmuls instead of a
+    triangular solve (which XLA may not lower). fp32. (The earlier product of (I + (-L)^(2^j))
+    overflowed when keys in a chunk were correlated: powers of L grow like binomial coefficients,
+    errors of 1e3 to 1e16 on Qwen3.5's real slot rows.)"""
+    c = a.shape[-1]
+    assert c & (c - 1) == 0, f"chunk size {c} is not a power of two"
+    with torch.autocast(a.device.type, enabled=False):
+        lower = a.float().tril(-1)
+        index = torch.arange(c, device=lower.device)
+        rows, cols = index[:, None], index[None, :]
+        inverse = torch.eye(c, dtype=lower.dtype, device=lower.device).expand(lower.shape).clone()
+        size = 1
+        while size < c:
+            # the lower-left (size x size) block of every (2 size x 2 size) diagonal block
+            block = ((rows // (2 * size)) == (cols // (2 * size))) & (rows % (2 * size) >= size) & (cols % (2 * size) < size)
+            inverse = inverse - inverse @ (lower * block.to(lower.dtype)) @ inverse
+            size *= 2
+    return inverse
+
+
+def chunk_gated_delta_rule_matmul(query, key, value, g, beta, chunk_size=64, initial_state=None, output_final_state=False, use_qk_l2norm_in_kernel=False, **kwargs):
+    """transformers' torch_chunk_gated_delta_rule (Qwen3.5's linear attention, the torch fallback)
+    with its two triangular solves replaced by unit_lower_inverse: matmuls only, for XLA."""
+    initial_dtype = query.dtype
+    batch_size, sequence_length, _, k_head_dim = key.shape
+    num_v_heads, v_head_dim = value.shape[-2:]
+    query, key, value, beta, decay = [x.transpose(1, 2).to(torch.float32, memory_format=torch.contiguous_format) for x in (query, key, value, beta, g)]
+    if use_qk_l2norm_in_kernel:
+        query = query * torch.rsqrt((query * query).sum(dim=-1, keepdim=True) + 1e-6)
+        key = key * torch.rsqrt((key * key).sum(dim=-1, keepdim=True) + 1e-6)
+    query = query * query.shape[-1] ** -0.5
+    pad_size = (chunk_size - sequence_length % chunk_size) % chunk_size
+    query, key, value = (F.pad(x, (0, 0, 0, pad_size)) for x in (query, key, value))
+    beta, decay = (F.pad(x, (0, pad_size)) for x in (beta, decay))
+    num_chunks = (sequence_length + pad_size) // chunk_size
+    v_beta = value * beta.unsqueeze(-1)
+    k_beta = key * beta.unsqueeze(-1)
+    query, key, k_beta, v_beta = [x.reshape(x.shape[0], x.shape[1], -1, chunk_size, x.shape[-1]) for x in (query, key, k_beta, v_beta)]
+    decay = decay.reshape(decay.shape[0], decay.shape[1], -1, chunk_size)
+    upper = torch.ones(chunk_size, chunk_size, dtype=torch.bool, device=query.device).triu(1)
+    cum_decay = decay.cumsum(dim=3)
+    pairwise_decay = (cum_decay.unsqueeze(4) - cum_decay.unsqueeze(3)).masked_fill(upper, float("-inf")).exp()
+    ut_system = (k_beta @ key.transpose(-1, -2)) * pairwise_decay
+    intra_chunk_attn = (query @ key.transpose(-1, -2)) * pairwise_decay
+    decayed_k_beta = k_beta * cum_decay.exp().unsqueeze(-1)
+    inverse = unit_lower_inverse(ut_system)
+    new_values, k_cumdecay = inverse @ v_beta, inverse @ decayed_k_beta
+    state = new_values.new_zeros(batch_size, num_v_heads, k_head_dim, v_head_dim) if initial_state is None else initial_state.to(new_values)
+    query = query * cum_decay.exp().unsqueeze(-1)
+    key = key * (cum_decay[..., -1:] - cum_decay).exp().unsqueeze(-1)
+    chunk_decay = cum_decay[..., -1].exp()[..., None, None]
+    outputs = []
+    for i in range(num_chunks):
+        v_new = new_values[:, :, i] - k_cumdecay[:, :, i] @ state
+        outputs.append(query[:, :, i] @ state + intra_chunk_attn[:, :, i] @ v_new)
+        state = state * chunk_decay[:, :, i] + key[:, :, i].transpose(-1, -2) @ v_new
+    out = torch.stack(outputs, 2).reshape(batch_size, num_v_heads, -1, v_head_dim)[:, :, :sequence_length]
+    return out.transpose(1, 2).to(initial_dtype, memory_format=torch.contiguous_format), (state if output_final_state else None)
+
+
+def use_matmul_linear_attention():
+    """Point transformers' Qwen3.5 (and Qwen3-Next style) linear attention at
+    chunk_gated_delta_rule_matmul: for XLA, where the fla kernels do not exist."""
+    import transformers.models.qwen3_5.modeling_qwen3_5 as qwen35
+
+    qwen35.torch_chunk_gated_delta_rule = chunk_gated_delta_rule_matmul
+
+
+def use_autocast_sdpa():
+    """Point transformers' "sdpa" attention at a version that gives scaled_dot_product_attention
+    one dtype under autocast. CUDA's autocast casts SDPA's inputs to its dtype; XLA's does not, and
+    Qwen3.5's full-attention layers hand it a query and key in fp32 (the rotary cos/sin follow the
+    fp32 hidden states) with a value in bf16 (v_proj under autocast), which SDPA refuses. Without
+    autocast the three already agree."""
+    from transformers.integrations.sdpa_attention import sdpa_attention_forward
+    from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS
+
+    def forward(module, query, key, value, attention_mask, **kwargs):
+        kind = query.device.type
+        dtype = torch.get_autocast_dtype(kind) if torch.is_autocast_enabled(kind) else query.dtype
+        if attention_mask is not None and attention_mask.is_floating_point():
+            attention_mask = attention_mask.to(dtype)
+        return sdpa_attention_forward(module, query.to(dtype), key.to(dtype), value.to(dtype), attention_mask, **kwargs)
+
+    ALL_ATTENTION_FUNCTIONS["sdpa"] = forward
+
+
+@dataclass
 class ThinkStep:
     """A greedy think-then-act step of a batch of B rows.
 
@@ -112,7 +232,7 @@ def chunked_cross_entropy(head, states, targets, chunk=512):
 
     total = states.new_zeros((), dtype=torch.float32)
     for i in range(0, states.shape[0], chunk):
-        total = total + checkpoint(part, states[i : i + chunk], targets[i : i + chunk], use_reentrant=False)
+        total = total + checkpoint(part, states[i : i + chunk], targets[i : i + chunk])
     return total
 
 
@@ -269,12 +389,98 @@ class ThinkVoxelPolicy(StreamVoxelPolicy):
         out = self.lm.get_output_embeddings()(h[self.reply_index(prepared, width).to(h.device)]).float()
         return list(out.split([p.reply_len for p in prepared]))
 
+    # ---- fixed shapes (XLA)
+
+    def pack(self, examples, widths=(384, 512)):
+        """The batch as a Packed (CPU tensors in fixed shapes): rows right-padded to the first of
+        widths that holds the longest (else to a multiple of 64), the reply positions padded to
+        a quarter, a half or all of B x W (rounded up to ce_chunk), so a run meets few shapes."""
+        prepared = self.rows(examples)
+        b, longest = len(prepared), max(p.length for p in prepared)
+        width = next((w for w in sorted(widths) if w >= longest), -(-longest // 64) * 64)
+        ids = torch.full((b, width), self.end_id, dtype=torch.long)
+        mask = torch.zeros(b, width, dtype=torch.long)
+        for i, p in enumerate(prepared):
+            ids[i, : p.length] = torch.tensor(p.ids)
+            mask[i, : p.length] = 1
+        n = prepared[0].n
+        assert all(p.n == n for p in prepared), "one grid size per batch"
+        shown = [p for p in prepared if p.pixels is not None]
+        grid = torch.cat([p.grid for p in shown]) if shown else None
+        src = torch.full((b * width,), -1, dtype=torch.long)
+        features = 0
+        if shown:
+            places = (ids == self.image_id).reshape(-1).nonzero().flatten()
+            features = int(grid.prod(-1).sum()) // self.image_processor.merge_size**2
+            assert len(places) == features, f"{len(places)} image pad tokens for {features} image features"
+            src[places] = torch.arange(features)
+        for i, p in enumerate(prepared):
+            for at, kind in ((p.scene_at, 0), (p.slots_at, 1)):
+                if at >= 0:
+                    src[i * width + at : i * width + at + p.n] = features + kind * b * n + i * n + torch.arange(n)
+        if self.mrope:
+            pos = self.lm.model.get_rope_index(ids, mm_token_type_ids=(ids == self.image_id).int(), image_grid_thw=grid, attention_mask=mask)[0]
+        else:
+            pos = positions(mask)
+        reply = self.reply_index(prepared, width)
+        targets = torch.tensor([t for p in prepared for t in p.ids[p.reply_start : p.reply_start + p.reply_len]])
+        quarter = -(-b * width // 4 // self.ce_chunk) * self.ce_chunk
+        budget = next(r for r in (quarter, 2 * quarter, b * width) if r >= len(targets) or r == b * width)
+        reply_index = torch.zeros(budget, dtype=torch.long)
+        reply_index[: len(reply)] = reply
+        padded_targets = torch.full((budget,), -100, dtype=torch.long)
+        padded_targets[: len(targets)] = targets
+        slot_index = torch.zeros(b * n, dtype=torch.long)
+        codes = torch.zeros(b, n, PATCH**3, dtype=torch.long)
+        weight = torch.zeros(b, n, PATCH**3)
+        for i, p in enumerate(prepared):
+            if p.act:
+                slot_index[i * n : (i + 1) * n] = torch.arange(p.slots_at, p.slots_at + n) + i * width
+                codes[i] = patchify3(p.codes.view(1, 1, *p.codes.shape).float())[0].round().long().view(n, -1)
+                weight[i] = (patchify3(p.obs[:1].unsqueeze(0).float())[0] > 0.5).float().view(n, -1)
+        vision = {}
+        pixels = None
+        if shown:
+            from transformers.vision_utils import get_vision_cu_seqlens, get_vision_interpolation_indices_and_weights, get_vision_position_ids
+
+            v = self.visual
+            pixels = torch.cat([p.pixels for p in shown])
+            indices, weights = get_vision_interpolation_indices_and_weights(grid, num_grid_per_side=v.num_grid_per_side, mode=v.interpolation_mode, align_corners=v.interpolation_align_corners, spatial_merge_size=v.config.spatial_merge_size)
+            vision = {"grid_thw": grid, "cu_seqlens": get_vision_cu_seqlens(grid), "position_ids": get_vision_position_ids(grid, v.spatial_merge_size), "interp_indices": indices, "interp_weights": weights}
+        obs = torch.stack([p.obs for p in prepared]).float()
+        counts = {"text_tokens": len(targets), "robots": float(weight.sum()), "tokens": sum(p.length for p in prepared), "examples": b, "acting": sum(p.act for p in prepared)}
+        return Packed(ids, mask, pos, src, obs, reply_index, padded_targets, slot_index, codes.view(-1), weight.view(-1), pixels, vision, counts)
+
+    def forward_packed(self, batch):
+        """forward's losses for a Packed batch on the device, in fixed shapes and without host syncs."""
+        x = self.embed(batch.ids)
+        b, width, hidden = x.shape
+        tables = []
+        if batch.pixels is not None:
+            vision = dict(batch.vision)
+            grid = vision.pop("grid_thw")
+            tables.append(self.visual(batch.pixels.to(self.visual.dtype), grid_thw=grid, **vision).pooler_output)
+        tables += [self.patches(batch.obs, 0).reshape(-1, hidden), self.patches(batch.obs, 1).reshape(-1, hidden)]
+        table = torch.cat([t.to(x.dtype) for t in tables])
+        flat = torch.where((batch.src >= 0).unsqueeze(-1), table[batch.src.clamp(min=0)], x.reshape(-1, hidden))
+        out = self.text_model(inputs_embeds=flat.view(b, width, hidden), attention_mask=batch.mask, position_ids=batch.pos).last_hidden_state
+        h = out.reshape(-1, hidden)
+        text_total, robot_total = ((batch.targets >= 0).sum().clamp(min=1), batch.weight.sum().clamp(min=1.0)) if batch.totals is None else (batch.totals[0], batch.totals[1].clamp(min=1.0))
+        text = chunked_cross_entropy(self.lm.get_output_embeddings(), h[batch.reply_index], batch.targets, self.ce_chunk) / text_total
+        logits = self.readout(h[batch.slot_index].float()).view(-1, N_ACTIONS)
+        ce = F.cross_entropy(logits, batch.codes, reduction="none")
+        action = (ce * batch.weight).sum() / robot_total
+        loss = self.text_weight * text + self.action_weight * action
+        return {"loss": loss, "text": text, "action": action, **batch.counts}
+
     def forward(self, examples, text_total=None, robot_total=None):
         """Losses of a batch (Examples or Prepared rows): {"loss", "text", "action"} tensors, and
         counts ("text_tokens", "robots", "tokens", "examples", "acting"). text_total, robot_total:
         divide the summed losses by these counts (a whole optimizer step's reply tokens and robot
         voxels, so that micro-batches of a step add up to its token- and robot-weighted means);
-        None divides by this batch's own counts."""
+        None divides by this batch's own counts. A Packed batch carries its totals itself."""
+        if isinstance(examples, Packed):
+            return self.forward_packed(examples)
         prepared = self.rows(examples)
         h, width = self.states(prepared)
         device = h.device
