@@ -268,7 +268,11 @@ def run(cfg=None, index=0):
 
         def finish(rows):
             rows = sorted(rows, key=lambda p: p.length) if cfg.bucket else rows
-            return [policy.pack(rows[k * cfg.batch : (k + 1) * cfg.batch], widths) for k in range(cfg.accumulate)]
+            packs = [policy.pack(rows[k * cfg.batch : (k + 1) * cfg.batch], widths) for k in range(cfg.accumulate)]
+            totals = torch.tensor([float(sum(p.counts["text_tokens"] for p in packs)), float(sum(p.counts["robots"] for p in packs))])
+            for p in packs:  # the step's totals (a tensor, so the graph does not change with them)
+                p.totals = totals
+            return packs
 
     batches = Prefetch(data, policy.prepare_example, cfg.batch * cfg.accumulate, np.random.default_rng((cfg.seed, rank, step)), cfg.prefetch, finish)
     val_set = sorted((policy.prepare_example(e) for e in data.validation(cfg.val_examples, cfg.val_seed)), key=lambda p: p.length) if lead else None
@@ -360,14 +364,24 @@ def run(cfg=None, index=0):
         counts["wait"] += time.time() - t_wait
         if cfg.bucket and not xla:  # xla: sorted and packed in the prefetch thread
             rows = sorted(rows, key=lambda p: p.length)
+        # the step's loss is the mean over all its reply tokens and robot voxels, whichever
+        # micro-batch they land in (a mean of micro-batch means overweights the short replies
+        # that bucketing groups together, about 3x per token); xla batches carry their totals
+        if not xla:
+            text_total = sum(p.reply_len for p in rows)
+            robot_total = max(1.0, float(sum((p.obs[0] > 0.5).sum().item() for p in rows if p.act)))
+        step_losses = {}
         for k in range(cfg.accumulate):
             with autocast():
-                out = policy(rows[k].to(device) if xla else rows[k * cfg.batch : (k + 1) * cfg.batch])
-            scaler.scale(out["loss"] / cfg.accumulate).backward()
+                out = policy(rows[k].to(device)) if xla else policy(rows[k * cfg.batch : (k + 1) * cfg.batch], text_total=text_total, robot_total=robot_total)
+            scaler.scale(out["loss"]).backward()
             for key in ("loss", "text", "action"):
-                window[key].append(out[key].detach() if xla else out[key].item())  # xla: read at log time
+                part = out[key].detach() if xla else out[key].item()  # xla: read at log time
+                step_losses[key] = step_losses[key] + part if key in step_losses else part
             counts["tokens"] += out["tokens"]
             counts["examples"] += out["examples"]
+        for key, value in step_losses.items():
+            window[key].append(value)
         if text_stream is not None:
             chunk = torch.stack([next(text_stream) for _ in range(cfg.lm_batch)]).to(device)
             with autocast():
@@ -391,7 +405,7 @@ def run(cfg=None, index=0):
             row = {"step": step, "minutes": round((time.time() - t0 - paused) / 60, 2), **{k: round(float(np.mean(v)), 5) for k, v in values.items()}}
             row.update({"lr_lm": optimizer.param_groups[0]["lr"], "tokens_per_s": round(counts["tokens"] * world / seconds, 1), "examples_per_s": round(counts["examples"] * world / seconds, 2), "data_wait": round(counts["wait"] / seconds, 3), "gpu_gb": memory_gb(device)})
             if xla:
-                row.update({"step_s": round(seconds * cfg.accumulate / len(values["loss"]), 3), **tpu.xla_report()})
+                row.update({"step_s": round(seconds / len(values["loss"]), 3), **tpu.xla_report()})
             log(row)
             window = {k: [] for k in window}
             counts = {"tokens": 0, "examples": 0, "wait": 0.0}

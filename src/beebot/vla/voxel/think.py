@@ -108,6 +108,7 @@ class Packed:
     pixels: torch.Tensor | None
     vision: dict  # the vision encoder's precomputed inputs (transformers.vision_utils); grid_thw and cu_seqlens stay on the CPU
     counts: dict  # text_tokens, robots, tokens, examples, acting (Python numbers)
+    totals: torch.Tensor | None = None  # (2,) the whole step's reply tokens and robots (think_train), or None: this batch's
 
     def to(self, device):
         moved = {k: (v.to(device) if isinstance(v, torch.Tensor) else v) for k, v in self.__dict__.items() if k not in ("vision", "counts")}
@@ -445,23 +446,27 @@ class ThinkVoxelPolicy(StreamVoxelPolicy):
         flat = torch.where((batch.src >= 0).unsqueeze(-1), table[batch.src.clamp(min=0)], x.reshape(-1, hidden))
         out = self.text_model(inputs_embeds=flat.view(b, width, hidden), attention_mask=batch.mask, position_ids=batch.pos).last_hidden_state
         h = out.reshape(-1, hidden)
-        text = chunked_cross_entropy(self.lm.get_output_embeddings(), h[batch.reply_index], batch.targets, self.ce_chunk) / (batch.targets >= 0).sum().clamp(min=1)
+        text_total, robot_total = ((batch.targets >= 0).sum().clamp(min=1), batch.weight.sum().clamp(min=1.0)) if batch.totals is None else (batch.totals[0], batch.totals[1].clamp(min=1.0))
+        text = chunked_cross_entropy(self.lm.get_output_embeddings(), h[batch.reply_index], batch.targets, self.ce_chunk) / text_total
         logits = self.readout(h[batch.slot_index].float()).view(-1, N_ACTIONS)
         ce = F.cross_entropy(logits, batch.codes, reduction="none")
-        action = (ce * batch.weight).sum() / batch.weight.sum().clamp(min=1.0)
+        action = (ce * batch.weight).sum() / robot_total
         loss = self.text_weight * text + self.action_weight * action
         return {"loss": loss, "text": text, "action": action, **batch.counts}
 
-    def forward(self, examples):
+    def forward(self, examples, text_total=None, robot_total=None):
         """Losses of a batch (Examples or Prepared rows): {"loss", "text", "action"} tensors, and
-        counts ("text_tokens", "robots", "tokens", "examples", "acting")."""
+        counts ("text_tokens", "robots", "tokens", "examples", "acting"). text_total, robot_total:
+        divide the summed losses by these counts (a whole optimizer step's reply tokens and robot
+        voxels, so that micro-batches of a step add up to its token- and robot-weighted means);
+        None divides by this batch's own counts. A Packed batch carries its totals itself."""
         if isinstance(examples, Packed):
             return self.forward_packed(examples)
         prepared = self.rows(examples)
         h, width = self.states(prepared)
         device = h.device
         targets = torch.tensor([t for p in prepared for t in p.ids[p.reply_start : p.reply_start + p.reply_len]], device=device)
-        text = chunked_cross_entropy(self.lm.get_output_embeddings(), h[self.reply_index(prepared, width).to(device)], targets, self.ce_chunk) / len(targets)
+        text = chunked_cross_entropy(self.lm.get_output_embeddings(), h[self.reply_index(prepared, width).to(device)], targets, self.ce_chunk) / (text_total or len(targets))
         acting = [p for p in prepared if p.act]
         action = h.new_zeros((), dtype=torch.float32)
         robots = 0.0
@@ -472,7 +477,7 @@ class ThinkVoxelPolicy(StreamVoxelPolicy):
             ce = F.cross_entropy(out.reshape(-1, N_ACTIONS), codes.round().long().reshape(-1), reduction="none")
             weight = weight.float().reshape(-1)
             robots = weight.sum()
-            action = (ce * weight).sum() / robots.clamp(min=1.0)
+            action = (ce * weight).sum() / (robot_total or robots.clamp(min=1.0))
             robots = robots.item()
         loss = self.text_weight * text + self.action_weight * action
         return {"loss": loss, "text": text, "action": action, "text_tokens": len(targets), "robots": robots, "tokens": sum(p.length for p in prepared), "examples": len(prepared), "acting": len(acting)}
