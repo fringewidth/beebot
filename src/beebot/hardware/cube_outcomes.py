@@ -623,6 +623,69 @@ def recover(job):
     return [row]
 
 
+RIGHTING_RPM = (2000, 3500, 5000, 7000, 10000)
+
+
+def righting_axis(rot):
+    """The flywheel axis that turns a tilted cube back upright, from its own pose (what its IMU
+    reads): the world vector of the body axis, among the two that are not nearest vertical, most
+    nearly along the tilt axis (the axis turning the cube's most upright body axis onto +z), signed
+    to turn it that way; and the tilt in degrees. (3, 3) rot: body axes as columns."""
+    up = int(np.abs(rot[2]).argmax())
+    u = rot[:, up] * np.sign(rot[2, up])
+    tilt = np.cross(u, [0.0, 0.0, 1.0])
+    size = np.linalg.norm(tilt)
+    if size < 1e-9:
+        return None, 0.0
+    tilt /= size
+    others = [j for j in range(3) if j != up]
+    j = max(others, key=lambda k: abs(rot[:, k] @ tilt))
+    axis = rot[:, j] * np.sign(rot[:, j] @ tilt)
+    return axis, float(np.degrees(np.arccos(np.clip(u[2], -1.0, 1.0))))
+
+
+def right(job):
+    """Can one cheap move right a cube a move left off the lattice? Replay the trial (same seed:
+    the same end), read the cube's pose, and from fresh replays spin its flywheel about
+    righting_axis, toward upright and (for comparison) away, at each RIGHTING_RPM, released. Each
+    spin is judged at rest: righted when the cube ends aligned in a cell (its start cell, the
+    move's target or any other) and no other cube was newly put off or moved more than DISTURBED."""
+    from beebot.hardware.cube import DISTURBED
+
+    torch.set_num_threads(1)
+    cells = [tuple(c) for c in job["cells"]]
+    cube = cells.index(tuple(job["start"]))
+    direction = tuple(job["direction"])
+
+    def replay():
+        swarm = Swarm(cells, seed=job["seed"], release=True, **swarm_options(job))
+        carry_out(swarm, [(cube, direction)], job.get("rpm"))
+        return swarm
+
+    swarm = replay()
+    reading = swarm.lattice()
+    _, rot = swarm.poses()
+    axis, tilt = righting_axis(rot[cube])
+    row = {"seed": job["seed"], "key": job["key"], "off": bool(reading.off[cube]), "tilt": round(tilt, 1), "cell": reading.cells[cube].tolist(), "start": list(job["start"]), "target": job.get("target")}
+    if not row["off"] or axis is None:
+        return [row]
+    tries = []
+    for sense in (1, -1):
+        for rpm in RIGHTING_RPM:
+            swarm = replay()
+            before = swarm.lattice()
+            centres_before, _ = swarm.poses()
+            swarm.spin(cube, tuple(sense * axis), rpm, release=True)
+            swarm.rest()
+            after = swarm.lattice()
+            centres, _ = swarm.poses()
+            others = np.arange(swarm.n) != cube
+            disturbed = bool((others & after.off & ~before.off).any() or (np.abs(centres - centres_before).max(axis=1)[others] > DISTURBED).any())
+            tries.append({"sense": sense, "rpm": rpm, "aligned": not bool(after.off[cube]), "cell": after.cells[cube].tolist(), "disturbed": disturbed})
+    row["tries"] = tries
+    return [row]
+
+
 # ---------------------------------------------------------------------------------------------
 # Tables
 
@@ -934,6 +997,12 @@ def main():
     v.add_argument("--limit", type=int, default=40)
     v.add_argument("--workers", type=int, default=8)
     v.add_argument("--out", required=True)
+    g = sub.add_parser("right", help="a cheap righting move for a cube left off the lattice: spins about the body axis that turns it upright (right)")
+    g.add_argument("paths", nargs="+", help="isolated or stores rows (one move per scene, so a replay gives the same end)")
+    g.add_argument("--setting", default="v1", help="off ends of this cube setting (setting_of)")
+    g.add_argument("--limit", type=int, default=40)
+    g.add_argument("--workers", type=int, default=6)
+    g.add_argument("--out", required=True)
     r = sub.add_parser("report")
     r.add_argument("paths", nargs="+")
     r.add_argument("--draw", required=True)
@@ -963,12 +1032,15 @@ def main():
         torch.set_num_threads(4)
         report(args.paths, args.draw, args.runs, setting=args.setting)
         return
-    if args.command == "recover":
+    if args.command in ("recover", "right"):
         rows = [json.loads(line) for p in args.paths for line in open(p)]
         offs = [x for x in rows if x["magnets"] == "release" and x["detail"] != "refused" and x.get("movers", 1) == 1 and x["set"] in ("isolated", "stores") and not x.get("rpm_factor") and lattice_end(x)[0] == "off"]
+        if args.command == "right":
+            offs = [x for x in offs if setting_of(x) == args.setting]
         np.random.default_rng(0).shuffle(offs)
-        jobs = [{"cells": x["cells"], "seed": x["seed"], "start": x["start"], "direction": [a - b for a, b in zip(x["target"], x["start"])], "key": x["key"], **({"rpm": x["rpm"]} if x.get("rpm") else {}), **({"design": x["design"]} if x.get("design") else {})} for x in offs[: args.limit]]
-        run_jobs(recover, jobs, args.out, args.workers)
+        options = ("design", "faces", "dwell", "speed")
+        jobs = [{"cells": x["cells"], "seed": x["seed"], "start": x["start"], "target": x["target"], "direction": [a - b for a, b in zip(x["target"], x["start"])], "key": x["key"], **({"rpm": x["rpm"]} if x.get("rpm") else {}), **{k: x[k] for k in options if x.get(k)}} for x in offs[: args.limit]]
+        run_jobs(recover if args.command == "recover" else right, jobs, args.out, args.workers)
         return
     if args.command == "draw":
         torch.set_num_threads(4)
