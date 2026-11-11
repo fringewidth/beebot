@@ -8,8 +8,10 @@
     1. if the eight-chip rate is at least GATE examples/s: the real run on the real data (the
        Mac run's settings, scripts in the beebot-think-data dataset) for the rest of the session,
        step-named checkpoints and resume.pt every hour under /kaggle/working/runs/<name>/;
-       otherwise exit at once. ROLE "second" (a second account) continues the first session from
-       a resume.pt in its inputs, or runs seed 1 when there is none.
+       otherwise exit at once; the cosine schedule spans this session and a whole second one.
+ROLE "second" (another account, after scripts/kaggle_rest.py handoff): no timing, the first
+session's run resumed from the resume.pt in its inputs (dataset beebot-think-resume) to the end of
+the same schedule; without a resume.pt it exits at once.
 
 Code: the tpu-port branch of github.com/fringewidth/beebot (this script re-runs as the branch's copy).
 Inputs: the private datasets beebot-src-tpu (src/ as beebot-src-tpu.tar.gz; used when the clone
@@ -31,12 +33,16 @@ import threading
 import time
 
 T0 = float(os.environ.get("BEEBOT_T0", time.time()))  # the session's start, kept across the re-exec below
-# "first": the real run from the pretrained LM. "second" (the copy queued on a second account): a
-# resume.pt in the inputs (dataset beebot-think-resume) continues the first session's run, else the
-# same run from the pretrained LM with seed 1. Kept across the re-exec through BEEBOT_ROLE.
-ROLE = os.environ.get("BEEBOT_ROLE", "first")
+# "first": timing gate, then the real run from the pretrained LM, its cosine schedule sized for two
+# sessions. "second" (another account, pushed by scripts/kaggle_rest.py handoff): no timing, the
+# first session's run continued from the resume.pt in its inputs (dataset beebot-think-resume) to the
+# end of the same schedule; without a resume.pt it exits at once (never trains from scratch). The
+# pushed kernel sets the role (BEEBOT_ROLE, kept across the re-exec); a kernel pushed before roles
+# existed gets this file's default.
+ROLE = os.environ.get("BEEBOT_ROLE", "second")
 SESSION_MINUTES = 9 * 60  # Kaggle's TPU session limit
-MARGIN_MINUTES = 25  # the real run's last validation, last save and the output upload
+MARGIN_MINUTES = 35  # the real run's last validation, last save and the output upload (a session cut by the limit may lose its output)
+SECOND_SETUP_MINUTES = 30  # the second session's start: packages, model, data, resume.pt, compilation
 GATE = 5.0  # examples/s on eight chips to go on to the real run
 MODEL = "Qwen/Qwen3.5-0.8B"
 WORK = "/kaggle/working"
@@ -93,7 +99,11 @@ stores = [f"{root}/{s}" for s in STORES]
 haiku = [f"{root}/haiku/{h}" for h in HAIKU]
 missing = [p for p in stores + haiku if not os.path.isdir(p)]
 assert not missing, f"missing data: {missing}"
-print("data root", root, flush=True)
+print("data root", root, "role", ROLE, flush=True)
+resume = [p for p in find("resume.pt", 9) if os.path.isfile(p)]
+if ROLE == "second" and not resume:
+    note(phase="second", error="no resume.pt in the inputs: not training from scratch, exiting")
+    sys.exit(0)
 
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "transformers==5.22.1", "datasets"], check=False)
 import torch  # noqa: E402
@@ -168,56 +178,72 @@ def out_of_memory(phase):
     return any(s in text for s in ("RESOURCE_EXHAUSTED", "Ran out of memory", "out of memory", "OOM"))
 
 
-# A setting that runs out of HBM gives way to the next smaller one; any other failure first retries
-# the same setting with torch's checkpoint instead of torch_xla's (BEEBOT_TORCH_CHECKPOINT).
-chosen, attempt, torch_checkpoint, tries = None, 0, False, 0
-while attempt < len(ATTEMPTS) and tries < 5 and chosen is None:
-    batch, weights = ATTEMPTS[attempt]
-    os.environ.pop("BEEBOT_TORCH_CHECKPOINT", None)
+def timing():
+    """The one-chip probes (a setting that runs out of HBM gives way to the next smaller one; any
+    other failure first retries the same setting with torch's checkpoint instead of torch_xla's,
+    BEEBOT_TORCH_CHECKPOINT), then the eight-chip probe: (batch, weights, torch checkpoint, rate);
+    exits when nothing runs or eight chips miss the gate."""
+    chosen, attempt, torch_checkpoint, tries = None, 0, False, 0
+    while attempt < len(ATTEMPTS) and tries < 5 and chosen is None:
+        batch, weights = ATTEMPTS[attempt]
+        os.environ.pop("BEEBOT_TORCH_CHECKPOINT", None)
+        if torch_checkpoint:
+            os.environ["BEEBOT_TORCH_CHECKPOINT"] = "1"
+        phase = f"one-chip-b{batch}-{weights}{'-torchckpt' if torch_checkpoint else ''}"
+        result = summary("one-chip", 1, train(phase, 1, probe_args(batch, weights)), batch, weights)
+        shutil.rmtree(f"{WORK}/runs/probe", ignore_errors=True)
+        tries += 1
+        if result:
+            chosen = (batch, weights)
+        elif out_of_memory(phase):
+            attempt += 1
+        elif not torch_checkpoint:
+            torch_checkpoint = True
+        else:
+            break
+    if chosen is None:
+        note(phase="gate", passed=False, reason="no one-chip setting ran")
+        sys.exit(0)
+    batch, weights = chosen
+    note(phase="one-chip", chosen=f"batch {batch}, weights {weights}, checkpoint {'torch' if torch_checkpoint else 'torch_xla'}")
+    eight = summary("eight-chip", 8, train(f"eight-chip-b{batch}-{weights}", 8, probe_args(batch, weights), first_log_minutes=30), batch, weights)
+    shutil.rmtree(f"{WORK}/runs/probe", ignore_errors=True)
+    rate = eight["examples_per_s"] if eight else 0.0
+    if rate < GATE:
+        note(phase="gate", passed=False, examples_per_s=rate, gate=GATE)
+        sys.exit(0)
+    return batch, weights, torch_checkpoint, rate
+
+
+# ---- the real run: the Mac run's settings (bugcatch-08b) at the TPU's batch, for the rest of the session.
+# The first session sizes one cosine schedule for itself and a whole second session at its measured
+# rate; the second resumes the first's resume.pt with the first's settings (its config.json and
+# kernel.json beside the resume.pt) and runs on to the end of that schedule (or of its session).
+if ROLE == "first":
+    batch, weights, torch_checkpoint, rate = timing()
+    minutes = SESSION_MINUTES - (time.time() - T0) / 60 - MARGIN_MINUTES
+    global_batch = 8 * batch
+    per_minute = 0.85 * rate * 60 / global_batch  # optimizer steps per minute, with room for validation and saving
+    steps = max(100, int(per_minute * (minutes + SESSION_MINUTES - SECOND_SETUP_MINUTES - MARGIN_MINUTES)))
+    plan = {"batch": batch, "weights": weights, "torch_checkpoint": torch_checkpoint, "steps": steps, "rate_8chips": rate, "global_batch": global_batch, "this_session_steps": int(per_minute * minutes)}
+    continued = []
+else:
+    folder = os.path.dirname(resume[0])
+    config = json.load(open(f"{folder}/config.json"))
+    plan = json.load(open(f"{folder}/kernel.json")) if os.path.isfile(f"{folder}/kernel.json") else {}
+    plan.pop("role", None)
+    batch, weights, steps = config["batch"], config["weights_dtype"], config["steps"]
+    torch_checkpoint = bool(plan.get("torch_checkpoint"))
     if torch_checkpoint:
         os.environ["BEEBOT_TORCH_CHECKPOINT"] = "1"
-    phase = f"one-chip-b{batch}-{weights}{'-torchckpt' if torch_checkpoint else ''}"
-    result = summary("one-chip", 1, train(phase, 1, probe_args(batch, weights)), batch, weights)
-    shutil.rmtree(f"{WORK}/runs/probe", ignore_errors=True)
-    tries += 1
-    if result:
-        chosen = (batch, weights)
-    elif out_of_memory(phase):
-        attempt += 1
-    elif not torch_checkpoint:
-        torch_checkpoint = True
-    else:
-        break
-if chosen is None:
-    note(phase="gate", passed=False, reason="no one-chip setting ran")
-    sys.exit(0)
-batch, weights = chosen
-note(phase="one-chip", chosen=f"batch {batch}, weights {weights}, checkpoint {'torch' if torch_checkpoint else 'torch_xla'}")
-eight = summary("eight-chip", 8, train(f"eight-chip-b{batch}-{weights}", 8, probe_args(batch, weights), first_log_minutes=30), batch, weights)
-shutil.rmtree(f"{WORK}/runs/probe", ignore_errors=True)
-rate = eight["examples_per_s"] if eight else 0.0
-if rate < GATE:
-    note(phase="gate", passed=False, examples_per_s=rate, gate=GATE)
-    sys.exit(0)
-
-# ---- the real run: the Mac run's settings (bugcatch-08b) at the TPU's batch, for the rest of the session
-minutes = SESSION_MINUTES - (time.time() - T0) / 60 - MARGIN_MINUTES
-global_batch = 8 * batch
-steps = max(100, int(0.85 * rate * minutes * 60 / global_batch))
-continued = []  # the second account's arguments: a resumed run, or seed 1
-if ROLE == "second":
-    resume = [p for p in find("resume.pt", 9) if os.path.isfile(p)]
-    if resume:
-        try:
-            start = int(torch.load(resume[0], map_location="cpu", mmap=True, weights_only=False)["step"])
-        except TypeError:  # a torch without mmap loading
-            start = int(torch.load(resume[0], map_location="cpu")["step"])
-        steps += start  # the cosine restarts at start / steps: a warm restart for this session's share
-        NAME, continued = f"{NAME}-cont", ["--resume", resume[0]]
-    else:
-        NAME, continued = f"{NAME}-seed1", ["--seed", "1"]
-note(phase="gate", passed=True, examples_per_s=rate, gate=GATE, batch_per_chip=batch, weights=weights, global_batch=global_batch, steps=steps, wall_minutes=round(minutes, 1), role=ROLE, name=NAME, continued=continued)
+    minutes = SESSION_MINUTES - (time.time() - T0) / 60 - MARGIN_MINUTES
+    rate = plan.get("rate_8chips", 0.0)
+    plan = {**plan, "resumed_from": resume[0]}
+    continued = ["--resume", resume[0]]
+os.makedirs(f"{WORK}/runs/{NAME}", exist_ok=True)
+json.dump({**plan, "role": ROLE}, open(f"{WORK}/runs/{NAME}/kernel.json", "w"), indent=1)
+note(phase="gate" if ROLE == "first" else "second", passed=True, examples_per_s=rate, gate=GATE, role=ROLE, wall_minutes=round(minutes, 1), **plan)
 real = [*continued, "--name", NAME, "--model", MODEL, "--data", "think", "--stores", ",".join(stores), "--haiku_dirs", ",".join(haiku), "--data_kwargs", json.dumps({"mismatch": "drop"}), "--views", "scene", "--batch", str(batch), "--accumulate", "1", "--weights_dtype", weights, "--steps", str(steps), "--warmup_steps", "50", "--wall_minutes", str(round(minutes, 1)), "--checkpointing", "true", "--val_examples", "64", "--val_every_minutes", "60", "--save_every_minutes", "60", "--log_every", "10", "--widths", "384,512"]
 rows = train("real", 8, real, first_log_minutes=40)
 done = [r for r in rows if "examples_per_s" in r]
-note(phase="real", chips=8, steps=done[-1]["step"] if done else 0, examples_per_s=done[-1]["examples_per_s"] if done else 0, checkpoints=sorted(os.path.basename(p) for p in glob.glob(f"{WORK}/runs/{NAME}/policy_step*.pt")))
+note(phase="real", role=ROLE, chips=8, steps=done[-1]["step"] if done else 0, examples_per_s=done[-1]["examples_per_s"] if done else 0, checkpoints=sorted(os.path.basename(p) for p in glob.glob(f"{WORK}/runs/{NAME}/policy_step*.pt")))
