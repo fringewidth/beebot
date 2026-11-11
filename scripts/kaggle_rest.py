@@ -14,8 +14,10 @@ The token comes from $KAGGLE_CONFIG_DIR/access_token (default ~/.kaggle) and is 
 An account is OWNER (token in ~/.kaggle) or OWNER=CONFIG_DIR (a teammate's token folder), e.g.
     python scripts/kaggle_rest.py handoff rvitmpolicyboot=~/.kaggle-friends/rvitm beebot-think-tpu fringewidth
 
-Kaggle allows one queued or running TPU session per account. A kernel mounts the dataset versions
-current when it was pushed: a dataset that changes later reaches it only through a new push.
+Kaggle allows one queued or running TPU session per account. A kernel appears to mount the dataset
+versions current when it was pushed (unconfirmed for a queued kernel), so a dataset that changes later
+is only sure to reach it through a new push; deleting a version a queued kernel was pushed against
+leaves it without that source. An account that has never run a TPU gets a 4-core CPU machine instead.
 """
 
 import json
