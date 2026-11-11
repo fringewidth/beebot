@@ -100,6 +100,11 @@ haiku = [f"{root}/haiku/{h}" for h in HAIKU]
 missing = [p for p in stores + haiku if not os.path.isdir(p)]
 assert not missing, f"missing data: {missing}"
 print("data root", root, "role", ROLE, flush=True)
+chips = glob.glob("/dev/vfio/[0-9]*") + glob.glob("/dev/accel*")
+if not chips and (os.cpu_count() or 0) <= 8:  # an account without TPU access gets a 4-core CPU machine instead
+    note(phase="setup", error=f"no TPU on this machine ({os.cpu_count()} CPUs, no /dev/vfio or /dev/accel): exiting")
+    sys.exit(0)
+print("TPU devices:", chips, "cpus", os.cpu_count(), flush=True)
 print("inputs:", sorted(p for p in glob.glob("/kaggle/input/datasets/*/*/*") if not p.endswith("/data")), flush=True)  # which dataset versions are mounted
 resume = [p for p in find("resume.pt", 9) if os.path.isfile(p)]
 if ROLE == "second" and not resume:
