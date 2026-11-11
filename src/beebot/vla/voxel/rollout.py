@@ -3,34 +3,38 @@ expert on the same scenes.
 
 Each step of a policy episode: render the scene's views, build the context exactly as training
 does (think_data.context: the memory turn = the latest first thought and the latest switch line
-after it, then the user turn with the images, where the user stands and the instruction in force),
-call ThinkVoxelPolicy.think_then_act for every live episode of the batch at once, turn each acting
-row's slot logits into action codes (argmax, or sampled with the episode's own generator), and
-step the world under the run's pivot rule and move failure rates. Thoughts are recorded when
-non-empty. A switch task's instruction changes at its step (Task.spec["steps"]); the memory still
-holds the old instruction's thought on that step, as in training. A reply in words (refuse or
-clarify: the row reached END without the act marker) ends the episode: no robot moves again and
-the episode is scored on the scene as it is. A reply that runs out of tokens before the act marker
-or END moves nothing that step (counted as unfinished).
+after it, then the user turn with the images and the instruction in force), call
+ThinkVoxelPolicy.think_then_act for every live episode of the batch at once on the observation in
+the camera's frame, turn each acting row's slot logits into action codes (argmax, or sampled with
+the episode's own generator), turn those back into the world's frame, and step the world under the
+run's pivot rule and move failure rates. Thoughts are recorded when non-empty. A switch task's
+instruction changes at its step (Task.spec["steps"]); the memory still holds the old
+instruction's thought on that step, as in training. A reply in words (refuse or clarify: the row
+reached END without the act marker) ends the episode: no robot moves again and the episode is
+scored on the scene as it is. A reply that runs out of tokens before the act marker or END moves
+nothing that step (counted as unfinished).
 
 Views: views.scene_views with one look (views.sample_look: cameras, lights, materials) per
 episode, kept for all its steps (SceneViews); think_data.stand_in_views only when asked for.
 
-The user's frame, as think_data draws it: on an episode's first step the user's place round the
-camera is drawn (think_data.USER_NAMES, from the episode's own generator) and with the camera's
-azimuth gives the quarter turns of the user's frame; every instruction is said in that frame
-(think_data.in_user_frame), and the user turn says where the user stands. An instruction whose
-direction words cannot be turned (think_data.mappable) keeps the world's frame: the place that
-makes it so is used instead, as training does when no other label fits. Episode.user pins the place.
+The camera's frame, as think_data uses it (camera_frame.py): the user stands at the camera. The
+camera's quarter turn k (camera_frame.quarter_turns of the views' pose azimuth on the episode's
+first step; Episode.camera pins its board side) turns everything the policy reads: the voxel
+observation (camera_frame.turn_grid) and every instruction's direction words
+(think_data.in_user_frame); the policy's action codes are in that frame too and are turned back
+(camera_frame.unturn_codes) before the world steps. An instruction whose direction words cannot be
+turned (think_data.mappable: near side, north, toward me, ...) means the world's own sides, so its
+episode puts the camera at the world's front (k = 0), as training does when no other label fits.
+Texts already said in the camera's frame (Episode.as_said, basics eval) go as they are.
 
 Oracle thoughts (Episode.oracle): on the first step of each instruction the context is followed by
 the canonical first thought (oracle_thought: think_data.template_thought cut to what images show
-and said in the user's frame, the training template's thought) in the reply's own form,
+and said in the camera's frame, the training template's thought) in the reply's own form,
 "<think>\\n{thought}\\n</think>\\n\\n", and the policy generates from there: the act marker (then
 its slots) or an answer. Later steps generate freely, with the forced thought in memory.
 
 Determinism: every episode carries a seed; its world noise (step's move order), move failures,
-action sampling, user place and view randomization come from generators of its own seeded from it,
+action sampling and view randomization come from generators of its own seeded from it,
 so an episode plays the same whatever else is in its batch (up to the LM's batch numerics) and on
 every run. The expert arm is the exception: the suite's experts keep one generator for their
 batch, so expert episodes are deterministic for a given seed and batch.
@@ -48,6 +52,7 @@ import torch
 
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel import think_data as T
+from beebot.vla.voxel.camera_frame import quarter_turns, turn_grid, unturn_codes
 from beebot.vla.voxel.lm import unpatchify3
 from beebot.vla.voxel.world import CUBE_MOVES, MAX_OBJECTS, STAY, concat, failure_rates, observe, step, with_objects
 
@@ -65,8 +70,9 @@ FIRST_SHAPE = "you asked:"  # a first thought starts so (Haiku and template thou
 
 def oracle_thought(instruction, record, summary, turns=0):
     """The training template's first thought of an instruction (think_data.template_thought, cut to
-    what images show by think_data.visible, said in the user's frame) from its world-frame text,
-    its canonical record and the scene summary (suite.scene_summary) where it starts."""
+    what images show by think_data.visible, said in the frame of a camera at quarter turn `turns`)
+    from its world-frame text, its canonical record and the scene summary (suite.scene_summary)
+    where it starts."""
     raw = T.template_thought(instruction, record, summary)
     return T.in_user_frame(T.visible(raw, instruction, record), turns)
 
@@ -91,16 +97,12 @@ class SceneViews:
         return self.V.scene_views(obs, rng, self.spec, look=self.looks[id(rng)][1])
 
 
-def user_frame(texts, azimuth, rng, user=None, as_said=False):
-    """(user place, quarter turns) of an episode: the place drawn as think_data draws it (or `user`),
-    turned to the world's frame when an instruction cannot be turned (think_data.mappable), unless
-    the texts are already said in the user's frame (as_said)."""
-    position = user if user is not None else T.USER_NAMES[int(rng.integers(len(T.USER_NAMES)))]
-    turns = T.user_turns(azimuth, position)
-    if turns and not as_said and not all(T.mappable(text) for text in texts):
-        position = next(name for name in T.USER_NAMES if T.user_turns(azimuth, name) == 0)
-        turns = 0
-    return position, turns
+def camera_side(episode):
+    """The board side an episode's camera must look from, or None (drawn by the views): the pinned
+    side (Episode.camera); the world's front when an instruction's direction words cannot be turned
+    into another camera's frame (think_data.mappable), unless the texts are said as they are."""
+    unturnable = not episode.as_said and not all(T.mappable(text) for text in episode.texts)
+    return episode.camera or ("front" if unturnable else None)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -113,9 +115,8 @@ class Episode:
     carries its parts); texts[j]: the instruction given from step starts[j] on; records[j]: the
     canonical record (suite.canonical_record) of the instruction in force then, for oracle thoughts
     and thought checks; oracle: feed canonical first thoughts; key: what identifies it in reports;
-    user: the user's place (think_data.USER_NAMES) instead of a drawn one; camera: the board side
-    the camera looks from (else drawn); as_said: the texts are already in the user's frame (said as
-    they are, never turned; basics eval)."""
+    camera: the board side the camera (and the user at it) looks from (else drawn); as_said: the
+    texts are already in the camera's frame (said as they are, never turned; basics eval)."""
 
     world: object
     meta: dict
@@ -127,7 +128,6 @@ class Episode:
     seed: int
     oracle: bool = False
     key: dict = field(default_factory=dict)
-    user: str | None = None
     camera: str | None = None
     as_said: bool = False
 
@@ -137,8 +137,9 @@ class Played:
     """What happened in an episode. thoughts: [{"t", "part", "text", "forced"}] of every non-empty
     thought; spoke: {"t", "text"} of the reply in words that ended it, or None; unfinished: steps
     whose reply ran out of tokens; moves: per step, the share of robots whose chosen action was not
-    STAY; actions: (steps, D, H, W) int8 chosen codes when recorded; user, turns, camera: the user's
-    place, the quarter turns of the user's frame and the camera's azimuth (policy episodes)."""
+    STAY; actions: (steps, D, H, W) int8 chosen codes (world frame) when recorded; turns, camera:
+    the camera's quarter turn (the frame the policy saw and spoke in) and its azimuth (policy
+    episodes)."""
 
     score: float
     unasked: bool
@@ -148,7 +149,6 @@ class Played:
     unfinished: int = 0
     moves: list = field(default_factory=list)
     actions: torch.Tensor | None = None
-    user: str | None = None
     turns: int = 0
     camera: float | None = None
 
@@ -259,8 +259,10 @@ def play(episodes, actor, rule=RULE, failure=FAILURE, record=False, outcomes=Non
 
 class PolicyActor:
     """The policy as an actor for play(): one think_then_act call per step over the batch's live
-    episodes. sample: draw each robot's action from its softmax (with the episode's generator)
-    instead of the argmax. views(obs, rng) -> images or (images, pose); None: SceneViews()."""
+    episodes, each on its observation in its camera's frame; the codes it returns are in the world's
+    frame. sample: draw each robot's action from its softmax (with the episode's generator) instead
+    of the argmax. views(obs, rng, side=None) -> images or (images, pose) (side: the board side the
+    camera must look from); None: SceneViews()."""
 
     def __init__(self, policy, episodes, views=None, sample=False, max_new_tokens=MAX_NEW_TOKENS, system=None):
         self.policy, self.episodes = policy, episodes
@@ -272,9 +274,8 @@ class PolicyActor:
         self.thoughts = [[] for _ in range(n)]
         self.spoke = [None] * n
         self.unfinished = [0] * n
-        self.frames = [None] * n  # (user place, quarter turns, camera azimuth), set on the first step
+        self.frames = [None] * n  # (camera quarter turns, camera azimuth), set on the first step
         self.view_rng = [np.random.default_rng([int(e.seed), 3]) for e in episodes]
-        self.frame_rng = [np.random.default_rng([int(e.seed), 5]) for e in episodes]
         self.draws = [torch.Generator().manual_seed(int(e.seed) + 104_729) for e in episodes]
 
     def note(self, i, t, part, text, forced):
@@ -288,14 +289,13 @@ class PolicyActor:
 
     def context(self, i, t, world, azimuth):
         """(context text, forced thought or None) of episode i at step t, as think_data.example
-        builds it; the user's frame is drawn on the episode's first step."""
+        builds it, in the frame of the camera at `azimuth`, fixed on the episode's first step."""
         e = self.episodes[i]
         if self.frames[i] is None:
-            position, turns = user_frame(e.texts, azimuth, self.frame_rng[i], e.user, e.as_said)
-            self.frames[i] = (position, turns, azimuth)
-        position, turns, _ = self.frames[i]
+            self.frames[i] = (quarter_turns(azimuth), azimuth)
+        turns, _ = self.frames[i]
         j = part_at(e.starts, t)
-        text = T.context(e.texts[j] if e.as_said else T.in_user_frame(e.texts[j], turns), self.memory[i], self.system, T.USER_POSITIONS[position][1])
+        text = T.context(e.texts[j] if e.as_said else T.in_user_frame(e.texts[j], turns), self.memory[i], self.system)
         thought = None
         if e.oracle and t == e.starts[j]:
             part = S.instruction_at(e.task, t) if e.task.parts else e.task
@@ -311,13 +311,14 @@ class PolicyActor:
             return codes
         contexts, images, forced = [], [], []
         for i in rows:
-            side = {"side": self.episodes[i].camera} if self.episodes[i].camera else {}
-            pictures, azimuth = T.views_and_pose(self.views(obs[i], self.view_rng[i], **side))
+            side = camera_side(self.episodes[i])
+            pictures, azimuth = T.views_and_pose(self.views(obs[i], self.view_rng[i], **({"side": side} if side else {})))
             text, thought = self.context(i, t, world, azimuth)
             contexts.append(text)
             images.append(pictures if self.vision else [])
             forced.append(thought)
-        result = self.policy.think_then_act(obs[rows], contexts, images if self.vision else None, max_new_tokens=self.max_new_tokens)
+        seen = torch.stack([turn_grid(obs[i], self.frames[i][0]) for i in rows])  # each row in its camera's frame
+        result = self.policy.think_then_act(seen, contexts, images if self.vision else None, max_new_tokens=self.max_new_tokens)
         side = world.mass.shape[-1]
         for k, i in enumerate(rows):
             e = self.episodes[i]
@@ -331,7 +332,7 @@ class PolicyActor:
                     picks = torch.multinomial(logits.softmax(-1).reshape(-1, logits.shape[-1]), 1, generator=self.draws[i]).view(1, *logits.shape[:2])
                 else:
                     picks = logits.argmax(-1).unsqueeze(0)
-                codes[i] = unpatchify3(picks, side)[0]
+                codes[i] = unturn_codes(unpatchify3(picks, side)[0], self.frames[i][0])  # the camera's frame back to the world's
             elif bool(result.finished[k]):
                 self.spoke[i] = {"t": t, "text": result.answer[k]}
             else:
@@ -360,13 +361,13 @@ class ExpertActor:
 
 def play_policy(policy, episodes, views=None, sample=False, max_new_tokens=MAX_NEW_TOKENS, rule=RULE, failure=FAILURE, record=False):
     """Play a batch with the policy: Played per episode with its thoughts, reply, unfinished steps
-    and user frame. views None: SceneViews (one look per episode)."""
+    and camera frame. views None: SceneViews (one look per episode)."""
     actor = PolicyActor(policy, episodes, views, sample, max_new_tokens)
     out = play(episodes, actor, rule, failure, record)
     for i, played in enumerate(out):
         played.thoughts, played.spoke, played.unfinished = actor.thoughts[i], actor.spoke[i], actor.unfinished[i]
         if actor.frames[i] is not None:
-            played.user, played.turns, played.camera = actor.frames[i]
+            played.turns, played.camera = actor.frames[i]
     return out
 
 
