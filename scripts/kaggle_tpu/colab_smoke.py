@@ -8,8 +8,9 @@ Stages, each printing one JSON line {"smoke": <stage>, ...}:
   inverse   think.chunk_gated_delta_rule_matmul on the TPU against transformers' reference on the
             CPU, with correlated keys (the case that broke the old inverse)
   probe     think_train on fake data (the kernel's probe arguments), 40 steps on one chip
-  real      think_train on real data: a small store drawn here (demos.write, the training stores'
-            options), rendered views, templates only, 20 steps on one chip
+  real      think_train on real data: two small stores drawn here (demos.write with the options of
+            voxel_full and voxel_build, compact), the kernel's task mix, quarantine and frame
+            files, rendered views, templates only (no Haiku labels), 20 steps on one chip
 A stage that fails prints its error and the next stage still runs.
 """
 
@@ -115,11 +116,29 @@ def probe():
     train("probe", ["--name", "probe", "--data", "fake", "--data_kwargs", json.dumps(FAKE), "--steps", "40", *COMMON], 40)
 
 
+CUBE = ["--cube", "--rule", "switch_cube", "--robots", "6", "115", "--counts", "log", "--fit", "--compact"]
+# draw options as the kernel's stores record them (small.pt "config"), compact as they are written
+STORES = {
+    "/tmp/smoke-full": ["--scenes", "48", "--seed", "77", *CUBE, "--coverage", "0.3", "--objects", "1.0"],  # voxel_full/s*
+    "/tmp/smoke-build": ["--scenes", "6", "--seed", "78", *CUBE, "--steps", "144", "--build", "1.0", "--only", "build"],  # voxel_build/s*
+}
+
+
 def real():
-    store = "/tmp/smoke-store"
-    if not os.path.isdir(store):
-        subprocess.run([sys.executable, "-m", "beebot.vla.voxel.demos", "--out", store, "--scenes", "48", "--seed", "77", "--cube", "--rule", "switch_cube", "--robots", "6", "115", "--counts", "log", "--coverage", "0.3", "--objects", "1.0", "--fit", "--keep"], env={**os.environ, "PYTHONPATH": SRC}, cwd=REPO, check=False, capture_output=True)
-    train("real", ["--name", "real", "--data", "think", "--stores", store, "--data_kwargs", json.dumps({"mismatch": "drop", "held_share": 0.1}), "--views", "scene", "--steps", "20", *COMMON], 20)
+    for store, options in STORES.items():
+        if not os.path.isfile(f"{store}/done"):
+            made = subprocess.run([sys.executable, "-m", "beebot.vla.voxel.demos", "--out", store, *options], env={**os.environ, "PYTHONPATH": SRC}, cwd=REPO, check=False, capture_output=True, text=True)
+            print(f"store {store}: exit {made.returncode} {made.stdout[-300:]} {made.stderr[-600:]}", flush=True)
+    # the kernel's data options (REAL_DATA): task mix, quarantine and frame thoughts from runs/ (the
+    # last two match no episode of these stores, but their files are read and checked the same way)
+    import gzip
+    import shutil
+
+    os.makedirs("/tmp/smoke-frame", exist_ok=True)
+    with gzip.open(f"{REPO}/runs/frame_verified.jsonl.gz", "rb") as src, open("/tmp/smoke-frame/verified.jsonl", "wb") as dst:
+        shutil.copyfileobj(src, dst)
+    options = {"mismatch": "drop", "held_share": 0.1, "mix": f"{REPO}/runs/task_mix.json", "quarantine": f"{REPO}/runs/quarantine.json", "frame_dirs": ["/tmp/smoke-frame"]}
+    train("real", ["--name", "real", "--data", "think", "--stores", ",".join(STORES), "--data_kwargs", json.dumps(options), "--views", "scene", "--steps", "20", *COMMON], 20)
 
 
 def inverse_fresh():
