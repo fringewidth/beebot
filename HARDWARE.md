@@ -769,3 +769,192 @@ refuses a cube that is off. A recovery move would need its own primitive and con
 other, run together and the first mover again alone from the same scene: it ended the same way in
 73 (5 worse with company, 2 better); a knock came in 7% of mover rows together and 5% alone. No
 difference shows at this count.
+
+### Closed loop: the grid's moves carried out in MuJoCo (2026-11-11)
+
+`hardware/closed_loop.py` runs a voxel-grid actor (the scripted expert now, the think-then-act
+policy later) with its moves carried out by the cubes of `cube_swarm.Swarm`. Each step the actor
+chooses codes on the grid as in training; the moves the grid's rule lets happen are made as
+pivots in MuJoCo; the lattice is read back and becomes the grid the actor sees next. A policy
+renders its views (`views.scene_views`) from that read-back grid, never from MuJoCo frames.
+`rollout.play` runs the episode through a new `advance` hook, so it is scored by the suite's own
+checkers exactly as a grid episode. Tests: `tests/test_closed_loop.py`.
+
+    python -m beebot.hardware.closed_loop measure --per-kind 2 --mode simultaneous --out runs/closed_loop/simultaneous.jsonl
+    python -m beebot.hardware.closed_loop episode --kind build --stop --video runs/closed_loop/build.mp4
+    python -m beebot.hardware.closed_loop episode --kind motion:goto --checkpoint runs/X/policy.pt --device mps
+    python -m beebot.hardware.closed_loop report runs/closed_loop/simultaneous.jsonl
+
+A step:
+
+1. **What is tried.** The actor's codes go through the grid's rule (`world.refuse` under
+   `switch_cube`, the training rule), so MuJoCo is asked only for moves the grid would carry out.
+   No synthetic failures: the physics decides.
+1. **Order and claims.** Movers go in the order of the step's priority scores, highest first:
+   the random scores the grid's own step uses to settle claims, drawn from the episode's seed.
+   Of movers aiming at one cell, only the first goes; the others stay, as on the grid.
+1. **Sequential or simultaneous.** Sequential: one pivot at a time (`Swarm.move`), each planned
+   on the lattice the pivots before it left. A mover whose support, swing or target an earlier
+   mover of the same step changed is refused by `plan` and stays ("blocked"). Simultaneous:
+   movers go in waves. A wave holds movers that share no cell (start, the cells the turn
+   sweeps, target), do not pivot on one another and do not touch (face, edge or corner). Their
+   flywheels are braked at the same moment (`closed_loop.move_together`, which drives
+   `Swarm.step` with a zero brake limit for a free flywheel, the same torques as `Swarm.move`).
+   A mover that clashes goes in the next wave of the same step, planned again. Touching movers
+   are kept apart because, in a first version without that rule, two cubes touching by an edge
+   and pulled apart at once twisted each other 24 degrees off the lattice.
+1. **Judging a move.** From the poses before and after its wave, as `Swarm.move` judges one, with
+   two changes needed for a whole episode. A cube already turned before the wave is not counted
+   as knocked again: `Swarm.move` counts any turned neighbour, so once one cube is off every later
+   move would be a knock. And each cube is off the lattice on its own pose and speed:
+   `Swarm.lattice` calls every cube off while any one of them moves.
+1. **Read back.** Each cube's nearest cell is the grid. A cube off the lattice is counted on its
+   nearest cell and never moves again (`plan` refuses it), unless `--snap` puts it back upright
+   on the nearest free supported cell (logged per step). The grid's gravity is not applied: the
+   physics decided what stands.
+1. **Stopping.** The task's checker runs on the read-back grid every step. `--stop` freezes a
+   scene once it passes; `--steps` caps the episode (72 steps, 144 for build, by default).
+   Without `--stop` the step it first passed and whether it still passes at the end are
+   recorded.
+1. **Cube model.** `--swarm key=value` passes options to `cube_swarm.Swarm`, e.g. a magnet mode
+   once `cube_swarm` has a release-bonds one. Every number below is with **permanent magnets**
+   (`cube_swarm` as it is): a cube with a second face neighbour does not move.
+
+**What MuJoCo can host.** A flat steel floor and cubes. Of the suite's kinds that leaves 23 on
+scenes of 10 to 12 cubes (`closed_loop.KINDS`): formation (letters and the wall, on the floor),
+construction: tower, parallel: region + region and region + tower, motion: stay, goto, gather,
+spread, groups, line, move, subset: goto, spread, groups, line, move (any selector), switch: then
+stay, goto, gather, spread, zones: goto zone and line along a stripe (zones are paint), and build
+(objects of up to 12 cubes: stool, bench, arch, gate, podium, lamp post, ...). Out: everything
+with a cheese or another object (logic, herd, runner, approach, follow, eat and surround jobs,
+things, blocks, reasoning, pushing onto a zone), everything on terrain (bridge, fill, stairs,
+climb), and a subset's gather and tower, which never drew at this size (gather needs three
+groups of four, a subset's tower 12 robots in the selected group).
+
+**Runs** (`runs/closed_loop/`, permanent magnets, scripted expert, 72 steps, 144 for build, seed 0):
+`simultaneous.jsonl` (46 episodes, two of every kind), `simultaneous_snap.jsonl` (the first
+episode of every kind with `--snap`), `sequential.jsonl` (the first episode of 11 kinds, one
+pivot at a time); one row per move in the `.moves.jsonl.gz` beside each. Every episode is also
+played on the grid by the same expert with the same seed: with the training failure rates
+(0.10, 0.23 up and over) and without failures. Eight of the 46 scenes began with a robot floating
+two cells up where `suite.scenes` had removed a cheese; both the grid and MuJoCo dropped it at
+the start (one MuJoCo cube landed off the lattice). Draws are now settled with the grid's gravity
+first (`closed_loop.settled`).
+
+Pass shares (the suite's own marks; "stop at pass" is the share that passed at some step, which
+the stop rule keeps):
+
+| kind | n | grid, failures | grid, no failures | MuJoCo | MuJoCo, stop at pass | MuJoCo with snap-back (n = 1): end / stop at pass |
+| --- | --- | --- | --- | --- | --- | --- |
+| formation:mask | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 1.00 |
+| construction:tower | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| parallel:region+region | 2 | 1.00 | 0.50 | 1.00 | 1.00 | 0.00 / 1.00 |
+| parallel:region+tower | 2 | 1.00 | 0.50 | 1.00 | 1.00 | 1.00 / 1.00 |
+| motion:stay | 2 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 / 1.00 |
+| motion:goto | 2 | 1.00 | 1.00 | 0.50 | 0.50 | 1.00 / 1.00 |
+| motion:gather | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 1.00 / 1.00 |
+| motion:spread | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 1.00 / 1.00 |
+| motion:groups | 2 | 1.00 | 1.00 | 0.50 | 1.00 | 1.00 / 1.00 |
+| motion:line | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| motion:move | 2 | 0.50 | 0.50 | 0.00 | 0.00 | 0.00 / 0.00 |
+| subset:goto | 2 | 1.00 | 1.00 | 0.50 | 0.50 | 1.00 / 1.00 |
+| subset:spread | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| subset:groups | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| subset:line | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| subset:move | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| switch:then stay | 2 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 / 1.00 |
+| switch:then goto | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| switch:then gather | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| switch:then spread | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 1.00 / 1.00 |
+| zones:goto_zone | 2 | 1.00 | 1.00 | 0.50 | 0.50 | 0.00 / 1.00 |
+| zones:line_zone | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| build | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 / 0.00 |
+| all | 46 | 0.98 | 0.93 | 0.26 | 0.28 | 0.39 / 0.52 |
+
+With permanent magnets, MuJoCo carries out a quarter of what the expert does on the grid. The
+passes are tasks that need few moves or forgive stragglers: stay, the second instruction "stay",
+loose regions. No tower, letter, line or built object passed.
+
+**Where the grid and MuJoCo disagree** (the 46 simultaneous episodes). The grid's rule let
+17,409 moves happen. 10,260 of them (59%) went to a cube already off the lattice, which never
+moves again, and 101 to a cube an earlier wave of the step had knocked from its cell. The other
+7,048 were pivots:
+
+| primitive | hindrance | pivots | reached | stayed | off | strayed | knock | harmful per pivot |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| floor roll | free | 1,327 | 1,305 | 1 | 21 | 0 | 0 | 0.016 |
+| floor roll | hinged (edge contact) | 2,190 | 44 | 1,962 | 164 | 0 | 20 | 0.084 |
+| floor peel | bonded | 3,057 | 15 | 2,997 | 34 | 0 | 11 | 0.015 |
+| convex up | free | 73 | 24 | 2 | 15 | 3 | 29 | 0.644 |
+| convex up | hinged | 51 | 22 | 11 | 10 | 0 | 8 | 0.353 |
+| convex up | bonded | 242 | 0 | 221 | 10 | 2 | 9 | 0.087 |
+| convex down | free | 26 | 13 | 0 | 6 | 0 | 7 | 0.500 |
+| convex down | hinged | 28 | 22 | 4 | 1 | 1 | 0 | 0.071 |
+| others (concave up, traverse, wall crawl, bonded convex down, any with rubs) | | 54 | 2 | 41 | 9 | 1 | 1 | 0.204 |
+| all | | 7,048 | 1,447 | 5,239 | 270 | 7 | 85 | 0.051 |
+
+1. **Bonds hold** (permanent magnets): 2,997 of 3,057 floor peels and 221 of 242 bonded climbs
+   stayed. `switch_cube`, the training rule, lets them happen. A release-bonds cube model is
+   what would carry these out.
+1. **Edge contacts hold, and twist.** A cube touching another only by an edge stayed in 1,962 of
+   2,190 floor rolls and was twisted off the lattice in 164. Neither grid rule knows edge
+   contacts. Scenes as drawn have them: in the first goto episode two cubes started edge to
+   edge, and one at a time neither moved in 72 steps.
+1. **Climbing onto a lone cube shoves it.** Free convex ups were harmful 47 of 73 times. Alone in
+   a two-cube scene (20 jittered trials, judged as in the loop): up and over a lone cube reached
+   1 of 20 (10 shoved the support away, 9 ended off the lattice); up and over the end of a row of
+   three reached 18 of 20. The grid lets a cube climb onto any cube.
+1. **Off-lattice cubes accumulate.** 42 of 46 episodes put a cube off the lattice. The first
+   harmful pivot came at a median step of 2 (quartiles 0 and 7). By the end 6.6 of about 11 cubes
+   were off on average, and the grid expert kept sending moves to them (the 10,260 above).
+1. **Free floor rolls are sound**: 1,305 of 1,327 reached, 21 off.
+1. **Claims.** 1,037 moves lost a claim (another mover of the step aimed at the same cell) and
+   stayed, as on the grid.
+
+**Snap-back** (`--snap`, a cube off the lattice is put upright on the nearest free supported
+cell after the step). 21 of 23 episodes needed it, 23 times per episode on average (at most 47).
+Passes rose from 0.26 to 0.39, and to 0.52 with the stop rule. Harmful pivots rose to 0.071 per
+pivot: snapped cubes go back to the climbs that threw them off.
+
+**Stopping.** Without snap-back 13 of 46 episodes passed at some step and 1 of them no longer
+passed at the end. With snap-back 12 of 23 passed at some step and 3 (a letter, two regions, a
+zone) had been undone by later moves. Towers and letters never reached a pass without snap-back,
+so how often late moves damage a finished tower could not be measured. The stop rule
+(`--stop`) keeps the pass in every such case. On the grid without failures 2 of 46 episodes were
+undone the same way.
+
+**Simultaneous against sequential** (the same 11 episodes, no snap-back):
+
+| | passed | score | pivots | harmful per pivot | simulated s per episode | waves per step with movers |
+| --- | --- | --- | --- | --- | --- | --- |
+| simultaneous waves | 1 of 11 | 0.41 | 2,031 | 0.052 | 36.6 | 1.33 |
+| one pivot at a time | 2 of 11 | 0.46 | 2,189 | 0.040 | 84.3 | 2.72 |
+
+Waves cost a little safety and save more than half the time. The difference is in floor rolls
+(70 of 1,236 harmful in waves, 53 of 1,385 one at a time). Convex ups fail alike (22 of 38 and
+23 of 41), so the lone-support problem is the move, not the company. No mover was ever blocked
+by an earlier pivot of its own step. Touching movers in one wave twisted each other off the
+lattice before waves kept them apart; with that rule in place the cost of waves is the
+difference above.
+
+**Time.** One process, machine otherwise quiet (load about 10): a lone `Swarm.move` in an
+11-cube scene takes 0.19 s of wall clock for 0.4 s simulated. In the loop, one pivot at a time
+costs 0.21 s per pivot and 1.7 s per early step (8 pivots); simultaneous waves cost 0.056 s per
+pivot and 0.45 s per step. The executor's own bookkeeping is negligible. A 72-step expert
+episode simulates 84 s one at a time and 37 s in waves (33 s over all 46 episodes, 52 s with
+snap-back), so it takes about 45 s and 20 s of wall clock on one core. The measurement runs
+shared a machine at load 50 to 90 and logged 0.44 CPU s per pivot one at a time and 0.21 s in
+waves with snap-back; their wall-clock columns are not representative. Video: `Film` at the
+default half speed makes two seconds of video per simulated second (idle steps take none), so a
+waves episode of 37 s simulated is about 77 s of video. A one-minute video needs about 28 s
+simulated: some 35 to 60 busy steps in waves, or 70 pivots one at a time.
+
+What this asks for before the demo:
+
+1. A release-bonds cube model (bonded and hinged movers are 5,616 of the 7,048 pivots). Run it
+   with `--swarm` once `cube_swarm` has one.
+1. A rule for supports: climb only onto a cube that is itself held (a row, a column, a
+   bonded group), on the grid and in the expert or policy. Lone-cube climbs fail 19 of 20 times.
+1. Off-lattice recovery: snap-back is a stand-in for a person resetting a cube. Without it one
+   bad pivot early in an episode freezes a cube for good.
+1. The stop rule for demos: `--stop`.
