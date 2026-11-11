@@ -401,6 +401,7 @@ class Executor(Tracked):
     def scene_step(self, i, grid, codes, priority, t):
         """Scene i's step t in MuJoCo; returns the read-back (D, H, W) mass."""
         clock = time.perf_counter()
+        cpu = time.process_time()
         swarm = self.swarms[i]
         began = swarm.data.time
         robots = grid.mass[0] > 0.5
@@ -440,6 +441,7 @@ class Executor(Tracked):
                 "crowded": crowded,
                 "sim_seconds": round(float(swarm.data.time - began), 3),
                 "wall_seconds": round(time.perf_counter() - clock, 4),
+                "cpu_seconds": round(time.process_time() - cpu, 4),
                 "cells": [list(map(int, c)) for c in reading.cells.tolist()],
             }
         )
@@ -830,6 +832,7 @@ def run_episode(job):
         "waves": sum(s["waves"] for s in steps),
         "sim_seconds": round(sum(s["sim_seconds"] for s in steps), 3),
         "mujoco_wall_seconds": round(sum(s["wall_seconds"] for s in steps), 2),
+        "mujoco_cpu_seconds": round(sum(s["cpu_seconds"] for s in steps), 2),
         "actor_wall_seconds": round(acting[0], 2),
         "wall_seconds": round(time.perf_counter() - clock, 2),
     }
@@ -905,6 +908,9 @@ def report(rows, moves, emit=print):
     mj = [r["mujoco"] for r in rows]
     active = sum(m["active_steps"] for m in mj)
     emit("")
+    if all("mujoco_cpu_seconds" in m for m in mj):
+        moved = sum(m["attempted"] - sum(m["details"].get(d, 0) for d in ("refused", "blocked", "cube off", "displaced")) for m in mj)
+        emit(f"cpu: {sum(m['mujoco_cpu_seconds'] for m in mj) / max(active, 1):.2f} s per step with movers, {sum(m['mujoco_cpu_seconds'] for m in mj) / max(moved, 1):.2f} s per pivot ({moved} pivots), {np.mean([m['mujoco_cpu_seconds'] for m in mj]):.1f} s per episode")
     emit(f"time: {sum(m['sim_seconds'] for m in mj) / max(active, 1):.2f} s simulated and {sum(m['mujoco_wall_seconds'] for m in mj) / max(active, 1):.2f} s wall per step with movers ({active} steps, {sum(m['waves'] for m in mj) / max(active, 1):.2f} waves each); per episode {np.mean([m['sim_seconds'] for m in mj]):.1f} s simulated (median {np.median([m['sim_seconds'] for m in mj]):.1f}), {np.mean([m['mujoco_wall_seconds'] for m in mj]):.1f} s MuJoCo wall, {np.mean([m['wall_seconds'] for m in mj]):.1f} s wall with the expert")
 
 
