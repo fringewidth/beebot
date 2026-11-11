@@ -179,12 +179,15 @@ def prepare_world(world):
     return replace(world, gravity=torch.ones_like(world.gravity))
 
 
-def play(episodes, actor, rule=RULE, failure=FAILURE, record=False):
+def play(episodes, actor, rule=RULE, failure=FAILURE, record=False, advance=None):
     """Play a batch of episodes with actor(world, t) -> (B, D, H, W) codes; the world and its
     scoring as suite.run (switch tasks scored on their last instruction from the step it came,
     runners flee every RUNNER_PERIOD steps), but with each episode's own generators and length:
     an episode past its steps stays still. Returns a Played per episode (without the actor's
-    thoughts, which the actor adds)."""
+    thoughts, which the actor adds).
+    advance(world, codes, priority, t) -> world, if given, carries out a step in place of the
+    grid's world.step (hardware/closed_loop.py: pivoting cubes in MuJoCo); codes are the actor's
+    after the failure draw, priority the step's move-order scores (B, D, H, W)."""
     world = concat([prepare_world(e.world) for e in episodes])
     b = len(episodes)
     steps = max(e.steps for e in episodes)
@@ -221,7 +224,11 @@ def play(episodes, actor, rule=RULE, failure=FAILURE, record=False):
             dropped = torch.stack([torch.rand(codes.shape[1:], generator=g) for g in fails]) < failure[codes]
             effective = torch.where(dropped, torch.full_like(codes, STAY), codes)
         before = world.cheese_alive.clone()
-        world, _ = step(world, effective, torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in noise]), rule)
+        priority = torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in noise])
+        if advance is None:
+            world, _ = step(world, effective, priority, rule)
+        else:
+            world = advance(world, effective, priority, t)
         fleeing = runners & live.view(-1, 1)
         if fleeing.any() and (t + 1) % S.RUNNER_PERIOD == 0:
             world = replace(world, cheese_pos=S.flee(world, fleeing))
