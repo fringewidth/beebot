@@ -10,7 +10,7 @@ Stages, each printing one JSON line {"smoke": <stage>, ...}:
   probe     think_train on fake data (the kernel's probe arguments), 40 steps on one chip
   real      think_train on real data: two small stores drawn here (demos.write with the options of
             voxel_full and voxel_build, compact), the kernel's task mix, quarantine and frame
-            files, rendered views, templates only (no Haiku labels), 20 steps on one chip
+            files, rendered views, templates only (no Haiku labels), 30 steps on one chip
 A stage that fails prints its error and the next stage still runs.
 """
 
@@ -138,7 +138,7 @@ def real():
     with gzip.open(f"{REPO}/runs/frame_verified.jsonl.gz", "rb") as src, open("/tmp/smoke-frame/verified.jsonl", "wb") as dst:
         shutil.copyfileobj(src, dst)
     options = {"mismatch": "drop", "held_share": 0.1, "mix": f"{REPO}/runs/task_mix.json", "quarantine": f"{REPO}/runs/quarantine.json", "frame_dirs": ["/tmp/smoke-frame"]}
-    train("real", ["--name", "real", "--data", "think", "--stores", ",".join(STORES), "--data_kwargs", json.dumps(options), "--views", "scene", "--steps", "20", *COMMON], 20)
+    train("real", ["--name", "real", "--data", "think", "--stores", ",".join(STORES), "--data_kwargs", json.dumps(options), "--views", "scene", "--steps", "30", *COMMON], 30)  # 30: a window after the compilations of steps 1-20
 
 
 def inverse_fresh():
