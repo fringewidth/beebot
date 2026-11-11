@@ -404,6 +404,54 @@ COUNT_PATTERNS = (  # (pattern, replacement, numbers it keeps) for counts a view
 )
 
 
+LARGE = 10  # robot counts from here up are never said: nobody reads dozens of robots off an image
+NUMBER_WORDS = ("ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred").split()
+COUNT_WORD = r"(\d+|(?:" + "|".join(NUMBER_WORDS) + r")(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?|dozens|a dozen)"
+ROBOT_COUNT = re.compile(r"\b" + COUNT_WORD + r"\s+((?:[a-z]+\s+){0,2}?(?:robots?|bots?|cubes?)\b(?! (?:tall|high|wide|long)))")
+COUNT_OF = re.compile(r"\b" + COUNT_WORD + r"\s+of\s+(you|us|them|the robots|the swarm|the bots)\b")
+COUNT_NEAR = re.compile(r"\b(?:half|third|quarter|groups? of|teams? of|squads? of|split|about|roughly|around|nearly|over|almost|all|whole|every one of|other|only|have|has)\s+(?:(?:of\s+them|is|are|each|into)\s+)?(?:about\s+|roughly\s+)?" + COUNT_WORD + r"\b(?! (?:tall|high|wide|long|voxels|cells|steps|blocks))")
+
+
+OTHER_COUNT = re.compile(r"\bthe other " + COUNT_WORD + r"\b(?! (?:means|is|are|tall|high))")
+
+
+def large(word):
+    word = word.lower()
+    if word.isdigit():
+        return int(word) >= LARGE
+    return any(word.startswith(w) for w in NUMBER_WORDS) or word in ("dozens", "a dozen")
+
+
+def large_counts(text, instruction=""):
+    """The robot counts of LARGE or more said in text, outside the quoted instruction."""
+    head = f"you asked: {bare(instruction).lower()}." if instruction else None
+    body = text[len(head) :] if head and text.startswith(head) else text
+    return [m.group(0) for pattern in (ROBOT_COUNT, COUNT_OF, COUNT_NEAR) for m in pattern.finditer(body.lower()) if large(m.group(1))]
+
+
+def counted(pair):
+    """Whether a refusal pair's thought or reply rests on a robot count of LARGE or more."""
+    return large_counts(pair.get("thought", ""), pair.get("instruction", "")) + large_counts(pair.get("reply", ""))
+
+
+def without_large_counts(body):
+    """body with robot counts of LARGE or more dropped ("i see 39 robots" -> "i see the robots",
+    "15 of you" -> "many of you"); a middle sentence still holding one (e.g. "half is about 15")
+    goes, the first and last keep their place with "some" in it."""
+    body = OTHER_COUNT.sub(lambda m: "the others" if large(m.group(1)) else m.group(0), body)  # "the other 26 hold" -> "the others hold"
+    sentences = [part for part in re.split(r"(?<=\.)\s+", body.strip()) if part]
+    out = []
+    for k, sentence in enumerate(sentences):
+        hits = [m for m in COUNT_NEAR.finditer(sentence) if large(m.group(1))]
+        if hits and 0 < k < len(sentences) - 1:
+            continue
+        for m in hits:
+            sentence = sentence.replace(m.group(1), "some", 1)
+        out.append(sentence)
+    body = ROBOT_COUNT.sub(lambda m: "the " + m.group(2) if large(m.group(1)) else m.group(0), " ".join(out))
+    return COUNT_OF.sub(lambda m: f"many of {m.group(2)}" if large(m.group(1)) else m.group(0), body)
+
+
 def label_problem(label_row, attempt, entries, item=None):
     """Why a label does not belong to the episode it joined (None when it does). Its family must be
     the attempt's; but for a refusal (another instruction for the same scene) its kind and spec those
@@ -461,6 +509,7 @@ def visible(thought, instruction, record=None):
     body = ROW_AT.sub(lambda m: f"{m.group(1)} row running {'back to front' if m.group(2) == 'x' else 'left to right'}", body)
     body = NEAR_COORDINATE.sub("", body)
     body = MEASURE.sub(unless_kept(""), body)
+    body = without_large_counts(body)  # even when the instruction states it
     for pattern, replacement, source in COUNT_PATTERNS:  # a robot count stays only when the instruction states it
         body = pattern.sub(unless_kept(replacement, stated if source == "instruction" else keep), body)
     sentences = [part for part in re.split(r"(?<=\.)\s+", body.strip()) if part]
@@ -541,6 +590,22 @@ def mappable(text):
 
 
 USER_NAMES = tuple(USER_POSITIONS)
+FRAME_SENTENCE = "you face the board from its"  # haiku_frame.py's thoughts: words already mapped onto the board
+
+
+def frame_choice(row):
+    """A verified haiku_frame.py row as a label choice: the instruction in the user's words, the
+    thought that maps them onto the board, and the camera side and user place it was written for."""
+    return {"rung": f"frame-{row['rung']}", "instruction": row["text"], "thought": row["thought"], "switches": row.get("switches") or [], "done": DONE_LINE, "camera": row["camera"], "place": row["place"], "user": row["user"], "pair_id": row["pair_id"]}
+
+
+def takes_side(views):
+    import inspect
+
+    try:
+        return "side" in inspect.signature(views).parameters
+    except (TypeError, ValueError):
+        return False
 
 
 def turnable_choice(choice):
@@ -756,7 +821,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=(), overfit=0):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -783,6 +848,19 @@ class ThinkData:
         self.skipped = {(key, int(n)) for key, n, *_ in quarantine.get("episodes", [])}
         self.dropped = {pair_id for pair_id, *_ in quarantine.get("labels", [])}
         self.quarantined = 0
+        # frame_dirs: haiku_frame.py outputs; their verified rows replace the labels of the
+        # single-instruction episodes they were written for (see frame_choice). The views must take
+        # side= (the board side the camera looks from), since each thought states it
+        self.frame_rows = {}
+        for directory in frame_dirs:
+            for row in H.read_jsonl(Path(directory) / "verified.jsonl"):
+                source, _, item = row["id"].partition(":")
+                if source.endswith("-later"):  # later instructions of switch episodes: not joined yet
+                    continue
+                item_seed, index = item[1:].split("-")
+                self.frame_rows.setdefault((source, int(item_seed), int(index)), []).append(frame_choice(row))
+        if self.frame_rows and not all(takes_side(v) for v in (views, validation_views or views)):
+            raise ValueError("frame labels need views that take side= (think_train --views scene)")
         self.stores = [str(s) for s in stores]
         self.data = [load(s) for s in self.stores]
         self.labels = []
@@ -796,7 +874,9 @@ class ThinkData:
                 labels.part_key = {k: [r for r in rows if r.get("pair_id") not in self.dropped] for k, rows in labels.part_key.items()}
             self.labels.append((labels, label_options(directory), items))
         self.episodes = []
-        self.frames = {"turned": 0, "world": 0, "rung_swapped": 0, "template_instead": 0, "world_frame_forced": 0}
+        self.frames = {"turned": 0, "world": 0, "rung_swapped": 0, "template_instead": 0, "world_frame_forced": 0, "haiku_frame": 0}
+        self.frame_episodes = 0
+        self.counted_refusals = 0
         self.rewritten = {"haiku_thoughts": 0, "haiku_changed": 0, "haiku_lines_changed": 0, "template_thoughts": 0, "template_changed": 0}
         self.events = {}
         self.templates = {}
@@ -813,6 +893,17 @@ class ThinkData:
         self.held = [ep for ep in self.episodes if ep.held]
         self.train_pool, self.held_pool = Pool(self.train), Pool(self.held)
         self.validation_cache = {}
+        # overfit: a fixed set of that many acting examples in which some robot moves (from the
+        # frame-labelled episodes when there are any) is all that sample() and validation() give:
+        # a model that cannot fit them has a broken path, not too little training
+        self.overfit_set = []
+        if overfit:
+            framed = [ep for ep in self.train if ep.choices and "camera" in ep.choices[0]]
+            pool, rng = (Pool(framed) if framed else self.train_pool), np.random.default_rng(self.seed + 99)
+            while len(self.overfit_set) < overfit:
+                ex = self.draw(pool, rng)
+                if ex.act and ((ex.codes != STAY) & (ex.obs[0] > 0.5)).any():
+                    self.overfit_set.append(ex)
 
     def join(self, k, path, store):
         """The kept episodes of store k with their Haiku labels (by (seed, index))."""
@@ -849,6 +940,10 @@ class ThinkData:
                 refusals += labels.refusals(seed, n)
             if parts and [p["t"] for p in parts[: len(entries)]] != [int(entry["t"]) for entry in entries]:
                 problems.append(f"the Haiku parts start at {[p['t'] for p in parts]} but the store's instructions at {[entry['t'] for entry in entries]}")
+            frames = [] if problems or parts else [c for labels, _ in mine for c in self.frame_rows.get((Path(labels.directory).name, seed, n), [])]
+            if frames:  # direction tasks: the user-frame thoughts replace the board-frame labels
+                choices = frames
+                self.frame_episodes += 1
             if problems:
                 if self.mismatch == "raise":
                     raise ValueError(f"{path} attempt {n}: {problems[0]}; the (seed, index) join is broken ({len(problems)} problems on this episode; mismatch='drop' falls back to templates)")
@@ -857,7 +952,10 @@ class ThinkData:
             record = entries[0]["record"]
             choices = [self.visibly(choice, record) for choice in choices]
             parts = [dict(part, choices=[self.visibly(choice, entries[part["part"]]["record"]) for choice in part["choices"]]) for part in parts[: len(entries)]]
-            refusals = [self.visibly(pair, None) for pair in refusals]
+            # a refusal that reasons from a robot count of LARGE or more ("only 35 robots, so no
+            # 40-robot tower") needs a count nobody reads off an image: dropped
+            self.counted_refusals += sum(bool(counted(pair)) for pair in refusals)
+            refusals = [self.visibly(pair, None) for pair in refusals if not counted(pair)]
             out.append(Episode(k, int(row["e"]), seed, n, row["family"], held_out_scene(scene_key(store, int(row["e"])), self.held_share), choices, parts, refusals, row.get("kind", ""), self.mix.get(mix_group(config), {}).get(f"{row['family']}|{row.get('kind', '')}", 1.0)))
         return out
 
@@ -867,6 +965,8 @@ class ThinkData:
         out = dict(choice, thought=visible(choice["thought"], choice["instruction"], record))
         if "switches" in choice:
             out["switches"] = [visible(line, choice["instruction"], record) for line in choice["switches"]]
+        if choice.get("reply"):
+            out["reply"] = re.sub(r"\s+([,.;:])", r"\1", without_large_counts(choice["reply"]))
         self.rewritten["haiku_thoughts"] += 1
         self.rewritten["haiku_changed"] += out["thought"] != choice["thought"]
         self.rewritten["haiku_lines_changed"] += out.get("switches") != choice.get("switches")
@@ -967,14 +1067,24 @@ class ThinkData:
         here = next((ev for ev in events if ev.t == t), None)
         codes = self.data[ep.store]["actions"][ep.e, t].long()
         obs = self.observation(ep, t)
-        images, azimuth = views_and_pose((views or self.views)(obs, rng))
-        parts, position, turns = self.user_frame(ep, parts, rng, azimuth)
-        memory = [in_user_frame(self.thought_of(ep, parts, ev), turns) for ev in memory_before(events, t)]
-        thought = in_user_frame(self.thought_of(ep, parts, here), turns) if here is not None else ""
+        side = parts[0].get("camera") if len(parts) == 1 else None
+        if side:  # a thought written for this camera side and user place: rendered so, said as written
+            images, azimuth = views_and_pose((views or self.views)(obs, rng, side=side))
+            position, user = parts[0]["place"], parts[0]["user"]
+            if ORDER[user_turns(azimuth, position)] != user:
+                raise ValueError(f"views drew azimuth {azimuth:.0f} for side {side}: the user would stand at the board's {ORDER[user_turns(azimuth, position)]}, not its {user}")
+            text_turns, turns = 0, user_turns(azimuth, position)
+            self.frames["haiku_frame"] += 1
+        else:
+            images, azimuth = views_and_pose((views or self.views)(obs, rng))
+            parts, position, turns = self.user_frame(ep, parts, rng, azimuth)
+            text_turns = turns
+        memory = [in_user_frame(self.thought_of(ep, parts, ev), text_turns) for ev in memory_before(events, t)]
+        thought = in_user_frame(self.thought_of(ep, parts, here), text_turns) if here is not None else ""
         return Example(
             obs=obs,
             images=images,
-            context_text=context(in_user_frame(parts[j]["instruction"], turns), memory, self.system, USER_POSITIONS[position][1]),
+            context_text=context(in_user_frame(parts[j]["instruction"], text_turns), memory, self.system, USER_POSITIONS[position][1]),
             reply_text=act_reply(thought),
             act=True,
             codes=codes,
@@ -985,7 +1095,7 @@ class ThinkData:
             rung=parts[j]["rung"],
             family=ep.family,
             kind=here.kind if here is not None else "plain",
-            instruction=in_user_frame(parts[j]["instruction"], turns),
+            instruction=in_user_frame(parts[j]["instruction"], text_turns),
             store=self.stores[ep.store],
             user=position,
             turns=turns,
@@ -1052,9 +1162,13 @@ class ThinkData:
         return self.example(ep, t, self.labelling(ep, rng), rng, views)
 
     def sample(self, rng):
+        if self.overfit_set:
+            return self.overfit_set[int(rng.integers(len(self.overfit_set)))]
         return self.draw(self.train_pool, rng)
 
     def validation(self, n, seed=0):
+        if self.overfit_set:
+            return list(self.overfit_set)
         key = (n, seed)
         if key not in self.validation_cache:
             if not self.held:

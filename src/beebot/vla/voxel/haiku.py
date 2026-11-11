@@ -627,7 +627,7 @@ For each instruction write the swarm's first thought, in lower case and at most 
 Keep the four parts in this order but word them freely, for example: "you asked: eat the cool coloured ones. i see red, green, blue and yellow cheeses. cool means green and blue here. first: the blue one."
 If the task has no sub-goals, end with what the swarm does instead (it stays where it is).
 Then "switches": one short lower-case line for each later sub-goal, in order, said when the swarm moves on to it ("now the green one", "green next"): one fewer than the sub-goals, none for a single sub-goal.
-Thoughts mention only colours, cheeses and terrain that the scene has, by their plain names (red, green, blue, yellow, orange, purple, white, cyan, trench, plateau, hills); never invent anything.
+Never state a number of robots of 10 or more (no one can count that many from a picture); smaller numbers are fine. Thoughts mention only colours, cheeses and terrain that the scene has, by their plain names (red, green, blue, yellow, orange, purple, white, cyan, trench, plateau, hills); never invent anything.
 
 Items with "later": true are a new instruction that arrives later, mid-task: the swarm has been working on an earlier instruction for a while and is then told this one as a separate message. The scene shows the start, so the robots (and anything they pushed) are no longer where it shows them: never refer to where the robots or things are or were in the instruction or the thought (no "the group at the back", "the cheese on the left"); "i see" names only what cannot have moved (the terrain, which cheeses there are). Write the instruction as a message of its own, without mentioning any earlier task.
 

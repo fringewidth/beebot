@@ -406,7 +406,7 @@ def test_visible_drops_counts_and_coordinates_but_keeps_what_the_task_states():
     assert T.visible("you asked: line the blocks up. i see a red block at x 3. first: push the red block into the row at x = 7.", "line the blocks up", blocks) == "you asked: line the blocks up. i see a red block. first: push the red block into the row running back to front."
     subset = record("subset", "climb@count", "4 of you: climb", {"kind": "climb", "who": "count", "count": 4}, ["4 of you: climb"])
     assert T.visible("you asked: four of you climb. i see 30 robots and a plateau. the other 26 hold. first: 4 of you: climb.", "four of you climb", subset) == "you asked: four of you climb. i see the robots and a plateau. the others hold. first: 4 of you: climb."
-    assert T.visible("you asked: all 24 of you hold. i see 24 robots. first: hold still.", "all 24 of you hold", None) == "you asked: all 24 of you hold. i see 24 robots. first: hold still."  # the instruction states it
+    assert T.visible("you asked: all 24 of you hold. i see 24 robots. first: hold still.", "all 24 of you hold", None) == "you asked: all 24 of you hold. i see the robots. first: hold still."  # 10 or more: never said, even when the instruction states it
     crowds = T.visible("you asked: the right group moves. i see three crowds: 15 at the front left, 9 on the right. the 9 move, depth 4. first: the right group moves.", "the right group moves", None)
     assert not re.search(r"\d", crowds) and crowds.endswith("first: the right group moves.")
     assert T.visible("i see 54 robots on a flat floor. first: form a wall.", "form a wall") == "i see the robots on a flat floor. first: form a wall."  # no quote
@@ -576,3 +576,20 @@ def test_quarantine_skips_listed_episodes_and_drops_listed_labels(store, labels)
     kept = T.ThinkData([store], [labels], held_share=0.0, quarantine={"episodes": [[key, first.index, ["test"]]], "labels": [[pair["pair_id"], ["test"]]]})
     assert kept.quarantined == 1 and (first.seed, first.index) not in {(ep.seed, ep.index) for ep in kept.episodes}
     assert pair["thought"] not in [c["thought"] for ep in kept.episodes if ep.index == second.index for c in ep.choices]
+
+
+def test_robot_counts_of_ten_or_more_are_never_said():
+    from beebot.vla.voxel.think_data import counted, large_counts, visible
+
+    cases = [
+        ("you asked: form a wall. i see 54 robots on a flat floor and a red cheese. first: form a wall.", "form a wall"),
+        ("you asked: send half to the back. i see 31 robots. half is about 15 robots. first: half go to the back of the floor.", "send half to the back"),
+        ("you asked: all twenty of you, stay. i see a flat floor. all twenty means all robots. first: stay where you are.", "all twenty of you, stay"),
+    ]
+    for thought, instruction in cases:
+        out = visible(thought, instruction)
+        assert large_counts(out, instruction) == [], out
+        assert out.startswith(f"you asked: {instruction}.") and "first:" in out
+    kept = visible("you asked: 3 of you go left. i see 3 robots by a tower 12 high. first: 3 of you go to the left.", "3 of you go left", {"spec": {"count": 3, "height": 12}})
+    assert "3 robots" in kept and "12 high" in kept
+    assert counted({"thought": "x", "instruction": "build a 40 robot tower", "reply": "there are only 35 robots here, so no."})
