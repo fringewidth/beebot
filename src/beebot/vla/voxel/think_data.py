@@ -700,6 +700,24 @@ def held_out(seed, index, share):
     return int.from_bytes(digest[:8], "big") / 2**64 < share
 
 
+def scene_key(store, e):
+    """A digest of episode e's start scene (walls, start robots, cheeses, zones): the episodes that
+    demos.contrast plays on one scene share it."""
+    digest = hashlib.sha256(str(store.get("config", {}).get("seed")).encode())
+    for name in ("walls", "mass", "cheese_pos", "cheese_color", "zones"):
+        if name in store:  # older and synthetic stores lack zones
+            part = store[name][e, 0] if name in ("mass", "cheese_pos") else store[name][e]
+            digest.update(part.numpy().tobytes())
+    return digest.hexdigest()
+
+
+def held_out_scene(key, share):
+    """Whether the episodes of a start scene (scene_key) are held out: every episode of a scene
+    lands on the same side, so validation never sees a scene that training starts from (holding
+    out by (seed, index) put 59% of validation episodes in training scenes)."""
+    return int(key[:16], 16) / 2**64 < share
+
+
 @dataclass
 class Example:
     obs: torch.Tensor
@@ -821,7 +839,7 @@ class ThinkData:
             choices = [self.visibly(choice, record) for choice in choices]
             parts = [dict(part, choices=[self.visibly(choice, entries[part["part"]]["record"]) for choice in part["choices"]]) for part in parts[: len(entries)]]
             refusals = [self.visibly(pair, None) for pair in refusals]
-            out.append(Episode(k, int(row["e"]), seed, n, row["family"], held_out(seed, n, self.held_share), choices, parts, refusals, row.get("kind", ""), self.mix.get(mix_group(config), {}).get(f"{row['family']}|{row.get('kind', '')}", 1.0)))
+            out.append(Episode(k, int(row["e"]), seed, n, row["family"], held_out_scene(scene_key(store, int(row["e"])), self.held_share), choices, parts, refusals, row.get("kind", ""), self.mix.get(mix_group(config), {}).get(f"{row['family']}|{row.get('kind', '')}", 1.0)))
         return out
 
     def visibly(self, choice, record):
@@ -965,13 +983,17 @@ class ThinkData:
             position, turns = next(name for name in USER_NAMES if user_turns(azimuth, name) == 0), 0
         else:
             self.frames["turned" if turns else "world"] += 1
+        # a request the scene cannot satisfy (kind "refuse": an absent cheese, a tower taller than
+        # the world) is met by doing nothing, an action like any other (every robot STAY), as the
+        # stores' eat:absent episodes do; a clarification ("which zone?") stays a spoken question
+        acts = pair.get("kind") == "refuse"
         return Example(
             obs=obs,
             images=images,
             context_text=context(in_user_frame(pair["instruction"], turns), (), self.system, USER_POSITIONS[position][1]),
-            reply_text=text_reply(in_user_frame(pair["thought"], turns), in_user_frame(pair["reply"], turns)),
-            act=False,
-            codes=None,
+            reply_text=act_reply(in_user_frame(pair["thought"], turns)) if acts else text_reply(in_user_frame(pair["thought"], turns), in_user_frame(pair["reply"], turns)),
+            act=acts,
+            codes=torch.full(tuple(obs.shape[-3:]), STAY, dtype=torch.long) if acts else None,
             seed=ep.seed,
             index=ep.index,
             e=ep.e,
@@ -998,6 +1020,11 @@ class ThinkData:
         events = self.episode_events(ep)
         thought_steps = [ev.t for ev in events]
         steps = self.steps(ep)
+        # steps after the last part's "done." show a finished swarm standing still: they teach
+        # nothing about the instruction and made half of the plain steps (and ~84% STAY targets)
+        last = len(self.instructions(ep)) - 1
+        done = [ev.t for ev in events if ev.kind == "done" and ev.part == last]
+        steps = min(steps, done[-1] + 1) if done else steps
         if rng.random() < self.thought_share:
             t = thought_steps[int(rng.integers(len(thought_steps)))]
         else:
