@@ -53,7 +53,7 @@ import torch.distributed as dist
 from beebot.train import parse_config
 from beebot.vla import tpu
 from beebot.vla.lm_train import distill_loss, general_text, setup_distributed
-from beebot.vla.voxel.think import ThinkVoxelPolicy, checkpoint_meta, linear_attention_kernels, load_lm, trainable_state, use_matmul_linear_attention
+from beebot.vla.voxel.think import ThinkVoxelPolicy, checkpoint_meta, linear_attention_kernels, load_lm, trainable_state, use_autocast_sdpa, use_matmul_linear_attention
 from beebot.vla.voxel.world import N_CHANNELS
 
 
@@ -206,6 +206,7 @@ def run(cfg=None, index=0):
     lead = rank == 0
     if xla:
         use_matmul_linear_attention()
+        use_autocast_sdpa()  # XLA autocast leaves SDPA's inputs in mixed dtypes
     torch.manual_seed(cfg.seed)  # the same on every process: identical new weights
     run_dir = Path("runs") / cfg.name
     precision, amp_dtype = precision_of(cfg.precision, device)

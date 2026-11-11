@@ -97,7 +97,7 @@ def train(stage, args, steps):
     say(stage, exit=process.returncode, minutes=round((time.time() - started) / 60, 1), steps=last.get("step", 0), loss=last.get("loss"), text=last.get("text"), action=last.get("action"), examples_per_s=last.get("examples_per_s"), passed=process.returncode == 0 and last.get("step", 0) >= steps, tail=(process.stdout + process.stderr)[-1500:] if process.returncode else "")
 
 
-COMMON = ["--model", MODEL, "--batch", "4", "--accumulate", "1", "--checkpointing", "true", "--warmup_steps", "5", "--log_every", "10", "--val_examples", "0", "--val_every_minutes", "100000", "--save_every_minutes", "100000", "--save_resume", "false", "--distill_weight", "0", "--widths", "384,512"]
+COMMON = ["--model", MODEL, "--batch", "4", "--accumulate", "1", "--checkpointing", "true", "--warmup_steps", "5", "--log_every", "10", "--val_examples", "0", "--val_every_minutes", "100000", "--save_every_minutes", "100000", "--save_resume", "false", "--widths", "384,512"]  # distillation on (distill_weight 1.0), as in the kernel
 FAKE = {"images": 2, "image_size": 256, "side": 16, "scene": False, "act_share": 0.95, "instruction_words": 18, "thought_words": 40}
 
 

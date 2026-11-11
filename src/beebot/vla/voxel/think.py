@@ -187,6 +187,25 @@ def use_matmul_linear_attention():
     qwen35.torch_chunk_gated_delta_rule = chunk_gated_delta_rule_matmul
 
 
+def use_autocast_sdpa():
+    """Point transformers' "sdpa" attention at a version that gives scaled_dot_product_attention
+    one dtype under autocast. CUDA's autocast casts SDPA's inputs to its dtype; XLA's does not, and
+    Qwen3.5's full-attention layers hand it a query and key in fp32 (the rotary cos/sin follow the
+    fp32 hidden states) with a value in bf16 (v_proj under autocast), which SDPA refuses. Without
+    autocast the three already agree."""
+    from transformers.integrations.sdpa_attention import sdpa_attention_forward
+    from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS
+
+    def forward(module, query, key, value, attention_mask, **kwargs):
+        kind = query.device.type
+        dtype = torch.get_autocast_dtype(kind) if torch.is_autocast_enabled(kind) else query.dtype
+        if attention_mask is not None and attention_mask.is_floating_point():
+            attention_mask = attention_mask.to(dtype)
+        return sdpa_attention_forward(module, query.to(dtype), key.to(dtype), value.to(dtype), attention_mask, **kwargs)
+
+    ALL_ATTENTION_FUNCTIONS["sdpa"] = forward
+
+
 @dataclass
 class ThinkStep:
     """A greedy think-then-act step of a batch of B rows.
