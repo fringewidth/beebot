@@ -27,7 +27,7 @@ Arms (--arms; ARM_SPLITS says which splits each runs on):
   plain     the canonical plain sentence of the task (canonical_record "plain") instead of the
             instruction; the held-out splits (gate b's denominator)
   oracle    the episode's instruction with the canonical first thought fed on the first step of each
-            instruction (rollout.oracle_thought: the training template's thought, in the user's
+            instruction (rollout.oracle_thought: the training template's thought, in the camera's
             frame); gate b's numerator on the held-out splits
   expert    the scripted expert (rollout.ExpertActor) on the same scenes: the ceiling; held-out
             compositions have no plan, so there it is the robots staying still
@@ -270,29 +270,26 @@ def check_thought(thought, instruction, record):
 
 
 def in_frame(record, turns):
-    """A canonical record with its sentences said in the user's frame (think_data.in_user_frame),
-    so that areas compare with a thought said there."""
+    """A canonical record (world frame) with its sentences said in the frame of a camera at quarter
+    turn `turns` (think_data.in_user_frame), so that areas compare with a thought said there."""
     return {**record, "plain": T.in_user_frame(record.get("plain", ""), turns), "subgoals": [T.in_user_frame(g, turns) for g in record.get("subgoals") or []]}
 
 
 def said_texts(episode, played):
-    """The episode's instructions as the policy was given them: turned into the user's frame, or
-    as written when they are the user's words already (rollout.Episode.as_said)."""
+    """The episode's instructions as the policy was given them: turned into its camera's frame, or
+    as written when they are said in that frame already (rollout.Episode.as_said)."""
     return list(episode.texts) if episode.as_said else [T.in_user_frame(text, played.turns) for text in episode.texts]
 
 
 def thought_checks(episode, played):
     """Per instruction j: the check of the first thought given on its first step, against the
-    record and the instruction said in the episode's user frame."""
+    record and the instruction said in the episode's camera frame (the frame the policy thinks in)."""
     out = []
     for j, (text, start, record) in enumerate(zip(said_texts(episode, played), episode.starts, episode.records)):
         if start >= episode.steps:
             continue
         thought = next((t["text"] for t in played.thoughts if t["part"] == j and t["t"] == start), "")
-        # a thought that maps the user's words onto the board (think_data.FRAME_SENTENCE) plans in the
-        # board's terms: its record stays in the board's frame
-        frame = 0 if T.FRAME_SENTENCE in thought else played.turns
-        out.append({"part": j, "thought": thought, **check_thought(thought, text, in_frame(record, frame))})
+        out.append({"part": j, "thought": thought, **check_thought(thought, text, in_frame(record, played.turns))})
     return out
 
 
@@ -468,7 +465,6 @@ def episode_row(arm, episode, played, seconds, thinking):
         "unfinished": played.unfinished,
         "moved": round(float(np.mean(played.moves)) if played.moves else 0.0, 4),
         "thoughts": played.thoughts,
-        "user": played.user,
         "turns": played.turns,
         "camera": played.camera,
         "said": said_texts(episode, played),
