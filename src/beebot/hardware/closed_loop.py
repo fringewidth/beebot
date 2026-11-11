@@ -39,7 +39,7 @@ Swarm options (`swarm`, a dict passed to cube_swarm.Swarm) select the cube model
 release-bonds magnet mode once cube_swarm has one; without options the cubes have permanent
 magnets, under which a cube with a second face neighbour never moves (HARDWARE.md).
 
-    from beebot.hardware.closed_loop import hostable_episodes, play_mujoco
+    from beebot.hardware.closed_loop import hostable_episodes, play_mujoco, render
     from beebot.vla.voxel.rollout import ExpertActor, PolicyActor
     episodes = hostable_episodes(["motion:goto"], 1, seed=0)
     played, executor = play_mujoco(episodes, ExpertActor(episodes, episodes[0].seed), record=True)
@@ -339,7 +339,8 @@ class Order:
 class Executor(Tracked):
     """advance(world, codes, priority, t) for rollout.play: carries out every scene's step with
     the cubes of one cube_swarm.Swarm per episode (module docstring). episodes: rollout.Episodes
-    on hostable scenes. mode: MODES. swarm: options for cube_swarm.Swarm (jitter, magnets, ...);
+    on hostable scenes. mode: MODES. swarm: options for cube_swarm.Swarm (jitter, settle; a magnet
+    mode once cube_swarm has a release-bonds one);
     each Swarm is seeded with its episode's seed. rule: the grid rule that filters the codes (None:
     every code goes to MuJoCo's plan). stop: a scene that passes its checker makes no more moves.
     snap: put cubes off the lattice back on the nearest free cell. record: keep the cubes' poses
