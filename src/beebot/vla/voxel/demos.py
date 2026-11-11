@@ -96,13 +96,15 @@ def maker_problem(task, world, meta, i, arrays, rule, score):
             return "gravity_shape"
     static = {"walls": world.walls[i].numpy(), "cheese_color": world.cheese_color[i].tolist(), "gravity": bool(world.gravity[i]), "meta": meta}
     t0, part = (task.spec["steps"][-1], task.parts[-1]) if task.parts else (0, task)
-    snap = {"mass": arrays["mass"][i, t0].numpy().astype(np.float32), "cheese_pos": arrays["cheese_pos"][i, t0].numpy().astype(np.int64), "cheese_alive": arrays["cheese_alive"][i, t0].numpy().copy()}
+    def snapshot(t):  # taken only where needed: a nothing-to-do switch's last instruction can arrive after a short episode's last frame
+        return {"mass": arrays["mass"][i, t].numpy().astype(np.float32), "cheese_pos": arrays["cheese_pos"][i, t].numpy().astype(np.int64), "cheese_alive": arrays["cheese_alive"][i, t].numpy().copy()}
+
     if "tower" in kind:
-        last = {"mass": arrays["mass"][i, -1].numpy().astype(np.float32), "cheese_pos": arrays["cheese_pos"][i, -1].numpy().astype(np.int64), "cheese_alive": arrays["cheese_alive"][i, -1].numpy().copy()}
-        if any(share < 1.0 for share in S.tower_shares(S.record_spec(part), static, snap, last)):
+        if any(share < 1.0 for share in S.tower_shares(S.record_spec(part), static, snapshot(t0), snapshot(-1))):
             return "short_tower"
     if NOTHING_TO_DO.search(kind):
         return None
+    snap = snapshot(t0)
     still, _ = S.score(part, static, snap, snap, [])
     return "done_at_start" if still >= SUCCESS.get(task.family, 0.75) else None
 FIELDS = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
