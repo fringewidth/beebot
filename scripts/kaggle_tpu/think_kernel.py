@@ -277,8 +277,9 @@ note(phase="gate" if ROLE == "first" else "second", passed=True, examples_per_s=
 # the stores' episodes sampled to the keep task mix (runs/task_mix.json, in the cloned repo; the
 # code dataset fallback has none and samples every episode equally)
 MIX = os.path.join(os.path.dirname(SRC), "runs", "task_mix.json")
-REAL_DATA = {"mismatch": "drop", **({"mix": MIX} if os.path.isfile(MIX) else {})}
-print(f"task mix weights: {MIX if os.path.isfile(MIX) else 'none (equal episodes)'}", flush=True)
+QUARANTINE = os.path.join(os.path.dirname(SRC), "runs", "quarantine.json")  # bug-sweep episodes and labels to skip
+REAL_DATA = {"mismatch": "drop", **({"mix": MIX} if os.path.isfile(MIX) else {}), **({"quarantine": QUARANTINE} if os.path.isfile(QUARANTINE) else {})}
+print(f"task mix weights: {MIX if os.path.isfile(MIX) else 'none (equal episodes)'}; quarantine: {QUARANTINE if os.path.isfile(QUARANTINE) else 'none'}", flush=True)
 real = [*continued, "--name", NAME, "--model", MODEL, "--data", "think", "--stores", ",".join(stores), "--haiku_dirs", ",".join(haiku), "--data_kwargs", json.dumps(REAL_DATA), "--views", "scene", "--batch", str(batch), "--accumulate", "1", "--weights_dtype", weights, "--steps", str(steps), "--warmup_steps", "50", "--wall_minutes", str(round(minutes, 1)), "--checkpointing", "true", "--val_examples", "64", "--val_every_minutes", "60", "--save_every_minutes", "60", "--log_every", "10", "--widths", "384,512"]
 rows = train("real", 8, real, first_log_minutes=40)
 done = [r for r in rows if "examples_per_s" in r]
