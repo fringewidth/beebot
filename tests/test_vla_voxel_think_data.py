@@ -4,6 +4,7 @@ sub-goal record, memory of earlier thoughts, instruction changes, Haiku labels j
 token layout. Most tests use a small synthetic store; one writes a tiny real store."""
 
 import json
+from pathlib import Path
 import re
 
 import numpy as np
@@ -565,3 +566,13 @@ def test_no_steps_are_drawn_after_the_task_is_done(store, labels):
     rng = np.random.default_rng(3)
     drawn = [data.sample(rng) for _ in range(600)]
     assert all(ex.t <= done[(ex.seed, ex.index)] for ex in drawn if (ex.seed, ex.index) in done)
+
+
+def test_quarantine_skips_listed_episodes_and_drops_listed_labels(store, labels):
+    data = T.ThinkData([store], [labels], held_share=0.0)
+    key = T.store_key(load(store)["config"])
+    first, second = data.episodes[0], next(ep for ep in data.episodes[1:] if ep.choices)
+    pair = next(json.loads(line) for line in (Path(labels) / "verified.jsonl").read_text().splitlines() if json.loads(line)["index"] == second.index and json.loads(line)["rung"] != "refusal")
+    kept = T.ThinkData([store], [labels], held_share=0.0, quarantine={"episodes": [[key, first.index, ["test"]]], "labels": [[pair["pair_id"], ["test"]]]})
+    assert kept.quarantined == 1 and (first.seed, first.index) not in {(ep.seed, ep.index) for ep in kept.episodes}
+    assert pair["thought"] not in [c["thought"] for ep in kept.episodes if ep.index == second.index for c in ep.choices]
