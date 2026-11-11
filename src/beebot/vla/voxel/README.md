@@ -282,13 +282,14 @@ What was measured and what is extrapolated:
 | | basis |
 | --- | --- |
 | one extra face bond holds the cube | measured: 0 of 121 (77 with exactly one bond); floor peel, convex up and down, traverse, wall crawl. Concave moves with a bond were not tried and are assumed held too |
-| free cubes move | measured: floor roll 34 of 34, concave up 12 of 14, concave down 5 of 5, convex up from hanging 21 of 33, convex up 0.77 to 0.91 with retries. Here an allowed move simply happens; `--failure` is the only noise, and a harmful failure (off the lattice, a knocked neighbour: 3 to 9% of convex ups, more in the ten-cube scene) is not modelled |
+| free cubes move | measured: floor roll 34 of 34, concave up 12 of 14, concave down 5 of 5, convex up from hanging 21 of 33, convex up 0.77 to 0.91 with retries. Here an allowed move simply happens; `--failure` is the only noise, and a harmful failure (off the lattice, a knocked neighbour: 3 to 9% of convex ups, more in the ten-cube scene) is not modelled. The closed loop measures it: free floor rolls reached 1,305 of 1,327; over all 7,048 pivots of 46 expert episodes 5.1% were harmful (permanent magnets) |
 | the pivot table (support, swing) | `cube_swarm.plan`, which every measured move went through |
 | terrain as a support and never a bond | extrapolated from the steel floor (grip 0.3); no terrain in MuJoCo |
 | a cheese: rolled over, never climbed, never a bond; presses unrestricted | assumed; no cheese in MuJoCo. A cube held by a bond can still press |
-| an edge contact does not hold | optimistic: hinged movers reached 16 of 23, but a floor roll away from an edge contact stayed 18 of 22 times at the calibrated speed |
+| an edge contact does not hold | optimistic: hinged movers reached 16 of 23, but a floor roll away from an edge contact stayed 18 of 22 times at the calibrated speed. In the closed loop (`hardware/closed_loop.py`, permanent magnets, HARDWARE.md "Closed loop") floor rolls of a cube touching another by an edge stayed 1,962 of 2,190 times and ended off the lattice 164 times |
+| a cube can climb onto any cube | optimistic: up and over onto a lone cube reached 1 of 20 (10 shoved the support away, 9 ended off the lattice); onto the end of a row of three 18 of 20 (HARDWARE.md "Closed loop") |
 | sliding into a slot beside a cube works | optimistic: 3 of 22 got in, 6 ended off the lattice. `pivot_moves(rubs=True)` refuses it; no named rule uses it, because it rules out every filled 2 x 2 footprint |
-| one at a time | assumed; only single movers were simulated |
+| one at a time | measured in the closed loop (`hardware/closed_loop.py`): movers that share no cell, do not pivot on one another and do not touch can turn at once; on 11 paired episodes harmful outcomes were 0.052 per pivot in such waves against 0.040 one at a time, in less than half the simulated time. Touching movers twist each other off the lattice, so waves keep them apart (HARDWARE.md "Closed loop") |
 | what holds a structure up | unchanged: the voxel world's support rule |
 
 `hardware/physics.py` (`allowed_moves`) is a different, looser rule for a geared crawler: it

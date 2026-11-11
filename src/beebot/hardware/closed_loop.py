@@ -943,9 +943,17 @@ def hindrance(move):
 
 
 def load(path):
+    """(episode rows, move rows) of a measure run; the moves from out's .moves.jsonl, or the same
+    gzipped (.moves.jsonl.gz)."""
+    import gzip
+
     rows = [json.loads(line) for line in open(path)]
     moves_path = path.replace(".jsonl", "") + ".moves.jsonl"
-    moves = [json.loads(line) for line in open(moves_path)] if os.path.exists(moves_path) else []
+    moves = []
+    if os.path.exists(moves_path):
+        moves = [json.loads(line) for line in open(moves_path)]
+    elif os.path.exists(moves_path + ".gz"):
+        moves = [json.loads(line) for line in gzip.open(moves_path + ".gz", "rt")]
     return rows, moves
 
 
