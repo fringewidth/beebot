@@ -100,6 +100,7 @@ haiku = [f"{root}/haiku/{h}" for h in HAIKU]
 missing = [p for p in stores + haiku if not os.path.isdir(p)]
 assert not missing, f"missing data: {missing}"
 print("data root", root, "role", ROLE, flush=True)
+print("inputs:", sorted(p for p in glob.glob("/kaggle/input/datasets/*/*/*") if not p.endswith("/data")), flush=True)  # which dataset versions are mounted
 resume = [p for p in find("resume.pt", 9) if os.path.isfile(p)]
 if ROLE == "second" and not resume:
     note(phase="second", error="no resume.pt in the inputs: not training from scratch, exiting")
