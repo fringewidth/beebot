@@ -179,15 +179,21 @@ def prepare_world(world):
     return replace(world, gravity=torch.ones_like(world.gravity))
 
 
-def play(episodes, actor, rule=RULE, failure=FAILURE, record=False, outcomes=None):
+def play(episodes, actor, rule=RULE, failure=FAILURE, record=False, outcomes=None, advance=None):
     """Play a batch of episodes with actor(world, t) -> (B, D, H, W) codes; the world and its
     scoring as suite.run (switch tasks scored on their last instruction from the step it came,
     runners flee every RUNNER_PERIOD steps), but with each episode's own generators and length:
     an episode past its steps stays still. outcomes: a world.OutcomeModel in place of failure
     (pass failure=None with it): each pivot ends as MuJoCo shows for its class. Returns a Played
-    per episode (without the actor's thoughts, which the actor adds)."""
+    per episode (without the actor's thoughts, which the actor adds).
+    advance(world, codes, priority, t) -> world, if given, carries out a step in place of the
+    grid's world.step (hardware/closed_loop.py: pivoting cubes in MuJoCo); codes are the actor's
+    after the failure draw, priority the step's move-order scores (B, D, H, W). It replaces the
+    grid's step, so it does not go with an outcome model."""
     if outcomes is not None and failure is not None:
         raise ValueError("give failure rates or an outcome model, not both")
+    if outcomes is not None and advance is not None:
+        raise ValueError("advance carries out the steps in place of the grid; it takes no outcome model")
     world = concat([prepare_world(e.world) for e in episodes])
     b = len(episodes)
     steps = max(e.steps for e in episodes)
@@ -224,11 +230,13 @@ def play(episodes, actor, rule=RULE, failure=FAILURE, record=False, outcomes=Non
             dropped = torch.stack([torch.rand(codes.shape[1:], generator=g) for g in fails]) < failure[codes]
             effective = torch.where(dropped, torch.full_like(codes, STAY), codes)
         before = world.cheese_alive.clone()
-        if outcomes is None:
-            world, _ = step(world, effective, torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in noise]), rule)
+        priority = torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in noise])
+        if advance is not None:
+            world = advance(world, effective, priority, t)
+        elif outcomes is None:
+            world, _ = step(world, effective, priority, rule)
         else:
-            order = torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in noise])
-            world, _ = step(world, effective, order, rule, outcomes, torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in fails]))
+            world, _ = step(world, effective, priority, rule, outcomes, torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in fails]))
         fleeing = runners & live.view(-1, 1)
         if fleeing.any() and (t + 1) % S.RUNNER_PERIOD == 0:
             world = replace(world, cheese_pos=S.flee(world, fleeing))
