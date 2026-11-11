@@ -74,7 +74,6 @@ def xla_setup(index=0):
 
         torch_xla.backends.set_mat_mul_precision("highest")
     except Exception as error:  # torch_xla before 2.6
-        os.environ.setdefault("XLA_USE_32BIT_LONG", "0")
         print(f"could not set the XLA matmul precision: {error}", flush=True)
     return xr.global_ordinal(), xr.world_size(), xm.xla_device()
 
