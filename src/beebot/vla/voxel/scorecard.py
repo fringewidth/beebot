@@ -285,14 +285,14 @@ def thought_checks(episode, played):
     """Per instruction j: the check of the first thought given on its first step, against the
     record and the instruction said in the episode's user frame."""
     out = []
-    for j, (said, start, record) in enumerate(zip(said_texts(episode, played), episode.starts, episode.records)):
+    for j, (text, start, record) in enumerate(zip(said_texts(episode, played), episode.starts, episode.records)):
         if start >= episode.steps:
             continue
         thought = next((t["text"] for t in played.thoughts if t["part"] == j and t["t"] == start), "")
         # a thought that maps the user's words onto the board (think_data.FRAME_SENTENCE) plans in the
         # board's terms: its record stays in the board's frame
         frame = 0 if T.FRAME_SENTENCE in thought else played.turns
-        out.append({"part": j, "thought": thought, **check_thought(thought, said, in_frame(record, frame))})
+        out.append({"part": j, "thought": thought, **check_thought(thought, text, in_frame(record, frame))})
     return out
 
 
