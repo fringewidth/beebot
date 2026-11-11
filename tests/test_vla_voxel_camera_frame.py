@@ -24,6 +24,20 @@ def test_the_convention_on_one_voxel_and_one_move():
     assert all(C.world_word(C.camera_word(w, k), k) == w for w in C.SIDES for k in range(4))
 
 
+def test_world_actions_turn_the_policys_codes_back_with_the_camera_pose():
+    """The closed loop's helpers: a camera at azimuth 100 (the world's right, quarter turn 1); the
+    policy's move to the camera's right (+x') is the world's back (-y)."""
+    right = torch.full((2, 3, 3), W.DIRS.index((0, 0, 1)))
+    assert (C.world_actions(right, 100.0) == W.DIRS.index((0, -1, 0))).all()
+    assert (C.world_actions(right, 350.0) == W.DIRS.index((0, 0, 1))).all()  # the default camera: unchanged
+    obs = torch.rand(4, 2, 3, 3)
+    for azimuth in (10.0, 100.0, 190.0, 280.0):
+        codes = torch.randint(0, W.N_ACTIONS, (2, 3, 3), generator=torch.Generator().manual_seed(int(azimuth)))
+        k = C.quarter_turns(azimuth)
+        assert torch.equal(C.world_actions(C.turn_codes(codes, k), azimuth), codes)
+        assert torch.equal(C.policy_observation(obs, azimuth), C.turn_grid(obs, k))
+
+
 def test_codes_permute_with_stay_fixed_and_unturn_inverts():
     for k in range(4):
         table = C.CODE_TURNS[k]

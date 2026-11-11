@@ -27,9 +27,11 @@ Policy actions. turn_codes maps world-frame action codes (world.DIR_TABLE, STAY 
 frame (the training targets); unturn_codes maps the policy's camera-frame codes back into the world
 frame before the world (or the MuJoCo cubes) steps:
 
-    k = quarter_turns(pose["azimuth"])            # the views' camera pose of the episode
-    obs_policy = turn_grid(observe(world)[i], k)  # what the policy sees
-    codes_world = unturn_codes(codes_policy, k)   # what the world steps with
+    obs_policy = policy_observation(observe(world)[i], pose["azimuth"])  # what the policy sees
+    codes_world = world_actions(codes_policy, pose["azimuth"])           # what the world (or MuJoCo) steps with
+
+(policy_observation and world_actions are turn_grid and unturn_codes with k = quarter_turns of the
+azimuth; rollout.PolicyActor already returns world-frame codes.)
 
 CODE_TURNS[k][c] is the camera-frame code of world code c (STAY stays STAY); CODE_UNTURNS[k] is its
 inverse. turn_world turns a whole VoxelWorld (for tests: world.step commutes with the turn, up to
@@ -114,6 +116,21 @@ def unturn_codes(codes, turns):
     steps with. The inverse of turn_codes."""
     k = turns % 4
     return _recode(unturn_grid(codes, k), CODE_UNTURNS[k]) if k else codes
+
+
+def policy_observation(obs, azimuth):
+    """A world-frame observation (C, D, H, W) (world.observe of one scene; torch or numpy) as the
+    policy sees it: in the frame of the camera at `azimuth` (degrees, pose["azimuth"] of the
+    episode's views)."""
+    return turn_grid(obs, quarter_turns(azimuth))
+
+
+def world_actions(codes, azimuth):
+    """The policy's action codes (camera frame, (..., D, H, W) long in 0..26) turned back into the
+    world's frame, for the camera at `azimuth` (degrees: pose["azimuth"] of the episode's views,
+    rollout.Played.camera): what world.step, or the MuJoCo cubes, execute. The inverse of the turn
+    that made the training targets (turn_codes)."""
+    return unturn_codes(codes, quarter_turns(azimuth))
 
 
 def _turn_points(y, x, h, w, turns):
