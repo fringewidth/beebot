@@ -1091,12 +1091,16 @@ class Expert:
         return codes
 
 
-def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, failure=None, rule=None):
+def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, failure=None, rule=None, outcomes=None):
     """Roll out a batch: actor(world, t) -> action codes (B, D, H, W). Returns per episode
     (score, unasked), and with record the store arrays (mass, actions, cheese_pos, cheese_alive)
     of the episodes. failure: (27,) per-action probability that a robot's move does not happen
     this step (world.failure_rates); the recorded action stays the one the actor chose. rule: a
-    pivot rule (world.RULES) the world enforces: a move it forbids does not happen either."""
+    pivot rule (world.RULES) the world enforces: a move it forbids does not happen either.
+    outcomes: a world.OutcomeModel in place of failure: each pivot ends as MuJoCo shows for its
+    class (world.step); with record the arrays also hold "stuck" (B, steps + 1, D, H, W)."""
+    if outcomes is not None and failure is not None:
+        raise ValueError("give failure rates or an outcome model, not both")
     generator = torch.Generator().manual_seed(seed)
     failures = torch.Generator().manual_seed(seed + 7_919)
     runners = torch.zeros(world.cheese_alive.shape, dtype=torch.bool)
@@ -1107,6 +1111,7 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, f
     since = [(snapshot(world, i), 0) for i in range(len(tasks))]  # a switch task is scored from the step its last instruction began: (snapshot, eaten so far)
     early = [False] * len(tasks)  # a switch task ate what an earlier instruction forbade
     masses, actions, positions, alive = [world.mass.to(torch.uint8)], [], [world.cheese_pos.to(torch.int8)], [world.cheese_alive]
+    stuck = [torch.zeros(world.mass.shape, dtype=torch.bool) if world.stuck is None else world.stuck]
     for t in range(steps):
         for i, task in enumerate(tasks):
             if task.parts and t in task.spec["steps"][1:]:
@@ -1116,7 +1121,11 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, f
         codes = actor(world, t)
         before = world.cheese_alive.clone()
         effective_codes = codes if failure is None else fail_moves(codes, failure, failures)
-        world, _ = step(world, effective_codes.long(), torch.rand(world.mass.shape, generator=generator), rule)
+        if outcomes is None:
+            world, _ = step(world, effective_codes.long(), torch.rand(world.mass.shape, generator=generator), rule)
+        else:
+            score_noise = torch.rand(world.mass.shape, generator=generator)
+            world, _ = step(world, codes.long(), score_noise, rule, outcomes, torch.rand(world.mass.shape, generator=failures))
         if runners.any() and (t + 1) % RUNNER_PERIOD == 0:
             world = replace(world, cheese_pos=flee(world, runners))
         for i, k in (before & ~world.cheese_alive).nonzero().tolist():
@@ -1126,6 +1135,8 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, f
             masses.append(world.mass.to(torch.uint8))
             positions.append(world.cheese_pos.to(torch.int8))
             alive.append(world.cheese_alive)
+            if outcomes is not None:
+                stuck.append(world.stuck.clone())
     results = []
     for i, task in enumerate(tasks):
         static = {"walls": start.walls[i].numpy(), "cheese_color": start.cheese_color[i].tolist(), "gravity": bool(start.gravity[i]), "meta": metas[i]}
@@ -1137,6 +1148,8 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, f
     if not record:
         return results, None
     arrays = {"mass": torch.stack(masses, 1), "actions": torch.stack(actions, 1), "cheese_pos": torch.stack(positions, 1), "cheese_alive": torch.stack(alive, 1)}
+    if outcomes is not None:
+        arrays["stuck"] = torch.stack(stuck, 1)
     return results, arrays
 
 
