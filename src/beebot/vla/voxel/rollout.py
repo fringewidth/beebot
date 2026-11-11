@@ -83,18 +83,21 @@ class SceneViews:
         self.spec = V.ViewSpec() if spec is None else spec
         self.looks = {}
 
-    def __call__(self, obs, rng):
+    def __call__(self, obs, rng, side=None):
+        """side: the board side the camera looks from (views.side_azimuth), drawn otherwise."""
         if id(rng) not in self.looks:
-            self.looks[id(rng)] = (rng, self.V.sample_look(rng, self.spec))  # the rng is kept so that its id is not reused
+            spec = self.spec if side is None else replace(self.spec, azimuth=self.V.side_azimuth(side, rng))
+            self.looks[id(rng)] = (rng, self.V.sample_look(rng, spec))  # the rng is kept so that its id is not reused
         return self.V.scene_views(obs, rng, self.spec, look=self.looks[id(rng)][1])
 
 
-def user_frame(texts, azimuth, rng, user=None):
+def user_frame(texts, azimuth, rng, user=None, as_said=False):
     """(user place, quarter turns) of an episode: the place drawn as think_data draws it (or `user`),
-    turned to the world's frame when an instruction cannot be turned (think_data.mappable)."""
+    turned to the world's frame when an instruction cannot be turned (think_data.mappable), unless
+    the texts are already said in the user's frame (as_said)."""
     position = user if user is not None else T.USER_NAMES[int(rng.integers(len(T.USER_NAMES)))]
     turns = T.user_turns(azimuth, position)
-    if turns and not all(T.mappable(text) for text in texts):
+    if turns and not as_said and not all(T.mappable(text) for text in texts):
         position = next(name for name in T.USER_NAMES if T.user_turns(azimuth, name) == 0)
         turns = 0
     return position, turns
@@ -110,7 +113,9 @@ class Episode:
     carries its parts); texts[j]: the instruction given from step starts[j] on; records[j]: the
     canonical record (suite.canonical_record) of the instruction in force then, for oracle thoughts
     and thought checks; oracle: feed canonical first thoughts; key: what identifies it in reports;
-    user: the user's place (think_data.USER_NAMES) instead of a drawn one."""
+    user: the user's place (think_data.USER_NAMES) instead of a drawn one; camera: the board side
+    the camera looks from (else drawn); as_said: the texts are already in the user's frame (said as
+    they are, never turned; basics eval)."""
 
     world: object
     meta: dict
@@ -123,6 +128,8 @@ class Episode:
     oracle: bool = False
     key: dict = field(default_factory=dict)
     user: str | None = None
+    camera: str | None = None
+    as_said: bool = False
 
 
 @dataclass
@@ -269,11 +276,11 @@ class PolicyActor:
         builds it; the user's frame is drawn on the episode's first step."""
         e = self.episodes[i]
         if self.frames[i] is None:
-            position, turns = user_frame(e.texts, azimuth, self.frame_rng[i], e.user)
+            position, turns = user_frame(e.texts, azimuth, self.frame_rng[i], e.user, e.as_said)
             self.frames[i] = (position, turns, azimuth)
         position, turns, _ = self.frames[i]
         j = part_at(e.starts, t)
-        text = T.context(T.in_user_frame(e.texts[j], turns), self.memory[i], self.system, T.USER_POSITIONS[position][1])
+        text = T.context(T.in_user_frame(e.texts[j], 0 if e.as_said else turns), self.memory[i], self.system, T.USER_POSITIONS[position][1])
         thought = None
         if e.oracle and t == e.starts[j]:
             part = S.instruction_at(e.task, t) if e.task.parts else e.task
@@ -289,7 +296,8 @@ class PolicyActor:
             return codes
         contexts, images, forced = [], [], []
         for i in rows:
-            pictures, azimuth = T.views_and_pose(self.views(obs[i], self.view_rng[i]))
+            side = {"side": self.episodes[i].camera} if self.episodes[i].camera else {}
+            pictures, azimuth = T.views_and_pose(self.views(obs[i], self.view_rng[i], **side))
             text, thought = self.context(i, t, world, azimuth)
             contexts.append(text)
             images.append(pictures if self.vision else [])

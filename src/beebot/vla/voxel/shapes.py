@@ -1007,7 +1007,7 @@ def gen_pot(rng):
     return [P("disc", (0, 0, 0), (1, s, s), "base"), P("tube", (1, 0, 0), (h, s, s), "wall")]
 
 
-def gen_crate(rng):
+def gen_chest(rng):
     d, w, h = _ri(rng, 3, 6), _ri(rng, 3, 6), _ri(rng, 1, 3)
     return [P("slab", (0, 0, 0), (1, d, w), "bottom"), P("ring", (1, 0, 0), (h, d, w), "sides")]
 
@@ -1132,7 +1132,7 @@ _add("boat", "vehicle", gen_boat, ("contain",), held_out=True)
 _add("rocket", "vehicle", gen_rocket, held_out=True)
 _add("cup", "container", gen_cup, ("contain",))
 _add("pot", "container", gen_pot, ("contain",))
-_add("crate", "container", gen_crate, ("contain",))
+_add("chest", "container", gen_chest, ("contain",))  # was "crate", a held-out word for block (wordings.json)
 _add("tree", "plant", gen_tree)
 _add("pine tree", "plant", gen_pine_tree)
 _add("cactus", "plant", gen_cactus, held_out=True)

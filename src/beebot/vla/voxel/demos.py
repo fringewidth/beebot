@@ -37,6 +37,7 @@ the scene's swarm can do (suite.fits) also when --robots is not given.
 
 import argparse
 import json
+import re
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -50,6 +51,32 @@ from beebot.vla.voxel.free_cube import FreeCubeExpert, apart
 from beebot.vla.voxel.world import CUBE_MOVES, FAILURE_RATE, MAX_OBJECTS, RULES, VoxelWorld, concat, failure_rates, with_objects
 
 SUCCESS = S.SUCCESS  # checker score an episode needs to count as a demonstration
+FLOATING = ("cube", "sphere", "ring", "plus")  # formation shapes that need gravity off: under a rule the expert can only pile robots
+NOTHING_TO_DO = re.compile(r"(absent|none|^stay|>stay)$")  # task kinds whose right answer is to do nothing
+
+
+def maker_problem(task, world, meta, i, arrays, rule, score):
+    """Why an episode that passes its checker is still no demonstration (None when it is one):
+    gravity_shape  a formation shape that needs gravity off, drawn under a rule (gravity on)
+    done_at_start  the task (a switch: its last instruction, when it arrives) already passes before
+                   any move, unless doing nothing is the task
+    short_tower    a tower that stops short of the asked height
+    (bugs B1, B2/B9 and B3 of the data sweep of 2026-11-11; scripts/vla_quarantine.py lists the
+    episodes of older stores that have them.)"""
+    kind = S.task_kind(task)
+    if rule is not None and task.family == "formation":
+        record = S.record_spec(task)  # the shape and standing live in the record, not task.spec
+        if record.get("shape") in FLOATING or record.get("standing"):
+            return "gravity_shape"
+    if kind == "tower" and score < 1.0:
+        return "short_tower"
+    if NOTHING_TO_DO.search(kind):
+        return None
+    static = {"walls": world.walls[i].numpy(), "cheese_color": world.cheese_color[i].tolist(), "gravity": bool(world.gravity[i]), "meta": meta}
+    t0, part = (task.spec["steps"][-1], task.parts[-1]) if task.parts else (0, task)
+    snap = {"mass": arrays["mass"][i, t0].numpy().astype(np.float32), "cheese_pos": arrays["cheese_pos"][i, t0].numpy().astype(np.int64), "cheese_alive": arrays["cheese_alive"][i, t0].numpy().copy()}
+    still, _ = S.score(part, static, snap, snap, [])
+    return "done_at_start" if still >= SUCCESS.get(task.family, 0.75) else None
 FIELDS = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
 OBJECT_FIELDS = ("form", "colour2", "pattern", "friction", "food", "zones")  # per episode in small.pt when the draw has objects (README "Objects")
 MOVES = {"all": None, "cube": CUBE_MOVES}
@@ -210,9 +237,12 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         results, arrays = S.run(world, metas, tasks, player, steps=steps, seed=run_seed, record=True, failure=failure, rule=rule)
         for i, ((score, unasked), task) in enumerate(zip(results, tasks)):
             tried[task.family] = tried.get(task.family, 0) + 1
-            is_demo = not unasked and score >= SUCCESS.get(task.family, 0.75)
+            passed = not unasked and score >= SUCCESS.get(task.family, 0.75)
+            problem = maker_problem(task, world, metas[i], i, arrays, rule, float(score)) if passed else None
+            is_demo = passed and problem is None
             n_robots = int(world.mass[i].sum())
-            attempts.write(json.dumps({"family": task.family, "kind": S.task_kind(task), "robots": n_robots, "score": round(float(score), 4), "unasked": bool(unasked), "e": row if is_demo else -1}) + "\n")
+            rejected = {"rejected": problem} if problem else {}
+            attempts.write(json.dumps({"family": task.family, "kind": S.task_kind(task), "robots": n_robots, "score": round(float(score), 4), "unasked": bool(unasked), "e": row if is_demo else -1, **rejected}) + "\n")
             if not is_demo:
                 continue
             kept[task.family] = kept.get(task.family, 0) + 1
