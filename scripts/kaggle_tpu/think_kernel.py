@@ -8,7 +8,8 @@
     1. if the eight-chip rate is at least GATE examples/s: the real run on the real data (the
        Mac run's settings, scripts in the beebot-think-data dataset) for the rest of the session,
        step-named checkpoints and resume.pt every hour under /kaggle/working/runs/<name>/;
-       otherwise exit at once.
+       otherwise exit at once. ROLE "second" (a second account) continues the first session from
+       a resume.pt in its inputs, or runs seed 1 when there is none.
 
 Code: the tpu-port branch of github.com/fringewidth/beebot (this script re-runs as the branch's copy).
 Inputs: the private datasets beebot-src-tpu (src/ as beebot-src-tpu.tar.gz; used when the clone
@@ -30,6 +31,10 @@ import threading
 import time
 
 T0 = float(os.environ.get("BEEBOT_T0", time.time()))  # the session's start, kept across the re-exec below
+# "first": the real run from the pretrained LM. "second" (the copy queued on a second account): a
+# resume.pt in the inputs (dataset beebot-think-resume) continues the first session's run, else the
+# same run from the pretrained LM with seed 1. Kept across the re-exec through BEEBOT_ROLE.
+ROLE = os.environ.get("BEEBOT_ROLE", "first")
 SESSION_MINUTES = 9 * 60  # Kaggle's TPU session limit
 MARGIN_MINUTES = 25  # the real run's last validation, last save and the output upload
 GATE = 5.0  # examples/s on eight chips to go on to the real run
@@ -68,7 +73,7 @@ if not os.environ.get("BEEBOT_SRC"):
     if cloned and os.path.isfile(script):
         commit = subprocess.run(["git", "-C", CLONE, "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
         print(f"code: branch tpu-port at {commit}", flush=True)
-        os.environ.update({"BEEBOT_SRC": f"{CLONE}/src", "BEEBOT_T0": str(T0)})
+        os.environ.update({"BEEBOT_SRC": f"{CLONE}/src", "BEEBOT_T0": str(T0), "BEEBOT_ROLE": ROLE})
         os.execv(sys.executable, [sys.executable, script])
     print("clone failed: the code from the beebot-src-tpu dataset", flush=True)
     code = find("beebot-src-tpu.tar.gz")
@@ -199,8 +204,20 @@ if rate < GATE:
 minutes = SESSION_MINUTES - (time.time() - T0) / 60 - MARGIN_MINUTES
 global_batch = 8 * batch
 steps = max(100, int(0.85 * rate * minutes * 60 / global_batch))
-note(phase="gate", passed=True, examples_per_s=rate, gate=GATE, batch_per_chip=batch, weights=weights, global_batch=global_batch, steps=steps, wall_minutes=round(minutes, 1))
-real = ["--name", NAME, "--model", MODEL, "--data", "think", "--stores", ",".join(stores), "--haiku_dirs", ",".join(haiku), "--data_kwargs", json.dumps({"mismatch": "drop"}), "--views", "scene", "--batch", str(batch), "--accumulate", "1", "--weights_dtype", weights, "--steps", str(steps), "--warmup_steps", "50", "--wall_minutes", str(round(minutes, 1)), "--checkpointing", "true", "--val_examples", "64", "--val_every_minutes", "60", "--save_every_minutes", "60", "--log_every", "10", "--widths", "384,512"]
+continued = []  # the second account's arguments: a resumed run, or seed 1
+if ROLE == "second":
+    resume = [p for p in find("resume.pt", 9) if os.path.isfile(p)]
+    if resume:
+        try:
+            start = int(torch.load(resume[0], map_location="cpu", mmap=True, weights_only=False)["step"])
+        except TypeError:  # a torch without mmap loading
+            start = int(torch.load(resume[0], map_location="cpu")["step"])
+        steps += start  # the cosine restarts at start / steps: a warm restart for this session's share
+        NAME, continued = f"{NAME}-cont", ["--resume", resume[0]]
+    else:
+        NAME, continued = f"{NAME}-seed1", ["--seed", "1"]
+note(phase="gate", passed=True, examples_per_s=rate, gate=GATE, batch_per_chip=batch, weights=weights, global_batch=global_batch, steps=steps, wall_minutes=round(minutes, 1), role=ROLE, name=NAME, continued=continued)
+real = [*continued, "--name", NAME, "--model", MODEL, "--data", "think", "--stores", ",".join(stores), "--haiku_dirs", ",".join(haiku), "--data_kwargs", json.dumps({"mismatch": "drop"}), "--views", "scene", "--batch", str(batch), "--accumulate", "1", "--weights_dtype", weights, "--steps", str(steps), "--warmup_steps", "50", "--wall_minutes", str(round(minutes, 1)), "--checkpointing", "true", "--val_examples", "64", "--val_every_minutes", "60", "--save_every_minutes", "60", "--log_every", "10", "--widths", "384,512"]
 rows = train("real", 8, real, first_log_minutes=40)
 done = [r for r in rows if "examples_per_s" in r]
 note(phase="real", chips=8, steps=done[-1]["step"] if done else 0, examples_per_s=done[-1]["examples_per_s"] if done else 0, checkpoints=sorted(os.path.basename(p) for p in glob.glob(f"{WORK}/runs/{NAME}/policy_step*.pt")))
