@@ -67,6 +67,15 @@ def xla_setup(index=0):
             xr.initialize_cache(os.path.join(cache, f"{os.environ.get('BEEBOT_XLA_PROCESSES', '1')}-{index}"), readonly=False)
         except Exception as error:  # an older torch_xla, or the runtime already started
             print(f"no persistent XLA cache: {error}", flush=True)
+    # fp32 matmuls at full precision: TPUs default to one bf16 pass, which the linear-attention
+    # inverse (think.unit_lower_inverse) and the delta rule's state products cannot afford
+    try:
+        import torch_xla.backends
+
+        torch_xla.backends.set_mat_mul_precision("highest")
+    except Exception as error:  # torch_xla before 2.6
+        os.environ.setdefault("XLA_USE_32BIT_LONG", "0")
+        print(f"could not set the XLA matmul precision: {error}", flush=True)
     return xr.global_ordinal(), xr.world_size(), xm.xla_device()
 
 

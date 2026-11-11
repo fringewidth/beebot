@@ -116,18 +116,25 @@ class Packed:
 
 
 def unit_lower_inverse(a):
-    """(I + L)^-1 for the strictly lower triangle L of a (..., c, c), c a power of two: L is
-    nilpotent, so the inverse is the product of (I + (-L)^(2^j)) for j < log2(c), log2(c) squarings
-    and products of c x c matrices instead of a triangular solve (which XLA may not lower). fp32."""
+    """(I + L)^-1 for the strictly lower triangle L of a (..., c, c), c a power of two, by
+    recursive 2 x 2 block inversion, [[A, 0], [C, B]]^-1 = [[A^-1, 0], [-B^-1 C A^-1, B^-1]],
+    done for all blocks of one size at once: log2(c) levels of c x c matmuls instead of a
+    triangular solve (which XLA may not lower). fp32. (The earlier product of (I + (-L)^(2^j))
+    overflowed when keys in a chunk were correlated: powers of L grow like binomial coefficients,
+    errors of 1e3 to 1e16 on Qwen3.5's real slot rows.)"""
     c = a.shape[-1]
     assert c & (c - 1) == 0, f"chunk size {c} is not a power of two"
     with torch.autocast(a.device.type, enabled=False):
-        power = -a.float().tril(-1)
-        eye = torch.eye(c, dtype=power.dtype, device=power.device)
-        inverse = eye + power
-        for _ in range(c.bit_length() - 2):
-            power = power @ power
-            inverse = inverse @ (eye + power)
+        lower = a.float().tril(-1)
+        index = torch.arange(c, device=lower.device)
+        rows, cols = index[:, None], index[None, :]
+        inverse = torch.eye(c, dtype=lower.dtype, device=lower.device).expand(lower.shape).clone()
+        size = 1
+        while size < c:
+            # the lower-left (size x size) block of every (2 size x 2 size) diagonal block
+            block = ((rows // (2 * size)) == (cols // (2 * size))) & (rows % (2 * size) >= size) & (cols % (2 * size) < size)
+            inverse = inverse - inverse @ (lower * block.to(lower.dtype)) @ inverse
+            size *= 2
     return inverse
 
 
