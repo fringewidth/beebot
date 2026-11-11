@@ -1,0 +1,227 @@
+## Lattice outcomes per class (reached stayed off strayed knock), n, MuJoCo knock incl. sub-cell shoves
+### permanent / isolated: 2924 moves
+floor_roll                                 n  200   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+floor_roll_slot                            n  200   0.01  0.71  0.28  0.00  0.00   harmful 0.275  raw knock  0.00
+floor_peel                                 n  200   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+traverse                                   n  200   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up_lone                             n  200   0.17  0.04  0.29  0.06  0.44   harmful 0.790  raw knock  0.50
+convex_up_row                              n  200   0.83  0.00  0.14  0.03  0.00   harmful 0.170  raw knock  0.01
+convex_up_hang                             n  200   0.65  0.29  0.06  0.01  0.00   harmful 0.060  raw knock  0.00
+convex_down_lone                           n  200   0.71  0.00  0.06  0.00  0.23   harmful 0.290  raw knock  0.33
+convex_down_row                            n  200   0.99  0.01  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+concave_up_lone                            n  200   0.00  0.00  0.00  0.00  1.00   harmful 1.000  raw knock  1.00
+concave_up_backed                          n  200   0.98  0.02  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+concave_down                               n  200   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+floor_roll_edge                            n  199   0.15  0.85  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up_backed                           n  199   0.91  0.01  0.07  0.02  0.00   harmful 0.080  raw knock  0.01
+wall_crawl                                 n  126   0.97  0.03  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+### release / isolated: 899 moves
+floor_roll                                 n   60   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+floor_roll_slot                            n   60   0.48  0.48  0.03  0.00  0.00   harmful 0.033  raw knock  0.00
+floor_peel                                 n   60   0.28  0.72  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+traverse                                   n   60   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up_lone                             n   60   0.20  0.02  0.28  0.05  0.45   harmful 0.783  raw knock  0.48
+convex_up_backed                           n   60   0.93  0.02  0.03  0.02  0.00   harmful 0.050  raw knock  0.00
+convex_up_row                              n   60   0.80  0.00  0.18  0.02  0.00   harmful 0.200  raw knock  0.02
+convex_up_hang                             n   60   0.85  0.00  0.13  0.02  0.00   harmful 0.150  raw knock  0.00
+convex_down_lone                           n   60   0.78  0.00  0.07  0.00  0.15   harmful 0.217  raw knock  0.25
+convex_down_row                            n   60   0.98  0.00  0.00  0.02  0.00   harmful 0.017  raw knock  0.00
+concave_up_lone                            n   60   0.00  0.00  0.00  0.00  1.00   harmful 1.000  raw knock  1.00
+concave_up_backed                          n   60   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+concave_down                               n   60   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+wall_crawl                                 n   60   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+floor_roll_edge                            n   59   0.93  0.07  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+### release / layouts: 529 moves
+floor_roll/bonded/hinged                   n   80   0.01  0.99  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up/bonded/hinged                    n   70   0.39  0.40  0.14  0.07  0.00   harmful 0.214  raw knock  0.00
+floor_roll                                 n   69   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_down/bonded/hinged                  n   34   0.68  0.03  0.29  0.00  0.00   harmful 0.294  raw knock  0.00
+floor_roll/bonded                          n   29   0.17  0.83  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up                                  n   27   0.89  0.00  0.11  0.00  0.00   harmful 0.111  raw knock  0.00
+traverse/bonded/hinged                     n   23   0.83  0.17  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_down/hinged                         n   18   0.78  0.00  0.22  0.00  0.00   harmful 0.222  raw knock  0.00
+traverse                                   n   17   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+floor_roll/bonded/hinged/rubs              n   15   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+concave_up                                 n   15   0.93  0.07  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up/bonded/hinged/rubs/lone          n   10   0.10  0.70  0.20  0.00  0.00   harmful 0.200  raw knock  0.00
+convex_up_hang/hinged                      n    9   0.67  0.11  0.22  0.00  0.00   harmful 0.222  raw knock  0.00
+convex_up/bonded/hinged/lone               n    8   0.00  0.00  0.25  0.00  0.75   harmful 1.000  raw knock  0.75
+traverse/hinged                            n    8   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up/hinged/rubs                      n    8   0.50  0.25  0.25  0.00  0.00   harmful 0.250  raw knock  0.00
+convex_down/bonded/hinged/rubs             n    8   0.75  0.12  0.12  0.00  0.00   harmful 0.125  raw knock  0.00
+concave_up/hinged                          n    7   0.71  0.29  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up/hinged                           n    7   0.86  0.00  0.14  0.00  0.00   harmful 0.143  raw knock  0.00
+convex_down/hinged/rubs                    n    7   0.57  0.14  0.14  0.00  0.14   harmful 0.286  raw knock  0.14
+convex_up/bonded/hinged/rubs               n    6   0.00  0.67  0.33  0.00  0.00   harmful 0.333  raw knock  0.00
+concave_down/hinged                        n    5   0.80  0.20  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+wall_crawl/bonded/hinged                   n    5   0.60  0.40  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+wall_crawl/bonded/hinged/rubs              n    4   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+floor_roll/hinged/rubs                     n    4   0.25  0.75  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up/lone                             n    4   0.00  0.00  0.25  0.00  0.75   harmful 1.000  raw knock  0.75
+convex_up/bonded/lone                      n    4   0.25  0.00  0.50  0.00  0.25   harmful 0.750  raw knock  0.25
+wall_crawl/hinged                          n    4   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+concave_up/bonded/hinged                   n    3   0.67  0.00  0.33  0.00  0.00   harmful 0.333  raw knock  0.00
+floor_roll/hinged                          n    3   0.67  0.33  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+wall_crawl/bonded/rubs                     n    2   0.00  0.50  0.50  0.00  0.00   harmful 0.500  raw knock  0.00
+concave_up/hinged/rubs                     n    2   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up_hang/bonded/hinged               n    2   0.00  0.50  0.50  0.00  0.00   harmful 0.500  raw knock  0.00
+convex_down                                n    2   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+concave_down                               n    2   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up/hinged/lone                      n    1   0.00  0.00  1.00  0.00  0.00   harmful 1.000  raw knock  0.00
+concave_up/hinged/lone                     n    1   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+concave_up/bonded                          n    1   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+traverse/bonded                            n    1   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+wall_crawl/hinged/rubs                     n    1   0.00  0.00  1.00  0.00  0.00   harmful 1.000  raw knock  0.00
+traverse/bonded/hinged/rubs                n    1   0.00  0.00  0.00  0.00  1.00   harmful 1.000  raw knock  1.00
+concave_down/hinged/rubs                   n    1   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+convex_up/bonded                           n    1   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00
+### release / stores: 380 moves
+floor_roll                                 n   44   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.140
+floor_roll/bonded/hinged/rubs              n   31   0.06  0.90  0.03  0.00  0.00   harmful 0.032  raw knock  0.00  store share 0.091
+floor_roll/hinged/rubs                     n   26   0.27  0.65  0.08  0.00  0.00   harmful 0.077  raw knock  0.00  store share 0.100
+floor_roll/bonded                          n   22   0.64  0.36  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.053
+floor_roll/bonded/hinged                   n   22   0.23  0.77  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.064
+convex_up/bonded/hinged                    n   11   0.45  0.55  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.033
+concave_up/bonded/hinged/rubs              n   10   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.013
+convex_up/hinged                           n   10   0.70  0.10  0.20  0.00  0.00   harmful 0.200  raw knock  0.00  store share 0.019
+floor_roll/hinged                          n   10   0.70  0.30  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.036
+convex_down                                n    9   0.78  0.00  0.11  0.00  0.11   harmful 0.222  raw knock  0.11  store share 0.009
+concave_up                                 n    9   0.44  0.44  0.00  0.00  0.11   harmful 0.111  raw knock  0.11  store share 0.008
+convex_up/bonded/hinged/rubs               n    9   0.00  0.78  0.22  0.00  0.00   harmful 0.222  raw knock  0.00  store share 0.031
+convex_down/hinged/rubs                    n    8   0.62  0.12  0.25  0.00  0.00   harmful 0.250  raw knock  0.00  store share 0.020
+traverse/bonded/hinged/rubs                n    8   0.25  0.75  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.014
+traverse/bonded/hinged                     n    7   0.43  0.57  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.011
+convex_up/hinged/rubs                      n    7   0.14  0.71  0.14  0.00  0.00   harmful 0.143  raw knock  0.00  store share 0.012
+concave_down/hinged                        n    7   0.57  0.43  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.006
+wall_crawl/bonded/hinged/rubs              n    6   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.022
+concave_down/bonded/hinged/rubs            n    6   0.17  0.83  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.006
+convex_up                                  n    6   0.83  0.00  0.17  0.00  0.00   harmful 0.167  raw knock  0.00  store share 0.006
+convex_down/hinged                         n    6   0.83  0.00  0.00  0.17  0.00   harmful 0.167  raw knock  0.00  store share 0.018
+convex_up/bonded/lone                      n    6   0.33  0.00  0.67  0.00  0.00   harmful 0.667  raw knock  0.00  store share 0.004
+convex_down/rubs/lone                      n    6   0.17  0.00  0.83  0.00  0.00   harmful 0.833  raw knock  0.00  store share 0.004
+convex_up_hang/hinged                      n    6   0.67  0.17  0.17  0.00  0.00   harmful 0.167  raw knock  0.00  store share 0.021
+traverse/hinged                            n    6   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.017
+wall_crawl/hinged/rubs                     n    6   0.33  0.67  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.010
+concave_down/hinged/rubs                   n    5   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.005
+concave_up/hinged/rubs                     n    5   0.00  0.80  0.20  0.00  0.00   harmful 0.200  raw knock  0.00  store share 0.008
+convex_up/lone                             n    5   0.40  0.00  0.20  0.20  0.20   harmful 0.600  raw knock  0.20  store share 0.008
+concave_up/bonded/hinged                   n    5   0.60  0.20  0.20  0.00  0.00   harmful 0.200  raw knock  0.00  store share 0.015
+traverse                                   n    5   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.006
+convex_up_hang/hinged/rubs                 n    5   0.20  0.60  0.20  0.00  0.00   harmful 0.200  raw knock  0.00  store share 0.011
+convex_down/lone                           n    5   0.40  0.00  0.20  0.00  0.40   harmful 0.600  raw knock  0.60  store share 0.008
+wall_crawl/bonded/hinged                   n    5   0.20  0.80  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.012
+convex_up_hang/bonded/hinged/rubs          n    4   0.00  0.75  0.25  0.00  0.00   harmful 0.250  raw knock  0.00  store share 0.010
+wall_crawl/hinged                          n    4   0.25  0.50  0.25  0.00  0.00   harmful 0.250  raw knock  0.00  store share 0.011
+concave_up/hinged                          n    4   0.50  0.25  0.25  0.00  0.00   harmful 0.250  raw knock  0.00  store share 0.031
+convex_up_hang/bonded/hinged               n    4   0.50  0.50  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.006
+convex_down/bonded/hinged/rubs             n    3   0.67  0.00  0.33  0.00  0.00   harmful 0.333  raw knock  0.00  store share 0.019
+traverse/hinged/rubs                       n    3   0.67  0.33  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.010
+convex_down/bonded/hinged                  n    3   0.33  0.33  0.33  0.00  0.00   harmful 0.333  raw knock  0.00  store share 0.015
+concave_up/bonded                          n    2   0.50  0.50  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.002
+convex_up/bonded                           n    2   0.50  0.50  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.003
+wall_crawl/bonded/rubs                     n    2   0.00  0.50  0.50  0.00  0.00   harmful 0.500  raw knock  0.00  store share 0.002
+wall_crawl                                 n    2   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.006
+wall_crawl/bonded                          n    1   1.00  0.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.003
+concave_down/bonded/hinged                 n    1   0.00  1.00  0.00  0.00  0.00   harmful 0.000  raw knock  0.00  store share 0.003
+convex_down/hinged/rubs/lone               n    1   0.00  0.00  1.00  0.00  0.00   harmful 1.000  raw knock  0.00  store share 0.002
+
+## Store-weighted per pivot (release, 0.96 of the stores' pivots in measured classes): reached 0.468 stayed 0.439 off 0.081 strayed 0.005 knock 0.007
+harmful per pivot 0.093; by class (share of all harm):
+   concave_up/hinged                           0.09
+   floor_roll/hinged/rubs                      0.09
+   convex_up/bonded/hinged/rubs                0.08
+   convex_down/bonded/hinged/rubs              0.07
+   convex_down/hinged/rubs                     0.06
+   convex_down/lone                            0.06
+   convex_down/bonded/hinged                   0.06
+   convex_up/lone                              0.05
+   convex_up/hinged                            0.04
+   convex_up_hang/hinged                       0.04
+   convex_down/rubs/lone                       0.04
+   concave_up/bonded/hinged                    0.03
+   by primitive: {'convex_down': 0.36, 'convex_up': 0.24, 'concave_up': 0.15, 'floor_roll': 0.12, 'convex_up_hang': 0.09, 'wall_crawl': 0.04, 'concave_down': 0.0, 'traverse': 0.0} ; lone supports: 0.21 of the harm from 0.027 of the pivots
+
+## Ten-cube scene (release): 529 pivots, reached 0.522 stayed 0.355 off 0.091 strayed 0.009 knock 0.023
+harmful by class: {'convex_up/bonded/hinged': 15, 'convex_down/bonded/hinged': 10, 'convex_up/bonded/hinged/lone': 8, 'convex_down/hinged': 4, 'convex_up/lone': 4, 'convex_up': 3, 'convex_up/bonded/lone': 3, 'convex_up/bonded/hinged/rubs': 2, 'convex_up_hang/hinged': 2, 'convex_down/hinged/rubs': 2}
+
+## What harm leaves (release; frame h, s, h x s from the mover's start): count outcome who from to off
+     24 ('off', 'mover', (0, 0, 0), (0, 0, 0), True)
+     23 ('off', 'mover', (0, 0, 0), (1, 0, 0), True)
+      4 ('knock', 'mover', (0, 0, 0), (0, 3, 0), False)
+      4 ('knock', 'other', (0, 1, 0), (0, 2, 0), False)
+      4 ('off', 'mover', (0, 0, 0), (1, 1, 0), True)
+      4 ('off', 'mover', (0, 0, 0), (-1, -3, 0), True)
+      3 ('off', 'mover', (0, 0, 0), (0, -2, 0), True)
+      3 ('knock', 'other', (0, 1, 0), (-1, 1, 0), False)
+      2 ('knock', 'mover', (0, 0, 0), (0, 0, 0), False)
+      2 ('off', 'mover', (0, 0, 0), (-1, -4, 0), True)
+      2 ('off', 'mover', (0, 0, 0), (0, 3, 0), True)
+      2 ('off', 'mover', (0, 0, 0), (0, -3, 0), True)
+      2 ('strayed', 'mover', (0, 0, 0), (1, 0, 0), False)
+      2 ('off', 'mover', (0, 0, 0), (0, -1, 0), True)
+      2 ('knock', 'mover', (0, 0, 0), (1, 1, 0), True)
+      2 ('knock', 'other', (0, 1, 0), (0, 1, 0), True)
+      2 ('strayed', 'mover', (0, 0, 0), (0, 3, 0), False)
+      2 ('off', 'mover', (0, 0, 0), (-1, -2, -1), True)
+      2 ('knock', 'mover', (0, 0, 0), (-1, 2, 0), False)
+      1 ('knock', 'other', (0, -2, -1), (1, -1, -2), True)
+      1 ('knock', 'other', (1, -2, -2), (0, 0, -3), True)
+      1 ('knock', 'other', (1, -1, -1), (0, 0, -1), True)
+      1 ('knock', 'other', (1, -2, -1), (1, 0, -2), True)
+      1 ('knock', 'other', (2, -2, -2), (0, 1, -3), True)
+      1 ('off', 'mover', (0, 0, 0), (0, 2, 0), True)
+
+## Together: 160 runs; first mover own end (with company, alone): {('reached', 'reached'): 39, ('stayed', 'stayed'): 30, ('off', 'off'): 4, ('stayed', 'reached'): 2, ('reached', 'stayed'): 2, ('off', 'reached'): 2, ('off', 'stayed'): 1}
+   movers with company: Counter({'stayed': 108, 'reached': 98, 'off': 21}); steps with a knock 17 of 227 mover rows
+   alone: Counter({'reached': 43, 'stayed': 33, 'off': 4}); knock rows 4 of 80
+
+## grid_mujoco_outcome_gap (weighted TV over 0.96 of the stores' pivots): before 0.459; after, 5-fold held out: fit on stores 0.113; fit on stores + ten-cube 0.135; fit on stores + ten-cube + isolated 0.168; best (stores) in sample 0.074; noise floor at these counts 0.099
+   floor_roll                                 w 0.140 n   44 before 0.111 after 0.001 shipped 0.000  mujoco [1. 0. 0. 0. 0.] old grid [0.89 0.11 0.   0.   0.  ] new grid [1. 0. 0. 0. 0.]
+   floor_roll/hinged/rubs                     w 0.100 n   26 before 0.609 after 0.040 shipped 0.018  mujoco [0.27 0.65 0.08 0.   0.  ] old grid [0.88 0.12 0.   0.   0.  ] new grid [0.29 0.65 0.06 0.   0.  ]
+   floor_roll/bonded/hinged/rubs              w 0.091 n   31 before 0.835 after 0.022 shipped 0.015  mujoco [0.06 0.9  0.03 0.   0.  ] old grid [0.9 0.1 0.  0.  0. ] new grid [0.08 0.89 0.04 0.   0.  ]
+   floor_roll/bonded/hinged                   w 0.064 n   22 before 0.665 after 0.049 shipped 0.021  mujoco [0.23 0.77 0.   0.   0.  ] old grid [0.89 0.11 0.   0.   0.  ] new grid [0.21 0.79 0.   0.   0.  ]
+   floor_roll/bonded                          w 0.053 n   22 before 0.273 after 0.076 shipped 0.004  mujoco [0.64 0.36 0.   0.   0.  ] old grid [0.91 0.09 0.   0.   0.  ] new grid [0.63 0.37 0.   0.   0.  ]
+   floor_roll/hinged                          w 0.036 n   10 before 0.196 after 0.121 shipped 0.125  mujoco [0.7 0.3 0.  0.  0. ] old grid [0.9 0.1 0.  0.  0. ] new grid [0.57 0.41 0.02 0.   0.  ]
+   convex_up/bonded/hinged                    w 0.033 n   11 before 0.311 after 0.170 shipped 0.083  mujoco [0.45 0.55 0.   0.   0.  ] old grid [0.69 0.23 0.   0.   0.08] new grid [0.37 0.56 0.03 0.   0.03]
+   concave_up/hinged                          w 0.031 n    4 before 0.365 after 0.260 shipped 0.146  mujoco [0.5  0.25 0.25 0.   0.  ] old grid [0.86 0.14 0.   0.   0.  ] new grid [0.35 0.38 0.27 0.   0.  ]
+   convex_up/bonded/hinged/rubs               w 0.031 n    9 before 0.796 after 0.208 shipped 0.125  mujoco [0.   0.78 0.22 0.   0.  ] old grid [0.8 0.2 0.  0.  0. ] new grid [0.12 0.69 0.19 0.   0.  ]
+   wall_crawl/bonded/hinged/rubs              w 0.022 n    6 before 0.854 after 0.097 shipped 0.097  mujoco [0. 1. 0. 0. 0.] old grid [0.85 0.15 0.   0.   0.  ] new grid [0.1 0.9 0.  0.  0. ]
+   convex_up_hang/hinged                      w 0.021 n    6 before 0.167 after 0.306 shipped 0.132  mujoco [0.67 0.17 0.17 0.   0.  ] old grid [0.78 0.22 0.   0.   0.  ] new grid [0.53 0.27 0.19 0.   0.  ]
+   convex_down/hinged/rubs                    w 0.020 n    8 before 0.281 after 0.052 shipped 0.031  mujoco [0.62 0.12 0.25 0.   0.  ] old grid [0.91 0.09 0.   0.   0.  ] new grid [0.65 0.09 0.26 0.   0.  ]
+   convex_down/bonded/hinged/rubs             w 0.019 n    3 before 0.333 after 0.139 shipped 0.181  mujoco [0.67 0.   0.33 0.   0.  ] old grid [0.9 0.1 0.  0.  0. ] new grid [0.49 0.12 0.39 0.   0.  ]
+   convex_up/hinged                           w 0.019 n   10 before 0.200 after 0.113 shipped 0.108  mujoco [0.7 0.1 0.2 0.  0. ] old grid [0.77 0.23 0.   0.   0.  ] new grid [0.6  0.21 0.19 0.   0.  ]
+   convex_down/hinged                         w 0.018 n    6 before 0.167 after 0.167 shipped 0.167  mujoco [0.83 0.   0.   0.17 0.  ] old grid [0.85 0.15 0.   0.   0.  ] new grid [0.95 0.05 0.   0.   0.  ]
+   traverse/hinged                            w 0.017 n    6 before 0.111 after 0.132 shipped 0.076  mujoco [1. 0. 0. 0. 0.] old grid [0.89 0.11 0.   0.   0.  ] new grid [0.92 0.08 0.   0.   0.  ]
+   concave_up/bonded/hinged                   w 0.015 n    5 before 0.308 after 0.458 shipped 0.400  mujoco [0.6 0.2 0.2 0.  0. ] old grid [0.91 0.09 0.   0.   0.  ] new grid [0.32 0.6  0.08 0.   0.  ]
+   convex_down/bonded/hinged                  w 0.015 n    3 before 0.569 after 0.250 shipped 0.250  mujoco [0.33 0.33 0.33 0.   0.  ] old grid [0.9 0.1 0.  0.  0. ] new grid [0.58 0.15 0.26 0.   0.  ]
+   traverse/bonded/hinged/rubs                w 0.014 n    8 before 0.630 after 0.083 shipped 0.000  mujoco [0.25 0.75 0.   0.   0.  ] old grid [0.88 0.12 0.   0.   0.  ] new grid [0.25 0.75 0.   0.   0.  ]
+   concave_up/bonded/hinged/rubs              w 0.013 n   10 before 0.900 after 0.192 shipped 0.142  mujoco [0. 1. 0. 0. 0.] old grid [0.9 0.1 0.  0.  0. ] new grid [0.13 0.86 0.01 0.   0.  ]
+   convex_up/hinged/rubs                      w 0.012 n    7 before 0.649 after 0.304 shipped 0.220  mujoco [0.14 0.71 0.14 0.   0.  ] old grid [0.79 0.21 0.   0.   0.  ] new grid [0.36 0.51 0.13 0.   0.  ]
+   wall_crawl/bonded/hinged                   w 0.012 n    5 before 0.725 after 0.058 shipped 0.058  mujoco [0.2 0.8 0.  0.  0. ] old grid [0.73 0.07 0.   0.   0.19] new grid [0.14 0.83 0.02 0.   0.01]
+   wall_crawl/hinged                          w 0.011 n    4 before 0.656 after 0.156 shipped 0.146  mujoco [0.25 0.5  0.25 0.   0.  ] old grid [0.91 0.09 0.   0.   0.  ] new grid [0.27 0.62 0.1  0.   0.  ]
+   convex_up_hang/hinged/rubs                 w 0.011 n    5 before 0.517 after 0.208 shipped 0.158  mujoco [0.2 0.6 0.2 0.  0. ] old grid [0.72 0.28 0.   0.   0.  ] new grid [0.36 0.44 0.2  0.   0.  ]
+
+## Per primitive (store-weighted mixtures; TV of the mixtures, before and after 5-fold)
+   all                              w 0.963 n  380 before 0.398 after 0.024  mujoco [0.47 0.44 0.08 0.   0.01] old [0.86 0.13 0.   0.   0.01] new [0.45 0.46 0.08 0.   0.01]
+   floor_roll                       w 0.484 n  155 before 0.383 after 0.013  mujoco [0.51 0.47 0.02 0.   0.  ] old [0.89 0.11 0.   0.   0.  ] new [0.5  0.48 0.02 0.   0.  ]
+   floor_roll (hinged or bonded)    w 0.344 n  111 before 0.584 after 0.018  mujoco [0.31 0.66 0.03 0.   0.  ] old [0.89 0.11 0.   0.   0.  ] new [0.29 0.68 0.03 0.   0.  ]
+   floor_roll (free)                w 0.140 n   44 before 0.111 after 0.001  mujoco [1. 0. 0. 0. 0.] old [0.89 0.11 0.   0.   0.  ] new [1. 0. 0. 0. 0.]
+   convex_up                        w 0.116 n   56 before 0.413 after 0.026  mujoco [0.35 0.46 0.15 0.01 0.01] old [0.75 0.22 0.   0.   0.03] new [0.38 0.46 0.14 0.   0.01]
+   convex_up (hinged or bonded)     w 0.102 n   45 before 0.455 after 0.030  mujoco [0.32 0.53 0.15 0.   0.  ] old [0.74 0.22 0.   0.   0.04] new [0.34 0.52 0.13 0.   0.01]
+   convex_down                      w 0.096 n   41 before 0.333 after 0.058  mujoco [0.59 0.08 0.26 0.03 0.05] old [0.9 0.1 0.  0.  0. ] new [0.64 0.06 0.24 0.   0.05]
+   concave_up                       w 0.078 n   35 before 0.509 after 0.165  mujoco [0.38 0.45 0.16 0.   0.01] old [0.89 0.11 0.   0.   0.  ] new [0.22 0.61 0.17 0.   0.  ]
+   convex_down (hinged or bonded)   w 0.074 n   21 before 0.290 after 0.072  mujoco [0.61 0.1  0.25 0.04 0.  ] old [0.89 0.11 0.   0.   0.  ] new [0.68 0.08 0.23 0.   0.  ]
+   concave_up (hinged or bonded)    w 0.070 n   26 before 0.517 after 0.170  mujoco [0.37 0.45 0.18 0.   0.  ] old [0.89 0.11 0.   0.   0.  ] new [0.2  0.61 0.19 0.   0.  ]
+   wall_crawl                       w 0.065 n   26 before 0.634 after 0.059  mujoco [0.26 0.68 0.06 0.   0.  ] old [0.83 0.11 0.   0.   0.06] new [0.2  0.72 0.07 0.   0.01]
+   wall_crawl (hinged or bonded)    w 0.059 n   24 before 0.702 after 0.021  mujoco [0.19 0.75 0.07 0.   0.  ] old [0.82 0.11 0.   0.   0.07] new [0.17 0.75 0.07 0.   0.01]
+   traverse                         w 0.058 n   29 before 0.247 after 0.007  mujoco [0.65 0.35 0.   0.   0.  ] old [0.9 0.1 0.  0.  0. ] new [0.64 0.36 0.   0.   0.  ]
+   traverse (hinged or bonded)      w 0.052 n   24 before 0.287 after 0.000  mujoco [0.61 0.39 0.   0.   0.  ] old [0.9 0.1 0.  0.  0. ] new [0.61 0.39 0.   0.   0.  ]
+   convex_up_hang                   w 0.048 n   19 before 0.362 after 0.087  mujoco [0.4  0.43 0.17 0.   0.  ] old [0.74 0.23 0.   0.   0.02] new [0.32 0.48 0.19 0.   0.01]
+   convex_up_hang (hinged or bonded) w 0.048 n   19 before 0.362 after 0.087  mujoco [0.4  0.43 0.17 0.   0.  ] old [0.74 0.23 0.   0.   0.02] new [0.32 0.48 0.19 0.   0.01]
+   convex_down (free)               w 0.021 n   20 before 0.484 after 0.039  mujoco [0.52 0.   0.28 0.   0.2 ] old [0.91 0.09 0.   0.   0.  ] new [0.49 0.01 0.27 0.   0.23]
+   concave_down                     w 0.019 n   19 before 0.686 after 0.012  mujoco [0.22 0.78 0.   0.   0.  ] old [0.9 0.1 0.  0.  0. ] new [0.23 0.77 0.   0.   0.  ]
+   concave_down (hinged or bonded)  w 0.019 n   19 before 0.686 after 0.012  mujoco [0.22 0.78 0.   0.   0.  ] old [0.9 0.1 0.  0.  0. ] new [0.23 0.77 0.   0.   0.  ]
+   convex_up (free)                 w 0.014 n   11 before 0.410 after 0.142  mujoco [0.59 0.   0.19 0.11 0.11] old [0.81 0.19 0.   0.   0.  ] new [0.65 0.08 0.18 0.03 0.05]
+   concave_up (free)                w 0.008 n    9 before 0.444 after 0.125  mujoco [0.44 0.44 0.   0.   0.11] old [0.89 0.11 0.   0.   0.  ] new [0.43 0.56 0.01 0.   0.  ]
+   traverse (free)                  w 0.006 n    5 before 0.108 after 0.075  mujoco [1. 0. 0. 0. 0.] old [0.89 0.11 0.   0.   0.  ] new [0.92 0.08 0.   0.   0.  ]
+   wall_crawl (free)                w 0.006 n    2 before 0.083 after 0.458  mujoco [1. 0. 0. 0. 0.] old [0.92 0.08 0.   0.   0.  ] new [0.54 0.38 0.08 0.   0.  ]
