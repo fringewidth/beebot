@@ -2,27 +2,28 @@
 
     python -m beebot.vla.voxel.basics --checkpoint runs/<run>/policy_step<k>.pt [--per 8] [--arms policy,still,expert]
 
-Plain direction instructions, said by a user standing somewhere around the board, seen by a camera
-from a drawn side: "go to my left", "head to the far right corner", "go north", "take three steps
+Plain direction instructions, said by the user standing at the camera, which looks from a drawn
+side of the board: "go to my left", "head to the far right corner", "go north", "take three steps
 toward me". Nothing in training is a direction family of its own: whether these work is what the
 model has made of every other task's directions, so the eval measures that, and nothing here
 feeds training.
 
-Frames. The camera's board side and the user's place relative to the camera (think_data.
-USER_POSITIONS) are drawn per episode; together they put the user at one side of the board
-(haiku_frame.user_side). The user's directions map onto the board as haiku_frame.mapping does
-and as people talk: "left" and "right" are the user's own; "the front", "near", "toward me" and
-"south" are the side nearest the user; "the back", "far", "forward", "away" and "north" the side
-away from them; east is their right, west their left. The instruction goes to the policy exactly
-as said (rollout.Episode.as_said), with the user turn saying where the user stands.
+Frames. The user always stands at the camera, and the policy works in the camera's frame
+(camera_frame.py). The camera's board side is drawn per episode (rollout.Episode.camera pins it).
+The user's directions are camera-frame words, as people talk: "left" and "right" are the user's
+(the camera's) own; "the front", "near", "toward me" and "south" are the side nearest the camera;
+"the back", "far", "forward", "away" and "north" the side away from it; east is its right, west its
+left. The instruction goes to the policy exactly as said (rollout.Episode.as_said).
 
-Scoring. Each instruction becomes the suite task it means on the board: go to a side or corner
-area (coverage goto, whole swarm) or take three steps toward a side (coverage move); the suite's
-checker scores it and the pass mark is the suite's (rollout.passed). As the suite's own draw does
-(suite.make_motion), a scene where the task already scores half marks, or a move has no room for
-its steps (suite.has_room), is drawn again (feasible). Arms: the policy (argmax
-actions), standing still (the floor of the scale) and the scripted expert given the board task
-(the ceiling: what the scene and the move failures allow).
+Scoring. Each instruction is scored in the world's frame: its camera-frame directions are turned
+back onto the board (haiku_frame.mapping of the camera's side, camera_frame.world_word) and it
+becomes the suite task it means there: go to a side or corner area (coverage goto, whole swarm) or
+take three steps toward a side (coverage move); the suite's checker scores it and the pass mark is
+the suite's (rollout.passed). As the suite's own draw does (suite.make_motion), a scene where the
+task already scores half marks, or a move has no room for its steps (suite.has_room), is drawn
+again (feasible). Arms: the policy (argmax actions), standing still (the floor of the scale) and
+the scripted expert given the board task (the ceiling: what the scene and the move failures
+allow).
 
 Output: one JSON line per arm and category (side, corner, compass, steps) and one per arm over
 all: {"run": "basics", "arm", "category", "episodes", "pass", "score"}. ops follows these lines
@@ -38,8 +39,8 @@ import torch
 
 from beebot.vla.voxel import rollout as R
 from beebot.vla.voxel import suite as S
-from beebot.vla.voxel.haiku_frame import mapping, user_side
-from beebot.vla.voxel.think_data import ORDER, USER_NAMES
+from beebot.vla.voxel.haiku_frame import mapping
+from beebot.vla.voxel.think_data import ORDER
 
 SEED = 4242
 REDRAWS = 200  # scene draws an episode may take to find one its board task is feasible in
@@ -67,7 +68,8 @@ CATEGORIES = ("side", "corner", "compass", "steps")
 
 
 def board_region(directions, side):
-    """The suite floor area (suite.FLOOR_REGIONS) the user's directions name, for a user at side."""
+    """The suite floor area (suite.FLOOR_REGIONS, world frame) the user's directions name, for a
+    user (and the camera) at board side `side`."""
     table = mapping(side)
     sides = [table[d] for d in directions]
     fb = [s for s in sides if s in ("front", "back")]
@@ -99,10 +101,10 @@ def scene(rng):
 
 
 def episodes(per=8, seed=SEED, redraws=REDRAWS):
-    """per episodes of every phrase: a fresh motion scene each, a drawn camera side and user place.
-    A scene where the board task is not feasible (feasible: already half done, or a move without
-    room) is drawn again, from a generator of its own seeded by (seed, 1), so the other episodes
-    keep their draws; ValueError after `redraws` tries."""
+    """per episodes of every phrase: a fresh motion scene each and a drawn camera side (the user
+    at the camera). A scene where the board task is not feasible (feasible: already half done, or
+    a move without room) is drawn again, from a generator of its own seeded by (seed, 1), so the
+    other episodes keep their draws; ValueError after `redraws` tries."""
     rng = np.random.default_rng(seed)
     again = np.random.default_rng((seed, 1))
     n = per * len(PHRASES)
@@ -111,8 +113,7 @@ def episodes(per=8, seed=SEED, redraws=REDRAWS):
     for i in range(n):
         category, text, directions, job = PHRASES[i % len(PHRASES)]
         camera = ORDER[int(rng.integers(4))]
-        place = USER_NAMES[int(rng.integers(len(USER_NAMES)))]
-        region = board_region(directions, user_side(camera, place))
+        region = board_region(directions, camera)
         board, meta = world.index(i), metas[i]
         task = board_task(board, 0, text, region, job)
         tries = 0
@@ -122,8 +123,8 @@ def episodes(per=8, seed=SEED, redraws=REDRAWS):
                 raise ValueError(f"no feasible scene for {text!r} ({region}) in {redraws} draws")
             board, meta = scene(again)
             task = board_task(board, 0, text, region, job)
-        key = {"category": category, "text": text, "camera": camera, "place": place, "region": region, "i": i, "redraws": tries}
-        out.append(R.Episode(board, meta, task, [text], [0], [S.canonical_record(task)], R.STEPS, seed * 1_000 + i, key=key, user=place, camera=camera, as_said=True))
+        key = {"category": category, "text": text, "camera": camera, "region": region, "i": i, "redraws": tries}
+        out.append(R.Episode(board, meta, task, [text], [0], [S.canonical_record(task)], R.STEPS, seed * 1_000 + i, key=key, camera=camera, as_said=True))
     return out
 
 

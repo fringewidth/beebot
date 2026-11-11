@@ -1558,13 +1558,20 @@ counts, one rendered example of each kind and the sampling speed.
    can read off them: robot counts, coordinates and measured heights go unless the instruction or
    the task states the number; colours, kinds, sizes and coarse places stay. On the 2026-11-10
    labels it changed 8,402 of 31,184 Haiku thoughts and 261 of 20,761 template thoughts.
-1. **The user's frame.** The camera can stand anywhere round the arena (the views report its
-   azimuth), and the user stands behind it, to its left, to its right or opposite it, said in the
-   user turn ("(i'm standing to the left of the camera)"). Every direction word in the instruction,
-   thoughts, memory and answers is turned into that user's frame (`in_user_frame`, quarter turns);
-   wording that cannot be turned reliably (near/far side, north, toward me, ...: about 1.6% of the
-   Haiku choices) is used only when the user's frame is the world's. Observations and action codes
-   stay in the world's frame.
+1. **The camera's frame** (`camera_frame.py`). Turning the scene and the camera together by a
+   quarter turn gives pixel-identical images (the corner markers look alike, the top view turns
+   with the camera), so the board's own sides cannot be seen. The user therefore always stands at
+   the camera, and the policy works entirely in the camera's frame: the camera can stand anywhere
+   round the arena (the views report its azimuth; its quarter turn k names the board side it looks
+   from), and the voxel observation (`turn_grid`), the expert's action codes (`turn_codes`: the
+   grid turned and each of the 27 codes replaced by its turned direction, `CODE_TURNS`) and every
+   direction word in the instruction, thoughts, memory and answers (`in_user_frame`) are turned by
+   k. There "left" and "right" are the camera's, the front / near side is nearest it, the back /
+   far side away from it, forward, ahead, away and north point away from it, toward me, backward
+   and south toward it, east is its right, west its left. Nothing in the user turn says where the
+   user stands. Wording that cannot be turned reliably (near/far side, north, toward me, ...: about
+   1.6% of the Haiku choices) is used only with the camera at the world's front (k = 0). Policy
+   actions are turned back into the world's frame (`unturn_codes`) before the world steps.
 1. **Known problem.** In `voxel_full` s0, s1, s2 and s7 the stores' object-task draws part from
    the Haiku export at one index per seed (s0 715, s1 816, s2 783, s7 2745); `demos.draws` alone
    reproduces the export, `demos.write` does not. 894 of 30,905 episodes have labels that fail the
@@ -1749,9 +1756,10 @@ docstrings hold the details; in short:
     PYTHONPATH=src python -m beebot.vla.voxel.scorecard compare runs/A/card/episodes.jsonl runs/B/card/episodes.jsonl
 
 1. **A step.** Render the views (`views.scene_views`, the episode's look),
-   build the context (instruction in force said in the user's frame, where the user stands, memory
-   = the latest first thought and the latest switch line after it), `think_then_act` for every
-   live episode of the batch, argmax (or `--sample`) per robot, `world.step` under switch_cube
+   build the context (instruction in force said in the camera's frame, memory = the latest first
+   thought and the latest switch line after it), `think_then_act` for every live episode of the
+   batch on the observation in the camera's frame, argmax (or `--sample`) per robot, the codes
+   turned back into the world's frame (`camera_frame.unturn_codes`), `world.step` under switch_cube
    with failures 0.10 (0.23 up and over). A switch task's second instruction comes at its step; a
    reply in words ends the episode with no moves. 72 steps, 144 for build.
 1. **Arms.** policy; shuffled (another episode's instruction, same scene and seed: the gap says
@@ -1784,9 +1792,10 @@ docstrings hold the details; in short:
 1. **Training's text and views.** Contexts come from `think_data.context` (a test checks that the
    rollout's context at every step of a training episode equals ThinkData's), oracle thoughts from
    `think_data.template_thought` cut by `visible`, views from `views.scene_views` with one
-   `sample_look` per episode (`--views stand_in` for think_data's isometric image). The user's
-   place is drawn per episode as think_data draws it and every instruction is said in that frame
-   (`in_user_frame`); one whose direction words cannot be turned keeps the world's frame.
+   `sample_look` per episode (`--views stand_in` for think_data's isometric image). The user is at
+   the camera; the camera's quarter turn, fixed on the episode's first step, turns the observation
+   and every instruction (`in_user_frame`); an episode whose direction words cannot be turned puts
+   its camera at the world's front, and `Episode.camera` pins the side.
 
 ## Left out, and extension points
 
