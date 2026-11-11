@@ -548,7 +548,10 @@ def draw_count(rng, low, high, counts="uniform"):
     return count
 
 
-def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, counts="uniform"):
+KEEP_TRIES = 16  # keep=True: scenes drawn for one drawn task before that task is given up
+
+
+def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, counts="uniform", keep=False):
     """(world, metas, tasks) of n scenes with one task each. split: "train", "test" (in
     distribution) or a HELD_OUT key (forces that held-out item). robots: (low, high), each
     scene's robot count drawn from that range (counts: "uniform" or "log", draw_count); None:
@@ -556,22 +559,31 @@ def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, co
     enough for (fits), which also leaves out a cheese that can never be eaten and a formation
     with over three robots per mask voxel; None: only when robots is given, so the default draws
     are as they always were. Families are redrawn for the same count until one fits, so the
-    counts keep their distribution."""
+    counts keep their distribution.
+    keep: when a scene does not fit the drawn task, draw another scene for the same task (and
+    count), up to KEEP_TRIES scenes, instead of drawing a new task. keep=False (the stores and
+    Haiku labels of 2026-11-10 and before) redraws the task too, which favours the tasks that fit
+    most scenes: logic's "absent" and "none" forms came out at about 60% of logic tasks instead
+    of 2 in 8. keep=False draws exactly as before."""
     held = split if split in HELD_OUT else ""
     check = robots is not None if check is None else check
     worlds, metas, out = [], [], []
     count = None
+    kept, tries = None, 0
     while len(out) < n:
         if robots is not None and count is None:
             count = draw_count(rng, robots[0], robots[1], counts)
-        fam = HELD_FAMILY.get(held) or family or str(rng.choice(FAMILIES))
-        needs, make = MAKERS[fam](rng, held)
+        if not keep or kept is None or tries >= KEEP_TRIES:
+            fam = HELD_FAMILY.get(held) or family or str(rng.choice(FAMILIES))
+            kept, tries = (fam, *MAKERS[fam](rng, held)), 0
+        fam, needs, make = kept
+        needs, tries = dict(needs), tries + 1
         colours = needs.pop("colours", TRAIN_COLOURS)
         world, meta = scenes(rng, 1, colours=colours, robots=count, **needs)
         task = make(world, meta[0], 0)
         if task is None or (check and not fits(task, world, 0)):
             continue
-        count = None
+        count, kept = None, None
         worlds.append(world)
         metas.append(meta[0])
         out.append(task)
@@ -2170,20 +2182,26 @@ def instruction_at(task, t):
     return task.parts[instruction_index(task, t)] if task.parts else task
 
 
-def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uniform", check=True, job=None):
+def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uniform", check=True, job=None, keep=False):
     """(world, metas, tasks) of n scenes with one coverage task each (COVERAGE families), as
     sample_tasks draws the suite's: family None draws one of COVERAGE per scene; split "train",
     "test" or a HELD_OUT key of a coverage family; robots (low, high) draws each scene's robot
     count (counts: "uniform" or "log"), None the world's density range; check keeps only tasks
     whose score_bound reaches the pass mark. job: draw only that job (motion, subset) or that
-    second instruction (switch), for measuring one at a time."""
+    second instruction (switch), for measuring one at a time. keep: as sample_tasks' keep (the
+    task and its count are kept for up to KEEP_TRIES scenes); keep=False draws exactly as before."""
     held = split if split in HELD_OUT else ""
     worlds, metas, out = [], [], []
+    kept, tries = None, 0
     while len(out) < n:
-        fam = HELD_FAMILY.get(held) if held == "selector_job" else family or str(rng.choice(COVERAGE))
-        needs, make = COVERAGE_MAKERS[fam](rng, held, job)
-        span = needs.pop("robots", None) or robots
-        count = None if span is None else draw_count(rng, span[0], span[1], counts)
+        if not keep or kept is None or tries >= KEEP_TRIES:
+            fam = HELD_FAMILY.get(held) if held == "selector_job" else family or str(rng.choice(COVERAGE))
+            needs, make = COVERAGE_MAKERS[fam](rng, held, job)
+            span = needs.pop("robots", None) or robots
+            count = None if span is None else draw_count(rng, span[0], span[1], counts)
+            kept, tries = (fam, needs, make, count), 0
+        fam, needs, make, count = kept
+        needs, tries = dict(needs), tries + 1
         colours = needs.pop("colours", TRAIN_COLOURS)
         needs = {k: v for k, v in needs.items() if v is not None or k in ("gravity",)}
         if needs.get("groups"):
@@ -2197,6 +2215,7 @@ def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uni
         task = make(world, meta[0], 0)
         if task is None or (check and score_bound(task, world, 0) < SUCCESS.get(task.family, PASS_MARK)):
             continue
+        kept = None
         worlds.append(world)
         metas.append(meta[0])
         out.append(task)
