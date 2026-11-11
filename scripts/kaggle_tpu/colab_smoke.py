@@ -49,6 +49,9 @@ def setup():
 
     versions = subprocess.run([sys.executable, "-c", "import torch, torch_xla; print(torch.__version__, torch_xla.__version__)"], capture_output=True, text=True)
     chips = glob.glob("/dev/vfio/[0-9]*") + glob.glob("/dev/accel*")
+    # the trainer loads the model from the local cache (offline), as the kernel's snapshot_download sets up
+    subprocess.run([sys.executable, "-c", f"from huggingface_hub import snapshot_download; snapshot_download('{MODEL}')"], check=False)
+    subprocess.run([sys.executable, "-c", "from datasets import load_dataset; load_dataset('openai/gsm8k', 'main')"], check=False)
     say("setup", python=sys.version.split()[0], versions=versions.stdout.strip() or versions.stderr[-600:], chips=len(chips), passed=versions.returncode == 0 and bool(chips))
 
 
