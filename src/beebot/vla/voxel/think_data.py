@@ -404,6 +404,54 @@ COUNT_PATTERNS = (  # (pattern, replacement, numbers it keeps) for counts a view
 )
 
 
+LARGE = 10  # robot counts from here up are never said: nobody reads dozens of robots off an image
+NUMBER_WORDS = ("ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred").split()
+COUNT_WORD = r"(\d+|(?:" + "|".join(NUMBER_WORDS) + r")(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?|dozens|a dozen)"
+ROBOT_COUNT = re.compile(r"\b" + COUNT_WORD + r"\s+((?:[a-z]+\s+){0,2}?(?:robots?|bots?|cubes?)\b(?! (?:tall|high|wide|long)))")
+COUNT_OF = re.compile(r"\b" + COUNT_WORD + r"\s+of\s+(you|us|them|the robots|the swarm|the bots)\b")
+COUNT_NEAR = re.compile(r"\b(?:half|third|quarter|groups? of|teams? of|squads? of|split|about|roughly|around|nearly|over|almost|all|whole|every one of|other|only|have|has)\s+(?:(?:of\s+them|is|are|each|into)\s+)?(?:about\s+|roughly\s+)?" + COUNT_WORD + r"\b(?! (?:tall|high|wide|long|voxels|cells|steps|blocks))")
+
+
+OTHER_COUNT = re.compile(r"\bthe other " + COUNT_WORD + r"\b(?! (?:means|is|are|tall|high))")
+
+
+def large(word):
+    word = word.lower()
+    if word.isdigit():
+        return int(word) >= LARGE
+    return any(word.startswith(w) for w in NUMBER_WORDS) or word in ("dozens", "a dozen")
+
+
+def large_counts(text, instruction=""):
+    """The robot counts of LARGE or more said in text, outside the quoted instruction."""
+    head = f"you asked: {bare(instruction).lower()}." if instruction else None
+    body = text[len(head) :] if head and text.startswith(head) else text
+    return [m.group(0) for pattern in (ROBOT_COUNT, COUNT_OF, COUNT_NEAR) for m in pattern.finditer(body.lower()) if large(m.group(1))]
+
+
+def counted(pair):
+    """Whether a refusal pair's thought or reply rests on a robot count of LARGE or more."""
+    return large_counts(pair.get("thought", ""), pair.get("instruction", "")) + large_counts(pair.get("reply", ""))
+
+
+def without_large_counts(body):
+    """body with robot counts of LARGE or more dropped ("i see 39 robots" -> "i see the robots",
+    "15 of you" -> "many of you"); a middle sentence still holding one (e.g. "half is about 15")
+    goes, the first and last keep their place with "some" in it."""
+    body = OTHER_COUNT.sub(lambda m: "the others" if large(m.group(1)) else m.group(0), body)  # "the other 26 hold" -> "the others hold"
+    sentences = [part for part in re.split(r"(?<=\.)\s+", body.strip()) if part]
+    out = []
+    for k, sentence in enumerate(sentences):
+        hits = [m for m in COUNT_NEAR.finditer(sentence) if large(m.group(1))]
+        if hits and 0 < k < len(sentences) - 1:
+            continue
+        for m in hits:
+            sentence = sentence.replace(m.group(1), "some", 1)
+        out.append(sentence)
+    body = ROBOT_COUNT.sub(lambda m: "the " + m.group(2) if large(m.group(1)) else m.group(0), " ".join(out))
+    return COUNT_OF.sub(lambda m: f"many of {m.group(2)}" if large(m.group(1)) else m.group(0), body)
+
+
 def label_problem(label_row, attempt, entries, item=None):
     """Why a label does not belong to the episode it joined (None when it does). Its family must be
     the attempt's; but for a refusal (another instruction for the same scene) its kind and spec those
@@ -461,6 +509,7 @@ def visible(thought, instruction, record=None):
     body = ROW_AT.sub(lambda m: f"{m.group(1)} row running {'back to front' if m.group(2) == 'x' else 'left to right'}", body)
     body = NEAR_COORDINATE.sub("", body)
     body = MEASURE.sub(unless_kept(""), body)
+    body = without_large_counts(body)  # even when the instruction states it
     for pattern, replacement, source in COUNT_PATTERNS:  # a robot count stays only when the instruction states it
         body = pattern.sub(unless_kept(replacement, stated if source == "instruction" else keep), body)
     sentences = [part for part in re.split(r"(?<=\.)\s+", body.strip()) if part]
@@ -827,6 +876,7 @@ class ThinkData:
         self.episodes = []
         self.frames = {"turned": 0, "world": 0, "rung_swapped": 0, "template_instead": 0, "world_frame_forced": 0, "haiku_frame": 0}
         self.frame_episodes = 0
+        self.counted_refusals = 0
         self.rewritten = {"haiku_thoughts": 0, "haiku_changed": 0, "haiku_lines_changed": 0, "template_thoughts": 0, "template_changed": 0}
         self.events = {}
         self.templates = {}
@@ -891,7 +941,10 @@ class ThinkData:
             record = entries[0]["record"]
             choices = [self.visibly(choice, record) for choice in choices]
             parts = [dict(part, choices=[self.visibly(choice, entries[part["part"]]["record"]) for choice in part["choices"]]) for part in parts[: len(entries)]]
-            refusals = [self.visibly(pair, None) for pair in refusals]
+            # a refusal that reasons from a robot count of LARGE or more ("only 35 robots, so no
+            # 40-robot tower") needs a count nobody reads off an image: dropped
+            self.counted_refusals += sum(bool(counted(pair)) for pair in refusals)
+            refusals = [self.visibly(pair, None) for pair in refusals if not counted(pair)]
             out.append(Episode(k, int(row["e"]), seed, n, row["family"], held_out_scene(scene_key(store, int(row["e"])), self.held_share), choices, parts, refusals, row.get("kind", ""), self.mix.get(mix_group(config), {}).get(f"{row['family']}|{row.get('kind', '')}", 1.0)))
         return out
 
@@ -901,6 +954,8 @@ class ThinkData:
         out = dict(choice, thought=visible(choice["thought"], choice["instruction"], record))
         if "switches" in choice:
             out["switches"] = [visible(line, choice["instruction"], record) for line in choice["switches"]]
+        if choice.get("reply"):
+            out["reply"] = re.sub(r"\s+([,.;:])", r"\1", without_large_counts(choice["reply"]))
         self.rewritten["haiku_thoughts"] += 1
         self.rewritten["haiku_changed"] += out["thought"] != choice["thought"]
         self.rewritten["haiku_lines_changed"] += out.get("switches") != choice.get("switches")
