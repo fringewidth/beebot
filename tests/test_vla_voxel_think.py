@@ -334,3 +334,21 @@ def test_matmul_gated_delta_rule_with_correlated_keys():
     matmul, _ = think.chunk_gated_delta_rule_matmul(q, k, v, g=g, beta=beta, output_final_state=True, use_qk_l2norm_in_kernel=True)
     assert torch.isfinite(matmul).all()
     assert (matmul - reference).abs().max() < 1e-4, f"max error {(matmul - reference).abs().max().item():.3g} against outputs of mean size {reference.abs().mean().item():.3g}"
+
+
+def test_step_losses_with_step_totals_are_token_and_robot_means():
+    """think_train divides every micro-batch's summed losses by the whole step's reply tokens and
+    robots, so the micro-batches add up to the step's token-weighted text and robot-weighted action
+    means however bucketing splits them (a mean of micro-batch means weighted short replies ~3x)."""
+    policy = tiny("Qwen/Qwen3-0.6B").eval()
+    batch = examples(policy, 8, seed=2)
+    for e in [e for e in batch if e.act][:2]:
+        e.reply_text = "<think>\n\n</think>\n\n<tool_call>"
+    rows = sorted(policy.rows(batch), key=lambda p: p.length)
+    text_total = sum(p.reply_len for p in rows)
+    robot_total = float(sum((p.obs[0] > 0.5).sum().item() for p in rows if p.act))
+    with torch.no_grad():
+        whole = policy(rows)
+        parts = [policy(rows[k : k + 2], text_total=text_total, robot_total=robot_total) for k in range(0, len(rows), 2)]
+    assert sum(o["text"].item() for o in parts) == pytest.approx(whole["text"].item(), rel=1e-4)
+    assert sum(o["action"].item() for o in parts) == pytest.approx(whole["action"].item(), rel=1e-4)
