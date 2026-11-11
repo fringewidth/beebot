@@ -27,7 +27,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SRC = os.path.join(REPO, "src")
 MODEL = "Qwen/Qwen3.5-0.8B"
 TORCH_XLA = "2.9.0"
-TIMEOUT_MINUTES = 30  # a trainer run that takes longer is stuck (the kernel kills its probes at 25 minutes without a step)
+TIMEOUT_MINUTES = 45  # a trainer run that takes longer is stuck (a graph compiles in about 8 minutes on Colab v5e-1; a run meets 5 to 6)
 
 
 def say(stage, **fields):
