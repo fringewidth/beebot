@@ -19,6 +19,9 @@ import subprocess
 import sys
 import time
 
+# Colab's (and maybe Kaggle's) TPU images ship torch_tpu, a torch device backend that auto-loads on
+# `import torch` and refuses the torch 2.9.0 that torch_xla 2.9.0 needs: keep it from loading
+os.environ["TORCH_DEVICE_BACKEND_AUTOLOAD"] = "0"
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(REPO, "src")
 MODEL = "Qwen/Qwen3.5-0.8B"
@@ -42,11 +45,9 @@ def setup():
     pip("transformers==5.22.1", "datasets")
     import glob
 
-    import torch
-    import torch_xla
-
+    versions = subprocess.run([sys.executable, "-c", "import torch, torch_xla; print(torch.__version__, torch_xla.__version__)"], capture_output=True, text=True)
     chips = glob.glob("/dev/vfio/[0-9]*") + glob.glob("/dev/accel*")
-    say("setup", python=sys.version.split()[0], torch=torch.__version__, torch_xla=torch_xla.__version__, chips=len(chips))
+    say("setup", python=sys.version.split()[0], versions=versions.stdout.strip() or versions.stderr[-600:], chips=len(chips), passed=versions.returncode == 0 and bool(chips))
 
 
 def inverse():
@@ -106,8 +107,22 @@ def real():
     train("real", ["--name", "real", "--data", "think", "--stores", store, "--data_kwargs", json.dumps({"mismatch": "drop", "held_share": 0.1}), "--views", "scene", "--steps", "20", *COMMON], 20)
 
 
+def inverse_fresh():
+    """inverse() in a fresh interpreter: torch is imported only after the installs."""
+    process = subprocess.run([sys.executable, os.path.abspath(__file__), "inverse"], capture_output=True, text=True, env={**os.environ, "PJRT_DEVICE": "TPU"})
+    for line in process.stdout.splitlines():
+        if line.startswith('{"smoke"'):
+            print(line, flush=True)
+    if process.returncode:
+        say("inverse", exit=process.returncode, tail=process.stderr[-1500:], passed=False)
+
+
+if __name__ == "__main__" and sys.argv[1:] == ["inverse"]:
+    inverse()
+    sys.exit(0)
+
 if __name__ == "__main__":
-    for stage in (setup, inverse, probe, real):
+    for stage in (setup, inverse_fresh, probe, real):
         try:
             stage()
         except Exception as error:  # report and go on
