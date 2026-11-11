@@ -385,7 +385,7 @@ def testset_episodes(directory=TESTSET, per_family=None, families=FAMILIES, seed
     found = {}
     index = 0
     robots = tuple(config["robots"]) if config.get("robots") else None
-    for _, world, metas, tasks, _ in D.draws(10**9, config["seed"], config.get("chunk", 24), robots, config.get("counts", "uniform"), bool(config.get("fit")) or robots is not None, config.get("rule"), bool(config.get("apart")), float(config.get("coverage", 0.0)), float(config.get("objects", 0.0)), float(config.get("build", 0.0)), config.get("only"), keep=bool(config.get("keep"))):
+    for _, world, metas, tasks, _ in D.draws(10**9, config["seed"], config.get("chunk", 24), robots, config.get("counts", "uniform"), bool(config.get("fit")) or robots is not None, config.get("rule"), bool(config.get("apart")), float(config.get("coverage", 0.0)), float(config.get("objects", 0.0)), float(config.get("build", 0.0)), config.get("only"), keep=bool(config.get("keep")), empty=bool(config.get("empty")), scaled=bool(config.get("scaled"))):
         for i, task in enumerate(tasks):
             if index in wanted:
                 found[index] = (world.index(i), metas[i], task)
