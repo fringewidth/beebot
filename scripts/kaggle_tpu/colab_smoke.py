@@ -42,6 +42,8 @@ def setup():
     except ImportError:
         pip(f"torch=={TORCH_XLA}", "--index-url", "https://download.pytorch.org/whl/cpu")
         pip(f"torch_xla=={TORCH_XLA}", "libtpu==0.0.21.1" if sys.version_info >= (3, 13) else "libtpu==0.0.21")
+    # torchvision and torchaudio of the image are built for its newer torch and break on import under 2.9.0 (as the kernel does)
+    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "-q", "torchvision", "torchaudio"], check=False)
     pip("transformers==5.22.1", "datasets")
     import glob
 
