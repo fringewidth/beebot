@@ -269,14 +269,17 @@ class ThinkVoxelPolicy(StreamVoxelPolicy):
         out = self.lm.get_output_embeddings()(h[self.reply_index(prepared, width).to(h.device)]).float()
         return list(out.split([p.reply_len for p in prepared]))
 
-    def forward(self, examples):
+    def forward(self, examples, text_total=None, robot_total=None):
         """Losses of a batch (Examples or Prepared rows): {"loss", "text", "action"} tensors, and
-        counts ("text_tokens", "robots", "tokens", "examples", "acting")."""
+        counts ("text_tokens", "robots", "tokens", "examples", "acting"). text_total, robot_total:
+        divide the summed losses by these counts (a whole optimizer step's reply tokens and robot
+        voxels, so that micro-batches of a step add up to its token- and robot-weighted means);
+        None divides by this batch's own counts."""
         prepared = self.rows(examples)
         h, width = self.states(prepared)
         device = h.device
         targets = torch.tensor([t for p in prepared for t in p.ids[p.reply_start : p.reply_start + p.reply_len]], device=device)
-        text = chunked_cross_entropy(self.lm.get_output_embeddings(), h[self.reply_index(prepared, width).to(device)], targets, self.ce_chunk) / len(targets)
+        text = chunked_cross_entropy(self.lm.get_output_embeddings(), h[self.reply_index(prepared, width).to(device)], targets, self.ce_chunk) / (text_total or len(targets))
         acting = [p for p in prepared if p.act]
         action = h.new_zeros((), dtype=torch.float32)
         robots = 0.0
@@ -287,7 +290,7 @@ class ThinkVoxelPolicy(StreamVoxelPolicy):
             ce = F.cross_entropy(out.reshape(-1, N_ACTIONS), codes.round().long().reshape(-1), reduction="none")
             weight = weight.float().reshape(-1)
             robots = weight.sum()
-            action = (ce * weight).sum() / robots.clamp(min=1.0)
+            action = (ce * weight).sum() / (robot_total or robots.clamp(min=1.0))
             robots = robots.item()
         loss = self.text_weight * text + self.action_weight * action
         return {"loss": loss, "text": text, "action": action, "text_tokens": len(targets), "robots": robots, "tokens": sum(p.length for p in prepared), "examples": len(prepared), "acting": len(acting)}
