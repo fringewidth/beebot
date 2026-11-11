@@ -457,9 +457,12 @@ def label_problem(label_row, attempt, entries, item=None):
     the attempt's; but for a refusal (another instruction for the same scene) its kind and spec those
     of the store's record of the instruction it labels; and the exported item it was written from
     (items.jsonl) must have the attempt's family, kind and robot count, so a label that matches by
-    chance after a misaligned draw (another scene with the same task) is caught too."""
+    chance after a misaligned draw (another scene with the same task) is caught too; where both
+    the item and the attempt carry the draw's hash (demos.draw_digest) the hashes must be equal."""
     if label_row.get("family") != attempt["family"]:
         return f"family {label_row.get('family')} but the attempt is {attempt['family']}"
+    if item is not None and "draw" in item and "draw" in attempt and item["draw"] != attempt["draw"]:
+        return f"its item's draw {item['draw']} but the attempt's {attempt['draw']} (demos.draw_digest)"
     if item is not None:
         record, robots = item["record"], item.get("scene", {}).get("robots", {}).get("count")
         if (record["family"], record["kind"]) != (attempt["family"], attempt["kind"]) or (robots is not None and robots != attempt.get("robots", robots)):

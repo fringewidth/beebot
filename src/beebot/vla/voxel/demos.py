@@ -9,7 +9,13 @@ Store fields as voxel/play_store (mass, actions memory-mapped; small.pt with the
 records {"e", "w0", "w1", "family", "form", "text"} covering whole episodes. small.pt also holds,
 per kept episode, "robots" (the swarm's size) and "subgoals" (what the expert was after at every
 step: Expert.subgoals), and "config" (the options below). attempts.jsonl has one row per episode
-played, kept or not: {"family", "kind", "robots", "score", "unasked", "e"} with e = -1 when dropped.
+played, kept or not: {"family", "kind", "robots", "score", "unasked", "e", "draw"} with e = -1 when
+dropped and draw the hash of what was drawn (draw_digest; stores of 2026-11-11 and before have none).
+
+Draws must not depend on Python's string hashing (PYTHONHASHSEED, random per process): a draw
+that iterates a set of strings picks differently in every process, so a store and a Haiku export
+drawn in two processes part ways from the first such pick (s0, s1, s2 and s7 of voxel_full).
+Iterate sorted(set) when the order reaches a generator or the task; draw_digest catches the rest.
 
 Demonstrations a pivoting cube can carry out (--cube): only the 14 moves without a horizontal
 diagonal (--moves cube), 72 steps (--steps), swarms of 6 robots up to the usual maximum with only
@@ -36,9 +42,11 @@ the scene's swarm can do (suite.fits) also when --robots is not given.
 """
 
 import argparse
+import hashlib
 import json
 import re
 import time
+from dataclasses import fields as dataclass_fields
 from dataclasses import replace
 from pathlib import Path
 
@@ -108,6 +116,38 @@ def contrast(rng, world, metas, tasks, check=False, keep=False):
                 out_metas.append(metas[i])
                 out.append(other)
     return VoxelWorld(*(torch.cat([getattr(x, f) for x in worlds]) for f in FIELDS)), out_metas, out
+
+
+def canonical(value):
+    """value as plain JSON that is the same in every process: dict keys sorted, sets sorted, arrays
+    and tensors as dtype, shape and a hash of their bytes, Tasks as what they ask (all fields but
+    the expert's plan, which may change with the expert while the task stays the same)."""
+    if isinstance(value, S.Task):
+        return {"family": value.family, "text": value.text, "spec": canonical(value.spec), "held_out": value.held_out, "runners": canonical(value.runners), "parts": canonical(value.parts)}
+    if isinstance(value, dict):
+        return {str(k): canonical(v) for k, v in sorted(value.items(), key=lambda kv: str(kv[0]))}
+    if isinstance(value, (set, frozenset)):
+        return sorted((canonical(v) for v in value), key=lambda v: json.dumps(v, sort_keys=True))
+    if isinstance(value, (list, tuple)):
+        return [canonical(v) for v in value]
+    if isinstance(value, torch.Tensor):
+        value = value.detach().cpu().numpy()
+    if isinstance(value, np.ndarray):
+        return {"dtype": str(value.dtype), "shape": list(value.shape), "sha1": hashlib.sha1(np.ascontiguousarray(value).tobytes()).hexdigest()}
+    if isinstance(value, np.generic):
+        return value.item()
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise TypeError(f"no canonical form for {type(value).__name__}")
+
+
+def draw_digest(world, metas, tasks, i):
+    """A short hash of draw i of a chunk (draws): its task (family, text, spec, parts), its meta
+    and every field of its scene. write() records it in attempts.jsonl ("draw"), and a fresh
+    draw (voxel/haiku.py) checks it, so a store and an export join only on the same draw."""
+    scene = {f.name: canonical(getattr(world, f.name)[i]) for f in dataclass_fields(world) if getattr(world, f.name) is not None}
+    text = json.dumps({"task": canonical(tasks[i]), "meta": canonical(metas[i]), "scene": scene}, sort_keys=True)
+    return hashlib.sha1(text.encode()).hexdigest()[:16]
 
 
 ONLY = ("build",)  # families that can be drawn alone (draws only=...)
@@ -220,6 +260,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     row, tried, kept = 0, {}, {}
     t0 = time.time()
     for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced, coverage, objects, build, only, keep):
+        digests = [draw_digest(world, metas, tasks, i) for i in range(len(tasks))]  # before playing: the experts may write into tasks and metas
         if objects:
             from beebot.vla.voxel.objects import ObjectExpert
 
@@ -242,7 +283,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
             is_demo = passed and problem is None
             n_robots = int(world.mass[i].sum())
             rejected = {"rejected": problem} if problem else {}
-            attempts.write(json.dumps({"family": task.family, "kind": S.task_kind(task), "robots": n_robots, "score": round(float(score), 4), "unasked": bool(unasked), "e": row if is_demo else -1, **rejected}) + "\n")
+            attempts.write(json.dumps({"family": task.family, "kind": S.task_kind(task), "robots": n_robots, "score": round(float(score), 4), "unasked": bool(unasked), "e": row if is_demo else -1, **rejected, "draw": digests[i]}) + "\n")
             if not is_demo:
                 continue
             kept[task.family] = kept.get(task.family, 0) + 1
@@ -266,7 +307,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         attempts.flush()
         print(f"{min(c + chunk, n_scenes)} scenes, {row} demos, {time.time() - t0:.0f} s; kept/tried {json.dumps({f: f'{kept.get(f, 0)}/{tried[f]}' for f in sorted(tried)})}", flush=True)
     writer.close()
-    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "objects": objects, "build": build, "only": only, "keep": keep}
+    config = {"seed": seed, "chunk": chunk, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "objects": objects, "build": build, "only": only, "keep": keep}
     torch.save({**{k: torch.stack(v) for k, v in small.items()}, "phases": [[] for _ in range(row)], "count": row, "robots": torch.tensor(swarm), "subgoals": subgoals, "instructions": instructions, "config": config}, out / "small.pt")
     (out / "done").write_text(str(row))
     return row
