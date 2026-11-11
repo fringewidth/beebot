@@ -1080,7 +1080,7 @@ def draw_ref(rng, by, things, meta):
     elif by == "compare":
         options = []
         for group in ("colour", "pattern", "shape"):
-            for value in {word(t, group) for t in pool} - {None}:
+            for value in sorted({word(t, group) for t in pool} - {None}):  # sorted: a set's order follows the process's string hashing
                 if sum(matches(t, noun, {group: value}) for t in pool) == 2:
                     options.append({group: value})
         if not options:
