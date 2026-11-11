@@ -7,6 +7,7 @@ import json
 
 import numpy as np
 import pytest
+import torch
 
 from beebot.vla.voxel import demos as D
 from beebot.vla.voxel import haiku as H
@@ -44,8 +45,19 @@ def test_items_join_to_a_demo_store_by_seed_and_index(tmp_path):
     assert [x["e"] for x in export_items] == [a["e"] for a in attempts if a["e"] >= 0]
     labels = [json.loads(line) for line in (store / "labels.jsonl").read_text().splitlines()]
     assert [x["record"]["family"] for x in export_items] == [row["family"] for row in labels]
-    with pytest.raises(ValueError):  # another chunk size draws other tasks
-        H.export(tmp_path / "wrong", {"seed": 0, "chunk": 1}, None, store=store)
+    assert all(x["draw"] == attempts[x["index"]]["draw"] for x in export_items)
+    again = H.export(tmp_path / "chunk", {"seed": 0, "chunk": 1}, None, store=store)  # the store's own chunk wins over --chunk
+    assert [x["draw"] for x in again] == [x["draw"] for x in export_items]
+    first = export_items[0]["index"]
+    (store / "attempts.jsonl").write_text("".join(json.dumps(dict(a, draw="0" * 16) if n == first else a) + "\n" for n, a in enumerate(attempts)))
+    with pytest.raises(ValueError):  # same family and kind, another draw
+        H.export(tmp_path / "wrong", {"seed": 0, "chunk": 2}, None, store=store)
+    small = torch.load(store / "small.pt", weights_only=False)
+    small["config"].pop("chunk")
+    torch.save(small, store / "small.pt")
+    (store / "attempts.jsonl").write_text("".join(json.dumps({k: v for k, v in a.items() if k != "draw"}) + "\n" for a in attempts))
+    with pytest.raises(ValueError):  # a store of 2026-11-11 or before: another chunk size draws other tasks
+        H.export(tmp_path / "older", {"seed": 0, "chunk": 1}, None, store=store)
 
 
 def test_records_are_json_with_one_subgoal_per_plan_segment(items):

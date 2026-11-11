@@ -204,7 +204,8 @@ OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_d
    in its region) or after 24 steps.
 1. **Other files.** `small.pt` also holds `robots` (swarm size per kept episode). `attempts.jsonl`
    has one row per episode played, kept or not: family, kind, robots, score, unasked, and the
-   store row `e` (-1 when dropped). `labels.jsonl` and the store fields are unchanged, so
+   store row `e` (-1 when dropped), and since 2026-11-11 `draw`, a hash of the drawn task, meta
+   and scene (`demos.draw_digest`). `labels.jsonl` and the store fields are unchanged, so
    `lm.batch_of` reads the store as before.
 
 A 300-scene sample (seed 0, `--cube`) took 37 s on 4 threads, about 12 s per 100 scenes, and
@@ -1210,8 +1211,12 @@ printed, nothing written under `data/vla/haiku`.
    the seed, which is line n of a store's `attempts.jsonl` written with the same seed and draw
    options (`--chunk`, `--robots`, `--counts`, `--fit`, `--rule`, `--apart`); that line's `e` is
    the store row. `export --store DIR` reads the options from the store, exports only its kept
-   episodes and checks every family and kind; `Labels(name).by_episode(DIR)` returns
-   `{e: choices}`.
+   episodes and checks every family and kind, and every `draw` hash where the store has one;
+   `Labels(name).by_episode(DIR)` returns `{e: choices}`. A draw must not depend on Python's
+   string hashing, which differs per process: the stores `voxel_full/s0`, `s1`, `s2` and `s7` and
+   their exports of 2026-11-10 parted ways at a set of words iterated in `objects.draw_ref`
+   (attempts 715, 815, 783 and 2744 on); from there their object tasks differ, the suite and
+   coverage tasks (other generators) still match.
 1. **Checks before verification.** No held-out word, category, frame or language in training
    text (wordings.json splits); a thought names only colours and terrain the scene has (or the
    task's sentence names), names each sub-goal's colours in order, and stays under 45 words
