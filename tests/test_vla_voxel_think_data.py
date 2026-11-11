@@ -242,17 +242,22 @@ def test_haiku_switch_parts_label_each_instruction(data):
     assert data.example(ep, 3, parts).rung == "close"
 
 
-def test_refusals_are_a_thought_and_a_text_answer_at_the_first_frame(data, store, tokenizer):
+def test_refusals_that_refuse_act_with_every_robot_staying_and_clarifications_speak(data, store, tokenizer):
+    """A request the scene cannot satisfy is met by doing nothing, an action like any other (every
+    robot STAY) after the thought; only a clarification is a spoken question."""
     ep = ep_of(data, 2)
     example = data.refusal(ep, ep.refusals[0])
-    assert not example.act and example.codes is None and example.t == 0 and example.kind == "refusal" and example.rung == "refusal"
-    assert example.reply_text == "<think>\nyou asked: make the blue cheese fly. gravity is on, so i will not act.\n</think>\n\nthe blue cheese cannot fly, so i will do nothing.<|im_end|>"
-    assert T.ACT not in example.reply_text and "<IMAGES>\n(i'm standing behind the camera)\nmake the blue cheese fly<|im_end|>" in example.context_text
+    assert example.act and example.t == 0 and example.kind == "refusal" and example.rung == "refusal"
+    assert example.reply_text == "<think>\nyou asked: make the blue cheese fly. gravity is on, so i will not act.\n</think>\n\n" + T.ACT
+    assert example.codes.shape == example.obs.shape[-3:] and (example.codes == STAY).all()
+    assert "<IMAGES>\n(i'm standing behind the camera)\nmake the blue cheese fly<|im_end|>" in example.context_text
+    asking = data.refusal(ep, dict(ep.refusals[0], kind="clarify", reply="which cheese?"))
+    assert not asking.act and asking.codes is None and asking.reply_text.endswith("which cheese?<|im_end|>") and T.ACT not in asking.reply_text
     assert torch.equal(example.obs, observe(world_at(load(store), [(2, 0)]))[0])
     assert (T.still(example.obs) == STAY).all()
     assert np.array_equal(np.asarray(example.images[0]), np.asarray(T.stand_in_views(example.obs)[0][0]))
     ids, labels = T.tokenize(example, tokenizer)
-    assert ids[-1].item() == tokenizer.convert_tokens_to_ids(T.END) and labels[-1].item() == ids[-1].item()
+    assert ids[-1].item() == tokenizer.convert_tokens_to_ids(T.ACT) and labels[-1].item() == ids[-1].item()
 
 
 def test_an_absent_target_thinks_that_nothing_matches_and_acts(data):
@@ -323,12 +328,17 @@ def test_counts_split_haiku_template_and_refusals(data):
 def test_sampling_shares_and_the_held_out_split(store, labels):
     data = T.ThinkData([store], [labels], held_share=0.25, refusal_share=0.1, thought_share=1 / 3)
     held = {(ep.seed, ep.index) for ep in data.held}
-    assert held and len(held) < EPISODES and held == {(ep.seed, ep.index) for ep in data.episodes if T.held_out(ep.seed, ep.index, 0.25)}
+    stored = load(store)
+    assert held and len(held) < EPISODES and held == {(ep.seed, ep.index) for ep in data.episodes if T.held_out_scene(T.scene_key(stored, ep.e), 0.25)}
+    scenes = {}
+    for ep in data.episodes:  # every episode of a start scene is on the same side
+        scenes.setdefault(T.scene_key(stored, ep.e), set()).add(ep.held)
+    assert all(len(sides) == 1 for sides in scenes.values())
     rng = np.random.default_rng(0)
     drawn = [data.sample(rng) for _ in range(1500)]
     assert not {(ex.seed, ex.index) for ex in drawn} & held
     refusals = sum(ex.kind == "refusal" for ex in drawn) / len(drawn)
-    acting = [ex for ex in drawn if ex.act]
+    acting = [ex for ex in drawn if ex.act and ex.kind != "refusal"]
     thinking = sum(ex.kind != "plain" for ex in acting) / len(acting)
     assert 0.07 < refusals < 0.13 and 0.29 < thinking < 0.38
     assert all((ex.kind == "plain") == ("<think>\n\n</think>" in ex.reply_text) for ex in acting)
@@ -531,3 +541,27 @@ def test_tokenize_expands_the_images_and_labels_only_the_reply(data, tokenizer):
     broken = T.Example(**{**example.__dict__, "context_text": example.context_text + T.IMAGES})
     with pytest.raises(ValueError, match="IMAGES"):
         T.tokenize(broken, tokenizer)
+
+
+def test_pool_picks_in_proportion_to_weight():
+    episodes = [T.Episode(0, e, 0, e, "logic", False, [], [], [], "eat:absent" if e < 2 else "eat:single", 0.1 if e < 2 else 1.0) for e in range(6)]
+    pool = T.Pool(episodes)
+    rng = np.random.default_rng(0)
+    picks = [pool.pick(pool.episodes, rng).e for _ in range(20000)]
+    share = sum(p < 2 for p in picks) / len(picks)
+    assert abs(share - 0.2 / 4.2) < 0.01  # two episodes at 0.1 among four at 1.0
+
+
+def test_no_steps_are_drawn_after_the_task_is_done(store, labels):
+    """Steps after the last instruction's "done." (a finished swarm standing still) are never drawn."""
+    data = T.ThinkData([store], [labels], held_share=0.0, refusal_share=0.0)
+    done = {}
+    for ep in data.episodes:
+        last = len(data.instructions(ep)) - 1
+        ends = [ev.t for ev in data.episode_events(ep) if ev.kind == "done" and ev.part == last]
+        if ends:
+            done[(ep.seed, ep.index)] = ends[-1]
+    assert done
+    rng = np.random.default_rng(3)
+    drawn = [data.sample(rng) for _ in range(600)]
+    assert all(ex.t <= done[(ex.seed, ex.index)] for ex in drawn if (ex.seed, ex.index) in done)

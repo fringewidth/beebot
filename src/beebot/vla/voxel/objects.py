@@ -1241,23 +1241,30 @@ def object_scenes(rng, robots=None, layout=None, gravity=None, objects=(1, 6), f
             return one, meta
 
 
-def sample_objects(rng, n, family=None, split="train", robots=None, counts="uniform", check=True, kind=None):
+def sample_objects(rng, n, family=None, split="train", robots=None, counts="uniform", check=True, kind=None, keep=False):
     """(world, metas, tasks) of n scenes with one object task each (OBJECT_FAMILIES), as
     suite.sample_coverage draws its own: family None draws one per scene; split "train", "test",
     "wording" (held-out templates) or a HELD_OUT key (forces that composition, no plan); robots
     (low, high) draws each scene's robot count (counts: "uniform" or "log"), None the world's
     density range; check keeps only tasks whose bound reaches the pass mark; kind: only that job
-    of the family (for measuring)."""
+    of the family (for measuring). keep: as suite.sample_tasks' keep (the task and its count are
+    kept for up to suite.KEEP_TRIES scenes); keep=False draws exactly as before."""
     holdout = split if split in HELD_OUT or split == "wording" else ""
     worlds, metas, out = [], [], []
+    kept, tries = None, 0
     while len(out) < n:
-        fam = HELD_FAMILY.get(holdout) or family or str(rng.choice(OBJECT_FAMILIES))
-        needs, make = MAKERS[fam](rng, holdout, kind)
-        count = None if robots is None else S.draw_count(rng, robots[0], robots[1], counts)
+        if not keep or kept is None or tries >= S.KEEP_TRIES:
+            fam = HELD_FAMILY.get(holdout) or family or str(rng.choice(OBJECT_FAMILIES))
+            needs, make = MAKERS[fam](rng, holdout, kind)
+            count = None if robots is None else S.draw_count(rng, robots[0], robots[1], counts)
+            kept, tries = (needs, make, count), 0
+        needs, make, count = kept
+        needs, tries = dict(needs), tries + 1
         world, meta = object_scenes(rng, count, **needs)
         task = make(world, meta, 0)
         if task is None or (check and bound(task, world, 0) < S.SUCCESS.get(task.family, S.PASS_MARK)):
             continue
+        kept = None
         worlds.append(world)
         metas.append(meta)
         out.append(task)

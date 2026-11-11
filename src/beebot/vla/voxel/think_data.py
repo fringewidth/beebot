@@ -13,7 +13,7 @@ Interface (the trainer codes against exactly this)
 --------------------------------------------------
 ThinkData(stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1/3, haiku_share=None,
           refusal_share=0.05, held_share=0.05, channels=world.N_CHANNELS, system=None,
-          views=stand_in_views, validation_views=None, mismatch="raise")
+          views=stand_in_views, validation_views=None, mismatch="raise", mix=None)
   stores        demo store directories (demos.write --compact or dense; small.pt must hold
                 "instructions", i.e. written after the coverage commit)
   haiku_dirs    Haiku label directories (haiku.Labels: verified pairs only; the test set is refused).
@@ -225,7 +225,7 @@ REFUSAL = H.REFUSAL  # "refusal"
 THOUGHT_KINDS = ("first", "change", "switch", "done")
 STAY_LINE = "stay where you are"
 MAX_SEEN = 4  # things (objects, cheeses, zones) a templated thought names; those the task names first
-OPTION_KEYS = ("robots", "counts", "rule", "apart", "coverage", "objects")  # draw options a label directory and a store must share
+OPTION_KEYS = ("robots", "counts", "rule", "apart", "coverage", "objects", "keep")  # draw options a label directory and a store must share
 
 
 # ---------------------------------------------------------------------------------------------
@@ -663,6 +663,8 @@ class Episode:
     choices: list  # Haiku choices (non-switch episodes)
     parts: list  # Haiku switch_parts (switch episodes; [] unless every part is verified)
     refusals: list
+    kind: str = ""  # suite.task_kind of the episode's task (attempts.jsonl)
+    weight: float = 1.0  # sampling weight (ThinkData mix)
 
     @property
     def labelled(self):
@@ -670,19 +672,50 @@ class Episode:
 
 
 class Pool:
-    """Episodes to draw from, split once by what the sampler asks of them."""
+    """Episodes to draw from, split once by what the sampler asks of them; pick draws one in
+    proportion to its weight."""
 
     def __init__(self, episodes):
         self.episodes = episodes
         self.labelled = [ep for ep in episodes if ep.labelled]
         self.unlabelled = [ep for ep in episodes if not ep.labelled]
         self.refusing = [ep for ep in episodes if ep.refusals]
+        self.cumulative = {id(group): np.cumsum([ep.weight for ep in group]) for group in (self.episodes, self.labelled, self.unlabelled, self.refusing)}
+
+    def pick(self, group, rng):
+        """One episode of group (one of this pool's lists), drawn in proportion to its weight."""
+        total = self.cumulative[id(group)]
+        return group[min(int(np.searchsorted(total, rng.random() * total[-1], side="right")), len(group) - 1)]
+
+
+def mix_group(config):
+    """A store's draw options without its seed: the stores of one group share one task mix
+    (scripts/vla_task_mix.py weighs each group's episodes to its keep mix)."""
+    return json.dumps({k: v for k, v in config.items() if k != "seed"}, sort_keys=True, default=str)
 
 
 def held_out(seed, index, share):
     """Whether episode (seed, index) is held out: a stable hash, the same on every machine."""
     digest = hashlib.sha256(f"{seed}/{index}".encode()).digest()
     return int.from_bytes(digest[:8], "big") / 2**64 < share
+
+
+def scene_key(store, e):
+    """A digest of episode e's start scene (walls, start robots, cheeses, zones): the episodes that
+    demos.contrast plays on one scene share it."""
+    digest = hashlib.sha256(str(store.get("config", {}).get("seed")).encode())
+    for name in ("walls", "mass", "cheese_pos", "cheese_color", "zones"):
+        if name in store:  # older and synthetic stores lack zones
+            part = store[name][e, 0] if name in ("mass", "cheese_pos") else store[name][e]
+            digest.update(part.numpy().tobytes())
+    return digest.hexdigest()
+
+
+def held_out_scene(key, share):
+    """Whether the episodes of a start scene (scene_key) are held out: every episode of a scene
+    lands on the same side, so validation never sees a scene that training starts from (holding
+    out by (seed, index) put 59% of validation episodes in training scenes)."""
+    return int(key[:16], 16) / 2**64 < share
 
 
 @dataclass
@@ -717,7 +750,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise"):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -733,6 +766,11 @@ class ThinkData:
         self.mismatch = mismatch
         self.mismatches = []  # (store, attempt index, problem) of the episodes whose labels were dropped
         self.validation_views = validation_views
+        # mix: scripts/vla_task_mix.py's output (a path or its "weights"): per group of draw options,
+        # family|kind -> sampling weight that turns the stores' task mix into the keep mix
+        # (demos.draws keep); None samples every episode equally
+        mix = json.loads(Path(mix).read_text()) if isinstance(mix, (str, Path)) else (mix or {})
+        self.mix = mix.get("weights", mix)
         self.stores = [str(s) for s in stores]
         self.data = [load(s) for s in self.stores]
         self.labels = []
@@ -801,7 +839,7 @@ class ThinkData:
             choices = [self.visibly(choice, record) for choice in choices]
             parts = [dict(part, choices=[self.visibly(choice, entries[part["part"]]["record"]) for choice in part["choices"]]) for part in parts[: len(entries)]]
             refusals = [self.visibly(pair, None) for pair in refusals]
-            out.append(Episode(k, int(row["e"]), seed, n, row["family"], held_out(seed, n, self.held_share), choices, parts, refusals))
+            out.append(Episode(k, int(row["e"]), seed, n, row["family"], held_out_scene(scene_key(store, int(row["e"])), self.held_share), choices, parts, refusals, row.get("kind", ""), self.mix.get(mix_group(config), {}).get(f"{row['family']}|{row.get('kind', '')}", 1.0)))
         return out
 
     def visibly(self, choice, record):
@@ -945,13 +983,17 @@ class ThinkData:
             position, turns = next(name for name in USER_NAMES if user_turns(azimuth, name) == 0), 0
         else:
             self.frames["turned" if turns else "world"] += 1
+        # a request the scene cannot satisfy (kind "refuse": an absent cheese, a tower taller than
+        # the world) is met by doing nothing, an action like any other (every robot STAY), as the
+        # stores' eat:absent episodes do; a clarification ("which zone?") stays a spoken question
+        acts = pair.get("kind") == "refuse"
         return Example(
             obs=obs,
             images=images,
             context_text=context(in_user_frame(pair["instruction"], turns), (), self.system, USER_POSITIONS[position][1]),
-            reply_text=text_reply(in_user_frame(pair["thought"], turns), in_user_frame(pair["reply"], turns)),
-            act=False,
-            codes=None,
+            reply_text=act_reply(in_user_frame(pair["thought"], turns)) if acts else text_reply(in_user_frame(pair["thought"], turns), in_user_frame(pair["reply"], turns)),
+            act=acts,
+            codes=torch.full(tuple(obs.shape[-3:]), STAY, dtype=torch.long) if acts else None,
             seed=ep.seed,
             index=ep.index,
             e=ep.e,
@@ -969,15 +1011,20 @@ class ThinkData:
     def draw(self, pool, rng, views=None):
         """One example from a pool of episodes (Pool: the sampler of sample and validation)."""
         if pool.refusing and self.refusal_share and rng.random() < self.refusal_share:
-            ep = pool.refusing[int(rng.integers(len(pool.refusing)))]
+            ep = pool.pick(pool.refusing, rng)
             return self.refusal(ep, ep.refusals[int(rng.integers(len(ep.refusals)))], rng, views)
         episodes = pool.episodes
         if self.haiku_share is not None and pool.labelled and pool.unlabelled:
             episodes = pool.labelled if rng.random() < self.haiku_share else pool.unlabelled
-        ep = episodes[int(rng.integers(len(episodes)))]
+        ep = pool.pick(episodes, rng)
         events = self.episode_events(ep)
         thought_steps = [ev.t for ev in events]
         steps = self.steps(ep)
+        # steps after the last part's "done." show a finished swarm standing still: they teach
+        # nothing about the instruction and made half of the plain steps (and ~84% STAY targets)
+        last = len(self.instructions(ep)) - 1
+        done = [ev.t for ev in events if ev.kind == "done" and ev.part == last]
+        steps = min(steps, done[-1] + 1) if done else steps
         if rng.random() < self.thought_share:
             t = thought_steps[int(rng.integers(len(thought_steps)))]
         else:
