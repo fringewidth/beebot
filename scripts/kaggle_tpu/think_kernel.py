@@ -2,8 +2,8 @@
 --device xla), a timing gate and then the real run, in one session (TPU sessions can queue a day).
 
     1. timing, one chip, --data fake (shapes as the real data's: two 256 px images, a 16^3 grid):
-       compile minutes, seconds per step, examples/s, HBM; per-chip batch 16 with fp32 weights,
-       else 8, else 8 with bf16 weights (the first that runs);
+       compile minutes, seconds per step, examples/s, HBM; per-chip batch 4 with fp32 weights
+       (13.1 of a v5e chip's 16 GB; 8 and 16 run out after compiling), else 4 with bf16 weights;
     1. timing, eight chips data-parallel, the same settings;
     1. if the eight-chip rate is at least GATE examples/s: the real run on the real data (the
        Mac run's settings, scripts in the beebot-think-data dataset) for the rest of the session,
@@ -51,7 +51,7 @@ NAME = "think-08b-tpu"
 PROBE_STEPS = 40
 FIRST_LOG_MINUTES = 25  # a probe without its first step by then is stuck compiling: killed
 FAKE = {"images": 2, "image_size": 256, "side": 16, "scene": False, "act_share": 0.95, "instruction_words": 18, "thought_words": 40}
-ATTEMPTS = [(16, "fp32"), (8, "fp32"), (8, "bf16")]  # (per-chip batch, LM weights)
+ATTEMPTS = [(4, "fp32"), (4, "bf16")]  # (per-chip batch, LM weights); batch 4 in fp32 uses 13.1 of a v5e chip's 16 GB, larger fp32 batches run out of HBM after ~8 minutes of compiling
 STORES = [f"voxel_build/s{i}" for i in range(2)] + [f"voxel_full/s{i}" for i in range(8)]
 HAIKU = ["build-s0", "build-s1"] + [f"run-s{i}{later}" for i in range(8) for later in ("", "-later")]
 
