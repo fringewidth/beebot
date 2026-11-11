@@ -18,7 +18,9 @@ as said (rollout.Episode.as_said), with the user turn saying where the user stan
 
 Scoring. Each instruction becomes the suite task it means on the board: go to a side or corner
 area (coverage goto, whole swarm) or take three steps toward a side (coverage move); the suite's
-checker scores it and the pass mark is the suite's (rollout.passed). Arms: the policy (argmax
+checker scores it and the pass mark is the suite's (rollout.passed). As the suite's own draw does
+(suite.make_motion), a scene where the task already scores half marks, or a move has no room for
+its steps (suite.has_room), is drawn again (feasible). Arms: the policy (argmax
 actions), standing still (the floor of the scale) and the scripted expert given the board task
 (the ceiling: what the scene and the move failures allow).
 
@@ -40,6 +42,7 @@ from beebot.vla.voxel.haiku_frame import mapping, user_side
 from beebot.vla.voxel.think_data import ORDER, USER_NAMES
 
 SEED = 4242
+REDRAWS = 200  # scene draws an episode may take to find one its board task is feasible in
 PHRASES = (  # (category, what the user types, the user's directions it names, "goto" or "move")
     ("side", "go to my left", ("left",), "goto"),
     ("side", "everyone over to my right", ("right",), "goto"),
@@ -83,9 +86,25 @@ def board_task(world, i, text, region, job):
     return S.coverage_task("motion", text, spec, "")
 
 
-def episodes(per=8, seed=SEED):
-    """per episodes of every phrase: a fresh motion scene each, a drawn camera side and user place."""
+def feasible(task, world, meta, i):
+    """The suite's own draw filters (suite.make_motion): the task does not already score half
+    marks at the start, and a move has room for nearly all robots (suite.has_room)."""
+    return S.has_room(task, world, i) and not S.already_done(task, world, meta, i)
+
+
+def scene(rng):
+    """(world of one scene, its meta) drawn as the eval's scenes are."""
+    world, metas, _ = S.sample_coverage(rng, 1, family="motion", robots=S.ROBOTS, counts="log", job="goto", keep=True)
+    return world, metas[0]
+
+
+def episodes(per=8, seed=SEED, redraws=REDRAWS):
+    """per episodes of every phrase: a fresh motion scene each, a drawn camera side and user place.
+    A scene where the board task is not feasible (feasible: already half done, or a move without
+    room) is drawn again, from a generator of its own seeded by (seed, 1), so the other episodes
+    keep their draws; ValueError after `redraws` tries."""
     rng = np.random.default_rng(seed)
+    again = np.random.default_rng((seed, 1))
     n = per * len(PHRASES)
     world, metas, _ = S.sample_coverage(rng, n, family="motion", robots=S.ROBOTS, counts="log", job="goto", keep=True)
     out = []
@@ -94,9 +113,17 @@ def episodes(per=8, seed=SEED):
         camera = ORDER[int(rng.integers(4))]
         place = USER_NAMES[int(rng.integers(len(USER_NAMES)))]
         region = board_region(directions, user_side(camera, place))
-        task = board_task(world, i, text, region, job)
-        key = {"category": category, "text": text, "camera": camera, "place": place, "region": region, "i": i}
-        out.append(R.Episode(world.index(i), metas[i], task, [text], [0], [S.canonical_record(task)], R.STEPS, seed * 1_000 + i, key=key, user=place, camera=camera, as_said=True))
+        board, meta = world.index(i), metas[i]
+        task = board_task(board, 0, text, region, job)
+        tries = 0
+        while not feasible(task, board, meta, 0):
+            tries += 1
+            if tries > redraws:
+                raise ValueError(f"no feasible scene for {text!r} ({region}) in {redraws} draws")
+            board, meta = scene(again)
+            task = board_task(board, 0, text, region, job)
+        key = {"category": category, "text": text, "camera": camera, "place": place, "region": region, "i": i, "redraws": tries}
+        out.append(R.Episode(board, meta, task, [text], [0], [S.canonical_record(task)], R.STEPS, seed * 1_000 + i, key=key, user=place, camera=camera, as_said=True))
     return out
 
 
