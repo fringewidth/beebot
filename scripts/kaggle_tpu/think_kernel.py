@@ -117,9 +117,10 @@ def installed(module):
     return out.stdout.strip() if out.returncode == 0 else ""
 
 
-# torch_xla is not in Kaggle's TPU image (Python 3.13, November 2026): torch_xla 2.9.0 (the last
-# release, cp313 wheels) with libtpu, and torch 2.9.0 (CPU build) under it when the image's torch is
-# another version; torchvision and torchaudio go with a replaced torch (their ops would not load).
+# torch_xla is not in Kaggle's TPU image (Python 3.13, torch 2.11.0+cpu, November 2026): torch_xla
+# 2.9.0 (the last release, cp313 wheels) with libtpu, and torch 2.9.0 (CPU build) under it when the
+# image's torch is another version; torchvision and torchaudio go with a replaced torch (their ops
+# would not load).
 TORCH_XLA = "2.9.0"
 if not installed("torch_xla"):
     torch_version = installed("torch")
@@ -127,7 +128,8 @@ if not installed("torch_xla"):
     if not torch_version.startswith(TORCH_XLA[:4]):
         pip("install", "-q", f"torch=={TORCH_XLA}", "--index-url", "https://download.pytorch.org/whl/cpu")
         pip("uninstall", "-y", "torchvision", "torchaudio")
-    pip("install", "-q", f"torch_xla[tpu]=={TORCH_XLA}", "-f", "https://storage.googleapis.com/libtpu-releases/index.html")
+    # torch_xla[tpu] 2.9.0 pins libtpu 0.0.21, which has no cp313 wheel; 0.0.21.1 is its rebuild with one
+    pip("install", "-q", f"torch_xla=={TORCH_XLA}", "libtpu==0.0.21.1", "tpu-info")
 pip("install", "-q", "transformers==5.22.1", "datasets")
 import torch  # noqa: E402
 import torch_xla  # noqa: E402
