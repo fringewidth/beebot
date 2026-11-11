@@ -821,7 +821,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=()):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=(), overfit=0):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -857,8 +857,8 @@ class ThinkData:
                 source, _, item = row["id"].partition(":")
                 if source.endswith("-later"):  # later instructions of switch episodes: not joined yet
                     continue
-                seed, index = item[1:].split("-")
-                self.frame_rows.setdefault((source, int(seed), int(index)), []).append(frame_choice(row))
+                item_seed, index = item[1:].split("-")
+                self.frame_rows.setdefault((source, int(item_seed), int(index)), []).append(frame_choice(row))
         if self.frame_rows and not all(takes_side(v) for v in (views, validation_views or views)):
             raise ValueError("frame labels need views that take side= (think_train --views scene)")
         self.stores = [str(s) for s in stores]
@@ -893,6 +893,17 @@ class ThinkData:
         self.held = [ep for ep in self.episodes if ep.held]
         self.train_pool, self.held_pool = Pool(self.train), Pool(self.held)
         self.validation_cache = {}
+        # overfit: a fixed set of that many acting examples in which some robot moves (from the
+        # frame-labelled episodes when there are any) is all that sample() and validation() give:
+        # a model that cannot fit them has a broken path, not too little training
+        self.overfit_set = []
+        if overfit:
+            framed = [ep for ep in self.train if ep.choices and "camera" in ep.choices[0]]
+            pool, rng = (Pool(framed) if framed else self.train_pool), np.random.default_rng(self.seed + 99)
+            while len(self.overfit_set) < overfit:
+                ex = self.draw(pool, rng)
+                if ex.act and ((ex.codes != STAY) & (ex.obs[0] > 0.5)).any():
+                    self.overfit_set.append(ex)
 
     def join(self, k, path, store):
         """The kept episodes of store k with their Haiku labels (by (seed, index))."""
@@ -1151,9 +1162,13 @@ class ThinkData:
         return self.example(ep, t, self.labelling(ep, rng), rng, views)
 
     def sample(self, rng):
+        if self.overfit_set:
+            return self.overfit_set[int(rng.integers(len(self.overfit_set)))]
         return self.draw(self.train_pool, rng)
 
     def validation(self, n, seed=0):
+        if self.overfit_set:
+            return list(self.overfit_set)
         key = (n, seed)
         if key not in self.validation_cache:
             if not self.held:
