@@ -33,6 +33,16 @@ cell + h + s (up and over, down and over). The flywheel spins about h x s. The c
 sweeps through must be empty: cell - s and cell + h - s, and for 180 degrees also cell + 2h and
 cell + 2h + s.
 
+Release (Swarm(release=True); switchable magnets, the voxel world's switch_cube rule). For the
+length of a move each mover's magnets are switched off toward every cube except the ones it leans
+on (Pivot.leans: its support, and for a quarter turn the cube it comes to rest against), so a face
+or edge bond with any other cube no longer holds it; the steel floor still pulls on every magnet.
+When the scene is still the magnets are switched back on and the scene settles for SETTLE more
+before the move is judged. Without release (the default) magnets are permanent, and a mover with a
+face bond besides its support does not move (HARDWARE.md). Several cubes can move at once
+(Swarm.moves): each is planned on the grid before any of them moves and all flywheels are braked
+together.
+
 Cells are (z, y, x) integers, z up, floor cubes at z = 0. Units: SI unless a field says otherwise.
 
 What holds a mover back, counted by plan() for every move: bonds (cubes face to face with it
@@ -117,6 +127,7 @@ class Pivot:
     bonds: int  # cubes face to face with the mover, other than its support
     hinges: int  # cubes that share only an edge with the mover (their edge magnets hold it), other than the one it pivots on
     rubs: int  # cubes beside the cells the mover passes into, along the flywheel's axis: it slides down their faces
+    leans: tuple = ()  # (z, y, x) cells the mover leans on: its support, and for a quarter turn the cell it comes to rest against
 
 
 @dataclass(frozen=True)
@@ -131,9 +142,10 @@ class Move:
     outcome: str  # "reached", "stayed" (harmless) or "harmful"
     detail: str  # reached | stayed | refused (no primitive, nothing spun) | off | strayed (aligned in a third cell) | knock
     cell: tuple  # (z, y, x) where the mover's centre is afterwards
-    shift: float  # L: the furthest any other cube was displaced
+    shift: float  # L: the furthest any cube that was not moving was displaced
     sim_seconds: float
     wall_seconds: float
+    knocked: tuple = ()  # the cubes, not moving themselves, displaced more than DISTURBED or tipped
 
 
 def patch(rows, columns, z=0):
@@ -166,32 +178,46 @@ def swarm_xml(cube, centres, masses, friction):
 
 
 class SwarmMagnets(Magnets):
-    """cube.py's magnets with the pair search culled by cube distance (module docstring, 3)."""
+    """cube.py's magnets with the pair search culled by cube distance (module docstring, 3), and
+    cube pairs whose magnets can be switched off (module docstring, Release)."""
 
     def __init__(self, cube, n, strength_scale):
         super().__init__(cube, n, strength_scale)
         self.reach = math.sqrt(3) * cube.side + self.CUTOFF * self.d0
+        self.cut = None  # (n, n) bool: cube pairs whose magnets are off; None: all on
 
     def refresh(self, flat):
         sites = flat.reshape(self.n, -1, 3)
         centres = sites.mean(1)  # the sites are symmetric about the cube's centre
         gap = centres[None, :, :] - centres[:, None, :]
         a, b = np.nonzero(np.triu((gap * gap).sum(-1) < self.reach**2, 1))
+        if self.cut is not None:
+            on = ~self.cut[a, b]
+            a, b = a[on], b[on]
         r = sites[b][:, None, :, :] - sites[a][:, :, None, :]  # (pairs, 30, 30, 3)
         pair, i, j = np.nonzero((r * r).sum(-1) < (self.CUTOFF * self.d0) ** 2)
         per = sites.shape[1]
         self.first, self.second = a[pair] * per + i, b[pair] * per + j
         self.coef = np.sqrt(self.strength[self.first] * self.strength[self.second]) / self.d0 / SHAPE_PEAK
 
+    def switch(self, cut):
+        """Switch off the magnets between the cube pairs marked in cut ((n, n) bool, symmetric),
+        or switch every pair back on (None). Takes effect at the next step."""
+        self.cut = cut
+        self.steps = 0  # wrench() refreshes the pair list when steps % REFRESH == 0
+
 
 
 class Swarm:
     """N cubes in one scene. cells: (N, 3) lattice cells (z, y, x), each resting on the floor or on
-    another cube. cube: a cube.Cube (default: DESIGN). jitter: cube.Jitter (cube.NOMINAL for none)."""
+    another cube. cube: a cube.Cube (default: DESIGN). jitter: cube.Jitter (cube.NOMINAL for none).
+    release: movers switch their magnets off toward every cube but the ones they lean on for the
+    length of a move (switchable magnets; module docstring, Release)."""
 
-    def __init__(self, cells, cube=None, seed=0, jitter=Jitter(), settle=0.3):
+    def __init__(self, cells, cube=None, seed=0, jitter=Jitter(), settle=0.3, release=False):
         self.cube = cube or DESIGN.cube()
         self.jitter = jitter
+        self.release = release
         self.rng = np.random.default_rng(seed)
         rng = self.rng
         cells = np.asarray(cells, dtype=int)
@@ -230,16 +256,21 @@ class Swarm:
     # physics
 
     def step(self, free=-1, brake=None):
-        """One time step. The flywheel of cube `free` is left alone; every other one is braked."""
+        """One time step. The flywheels of cube `free` (an index, -1 for none, or an index array)
+        are left alone; every other one is braked. brake: (cube, torque) for one cube's brake
+        torque, or (n, 1) torques for all; otherwise the cube's brake_torque."""
         data = self.data
         spin = data.qvel[self.fly_dofs]  # (n, 3), relative to the cube, in the flywheel's frame
         stop = 0.5 * self.fly_inertia[:, None] * spin / DT  # the torque that would halt it in about two steps
         size = np.linalg.norm(stop, axis=1, keepdims=True)
-        limit = np.full((self.n, 1), self.cube.brake_torque)
-        if brake is not None:
-            limit[brake[0]] = brake[1]
+        if isinstance(brake, np.ndarray):
+            limit = brake
+        else:
+            limit = np.full((self.n, 1), self.cube.brake_torque)
+            if brake is not None:
+                limit[brake[0]] = brake[1]
         torque = -stop * np.minimum(1.0, limit / np.maximum(size, 1e-12))
-        if free >= 0:
+        if not np.isscalar(free) or free >= 0:
             torque[free] = 0.0
         data.qfrc_applied[self.fly_dofs] = torque
         data.xfrc_applied[self.bodies] = self.magnets.wrench(data.xpos[self.bodies], data.xmat[self.bodies].reshape(self.n, 3, 3))
@@ -308,64 +339,135 @@ class Swarm:
                     target=tuple(int(v) for v in target[::-1]),
                     bonds=len(faces),
                     hinges=len(edges),
-                    rubs=sum(solid(c) for c in beside),
+                    rubs=int(sum(bool(solid(c)) for c in beside)),
+                    leans=tuple(tuple(int(v) for v in c[::-1]) for c in ([here + s] if quarters == 2 else [here + s, here + h + s])),
                 )
         return pivot_found
+
+    def released(self, movers, pivots, reading):
+        """(n, n) bool: the cube pairs whose magnets are off while movers (cube indices) carry out
+        pivots: each mover's pairs with every cube but the ones it leans on (Pivot.leans)."""
+        at = {tuple(int(v) for v in c): i for i, c in enumerate(reading.cells)}
+        cut = np.zeros((self.n, self.n), dtype=bool)
+        for cube, pivot in zip(movers, pivots):
+            row = np.ones(self.n, dtype=bool)
+            row[[cube] + [at[c] for c in pivot.leans if c in at]] = False
+            cut[cube] |= row
+            cut[:, cube] |= row
+        return cut
+
+    def actuate(self, spins, limit, cut=None, watch=None):
+        """The drive of a step: after BRAKE_AT, set each flywheel of spins [(cube, axis (x, y, z)
+        world unit vector, rpm)] spinning, brake them with limit (n, 1) N m for BRAKE_HOLD, then
+        leave them free, until every cube is still for SETTLE or HORIZON. cut: magnet pairs off
+        meanwhile ((n, n) bool, SwarmMagnets.switch); then they are back on and the scene settles
+        for SETTLE more."""
+        if cut is not None:
+            self.magnets.switch(cut)
+        self.run(BRAKE_AT, watch)
+        for cube, axis, rpm in spins:
+            spin = np.array(axis, dtype=float) * rpm * 2 * math.pi / 60
+            self.data.qvel[self.fly_dofs[cube]] = self.data.xmat[self.flies[cube]].reshape(3, 3).T @ spin
+        movers = np.array([cube for cube, _, _ in spins])
+        still = 0.0
+        elapsed = 0.0
+        while elapsed < HORIZON - BRAKE_AT and still < SETTLE:
+            self.step(free=-1 if elapsed < BRAKE_HOLD else movers, brake=limit)
+            elapsed += DT
+            still = still + DT if elapsed > BRAKE_HOLD and self.calm() else 0.0
+            if watch is not None:
+                watch(self)
+        if cut is not None:
+            self.magnets.switch(None)
+            self.run(SETTLE, watch)
+
+    def spin(self, cube, axis, rpm, release=None, watch=None):
+        """A raw drive, whatever the lattice says: spin cube's flywheel about the world axis (x, y,
+        z) at rpm (jittered as a move's) and brake it. release (default: the swarm's) switches its
+        magnets off toward every other cube meanwhile. Returns the Reading after."""
+        jitter = self.jitter
+        speed = min(rpm, self.cube.max_rpm) * (1 + self.rng.normal(0, jitter.speed) if jitter.speed > 0 else 1.0)
+        limit = np.full((self.n, 1), self.cube.brake_torque)
+        limit[cube] = self.cube.brake_torque * (1 + self.rng.uniform(-jitter.brake, jitter.brake) if jitter.brake > 0 else 1.0)
+        cut = None
+        if self.release if release is None else release:
+            cut = np.zeros((self.n, self.n), dtype=bool)
+            cut[cube] = cut[:, cube] = True
+            cut[cube, cube] = False
+        self.actuate([(cube, axis, speed)], limit, cut, watch)
+        return self.lattice()
 
     def move(self, cube, direction, rpm=None, watch=None):
         """Carry out one lattice move of one cube and classify it from the poses before and after.
         rpm overrides the calibrated flywheel speed. watch(swarm), if given, is called every step."""
+        return self.moves([(cube, direction)], rpm, watch)[0]
+
+    def moves(self, orders, rpm=None, watch=None):
+        """Carry out lattice moves [(cube, direction)] at once and classify each from the poses
+        before and after. Every move is planned on the grid as it is before any of them (as the
+        voxel world judges a step); the movers' flywheels are spun and braked together. With
+        release, each mover's magnets are off toward every cube but the ones it leans on until the
+        scene is still, then back on, and the scene settles for SETTLE more. A knock (a cube that
+        is not moving displaced or tipped) is charged to every move of the step. rpm overrides the
+        calibrated flywheel speeds. watch(swarm), if given, is called every step. Returns one Move
+        per order; a single order is the one-cube move of before, step for step."""
         clock = time.perf_counter()
         began = self.data.time
         before = self.lattice()
         centres_before, _ = self.poses()
-        pivot = self.plan(cube, direction, before)
-        detail = "refused"
-        speed = 0.0
+        pivots = [self.plan(cube, direction, before) for cube, direction in orders]
+        active = [k for k, pivot in enumerate(pivots) if pivot is not None]
+        speeds = {}
         shift = 0.0
-        if pivot is not None:
+        knocked = ()
+        after = before
+        if active:
             jitter = self.jitter
-            speed = min(rpm or RPM[pivot.primitive], self.cube.max_rpm) * (1 + self.rng.normal(0, jitter.speed) if jitter.speed > 0 else 1.0)
-            brake = self.cube.brake_torque * (1 + self.rng.uniform(-jitter.brake, jitter.brake) if jitter.brake > 0 else 1.0)
-            self.run(BRAKE_AT, watch)
-            spin = np.array(pivot.axis) * speed * 2 * math.pi / 60
-            self.data.qvel[self.fly_dofs[cube]] = self.data.xmat[self.flies[cube]].reshape(3, 3).T @ spin
-            still = 0.0
-            elapsed = 0.0
-            while elapsed < HORIZON - BRAKE_AT and still < SETTLE:
-                self.step(free=-1 if elapsed < BRAKE_HOLD else cube, brake=(cube, brake))
-                elapsed += DT
-                still = still + DT if elapsed > BRAKE_HOLD and self.calm() else 0.0
-                if watch is not None:
-                    watch(self)
+            movers = np.array([orders[k][0] for k in active])
+            limit = np.full((self.n, 1), self.cube.brake_torque)
+            for k in active:
+                speeds[k] = min(rpm or RPM[pivots[k].primitive], self.cube.max_rpm) * (1 + self.rng.normal(0, jitter.speed) if jitter.speed > 0 else 1.0)
+                limit[orders[k][0]] = self.cube.brake_torque * (1 + self.rng.uniform(-jitter.brake, jitter.brake) if jitter.brake > 0 else 1.0)
+            cut = self.released(movers.tolist(), [pivots[k] for k in active], before) if self.release else None
+            self.actuate([(orders[k][0], pivots[k].axis, speeds[k]) for k in active], limit, cut, watch)
             after = self.lattice()
             centres, rot = self.poses()
-            others = np.arange(self.n) != cube
+            others = ~np.isin(np.arange(self.n), movers)
             upright = (np.abs(rot).max(axis=2) > ALIGNED).all(axis=1)
-            shift = float(np.abs(centres - centres_before)[others].max()) if self.n > 1 else 0.0
-            neighbour_knock = shift > DISTURBED or not upright[others].all()
-            end_cell = tuple(int(v) for v in after.cells[cube])
-            detail = "off"
-            if neighbour_knock:
-                detail = "knock"
-            elif not after.off[cube]:
-                detail = "reached" if end_cell == pivot.target else "stayed" if end_cell == tuple(int(v) for v in before.cells[cube]) else "strayed"
+            moved = np.abs(centres - centres_before).max(axis=1)
+            shift = float(moved[others].max()) if others.any() else 0.0
+            knocked = tuple(int(j) for j in np.nonzero(others & ((moved > DISTURBED) | ~upright))[0])
         final = self.lattice()
-        return Move(
-            cube=cube,
-            direction=tuple(direction),
-            primitive=pivot.primitive if pivot else "",
-            bonds=pivot.bonds if pivot else 0,
-            hinges=pivot.hinges if pivot else 0,
-            rubs=pivot.rubs if pivot else 0,
-            rpm=round(float(speed)),
-            outcome={"reached": "reached", "stayed": "stayed", "refused": "stayed"}.get(detail, "harmful"),
-            detail=detail,
-            cell=tuple(int(v) for v in final.cells[cube]),
-            shift=round(shift, 3),
-            sim_seconds=round(float(self.data.time - began), 3),
-            wall_seconds=round(time.perf_counter() - clock, 3),
-        )
+        out = []
+        for k, (cube, direction) in enumerate(orders):
+            pivot = pivots[k]
+            detail = "refused"
+            if pivot is not None:
+                end_cell = tuple(int(v) for v in after.cells[cube])
+                detail = "off"
+                if knocked:
+                    detail = "knock"
+                elif not after.off[cube]:
+                    detail = "reached" if end_cell == pivot.target else "stayed" if end_cell == tuple(int(v) for v in before.cells[cube]) else "strayed"
+            out.append(
+                Move(
+                    cube=cube,
+                    direction=tuple(direction),
+                    primitive=pivot.primitive if pivot else "",
+                    bonds=pivot.bonds if pivot else 0,
+                    hinges=pivot.hinges if pivot else 0,
+                    rubs=pivot.rubs if pivot else 0,
+                    rpm=round(float(speeds.get(k, 0.0))),
+                    outcome={"reached": "reached", "stayed": "stayed", "refused": "stayed"}.get(detail, "harmful"),
+                    detail=detail,
+                    cell=tuple(int(v) for v in final.cells[cube]),
+                    shift=round(shift, 3) if pivot is not None else 0.0,
+                    sim_seconds=round(float(self.data.time - began), 3),
+                    wall_seconds=round(time.perf_counter() - clock, 3),
+                    knocked=knocked if pivot is not None else (),
+                )
+            )
+        return out
 
 
 def primitive_name(h, s, quarters, on_floor, hanging):
