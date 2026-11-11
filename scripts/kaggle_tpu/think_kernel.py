@@ -105,7 +105,30 @@ if ROLE == "second" and not resume:
     note(phase="second", error="no resume.pt in the inputs: not training from scratch, exiting")
     sys.exit(0)
 
-subprocess.run([sys.executable, "-m", "pip", "install", "-q", "transformers==5.22.1", "datasets"], check=False)
+def pip(*args):
+    print("pip", " ".join(args), flush=True)
+    subprocess.run([sys.executable, "-m", "pip", *args], check=False)
+
+
+def installed(module):
+    """The module's version in a fresh interpreter ("" when it does not import): this process must
+    not import torch before the matching torch_xla is in place."""
+    out = subprocess.run([sys.executable, "-c", f"import {module}; print({module}.__version__)"], capture_output=True, text=True)
+    return out.stdout.strip() if out.returncode == 0 else ""
+
+
+# torch_xla is not in Kaggle's TPU image (Python 3.13, November 2026): torch_xla 2.9.0 (the last
+# release, cp313 wheels) with libtpu, and torch 2.9.0 (CPU build) under it when the image's torch is
+# another version; torchvision and torchaudio go with a replaced torch (their ops would not load).
+TORCH_XLA = "2.9.0"
+if not installed("torch_xla"):
+    torch_version = installed("torch")
+    print("image torch:", torch_version or "none", flush=True)
+    if not torch_version.startswith(TORCH_XLA[:4]):
+        pip("install", "-q", f"torch=={TORCH_XLA}", "--index-url", "https://download.pytorch.org/whl/cpu")
+        pip("uninstall", "-y", "torchvision", "torchaudio")
+    pip("install", "-q", f"torch_xla[tpu]=={TORCH_XLA}", "-f", "https://storage.googleapis.com/libtpu-releases/index.html")
+pip("install", "-q", "transformers==5.22.1", "datasets")
 import torch  # noqa: E402
 import torch_xla  # noqa: E402
 
