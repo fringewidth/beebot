@@ -158,7 +158,7 @@ For each instruction write the swarm's first thought, in lower case, at most 50 
 The two phrases "the camera looks from the board's <camera>" and "you face the board from its <user>" must appear word for word. After "first:" use only board names (front, back, left, right of the board), never your, my, me, north, forward, toward, away.
 Then "switches": one short lower-case line in board names for each later sub-goal, in order; none for a single sub-goal.
 Items with "later": true arrive mid-task: never refer to where robots or pushed things are; "i see" names only terrain and which cheeses or objects there are.
-Mention only colours, things and terrain the scene has. Never say which object is heavy.
+Never state a number of robots of 10 or more (no one can count that many from a picture); smaller numbers are fine. Mention only colours, things and terrain the scene has. Never say which object is heavy.
 
 Reply with JSON only, one object per item id and no other text:
 {"<id>": {"instructions": [{"rung": "plain", "text": "...", "thought": "...", "switches": []}, {"rung": "casual", "text": "...", "thought": "...", "switches": []}]}}
