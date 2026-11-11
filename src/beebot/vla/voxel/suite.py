@@ -1492,6 +1492,34 @@ def job_score(task, static, start, end, eaten):
     return float(job_value(spec, static, start, end, eaten, movers, n, pick) * still), unasked
 
 
+def tower_shares(record, static, start, end):
+    """How far each tower job of an instruction rose, as its checker scores that job alone:
+    built height / asked height, capped at 1, one per tower job ([] when there is none). record is
+    the instruction's record spec (record_spec, canonical_record "spec"; one instruction, not a
+    switch): a tower (with a selector, the robots taking part: job_value), a parallel task's tower
+    job, counting's tower or a conditional's tower branch. start, end: snapshots (snapshot), start
+    where the instruction began. A task can pass its checker with a short tower (a parallel task
+    with its other job done, a selector task scaled by the robots left still), so makers judge
+    the tower by its own share."""
+    kind = record.get("kind")
+    end_mass = end["mass"] > 0.5
+    if kind == "tower" and "who" in record:
+        who = {"select": record["who"], "by": record.get("by"), "which": record.get("which"), "count": record.get("count"), "except": record.get("except", False)}
+        before = start["mass"] > 0.5
+        pick = chosen(who, before, cheese_centres(static["cheese_color"], start))
+        if pick is None and who["select"] not in ("count", "half"):
+            return [0.0]
+        movers = end_mass & ~before if pick is None else end_mass & ~(before & ~pick)
+        return [min(1.0, tallest_run(movers) / record["height"])]
+    if kind in ("tower", "count_tower"):
+        return [min(1.0, tallest_run(end_mass) / record["height"])]
+    if kind == "parallel":
+        return [min(1.0, tallest_run(end_mass) / x) for job, x in record["jobs"] if job == "tower"]
+    if kind == "conditional" and record["do"].get("kind") == "tower":
+        return [min(1.0, tallest_run(end_mass) / record["do"]["height"])]
+    return []
+
+
 def selected_count(task, world, i):
     """How many robots a coverage task's selector picks in scene i as it is now (None: none)."""
     occupied = world.mass[i].numpy() > 0.5

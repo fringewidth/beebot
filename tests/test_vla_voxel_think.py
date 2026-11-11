@@ -233,8 +233,10 @@ def test_trainer_runs_saves_and_resumes(name, tmp_path, monkeypatch):
     from beebot.vla.voxel import think, think_train
 
     tokenizer, image_processor = parts(name)
+    load_dtypes = []
 
     def load_lm(model, dtype=torch.float32):
+        load_dtypes.append(dtype)
         return tiny_lm(name).to(dtype), tokenizer, image_processor
 
     monkeypatch.setattr(think, "load_lm", load_lm)
@@ -251,11 +253,19 @@ def test_trainer_runs_saves_and_resumes(name, tmp_path, monkeypatch):
     rows = [json.loads(line) for line in open(tmp_path / "runs/t/history.jsonl")]
     trained = [r for r in rows if "text" in r]
     assert [r["step"] for r in trained] == [1, 2, 4, 5, 6] and all(r["distill_kl"] >= 0 and r["tokens_per_s"] > 0 for r in trained)
+    assert [r["window_examples"] for r in trained] == [6, 6, 12, 6, 6]  # batch 3 x accumulate 2 a step, every micro-batch counted once
     assert [r["step"] for r in rows if "val_loss" in r] == [4, 6]
     assert (tmp_path / "runs/t/policy_step4.pt").exists() and (tmp_path / "runs/t/policy_step6.pt").exists()
     policy, _ = think.load_policy(tmp_path / "runs/t/policy_step6.pt", "cpu")
     e = FakeThinkData(**fake).sample(np.random.default_rng(0))
     assert policy.think_then_act(e.obs.unsqueeze(0), [e.context_text], [e.images], max_new_tokens=2).thought is not None
+    half, _ = think.load_policy(tmp_path / "runs/t/policy_step6.pt", "cpu", torch.bfloat16)
+    assert load_dtypes[-1] == torch.bfloat16 and next(half.lm.parameters()).dtype == torch.bfloat16  # loaded in the dtype asked, not fp32 first
+    # a validation before every step: each throughput window starts after it, so it holds one step
+    monkeypatch.setattr(sys, "argv", ["think_train", "--name", "v", *common[2:], "--steps", "4", "--val_every_minutes", "0"])
+    think_train.run()
+    rows = [json.loads(line) for line in open(tmp_path / "runs/v/history.jsonl")]
+    assert [(r["step"], r["window_examples"]) for r in rows if "text" in r] == [(1, 6), (2, 6), (4, 6)]
 
 
 def test_step_losses_with_step_totals_are_token_and_robot_means():

@@ -388,10 +388,10 @@ def trainable_state(policy, dtype=None):
 
 def load_policy(path, device, dtype=torch.float32):
     """(policy, tokenizer) of a think checkpoint ({"weights", "meta"}) on device, the LM in dtype
-    (the new weights stay fp32)."""
+    (loaded in it: a 4B LM is never held in fp32 first; the new weights outside it stay fp32)."""
     saved = torch.load(path, map_location="cpu")
     meta = saved["meta"]
-    lm, tokenizer, image_processor = load_lm(meta["model"])
+    lm, tokenizer, image_processor = load_lm(meta["model"], dtype)
     policy = ThinkVoxelPolicy(lm, tokenizer, image_processor, lora_rank=meta["lora_rank"], freeze_embeddings=not meta["trained_embeddings"], train_vision=meta.get("train_vision", False), train_projector=meta.get("train_projector", True), channels=meta["channels"])
     missing = [n for n, p in policy.named_parameters() if p.requires_grad and n not in saved["weights"]]
     assert not missing, f"checkpoint lacks trainable weights: {missing[:5]}"

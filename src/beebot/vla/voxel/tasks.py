@@ -22,8 +22,8 @@ from beebot.vla.voxel.world import PALETTE_NAMES
 
 TOWER_RANK = {label: i + 1 for i, (_, label) in enumerate(TOWER_BUCKETS)}
 COUNT_WORDS = {2: "two", 3: "three", 4: "four"}
-AXES = (("up", "down"), ("forward", "back"), ("left", "right"))
-MOVES = [w for pair in AXES for w in pair] + [f"{a} {b}" for a, b in itertools.product(("up", "down"), ("forward", "back", "left", "right"))] + [f"{a} {b}" for a, b in itertools.product(("forward", "back"), ("left", "right"))]
+AXES = (("up", "down"), ("front", "back"), ("left", "right"))  # facts.direction_name's words
+MOVES = [w for pair in AXES for w in pair] + [f"{a} {b}" for a, b in itertools.product(("up", "down"), ("front", "back", "left", "right"))] + [f"{a} {b}" for a, b in itertools.product(("front", "back"), ("left", "right"))]
 REGIONS = sorted({region_name(z, y, x, 15) for z in (0, 7, 14) for y in (0, 7, 14) for x in (0, 7, 14)})
 HELD_PAIRS = (("push", "tower"), ("bridge", "eat"))
 WORDINGS = {

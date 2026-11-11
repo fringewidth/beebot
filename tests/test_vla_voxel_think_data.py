@@ -466,6 +466,49 @@ def test_direction_words_turn_into_the_users_frame():
     assert not T.mappable("go to the far side") and not T.mappable("head north") and T.mappable("go to the far left")
 
 
+def test_forward_is_away_from_the_user_and_toward_me_is_the_near_side():
+    """The agreed convention (haiku_frame, basics): forward is the far side, "toward me" the near
+    side, "the front" the near side. The labels' "forward" is a move toward the board's front, so
+    for the default user (at the board's front, turns 0) it is "toward me", and their "backward"
+    is "forward"; "back" after a motion verb stays the far side; corners stay corners."""
+    from beebot.vla.voxel.haiku_frame import mapping, user_text_words
+
+    label = "move the blue cheese forward to the front of the floor"  # a real verified label
+    assert T.in_user_frame(label, 0) == "move the blue cheese toward me to the front of the floor"
+    assert T.in_user_frame(label, 2) == "move the blue cheese forward to the back of the floor"
+    assert T.in_user_frame("push the blue cheese backward", 0) == "push the blue cheese forward"
+    assert T.in_user_frame("push the blue cheese backward", 2) == "push the blue cheese toward me"
+    assert T.in_user_frame("one group heads back right, the other stays", 2) == "one group heads front left, the other stays"
+    assert T.in_user_frame("i look forward to it", 0) == "i look forward to it"
+    for turns in range(4):  # read back with haiku_frame's reader of the user's words: the board side meant
+        table = mapping(T.ORDER[turns])
+        assert user_text_words(T.in_user_frame("move it forward", turns), table) == {"front"}
+        assert user_text_words(T.in_user_frame("move it backward", turns), table) == {"back"}
+        assert user_text_words(T.in_user_frame("step back", turns), table) == {"back"}
+        said = T.in_user_frame(label, turns)
+        assert user_text_words(said, table) == {"front"} and not (re.search(r"\bforward", said) and table["toward"] == "front")
+
+
+def test_frame_labels_are_said_as_written(store, labels, tmp_path):
+    """haiku_frame rows are the user's own words ("forward" = away from them): never turned."""
+    n2 = index_of(store, 2)
+    frame = tmp_path / "frame"
+    frame.mkdir()
+    thought = "you asked: take three steps forward. i see robots. the camera looks from the board's front and you stand behind the camera, so you face the board from its front. forward is the board's back. first: form a wall."
+    row = {"rung": "plain", "text": "take three steps forward", "thought": thought, "switches": [], "camera": "front", "place": "behind", "user": "front", "pair_id": f"run-test:s{SEED}-{n2}:plain", "id": f"run-test:s{SEED}-{n2}"}
+    (frame / "verified.jsonl").write_text(json.dumps(row) + "\n")
+
+    def side_views(obs, rng, side=None):
+        return ["iso"], {"azimuth": {"front": 0.0, "right": 90.0, "back": 180.0, "left": 270.0}[side or "front"]}
+
+    data = T.ThinkData([store], [labels], held_share=0.0, views=side_views, refusal_share=0.0, frame_dirs=[frame])
+    ep = ep_of(data, 2)
+    rng = np.random.default_rng(0)
+    example = data.example(ep, 0, data.labelling(ep, rng), rng)
+    assert example.turns == 0 and "\ntake three steps forward<|im_end|>" in example.context_text
+    assert "you asked: take three steps forward." in example.reply_text and "forward is the board's back" in example.reply_text
+
+
 def test_the_users_place_is_the_camera_turned_by_the_stated_offset():
     assert T.quarter_turns(0) == 0 and T.quarter_turns(90) == 1 and T.quarter_turns(180) == 2 and T.quarter_turns(-90) == 3
     assert [T.user_turns(90, name) for name in ("behind", "left", "right", "opposite")] == [1, 0, 2, 3]  # a camera at the world's right
@@ -593,3 +636,51 @@ def test_robot_counts_of_ten_or_more_are_never_said():
     kept = visible("you asked: 3 of you go left. i see 3 robots by a tower 12 high. first: 3 of you go to the left.", "3 of you go left", {"spec": {"count": 3, "height": 12}})
     assert "3 robots" in kept and "12 high" in kept
     assert counted({"thought": "x", "instruction": "build a 40 robot tower", "reply": "there are only 35 robots here, so no."})
+
+
+def test_count_stripping_leaves_plain_text_and_the_audit_sees_every_form():
+    """Every form of a large robot count goes, in words that still read ("the other robots", not
+    "the others robots"; "all of them go", not "all some go"), and large_counts (the audit) finds
+    each form in the text before."""
+    from beebot.vla.voxel.think_data import large_counts, visible, without_large_counts
+
+    cases = [  # (instruction, thought, as it is given)
+        ("separate into three distinct clusters", "you asked: separate into three distinct clusters. i see a swarm of seventeen on a flat floor. first: split into three groups.", "you asked: separate into three distinct clusters. i see a swarm on a flat floor. first: split into three groups."),
+        ("split up", "you asked: split up. i see a plateau. the other 12 robots go to the back. first: three go left.", "you asked: split up. i see a plateau. the other robots go to the back. first: three go left."),
+        ("everyone go left", "you asked: everyone go left. i see 25 bots. first: all 25 go left.", "you asked: everyone go left. i see the bots. first: all of them go left."),
+        ("pull the crowd of seventeen into one group", "you asked: pull the crowd of seventeen into one group. i see a flat floor. the crowd of seventeen means every robot. first: gather into one group.", "you asked: pull the crowd of seventeen into one group. i see a flat floor. the crowd means every robot. first: gather into one group."),
+        ("merge", "you asked: merge. i see groups of 16, 11 and 7 robots. the whole twenty-five means everyone. first: gather into one group.", "you asked: merge. i see groups. the whole swarm means everyone. first: gather into one group."),
+        ("the biggest group goes left", "you asked: the biggest group goes left. i see a bunch of 19 on the left. five go, forty-eight stay. first: the 19 go left.", "you asked: the biggest group goes left. i see a bunch on the left. first: the robots go left."),
+    ]
+    for instruction, thought, want in cases:
+        assert large_counts(thought, instruction), thought
+        assert visible(thought, instruction) == want
+        assert large_counts(want, instruction) == []
+    assert without_large_counts("i see 54 robots, so we only have 54 robots here.") == "i see the robots, so we only have many robots here."
+    for size in ("i see a tower 12 high and ten legs.", "i see a cube of 27 cells.", "twenty-fourth is x."):  # sizes, things, ordinals: no robot counts
+        assert large_counts(size) == [] and without_large_counts(size) == size
+
+
+def test_the_quote_is_never_changed():
+    """The quote ends where the instruction does, or (a paraphrase) before "i see": counts in it stay."""
+    from beebot.vla.voxel.think_data import quote_length, visible
+
+    instruction = "ey all 59 of u spread out so no 2 r touching, ok?"
+    thought = "you asked: ey all 59 of u spread out so no 2 r touching, ok? i see a trench and 59 robots. first: spread out."
+    assert visible(thought, instruction, {"plain": "spread out so that no two of you touch", "spec": {"kind": "spread"}}) == "you asked: ey all 59 of u spread out so no 2 r touching, ok? i see a trench and the robots. first: spread out."
+    paraphrase = "you asked: any five of you head for the front, forty-eight hold still. i see 53 robots. first: 5 of you: go to the front of the floor."
+    out = visible(paraphrase, "any five of you head for the front of the floor, the other forty-eight hold still", {"spec": {"count": 5}})
+    assert out == "you asked: any five of you head for the front, forty-eight hold still. i see the robots. first: 5 of you: go to the front of the floor."
+    assert quote_length("i see 12 robots.", "go") == 0 and quote_length("you asked: go left. i see.", "go left") == len("you asked: go left.")
+
+
+def test_only_refusals_that_reason_from_a_count_are_dropped():
+    from beebot.vla.voxel.think_data import counted
+
+    absent = {"instruction": "fill the trench with the red cheese", "thought": "you asked: fill the trench with the red cheese. i see a trench between two plateaus and 13 robots, but no cheeses at all. there is no red cheese here, so the swarm will not act.", "reply": "there is no red cheese here, so i will do nothing."}
+    assert counted(absent) == []
+    assert counted(dict(absent, thought="you asked: fill the trench with the red cheese. i see no cheese here, only 22 robots on a flat floor. nothing to do.")) == []
+    tall = {"instruction": "build a tower 40 robots tall", "thought": "you asked: build a tower 40 robots tall. i see 39 robots on flat floor. there are only 39 robots here, so a 40-robot tower cannot be built.", "reply": "i will do nothing."}
+    assert counted(tall) == ["39 robots"]
+    assert counted({"instruction": "build a tower 90 robots tall", "thought": "you asked: build a tower 90 robots tall. i see 81 robots, fewer than ninety. the swarm does nothing.", "reply": ""})
+    assert counted({"instruction": "build a cross using forty robots", "thought": "you asked: build a cross using forty robots. i see 6 robots here. forty robots are not in this scene, so i will not act.", "reply": ""}) == ["forty robots"]

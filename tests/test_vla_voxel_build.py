@@ -364,6 +364,41 @@ def test_demos_write_build_episodes(tmp_path):
             assert all(entry["goal"]["kind"] == "build" for entry in store["subgoals"][e])
 
 
+def test_makers_reject_a_short_tower_inside_any_task():
+    """demos.maker_problem judges every tower job by its own share (suite.tower_shares), not the
+    task's score: a parallel task passes its checker with the region done and half a tower."""
+    from types import SimpleNamespace
+
+    world = SimpleNamespace(walls=torch.zeros(1, 16, 16, 16, dtype=torch.bool), cheese_color=torch.full((1, 3), -1), gravity=torch.ones(1, dtype=torch.bool))
+
+    def arrays(start, end):
+        mass = torch.zeros(1, 2, 16, 16, 16)
+        for t, cells in enumerate((start, end)):
+            for z, y, x in cells:
+                mass[0, t, z, y, x] = 1
+        return {"mass": mass, "cheese_pos": torch.zeros(1, 2, 3, 3, dtype=torch.int8), "cheese_alive": torch.zeros(1, 2, 3, dtype=torch.bool)}
+
+    def column(height, y=4, x=4):
+        return [(z, y + dy, x + dx) for z in range(height) for dy in (0, 1) for dx in (0, 1)]
+
+    flat = [(0, y, x) for y in range(4, 8) for x in range(4, 8)]  # 16 robots one high
+    far = [(0, 13, x) for x in range(12, 16)]  # 4 robots apart: the smaller group
+    region = [(0, y, x) for y in range(0, 3) for x in range(6, 9)]  # 9 robots on the back of the floor
+    par = S.Task("parallel", "split: one group to the back, the other builds a tower 4 high", {"kind": "parallel", "jobs": [("region", "back"), ("tower", 4)], "forbid": set()}, [])
+    assert demos.maker_problem(par, world, {}, 0, arrays(flat, region + column(2)), None, 0.75) == "short_tower"
+    assert demos.maker_problem(par, world, {}, 0, arrays(flat, region + column(4)), None, 1.0) is None
+    selector = S.Task("subset", "the larger group builds a tower 4 high", {"kind": "tower", "who": {"select": "group", "by": "size", "which": "larger"}, "height": 4, "forbid": set()}, [])
+    assert demos.maker_problem(selector, world, {}, 0, arrays(flat + far, column(3) + column(1, 12, 12) + far), None, 0.75) == "short_tower"
+    assert demos.maker_problem(selector, world, {}, 0, arrays(flat + far, column(4) + far), None, 1.0) is None
+    counting = S.Task("objects", "build a tower as tall as the number of cheeses", {"objects": True, "kind": "count", "job": "tower", "of": "cheeses", "count": 4, "forbid": set()}, [])
+    assert S.task_kind(counting) == "count:tower"
+    assert demos.maker_problem(counting, world, {}, 0, arrays(flat, column(3)), None, 0.75) == "short_tower"
+    start = {"mass": np.zeros((16, 16, 16), np.float32), "cheese_pos": np.zeros((3, 3), np.int64), "cheese_alive": np.zeros(3, bool)}
+    end = dict(start, mass=arrays([], column(5))["mass"][0, 1].numpy())
+    assert S.tower_shares({"kind": "conditional", "holds": False, "do": {"kind": "tower", "height": 5}}, {"cheese_color": [-1] * 3}, start, end) == [1.0]
+    assert S.tower_shares({"kind": "conditional", "holds": True, "do": {"kind": "eat_thing", "target": 0}}, {"cheese_color": [-1] * 3}, start, end) == []
+
+
 # ---------------------------------------------------------------------------------------------
 # Meshes
 
