@@ -158,6 +158,88 @@ def test_run_with_a_model_records_stuck_robots_and_refuses_failure_rates():
         S.run(world, metas, tasks, expert, steps=1, failure=torch.zeros(27), rule="switch_cube", outcomes=model)
 
 
+def test_odds_give_each_move_its_class_odds():
+    model = table(concave_up__lone=(0, 0, [[[[0, 0, 0], [0, 0, 0], True]]] * 10), floor_roll=(9, 1, []))
+    world = scene([(0, 5, 5), (0, 5, 6), (1, 5, 6)])  # a cube beside a lone stack of two
+    odds = model.odds(world, "switch_cube")
+    robot = 0  # grid order: (0, 5, 5) first
+    up = code(1, 0, 0)
+    assert odds.shape == (3, 27, 3)
+    assert torch.allclose(odds[robot, up], torch.tensor(model.probabilities(model_index(world, (0, 5, 5), up))))
+    assert odds[robot, up, 2] > 0.5 and odds[robot, code(0, 1, 0), 2] == 0
+    assert odds[robot, STAY].tolist() == [0.0, 1.0, 0.0]
+    assert odds[robot, code(0, 0, 1)].tolist() == [0.0, 1.0, 0.0]  # into the stack: not a move the rule allows
+
+
+def model_index(world, cell, move):
+    _, side = rule_table(world, "switch_cube", sides=True)
+    features = pivot_features(world, torch.tensor([0]), torch.tensor([cell]), torch.tensor([move]), side[0, move][cell].view(1))
+    return int(pivot_class(features)[0])
+
+
+def test_risky_leaves_out_moves_a_safer_one_can_replace():
+    from beebot.vla.voxel.controller import risky
+
+    odds = torch.zeros(1, 27, 3)
+    odds[..., 1] = 1.0
+    a, b, c = code(0, 0, 1), code(0, 1, 0), code(1, 0, 1)
+    odds[0, a] = torch.tensor([0.3, 0.6, 0.1])
+    odds[0, b] = torch.tensor([0.5, 0.5, 0.0])
+    odds[0, c] = torch.tensor([0.2, 0.0, 0.8])
+    progress = torch.zeros(1, 27, dtype=torch.bool)
+    progress[0, [a, b, c]] = True
+    out = risky(odds, progress)
+    assert out[0, a] and not out[0, b] and out[0, c]  # a: 0.1 above b's 0; c: more likely to harm than land
+    progress[0, b] = False  # b no longer gets closer: a is the safest move that does
+    out = risky(odds, progress)
+    assert not out[0, a] and out[0, c] and not out[0, STAY]
+
+
+def test_the_controller_waits_rather_than_take_a_move_likely_to_harm():
+    from beebot.vla.voxel.controller import act
+
+    world = scene([(0, 5, 5)])
+    targets = torch.tensor([[[0, 5, 9]]])
+    valid = torch.ones(1, 1, dtype=torch.bool)
+    allowed = rule_moves(world, "switch_cube")
+    east = code(0, 0, 1)
+    for harm, expected in ((0.0, east), (0.1, east), (0.7, STAY)):
+        odds = torch.zeros(1, 27, 3)
+        odds[..., 0] = 1.0  # every other move lands
+        odds[0, STAY] = torch.tensor([0.0, 1.0, 0.0])
+        odds[0, east] = torch.tensor([0.3, 0.7 - harm, harm]) if harm < 0.7 else torch.tensor([0.3, 0.0, 0.7])
+        got = act(world, targets, valid, jitter=0.0, allowed=allowed, odds=odds)[0, 0, 5, 5]
+        assert int(got) == expected
+
+
+def test_a_risk_weighing_expert_never_takes_a_move_more_likely_to_harm_than_land():
+    rng = np.random.default_rng(5)
+    world, metas, tasks = S.sample_tasks(rng, 6, "train", robots=(8, 12))
+    world = replace(world, gravity=torch.ones_like(world.gravity))
+    model = OutcomeModel.load(OUTCOME_MODELS[-1])
+    blind, weighing = (S.Expert(tasks, seed=0, rule="switch_cube") for _ in range(2))
+    weighing.outcomes = model
+    chosen = {False: 0, True: 0}
+    for t in range(16):
+        odds = model.odds(world, "switch_cube")
+        bad = odds[..., 2] > odds[..., 0]
+        robots = world.mass > 0.5
+        for expert, weigh in ((blind, False), (weighing, True)):
+            codes = expert(world, t)
+            mine = codes[robots].long()
+            chosen[weigh] += int(bad[torch.arange(len(mine)), mine].sum())
+        world, _ = step(world, codes.long(), rule="switch_cube", outcomes=model, noise=torch.rand(world.mass.shape, generator=torch.Generator().manual_seed(t)))
+    assert chosen[True] == 0
+
+
+def test_a_cube_off_before_the_move_is_no_knock():
+    from beebot.hardware import cube_outcomes as C
+
+    row = {"cells": [[0, 5, 5], [0, 5, 8]], "after": [[0, 5, 6], [0, 5, 8]], "off_before": [1], "off_after": [1], "cube": 0, "start": [0, 5, 5], "target": [0, 5, 6], "h": [0, 0, 1], "s": [-1, 0, 0], "key": "floor_roll", "detail": "reached", "movers": 1}
+    assert C.lattice_end(row)[0] == "reached"
+    assert C.lattice_end({**row, "off_before": []})[0] == "knock"
+
+
 def test_a_measured_knock_fits_and_replays_as_a_knock_in_any_direction():
     from beebot.hardware import cube_outcomes as C
 
