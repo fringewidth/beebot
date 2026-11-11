@@ -824,6 +824,13 @@ def _allowed_azimuth(rng):
     return float((90 * int(rng.integers(4)) + rng.uniform(-30, 30)) % 360)
 
 
+def side_azimuth(side, rng=None):
+    """An azimuth within 30 degrees of a named side (as _allowed_azimuth draws); the side's own
+    without rng."""
+    base = 90.0 * ("front", "right", "back", "left").index(side)
+    return float((base + (rng.uniform(-30, 30) if rng is not None else 0.0)) % 360)
+
+
 def side_of(azimuth):
     return ("front", "right", "back", "left")[int(((azimuth + 45) % 360) // 90)]
 

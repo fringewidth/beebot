@@ -35,6 +35,7 @@ On several GPUs (torchrun) every process trains on its own examples; process 0 k
 """
 
 import copy
+import dataclasses
 import json
 import math
 import os
@@ -124,10 +125,13 @@ def make_data(cfg, tokenizer):
         from beebot.vla.voxel.think_data import ThinkData
 
         from beebot.vla.voxel.think_data import stand_in_views
-        from beebot.vla.voxel.views import ViewSpec, scene_views
+        from beebot.vla.voxel.views import ViewSpec, scene_views, side_azimuth
 
         spec = ViewSpec()
-        views = {"scene": lambda obs, rng: scene_views(obs, rng, spec), "stand_in": stand_in_views}[cfg.views]
+        def scene(obs, rng, side=None):  # side: the board side the camera must look from (frame labels)
+            return scene_views(obs, rng, spec if side is None else dataclasses.replace(spec, azimuth=side_azimuth(side, rng)))
+
+        views = {"scene": scene, "stand_in": stand_in_views}[cfg.views]
         source = ThinkData(split(cfg.stores), split(cfg.haiku_dirs), tokenizer, cfg.seed, views=views, **kwargs)
     return source
 

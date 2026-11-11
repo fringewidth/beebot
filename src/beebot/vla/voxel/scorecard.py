@@ -283,7 +283,10 @@ def thought_checks(episode, played):
         if start >= episode.steps:
             continue
         thought = next((t["text"] for t in played.thoughts if t["part"] == j and t["t"] == start), "")
-        out.append({"part": j, "thought": thought, **check_thought(thought, T.in_user_frame(text, played.turns), in_frame(record, played.turns))})
+        # a thought that maps the user's words onto the board (think_data.FRAME_SENTENCE) plans in the
+        # board's terms: its record stays in the board's frame
+        frame = 0 if T.FRAME_SENTENCE in thought else played.turns
+        out.append({"part": j, "thought": thought, **check_thought(thought, T.in_user_frame(text, played.turns), in_frame(record, frame))})
     return out
 
 
