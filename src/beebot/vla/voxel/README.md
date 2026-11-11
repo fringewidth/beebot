@@ -1145,6 +1145,155 @@ only when both were made with `--only build` (`export --store` reads it from the
 
 Tests: `tests/test_vla_voxel_build.py`.
 
+## Demo: ten cubes on an empty floor
+
+The grant demo runs the think-then-act policy on about ten simulated cubes in MuJoCo, which hosts
+only an empty flat floor: no cheese, terrain, objects or zones. The training stores barely cover
+that (2.2% of their episodes are an empty floor with 6 to 14 robots), and their fit checks left
+out towers of 4 and more and every single letter below 14 robots. `demos --demo` draws
+demonstrations for exactly this case.
+
+    PYTHONPATH=src OMP_NUM_THREADS=4 python -m beebot.vla.voxel.demos --out data/vla/voxel_demo --scenes 6000 --demo --compact
+
+| option | `--demo` value | what |
+| --- | --- | --- |
+| `--robots` | 8 12 | uniform |
+| `--empty` | on | every scene an empty flat floor, gravity on (below) |
+| `--scaled` | on | task sizes fitted to the swarm (below) |
+| `--keep`, `--fit` | on | keep each drawn task and draw new scenes for it; draw only tasks the swarm can do |
+| `--rule`, `--moves`, `--expert`, `--steps` | `switch_cube`, cube, attractor, 72 | the training set-up |
+| `--failure` | `0.1,up_over=0.23` | the training stores' move failures (`rollout.FAILURE`); world.py's MuJoCo-measured outcome model (`--outcomes`) instead once world.py has one (`demos.DEMO_MOVES`) |
+| `--coverage`, `--objects`, `--build` | 1.0 each | one try a scene from every sampler, as from the suite's own |
+
+Each value is a default that a given option overrides (`--demo --build 0`). `small.pt` records
+`config["preset"] = "demo"` with every option, `config["empty"]` and `config["scaled"]`;
+`haiku.store_options` reads both, so a Haiku export joins to the store (tested).
+
+### Empty floors (`--empty`, `draws(empty=True)`)
+
+1. **Scenes.** `suite.scenes(empty=True)` (and `objects.object_scenes`) draws `suite.empty_scene`:
+   no wall, cheese or object, gravity on, the robots in random floor columns as
+   `world.sample_scenes` sets them down (stacked when a column is drawn twice, at most 3 high).
+   Separate groups (`place_groups`) work as before. What the maker asked for (a trench, a cheese,
+   a zone) is not there, and its make draws whatever the floor allows, or nothing.
+1. **Giving up.** With `--keep` a drawn task gets `KEEP_TRIES` (16) scenes; on an empty floor a
+   task none of them fits is given up instead of replaced by a new draw, so its slot stays empty.
+   The tasks that come back are each sampler's own mix cut to what an empty floor allows, and a
+   share (`--coverage` and the rest) counts tries, not tasks. No per-kind quota or weight is set
+   anywhere. `--empty` needs `--keep`.
+1. Both off, every draw is as before, bit for bit (the pinned digests of
+   `test_vla_voxel_coverage.py`, `test_vla_voxel_objects.py` and `test_vla_voxel_build.py` pass).
+
+### Sizes fitted to the swarm (`--scaled`)
+
+The fit checks are bounds from the plan's targets (`suite.score_bound`). Three plans were sized for
+large swarms, and the check then threw out tasks a small swarm can do:
+
+1. **Towers.** The checker counts the tallest run of robots, so a tower of h needs h robots in one
+   column; the plan filled a 2 x 2 column (4 h robots). Now a tower the swarm cannot fill 2 x 2
+   is planned as a single column (`suite.column_side`: construction, a parallel tower job,
+   `objects.tower_points` for conditionals and counts), and `score_bound` reads the column from
+   the plan (`level_robots`; a task without a plan keeps 4 a level). A cube climbs a single column
+   by hanging on its side and pivoting onto its top (`world.pivot_moves`). A group's tower
+   (`job_spec`) is 3 to min(8, n) high instead of needing 12 robots and a quarter of them a
+   level; `JobSetup.tower_points` stacks 2 x 2 when the group fills it, else one column, and
+   `coverage_bound` is n / h (the same 1.0 as before on every unscaled draw).
+1. **Letters and the wall.** A single letter is drawn at font scale 2 (40 to 80 voxels), the wall
+   8 x 5 (40): more than three times what 8 to 12 robots can cover, so F1 can never reach 0.5.
+   Now each comes at half size (scale 1, 10 to 20 voxels; the wall 4 x 3) when the swarm cannot
+   reach the pass mark on the full size (`suite.mask_fits`), and at full size otherwise.
+   Two-letter words are already at scale 1 and the floating shapes need gravity off; neither
+   changes.
+1. **A job's own robot range.** The line job draws its own count (3 to 14) in place of `--robots`;
+   scaled cuts it to `--robots` (8 to 12 here), and a job whose range misses `--robots` is not
+   drawn.
+
+Unscaled, all of this is as before (`column_side` gives 2, the masks keep their size).
+
+### What 8 to 12 cubes on an empty floor can do
+
+Every family and kind of the suite, coverage, object and build makers, drawn on empty floors with
+8 to 12 robots (`--empty --scaled --keep --fit`) and played by the expert under `switch_cube`,
+cube moves, failures 0.1 (0.23 up and over), 72 steps, gravity on. passed: the episode is a
+demonstration (checker pass and `demos.maker_problem` None); made: tries that gave a task. Seed 31
+for every family (48 tries per suite family and switch job, 24 per motion and subset job, 96
+builds), seed 33 for 96 more tries of nine motion and subset jobs; the unscaled column is seed 32
+without the fit check.
+
+    PYTHONPATH=src OMP_NUM_THREADS=2 nice python scripts/vla_voxel_demo_feasibility.py --n 48 --seed 31 --out runs/demo/feasibility.jsonl
+    PYTHONPATH=src OMP_NUM_THREADS=2 nice python scripts/vla_voxel_demo_feasibility.py --n 96 --seed 33 --jobs motion:goto,motion:move,subset:move,subset:goto,motion:line,motion:groups,subset:tower,motion:spread,motion:gather --out runs/demo/jobs.jsonl
+    PYTHONPATH=src OMP_NUM_THREADS=2 nice python scripts/vla_voxel_demo_feasibility.py --n 48 --seed 32 --unscaled --no-fit --only suite,objects --out runs/demo/unscaled.jsonl
+
+| family | kind | made / tries | passed | feasible |
+| --- | --- | --- | --- | --- |
+| formation | one letter on the floor, half size | 48 / 48 (with the rest of formation) | 22 / 22 | yes; full size 0 / 12 (unscaled, no fit check) |
+| formation | two-letter word | 2 of those 48 | 2 / 2 | rarely: 20 to 40 voxels, the fit check drops most |
+| formation | wall, half size | 24 of those 48 | 24 / 24 | yes; full size 0 / 29 |
+| formation | standing letter, hollow cube, sphere, flat ring, plus | none | | no: they float (gravity on); the build family's glyphs stand |
+| construction | tower, one column, 3 to 8 | 22 / 48 (with the 2 x 2 ones) | 15 / 20 | yes; misses end one cube short (`short_tower`); 2 x 2 at 4 and up 0 / 22 unscaled |
+| construction | tower 2 x 2 (12 robots, 3 high) | | 2 / 2 | yes |
+| construction | bridge, fill | given up | | no: no trench |
+| logic | eat a colour that is not there (`eat:absent`, refuse) | 8 / 48 | 8 / 8 | yes; the other forms need a cheese |
+| parallel | region + region | 18 / 48 (all parallel) | 6 / 8 | yes (2 done at the start) |
+| parallel | region + tower (one column or 2 x 2) | | 6 / 10 | yes |
+| parallel | surround or eat in a pair; herd; runner | given up | | no: no cheese |
+| motion | stay | 24 / 24 | 24 / 24 | yes |
+| motion | goto, all nine regions | 120 / 120 | 120 / 120 | yes (4 to 15 per region) |
+| motion | move three steps left, right, back, front | 103 / 120 | 103 / 103 | yes (16 to 23 per side); the rest have no room |
+| motion | gather | 40 / 120 | 40 / 40 | yes; a swarm already half in one group counts as done |
+| motion | spread | 24 / 120 | 24 / 24 | yes; a scattered swarm of ten is already spread |
+| motion | groups (two, three) | 120 / 120 | 120 / 120 | yes (three groups in 7 of 96: they need 12 robots) |
+| motion | line, x and y | 120 / 120 | 120 / 120 | yes |
+| motion | approach, follow; climb | given up | | no: no cheese; no plateau |
+| subset | goto by group, except, count, half | 94 / 120 | 94 / 94 | yes |
+| subset | move by group, except | 120 / 120 | 120 / 120 | yes |
+| subset | groups (one group splits), line, spread | 65 / 72 | 65 / 65 | yes |
+| subset | tower by a group (one column) | 120 / 120 | 115 / 120 | yes |
+| subset | the robots on top | none | | no: scenes of ten have no stacked robots to name |
+| subset | gather by except | 0 / 24 | | no: the larger group is already more than half (done at the start) |
+| subset | approach, climb, eat | given up | | no: no cheese; no plateau |
+| switch | then stay | 21 / 48 | 21 / 21 | yes |
+| switch | then goto | 27 / 48 | 26 / 27 | yes |
+| switch | then gather | 18 / 48 | 12 / 18 | yes; 6 already gathered when it arrives |
+| switch | then spread | 2 / 48 | 2 / 2 | rarely: most first jobs leave ten cubes spread |
+| reasoning | "eat the c cheese if there is one, otherwise build a tower" (else) | 29 | 28 / 29 | yes |
+| reasoning | "surround the c cheese if there is one, otherwise go to r" (else) | 24 | 24 / 24 | yes |
+| things, blocks, zones; reasoning references and counts | | given up | | no: no object or zone |
+| build | named: arch, bridge, cross, fence, gate, ladder, lamp post, letter T, number 1, podium, shelf, slide, standing ring, stool | 70 | 70 / 70 | yes, within 72 steps |
+| build | uses: sit, span | 26 | 26 / 26 | yes; table, shelter and contain need more robots |
+
+All drawn kinds: 556 of 576 passed (0.97) in the first probe. Refusals of things the scene does
+not have come from `eat:absent` and the conditionals' other branch here, and from Haiku's refuse
+instructions at labelling time (`haiku.py --refusals`); a push, surround or approach of a missing
+cheese is not a drawn kind.
+
+### A trial store
+
+`demos --demo --scenes 200 --compact` (seed 0) played 444 episodes and kept 429 (0.97), 2.1 a
+scene, in 4.9 MB (11 KB an episode). It took 544 s on 4 threads while the machine ran other jobs
+at a load average of about 65 (296 s user and 102 s system, of which about a minute is the build
+library's one-time survey, `build.min_sizes`). Every scene is an empty floor with gravity on; the
+robots are 8 to 12, 78 to 96 episodes each.
+
+| family | kept / tried | kinds kept |
+| --- | --- | --- |
+| build | 200 / 200 | named 162, uses 38 |
+| formation | 56 / 56 | half-size letters and walls, a few words |
+| construction | 31 / 39 | towers; 8 dropped one cube short (`short_tower`) |
+| parallel | 17 / 22 | region + tower 12, region + region 5 |
+| logic | 8 / 8 | eat a colour that is not there |
+| motion | 37 / 37 | groups 9, goto 7, line 5, move 5, gather 4, stay 4, spread 3 |
+| subset | 44 / 44 | goto 17, spread 9, move 8, line 5, tower 4, groups 1 |
+| switch | 26 / 28 | then stay 21, then gather 4, then goto 1; 2 done when it arrived |
+| reasoning | 10 / 10 | conditionals' other branch: tower 5, go to 5 |
+
+So a full draw keeps about 2.1 episodes a scene: 6000 scenes give about 12,900 episodes (150 MB
+compact) for about 2.7 CPU hours (1.6 CPU s a scene). Builds are 47% of it, because nearly every
+build try fits ten cubes while most suite tries need a cheese or a trench; `--build` sets that
+share if it should be otherwise.
+
+Tests: `tests/test_vla_voxel_demo.py`.
+
 ## Compact store
 
 A dense store spends 0.6 MB on an episode of 72 steps (145 grids of 4096 bytes) to hold 6 to
