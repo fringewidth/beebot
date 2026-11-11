@@ -7,6 +7,8 @@ Stages, each printing one JSON line {"smoke": <stage>, ...}:
   setup     torch_xla and libtpu as the Kaggle kernel installs them (think_kernel.py), the TPU chips
   inverse   think.chunk_gated_delta_rule_matmul on the TPU against transformers' reference on the
             CPU, with correlated keys (the case that broke the old inverse)
+  distill_grad  the distillation KL's gradients of a tiny random Qwen3.5 on the TPU as think_train
+            sets it up, against the CPU (python colab_smoke.py distill_grad runs it alone)
   probe     think_train on fake data (the kernel's probe arguments), 40 steps on one chip
   real      think_train on real data: two small stores drawn here (demos.write with the options of
             voxel_full and voxel_build, compact), the kernel's task mix, quarantine and frame
@@ -81,6 +83,72 @@ def inverse():
     say("inverse", max_error=round(error, 6), mean_size=round(float(reference.abs().mean()), 4), passed=error < 1e-3)
 
 
+def distill_grad(xla=True):
+    """The distillation KL's gradients (lm_train.distill_loss) of a tiny random Qwen3.5 (one
+    linear-attention and one full-attention layer, frozen tied embeddings) on the TPU as
+    think_train sets it up (matmul delta rule, SDPA in the autocast dtype, torch_xla's reentrant
+    checkpoints, bf16 autocast, a bf16 teacher), against the CPU in fp32 with torch's checkpoints.
+    xla=False: the CPU part only (to try the stage where there is no TPU)."""
+    sys.path.insert(0, SRC)
+    import copy
+
+    import torch
+    import transformers.modeling_utils
+    from transformers.models.qwen3_5 import Qwen3_5TextConfig
+    from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5ForCausalLM
+
+    from beebot.vla import tpu
+    from beebot.vla.lm_train import distill_loss
+    from beebot.vla.voxel import think
+
+    torch.manual_seed(0)
+    config = Qwen3_5TextConfig(vocab_size=512, hidden_size=128, intermediate_size=256, num_hidden_layers=2, num_attention_heads=4, num_key_value_heads=2, head_dim=32, linear_num_key_heads=2, linear_num_value_heads=4, linear_key_head_dim=32, linear_value_head_dim=32, layer_types=["linear_attention", "full_attention"], tie_word_embeddings=True)
+    teacher = Qwen3_5ForCausalLM(config).eval()
+    student = copy.deepcopy(teacher)
+    with torch.no_grad():  # the student a little away from its teacher, so the KL has a gradient
+        for p in student.parameters():
+            p.add_(p.abs().mean() * torch.randn_like(p))
+    ids = torch.randint(0, config.vocab_size, (2, 256))
+
+    def gradients(model, teacher, ids, reentrant, autocast):
+        model.get_input_embeddings().weight.requires_grad_(False)  # frozen, as in think_train
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": reentrant})
+        model.config.use_cache = False
+        model.train()
+        with autocast:
+            kl = distill_loss(model, teacher, ids)
+        kl.backward()
+        return kl, {n: p.grad for n, p in model.named_parameters() if p.requires_grad}
+
+    import contextlib
+
+    kl_cpu, cpu = gradients(copy.deepcopy(student), teacher, ids, False, contextlib.nullcontext())
+    row = {"kl_cpu": round(float(kl_cpu), 5), "params": len(cpu), "nonzero_cpu": sum(int(g is not None and bool(g.abs().sum() > 0)) for g in cpu.values())}
+    if not xla:
+        say("distill_grad", **row, passed=row["nonzero_cpu"] == row["params"])
+        return
+    import torch_xla.core.xla_model as xm
+
+    tpu.xla_setup(0)
+    think.use_matmul_linear_attention()
+    think.use_autocast_sdpa()
+    transformers.modeling_utils.checkpoint = tpu.xla_checkpoint_function()
+    device = xm.xla_device()
+    kl_xla, on_xla = gradients(copy.deepcopy(student).to(device), copy.deepcopy(teacher).to(device, torch.bfloat16), ids.to(device), True, torch.autocast("xla", dtype=torch.bfloat16))
+    xm.mark_step()
+    worst, missing = 1.0, []
+    for name, g in cpu.items():
+        h = on_xla[name]
+        if h is None or not bool(h.abs().sum().cpu() > 0):
+            missing.append(name)
+            continue
+        h = h.cpu().float()
+        worst = min(worst, float(torch.nn.functional.cosine_similarity(g.flatten(), h.flatten(), dim=0)))
+    norm = lambda grads: float(torch.sqrt(sum((g.cpu().float() ** 2).sum() for g in grads.values() if g is not None)))  # noqa: E731
+    row.update({"kl_xla": round(float(kl_xla.cpu()), 5), "norm_cpu": round(norm(cpu), 5), "norm_xla": round(norm(on_xla), 5), "worst_cosine": round(worst, 4), "missing": missing[:8], "missing_count": len(missing)})
+    say("distill_grad", **row, passed=not missing and worst > 0.9)
+
+
 def train(stage, args, steps):
     env = {**os.environ, "PYTHONPATH": SRC, "PJRT_DEVICE": "TPU", "BEEBOT_XLA_PROCESSES": "1", "TOKENIZERS_PARALLELISM": "false"}
     env.update({"TPU_PROCESS_BOUNDS": "1,1,1", "TPU_CHIPS_PER_PROCESS_BOUNDS": "1,1,1", "TPU_VISIBLE_CHIPS": "0", "TPU_PROCESS_PORT": "8476", "TPU_PROCESS_ADDRESSES": "localhost:8476"})
@@ -151,12 +219,26 @@ def inverse_fresh():
         say("inverse", exit=process.returncode, tail=process.stderr[-1500:], passed=False)
 
 
-if __name__ == "__main__" and sys.argv[1:] == ["inverse"]:
-    inverse()
+def fresh(name):
+    """The stage name() in a fresh interpreter: torch is imported only after the installs."""
+    process = subprocess.run([sys.executable, os.path.abspath(__file__), name], capture_output=True, text=True, env={**os.environ, "PJRT_DEVICE": "TPU"})
+    for line in process.stdout.splitlines():
+        if line.startswith('{"smoke"'):
+            print(line, flush=True)
+    if process.returncode:
+        say(name, exit=process.returncode, tail=process.stderr[-1500:], passed=False)
+
+
+def distill_grad_fresh():
+    fresh("distill_grad")
+
+
+if __name__ == "__main__" and sys.argv[1:2] in (["inverse"], ["distill_grad"]):
+    {"inverse": inverse, "distill_grad": distill_grad}[sys.argv[1]](*([sys.argv[2] != "cpu"] if sys.argv[2:] else []))
     sys.exit(0)
 
 if __name__ == "__main__":
-    for stage in (setup, inverse_fresh, probe, real):
+    for stage in (setup, inverse_fresh, distill_grad_fresh, probe, real):
         try:
             stage()
         except Exception as error:  # report and go on
