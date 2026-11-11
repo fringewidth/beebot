@@ -28,13 +28,13 @@ from pathlib import Path
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 
 from beebot.vla import goal_eval
 from beebot.vla.caption_set import resolve, variant_rows
 from beebot.vla.data import batch_from, sample_batch
 from beebot.vla.lm_policy import lora_disabled, EvalAdapter, LMPolicy
 from beebot.vla.lm_probe import benchmark_items, gsm8k_accuracy, mc_accuracy, perplexity, probe_items
+from beebot.vla.tpu import checkpoint  # torch_xla's on XLA tensors, torch's non-reentrant elsewhere
 
 from beebot.vla.train import Config, load_data, parse_config, program_split
 
@@ -235,7 +235,7 @@ def distill_loss(student, teacher, ids, chunk=128):
         s = F.log_softmax(student.lm_head(s_part).float(), -1)
         return F.kl_div(s, t, log_target=True, reduction="sum")
 
-    total = sum(checkpoint(part, s_flat[i : i + chunk], t_flat[i : i + chunk], use_reentrant=False) for i in range(0, s_flat.shape[0], chunk))
+    total = sum(checkpoint(part, s_flat[i : i + chunk], t_flat[i : i + chunk]) for i in range(0, s_flat.shape[0], chunk))
     return total / s_flat.shape[0]
 
 

@@ -26,6 +26,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SRC = os.path.join(REPO, "src")
 MODEL = "Qwen/Qwen3.5-0.8B"
 TORCH_XLA = "2.9.0"
+TIMEOUT_MINUTES = 30  # a trainer run that takes longer is stuck (the kernel kills its probes at 25 minutes without a step)
 
 
 def say(stage, **fields):
@@ -84,9 +85,15 @@ def train(stage, args, steps):
     env.update({"TPU_PROCESS_BOUNDS": "1,1,1", "TPU_CHIPS_PER_PROCESS_BOUNDS": "1,1,1", "TPU_VISIBLE_CHIPS": "0", "TPU_PROCESS_PORT": "8476", "TPU_PROCESS_ADDRESSES": "localhost:8476"})
     command = [sys.executable, "-c", "from beebot.vla.voxel.think_train import main; main()", *args, "--device", "xla", "--chips", "1"]
     started = time.time()
-    process = subprocess.run(command, env=env, cwd=REPO, capture_output=True, text=True)
+    log = f"/tmp/smoke-{stage}.out"  # the trainer's whole output, readable while it runs
+    with open(log, "w") as out:
+        try:
+            code = subprocess.run(command, env=env, cwd=REPO, stdout=out, stderr=subprocess.STDOUT, timeout=TIMEOUT_MINUTES * 60).returncode
+        except subprocess.TimeoutExpired:
+            code = f"killed after {TIMEOUT_MINUTES} minutes"
+    text = open(log).read()
     rows = []
-    for line in process.stdout.splitlines():
+    for line in text.splitlines():
         if line.startswith("{"):
             try:
                 rows.append(json.loads(line))
@@ -94,7 +101,7 @@ def train(stage, args, steps):
                 pass
     logged = [r for r in rows if "examples_per_s" in r]
     last = logged[-1] if logged else {}
-    say(stage, exit=process.returncode, minutes=round((time.time() - started) / 60, 1), steps=last.get("step", 0), loss=last.get("loss"), text=last.get("text"), action=last.get("action"), examples_per_s=last.get("examples_per_s"), passed=process.returncode == 0 and last.get("step", 0) >= steps, tail=(process.stdout + process.stderr)[-1500:] if process.returncode else "")
+    say(stage, exit=code, minutes=round((time.time() - started) / 60, 1), steps=last.get("step", 0), loss=last.get("loss"), text=last.get("text"), action=last.get("action"), examples_per_s=last.get("examples_per_s"), step_s=last.get("step_s"), compiles=last.get("compiles"), cpu_fallbacks=last.get("cpu_fallbacks"), passed=code == 0 and last.get("step", 0) >= steps, log=log, tail=text[-1500:] if code else "")
 
 
 COMMON = ["--model", MODEL, "--batch", "4", "--accumulate", "1", "--checkpointing", "true", "--warmup_steps", "5", "--log_every", "10", "--val_examples", "0", "--val_every_minutes", "100000", "--save_every_minutes", "100000", "--save_resume", "false", "--widths", "384,512"]  # distillation on (distill_weight 1.0), as in the kernel

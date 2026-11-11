@@ -37,11 +37,11 @@ from dataclasses import dataclass, replace
 
 import torch
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 
 from beebot.vla.voxel.lm import PATCH, patchify3
 from beebot.vla.voxel.stream import OPEN, TURN, StreamVoxelPolicy, positions
 from beebot.vla.voxel.world import N_ACTIONS, N_CHANNELS
+from beebot.vla.tpu import checkpoint  # torch_xla's on XLA tensors, torch's non-reentrant elsewhere
 
 IMAGES = "<IMAGES>"  # the place of the example's images in context_text
 SCENE = "SCENE"  # the place of the voxel scene tokens in context_text (text-only LMs)
@@ -232,7 +232,7 @@ def chunked_cross_entropy(head, states, targets, chunk=512):
 
     total = states.new_zeros((), dtype=torch.float32)
     for i in range(0, states.shape[0], chunk):
-        total = total + checkpoint(part, states[i : i + chunk], targets[i : i + chunk], use_reentrant=False)
+        total = total + checkpoint(part, states[i : i + chunk], targets[i : i + chunk])
     return total
 
 

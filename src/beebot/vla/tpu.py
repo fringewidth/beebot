@@ -75,6 +75,14 @@ def xla_setup(index=0):
         torch_xla.backends.set_mat_mul_precision("highest")
     except Exception as error:  # torch_xla before 2.6
         print(f"could not set the XLA matmul precision: {error}", flush=True)
+    # torch's checkpoint and fork_rng look up torch.<device type> for XLA tensors, which torch_xla
+    # 2.9 does not register (AttributeError: module 'torch' has no attribute 'xla'): a stub module.
+    # It has no _initialized, so torch keeps no device RNG state for it (torch_xla's checkpoint
+    # keeps the XLA RNG state itself)
+    if not hasattr(torch, "xla"):
+        import types
+
+        torch._register_device_module("xla", types.ModuleType("torch.xla"))
     return xr.global_ordinal(), xr.world_size(), xm.xla_device()
 
 
@@ -158,6 +166,17 @@ def xla_checkpoint_function():
         return checkpoint(function, *args, **kwargs)
 
     return reentrant
+
+
+def checkpoint(function, *args):
+    """function(*args) with its activations recomputed in the backward pass: torch_xla's
+    checkpoint (reentrant; xla_checkpoint_function) on XLA tensors, torch's non-reentrant one
+    elsewhere."""
+    if any(isinstance(a, torch.Tensor) and a.device.type == "xla" for a in args):
+        return xla_checkpoint_function()(function, *args, use_reentrant=True)
+    from torch.utils.checkpoint import checkpoint as torch_checkpoint
+
+    return torch_checkpoint(function, *args, use_reentrant=False)
 
 
 def to_cpu(value):

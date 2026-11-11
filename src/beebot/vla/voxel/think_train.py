@@ -427,29 +427,41 @@ def run(cfg=None, index=0):
     stage(f"done at step {step}")
 
 
-def finish_process(*_):
+def finish_process(code=0):
     """Exit hard once done, as lm_train does: the streamed text datasets' threads can hold the
     interpreter open (Kaggle kernels sat for hours after their last line)."""
     import sys
 
     sys.stdout.flush()
     sys.stderr.flush()
-    os._exit(0)
+    os._exit(code)
+
+
+def run_to_exit(function, *args):
+    """function(*args), then a hard exit: 0 when it returns, 1 after printing the traceback of an
+    error (a failed run hangs on the same threads otherwise: a Colab TPU smoke sat 15 minutes
+    after its error)."""
+    try:
+        function(*args)
+    except (Exception, KeyboardInterrupt):
+        import traceback
+
+        traceback.print_exc()
+        finish_process(1)
+    finish_process()
 
 
 def xla_worker(index, cfg):
     """One TPU chip's process (--device xla --chips N)."""
-    run(cfg, index)
-    finish_process()
+    run_to_exit(run, cfg, index)
 
 
 def main():
     cfg = parse_config(ThinkConfig)
     if tpu.is_xla(cfg.device) and cfg.chips > 1:
-        tpu.xla_launch(xla_worker, (cfg,))
+        run_to_exit(tpu.xla_launch, xla_worker, (cfg,))
     else:
-        run(cfg)
-    finish_process()
+        run_to_exit(run, cfg)
 
 
 if __name__ == "__main__":
