@@ -541,6 +541,22 @@ def mappable(text):
 
 
 USER_NAMES = tuple(USER_POSITIONS)
+FRAME_SENTENCE = "you face the board from its"  # haiku_frame.py's thoughts: words already mapped onto the board
+
+
+def frame_choice(row):
+    """A verified haiku_frame.py row as a label choice: the instruction in the user's words, the
+    thought that maps them onto the board, and the camera side and user place it was written for."""
+    return {"rung": f"frame-{row['rung']}", "instruction": row["text"], "thought": row["thought"], "switches": row.get("switches") or [], "done": DONE_LINE, "camera": row["camera"], "place": row["place"], "user": row["user"], "pair_id": row["pair_id"]}
+
+
+def takes_side(views):
+    import inspect
+
+    try:
+        return "side" in inspect.signature(views).parameters
+    except (TypeError, ValueError):
+        return False
 
 
 def turnable_choice(choice):
@@ -756,7 +772,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=()):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -783,6 +799,19 @@ class ThinkData:
         self.skipped = {(key, int(n)) for key, n, *_ in quarantine.get("episodes", [])}
         self.dropped = {pair_id for pair_id, *_ in quarantine.get("labels", [])}
         self.quarantined = 0
+        # frame_dirs: haiku_frame.py outputs; their verified rows replace the labels of the
+        # single-instruction episodes they were written for (see frame_choice). The views must take
+        # side= (the board side the camera looks from), since each thought states it
+        self.frame_rows = {}
+        for directory in frame_dirs:
+            for row in H.read_jsonl(Path(directory) / "verified.jsonl"):
+                source, _, item = row["id"].partition(":")
+                if source.endswith("-later"):  # later instructions of switch episodes: not joined yet
+                    continue
+                seed, index = item[1:].split("-")
+                self.frame_rows.setdefault((source, int(seed), int(index)), []).append(frame_choice(row))
+        if self.frame_rows and not all(takes_side(v) for v in (views, validation_views or views)):
+            raise ValueError("frame labels need views that take side= (think_train --views scene)")
         self.stores = [str(s) for s in stores]
         self.data = [load(s) for s in self.stores]
         self.labels = []
@@ -796,7 +825,8 @@ class ThinkData:
                 labels.part_key = {k: [r for r in rows if r.get("pair_id") not in self.dropped] for k, rows in labels.part_key.items()}
             self.labels.append((labels, label_options(directory), items))
         self.episodes = []
-        self.frames = {"turned": 0, "world": 0, "rung_swapped": 0, "template_instead": 0, "world_frame_forced": 0}
+        self.frames = {"turned": 0, "world": 0, "rung_swapped": 0, "template_instead": 0, "world_frame_forced": 0, "haiku_frame": 0}
+        self.frame_episodes = 0
         self.rewritten = {"haiku_thoughts": 0, "haiku_changed": 0, "haiku_lines_changed": 0, "template_thoughts": 0, "template_changed": 0}
         self.events = {}
         self.templates = {}
@@ -849,6 +879,10 @@ class ThinkData:
                 refusals += labels.refusals(seed, n)
             if parts and [p["t"] for p in parts[: len(entries)]] != [int(entry["t"]) for entry in entries]:
                 problems.append(f"the Haiku parts start at {[p['t'] for p in parts]} but the store's instructions at {[entry['t'] for entry in entries]}")
+            frames = [] if problems or parts else [c for labels, _ in mine for c in self.frame_rows.get((Path(labels.directory).name, seed, n), [])]
+            if frames:  # direction tasks: the user-frame thoughts replace the board-frame labels
+                choices = frames
+                self.frame_episodes += 1
             if problems:
                 if self.mismatch == "raise":
                     raise ValueError(f"{path} attempt {n}: {problems[0]}; the (seed, index) join is broken ({len(problems)} problems on this episode; mismatch='drop' falls back to templates)")
@@ -967,14 +1001,24 @@ class ThinkData:
         here = next((ev for ev in events if ev.t == t), None)
         codes = self.data[ep.store]["actions"][ep.e, t].long()
         obs = self.observation(ep, t)
-        images, azimuth = views_and_pose((views or self.views)(obs, rng))
-        parts, position, turns = self.user_frame(ep, parts, rng, azimuth)
-        memory = [in_user_frame(self.thought_of(ep, parts, ev), turns) for ev in memory_before(events, t)]
-        thought = in_user_frame(self.thought_of(ep, parts, here), turns) if here is not None else ""
+        side = parts[0].get("camera") if len(parts) == 1 else None
+        if side:  # a thought written for this camera side and user place: rendered so, said as written
+            images, azimuth = views_and_pose((views or self.views)(obs, rng, side=side))
+            position, user = parts[0]["place"], parts[0]["user"]
+            if ORDER[user_turns(azimuth, position)] != user:
+                raise ValueError(f"views drew azimuth {azimuth:.0f} for side {side}: the user would stand at the board's {ORDER[user_turns(azimuth, position)]}, not its {user}")
+            text_turns, turns = 0, user_turns(azimuth, position)
+            self.frames["haiku_frame"] += 1
+        else:
+            images, azimuth = views_and_pose((views or self.views)(obs, rng))
+            parts, position, turns = self.user_frame(ep, parts, rng, azimuth)
+            text_turns = turns
+        memory = [in_user_frame(self.thought_of(ep, parts, ev), text_turns) for ev in memory_before(events, t)]
+        thought = in_user_frame(self.thought_of(ep, parts, here), text_turns) if here is not None else ""
         return Example(
             obs=obs,
             images=images,
-            context_text=context(in_user_frame(parts[j]["instruction"], turns), memory, self.system, USER_POSITIONS[position][1]),
+            context_text=context(in_user_frame(parts[j]["instruction"], text_turns), memory, self.system, USER_POSITIONS[position][1]),
             reply_text=act_reply(thought),
             act=True,
             codes=codes,
@@ -985,7 +1029,7 @@ class ThinkData:
             rung=parts[j]["rung"],
             family=ep.family,
             kind=here.kind if here is not None else "plain",
-            instruction=in_user_frame(parts[j]["instruction"], turns),
+            instruction=in_user_frame(parts[j]["instruction"], text_turns),
             store=self.stores[ep.store],
             user=position,
             turns=turns,
