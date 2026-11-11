@@ -233,7 +233,9 @@ def distill_loss(student, teacher, ids, chunk=128):
         with torch.no_grad():
             t = F.log_softmax(head(t_part).float(), -1)
         s = F.log_softmax(student.lm_head(s_part).float(), -1)
-        return F.kl_div(s, t, log_target=True, reduction="sum")
+        # F.kl_div(s, t, log_target=True, reduction="sum") written out: torch_xla has no autograd
+        # kernel for aten::kl_div, and the fallback gives the student no gradient (silently)
+        return (t.exp() * (t - s)).sum()
 
     total = sum(checkpoint(part, s_flat[i : i + chunk], t_flat[i : i + chunk]) for i in range(0, s_flat.shape[0], chunk))
     return total / s_flat.shape[0]
