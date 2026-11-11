@@ -12,7 +12,7 @@ from beebot.vla.voxel import demos
 from beebot.vla.voxel import objects as O
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel.play_store import load
-from beebot.vla.voxel.world import CUBE_MOVES, failure_rates, world_from_arrays
+from beebot.vla.voxel.world import CUBE_MOVES, world_from_arrays
 
 
 def floor(n, row=0):
@@ -154,10 +154,7 @@ def test_the_demo_preset_writes_an_empty_floor_store(tmp_path, monkeypatch):
     assert config["preset"] == "demo" and config["empty"] and config["scaled"] and config["keep"] and config["fit"]
     assert config["robots"] == [8, 12] and config["rule"] == "switch_cube" and config["moves"] == "cube" and config["expert"] == "attractor"
     assert config["coverage"] == 1.0 and config["objects"] == 1.0 and config["build"] == 0.0 and config["steps"] == 24  # given options win
-    if "outcomes" in demos.PRESETS["demo"]:  # world.py's measured outcome model, once there is one
-        assert config["outcomes"] == demos.PRESETS["demo"]["outcomes"]
-    else:
-        assert np.allclose(config["failure"], failure_rates(0.1, up_over=0.23).tolist())
+    assert config["outcomes"] == "mujoco_release" and config["failure"] is None  # world.py's measured outcome model in place of failure rates
     attempts = [json.loads(line) for line in open(out / "attempts.jsonl")]
     assert attempts and all(8 <= a["robots"] <= 12 for a in attempts)
     assert store["count"] > 0 and not store["walls"].any() and not store["cheese_alive"].any() and store["gravity"].all()

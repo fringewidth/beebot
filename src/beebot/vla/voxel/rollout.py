@@ -179,12 +179,15 @@ def prepare_world(world):
     return replace(world, gravity=torch.ones_like(world.gravity))
 
 
-def play(episodes, actor, rule=RULE, failure=FAILURE, record=False):
+def play(episodes, actor, rule=RULE, failure=FAILURE, record=False, outcomes=None):
     """Play a batch of episodes with actor(world, t) -> (B, D, H, W) codes; the world and its
     scoring as suite.run (switch tasks scored on their last instruction from the step it came,
     runners flee every RUNNER_PERIOD steps), but with each episode's own generators and length:
-    an episode past its steps stays still. Returns a Played per episode (without the actor's
-    thoughts, which the actor adds)."""
+    an episode past its steps stays still. outcomes: a world.OutcomeModel in place of failure
+    (pass failure=None with it): each pivot ends as MuJoCo shows for its class. Returns a Played
+    per episode (without the actor's thoughts, which the actor adds)."""
+    if outcomes is not None and failure is not None:
+        raise ValueError("give failure rates or an outcome model, not both")
     world = concat([prepare_world(e.world) for e in episodes])
     b = len(episodes)
     steps = max(e.steps for e in episodes)
@@ -221,7 +224,11 @@ def play(episodes, actor, rule=RULE, failure=FAILURE, record=False):
             dropped = torch.stack([torch.rand(codes.shape[1:], generator=g) for g in fails]) < failure[codes]
             effective = torch.where(dropped, torch.full_like(codes, STAY), codes)
         before = world.cheese_alive.clone()
-        world, _ = step(world, effective, torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in noise]), rule)
+        if outcomes is None:
+            world, _ = step(world, effective, torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in noise]), rule)
+        else:
+            order = torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in noise])
+            world, _ = step(world, effective, order, rule, outcomes, torch.stack([torch.rand(world.mass.shape[1:], generator=g) for g in fails]))
         fleeing = runners & live.view(-1, 1)
         if fleeing.any() and (t + 1) % S.RUNNER_PERIOD == 0:
             world = replace(world, cheese_pos=S.flee(world, fleeing))

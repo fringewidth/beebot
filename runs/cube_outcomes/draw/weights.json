@@ -1,0 +1,575 @@
+{
+ "stores": [
+  "data/vla/voxel_full/s0",
+  "data/vla/voxel_full/s1",
+  "data/vla/voxel_full/s2",
+  "data/vla/voxel_full/s3",
+  "data/vla/voxel_full/s4",
+  "data/vla/voxel_full/s5",
+  "data/vla/voxel_full/s6",
+  "data/vla/voxel_full/s7",
+  "data/vla/voxel_build/s0",
+  "data/vla/voxel_build/s1"
+ ],
+ "episodes": 40,
+ "seed": 0,
+ "counts": {
+  "floor_roll": 22212,
+  "floor_roll/hinged/rubs": 15906,
+  "floor_roll/bonded/hinged/rubs": 14430,
+  "floor_roll/bonded/hinged": 10155,
+  "floor_roll/bonded": 8350,
+  "floor_roll/hinged": 5753,
+  "convex_up/bonded/hinged": 5290,
+  "concave_up/hinged": 4937,
+  "convex_up/bonded/hinged/rubs": 4924,
+  "wall_crawl/bonded/hinged/rubs": 3435,
+  "convex_up_hang/hinged": 3359,
+  "convex_down/hinged/rubs": 3225,
+  "convex_down/bonded/hinged/rubs": 3025,
+  "convex_up/hinged": 2947,
+  "convex_down/hinged": 2872,
+  "traverse/hinged": 2652,
+  "concave_up/bonded/hinged": 2437,
+  "convex_down/bonded/hinged": 2340,
+  "traverse/bonded/hinged/rubs": 2210,
+  "concave_up/bonded/hinged/rubs": 2094,
+  "convex_up/hinged/rubs": 1861,
+  "wall_crawl/bonded/hinged": 1835,
+  "wall_crawl/hinged": 1767,
+  "convex_up_hang/hinged/rubs": 1757,
+  "traverse/bonded/hinged": 1753,
+  "wall_crawl/hinged/rubs": 1600,
+  "traverse/hinged/rubs": 1591,
+  "convex_up_hang/bonded/hinged/rubs": 1517,
+  "convex_down": 1450,
+  "convex_down/lone": 1313,
+  "concave_up": 1289,
+  "convex_up/lone": 1268,
+  "concave_up/hinged/rubs": 1263,
+  "convex_up": 986,
+  "convex_up_hang/bonded/hinged": 937,
+  "traverse": 920,
+  "concave_down/bonded/hinged/rubs": 915,
+  "wall_crawl": 890,
+  "concave_down/hinged": 887,
+  "concave_down/hinged/rubs": 740,
+  "convex_up/bonded/lone": 713,
+  "convex_down/rubs/lone": 647,
+  "convex_up/bonded/hinged/lone": 527,
+  "convex_down/rubs": 487,
+  "concave_down/bonded/hinged": 481,
+  "concave_down": 431,
+  "wall_crawl/bonded": 416,
+  "convex_up/bonded": 414,
+  "convex_up/bonded/hinged/rubs/lone": 399,
+  "floor_roll/rubs": 396,
+  "convex_up_hang": 395,
+  "wall_crawl/bonded/rubs": 358,
+  "convex_down/hinged/rubs/lone": 353,
+  "convex_up/hinged/lone": 350,
+  "concave_up/bonded": 318,
+  "convex_down/bonded": 227,
+  "traverse/lone": 215,
+  "concave_up/lone": 188,
+  "convex_up/rubs": 153,
+  "convex_up_hang/rubs": 144,
+  "floor_roll/bonded/rubs": 135,
+  "concave_down/bonded": 129,
+  "convex_down/bonded/hinged/rubs/lone": 122,
+  "convex_down/hinged/lone": 118,
+  "convex_up/bonded/rubs": 103,
+  "traverse/bonded": 89,
+  "convex_down/bonded/rubs": 85,
+  "convex_up/hinged/rubs/lone": 84,
+  "concave_up/bonded/lone": 78,
+  "convex_down/bonded/lone": 77,
+  "convex_up_hang/bonded": 67,
+  "convex_down/bonded/hinged/lone": 66,
+  "convex_up/rubs/lone": 65,
+  "convex_up/bonded/rubs/lone": 63,
+  "wall_crawl/bonded/rubs/lone": 61,
+  "concave_up/bonded/hinged/rubs/lone": 53,
+  "concave_up/hinged/lone": 48,
+  "concave_up/bonded/hinged/lone": 47,
+  "convex_down/bonded/rubs/lone": 45,
+  "convex_up_hang/bonded/hinged/lone": 40,
+  "wall_crawl/bonded/hinged/rubs/lone": 39,
+  "convex_up_hang/bonded/hinged/rubs/lone": 39,
+  "convex_up_hang/lone": 37,
+  "concave_down/lone": 35,
+  "traverse/hinged/rubs/lone": 32,
+  "traverse/hinged/lone": 27,
+  "concave_down/hinged/rubs/lone": 25,
+  "traverse/rubs": 20,
+  "convex_up_hang/bonded/rubs": 20,
+  "convex_up_hang/bonded/lone": 19,
+  "concave_up/hinged/rubs/lone": 16,
+  "concave_down/bonded/hinged/rubs/lone": 15,
+  "traverse/bonded/hinged/rubs/lone": 15,
+  "traverse/bonded/lone": 15,
+  "concave_up/rubs": 15,
+  "convex_up_hang/hinged/lone": 9,
+  "traverse/bonded/hinged/lone": 9,
+  "concave_down/rubs": 8,
+  "wall_crawl/hinged/rubs/lone": 6,
+  "wall_crawl/rubs": 5,
+  "concave_up/bonded/rubs": 4,
+  "concave_down/bonded/rubs": 3,
+  "wall_crawl/bonded/lone": 3,
+  "concave_down/bonded/hinged/lone": 3,
+  "wall_crawl/bonded/hinged/lone": 3,
+  "wall_crawl/lone": 3,
+  "convex_up_hang/hinged/rubs/lone": 2,
+  "concave_down/bonded/lone": 2,
+  "convex_up_hang/bonded/rubs/lone": 2,
+  "concave_down/hinged/lone": 2,
+  "traverse/bonded/rubs": 1
+ },
+ "crops": {
+  "convex_up/bonded/lone": {
+   "tried": 590,
+   "crops": 411
+  },
+  "floor_roll/hinged": {
+   "tried": 1743,
+   "crops": 1017
+  },
+  "floor_roll/bonded/hinged/rubs": {
+   "tried": 1750,
+   "crops": 1009
+  },
+  "convex_up/bonded/hinged": {
+   "tried": 1358,
+   "crops": 764
+  },
+  "floor_roll/bonded/hinged": {
+   "tried": 1773,
+   "crops": 1026
+  },
+  "convex_up/hinged": {
+   "tried": 1400,
+   "crops": 846
+  },
+  "floor_roll/bonded": {
+   "tried": 1849,
+   "crops": 1090
+  },
+  "convex_down/hinged": {
+   "tried": 1424,
+   "crops": 782
+  },
+  "floor_roll": {
+   "tried": 1959,
+   "crops": 1208
+  },
+  "traverse/lone": {
+   "tried": 213,
+   "crops": 117
+  },
+  "floor_roll/hinged/rubs": {
+   "tried": 1925,
+   "crops": 1136
+  },
+  "concave_up/lone": {
+   "tried": 182,
+   "crops": 130
+  },
+  "traverse/hinged/rubs": {
+   "tried": 800,
+   "crops": 398
+  },
+  "convex_down/rubs/lone": {
+   "tried": 530,
+   "crops": 392
+  },
+  "wall_crawl/bonded/rubs/lone": {
+   "tried": 61,
+   "crops": 47
+  },
+  "traverse/bonded/hinged": {
+   "tried": 900,
+   "crops": 441
+  },
+  "wall_crawl/bonded/rubs": {
+   "tried": 338,
+   "crops": 157
+  },
+  "convex_down": {
+   "tried": 965,
+   "crops": 315
+  },
+  "convex_up/lone": {
+   "tried": 931,
+   "crops": 634
+  },
+  "traverse/hinged": {
+   "tried": 1148,
+   "crops": 633
+  },
+  "convex_up/hinged/lone": {
+   "tried": 337,
+   "crops": 239
+  },
+  "convex_down/lone": {
+   "tried": 919,
+   "crops": 644
+  },
+  "convex_up": {
+   "tried": 836,
+   "crops": 378
+  },
+  "concave_up/hinged/lone": {
+   "tried": 48,
+   "crops": 27
+  },
+  "wall_crawl/bonded/hinged/rubs/lone": {
+   "tried": 39,
+   "crops": 30
+  },
+  "concave_down/hinged/rubs": {
+   "tried": 518,
+   "crops": 261
+  },
+  "convex_down/bonded/hinged/rubs": {
+   "tried": 955,
+   "crops": 451
+  },
+  "concave_up/bonded/hinged": {
+   "tried": 961,
+   "crops": 566
+  },
+  "convex_up/bonded/hinged/rubs/lone": {
+   "tried": 353,
+   "crops": 214
+  },
+  "convex_up/bonded/hinged/rubs": {
+   "tried": 1091,
+   "crops": 571
+  },
+  "wall_crawl/bonded/hinged/rubs": {
+   "tried": 933,
+   "crops": 482
+  },
+  "convex_down/hinged/rubs": {
+   "tried": 1247,
+   "crops": 659
+  },
+  "convex_up/hinged/rubs": {
+   "tried": 1060,
+   "crops": 593
+  },
+  "traverse": {
+   "tried": 711,
+   "crops": 344
+  },
+  "concave_down/hinged": {
+   "tried": 591,
+   "crops": 391
+  },
+  "convex_down/hinged/lone": {
+   "tried": 116,
+   "crops": 67
+  },
+  "convex_up_hang/hinged": {
+   "tried": 1208,
+   "crops": 689
+  },
+  "convex_up_hang/bonded/hinged": {
+   "tried": 558,
+   "crops": 259
+  },
+  "convex_down/rubs": {
+   "tried": 411,
+   "crops": 86
+  },
+  "traverse/hinged/lone": {
+   "tried": 27,
+   "crops": 13
+  },
+  "convex_down/bonded/lone": {
+   "tried": 71,
+   "crops": 40
+  },
+  "concave_down/lone": {
+   "tried": 35,
+   "crops": 20
+  },
+  "convex_down/bonded/hinged": {
+   "tried": 1052,
+   "crops": 527
+  },
+  "convex_up/bonded/hinged/lone": {
+   "tried": 480,
+   "crops": 285
+  },
+  "convex_down/hinged/rubs/lone": {
+   "tried": 327,
+   "crops": 222
+  },
+  "concave_up/bonded/lone": {
+   "tried": 76,
+   "crops": 46
+  },
+  "concave_up/bonded/hinged/lone": {
+   "tried": 47,
+   "crops": 29
+  },
+  "concave_up/bonded/hinged/rubs": {
+   "tried": 651,
+   "crops": 314
+  },
+  "wall_crawl/hinged": {
+   "tried": 842,
+   "crops": 473
+  },
+  "concave_up/hinged": {
+   "tried": 1153,
+   "crops": 665
+  },
+  "wall_crawl/hinged/rubs": {
+   "tried": 785,
+   "crops": 364
+  },
+  "convex_up_hang/hinged/rubs": {
+   "tried": 814,
+   "crops": 418
+  },
+  "convex_up_hang": {
+   "tried": 289,
+   "crops": 16
+  },
+  "traverse/bonded/hinged/rubs": {
+   "tried": 718,
+   "crops": 364
+  },
+  "wall_crawl/bonded/hinged": {
+   "tried": 732,
+   "crops": 390
+  },
+  "convex_down/bonded/hinged/lone": {
+   "tried": 66,
+   "crops": 37
+  },
+  "convex_up/bonded/rubs": {
+   "tried": 99,
+   "crops": 34
+  },
+  "convex_up/bonded/rubs/lone": {
+   "tried": 62,
+   "crops": 36
+  },
+  "convex_up_hang/bonded/hinged/rubs": {
+   "tried": 565,
+   "crops": 266
+  },
+  "concave_up/hinged/rubs": {
+   "tried": 610,
+   "crops": 310
+  },
+  "concave_down/bonded/hinged/rubs": {
+   "tried": 487,
+   "crops": 245
+  },
+  "convex_up/bonded": {
+   "tried": 398,
+   "crops": 169
+  },
+  "wall_crawl/bonded": {
+   "tried": 295,
+   "crops": 52
+  },
+  "concave_up/bonded": {
+   "tried": 290,
+   "crops": 126
+  },
+  "concave_up/bonded/hinged/rubs/lone": {
+   "tried": 53,
+   "crops": 36
+  },
+  "convex_down/bonded/hinged/rubs/lone": {
+   "tried": 106,
+   "crops": 54
+  },
+  "concave_down/bonded/hinged/rubs/lone": {
+   "tried": 15,
+   "crops": 8
+  },
+  "concave_down": {
+   "tried": 295,
+   "crops": 64
+  },
+  "convex_down/bonded/rubs/lone": {
+   "tried": 45,
+   "crops": 22
+  },
+  "concave_down/bonded/hinged": {
+   "tried": 354,
+   "crops": 179
+  },
+  "concave_up": {
+   "tried": 750,
+   "crops": 344
+  },
+  "traverse/rubs": {
+   "tried": 20,
+   "crops": 0
+  },
+  "convex_down/bonded/rubs": {
+   "tried": 85,
+   "crops": 7
+  },
+  "concave_down/bonded": {
+   "tried": 105,
+   "crops": 2
+  },
+  "wall_crawl": {
+   "tried": 430,
+   "crops": 54
+  },
+  "convex_up_hang/rubs": {
+   "tried": 134,
+   "crops": 11
+  },
+  "convex_up_hang/bonded/hinged/lone": {
+   "tried": 40,
+   "crops": 14
+  },
+  "floor_roll/rubs": {
+   "tried": 289,
+   "crops": 0
+  },
+  "traverse/hinged/rubs/lone": {
+   "tried": 32,
+   "crops": 8
+  },
+  "convex_up/rubs/lone": {
+   "tried": 65,
+   "crops": 42
+  },
+  "floor_roll/bonded/rubs": {
+   "tried": 123,
+   "crops": 0
+  },
+  "convex_down/bonded": {
+   "tried": 218,
+   "crops": 14
+  },
+  "convex_up_hang/bonded/rubs": {
+   "tried": 20,
+   "crops": 1
+  },
+  "traverse/bonded": {
+   "tried": 88,
+   "crops": 26
+  },
+  "convex_up_hang/hinged/rubs/lone": {
+   "tried": 2,
+   "crops": 0
+  },
+  "traverse/bonded/hinged/rubs/lone": {
+   "tried": 15,
+   "crops": 5
+  },
+  "convex_up/rubs": {
+   "tried": 145,
+   "crops": 44
+  },
+  "convex_up_hang/bonded": {
+   "tried": 62,
+   "crops": 5
+  },
+  "convex_up_hang/bonded/lone": {
+   "tried": 19,
+   "crops": 1
+  },
+  "concave_up/hinged/rubs/lone": {
+   "tried": 16,
+   "crops": 11
+  },
+  "convex_up_hang/bonded/hinged/rubs/lone": {
+   "tried": 39,
+   "crops": 19
+  },
+  "convex_up_hang/hinged/lone": {
+   "tried": 9,
+   "crops": 0
+  },
+  "traverse/bonded/lone": {
+   "tried": 15,
+   "crops": 6
+  },
+  "convex_up/hinged/rubs/lone": {
+   "tried": 75,
+   "crops": 47
+  },
+  "concave_down/hinged/rubs/lone": {
+   "tried": 25,
+   "crops": 13
+  },
+  "concave_down/bonded/rubs": {
+   "tried": 3,
+   "crops": 0
+  },
+  "concave_down/rubs": {
+   "tried": 8,
+   "crops": 0
+  },
+  "concave_up/rubs": {
+   "tried": 15,
+   "crops": 0
+  },
+  "traverse/bonded/hinged/lone": {
+   "tried": 9,
+   "crops": 3
+  },
+  "wall_crawl/bonded/lone": {
+   "tried": 3,
+   "crops": 2
+  },
+  "wall_crawl/rubs": {
+   "tried": 5,
+   "crops": 0
+  },
+  "concave_down/bonded/hinged/lone": {
+   "tried": 3,
+   "crops": 1
+  },
+  "concave_down/bonded/lone": {
+   "tried": 2,
+   "crops": 0
+  },
+  "convex_up_hang/lone": {
+   "tried": 32,
+   "crops": 0
+  },
+  "wall_crawl/hinged/rubs/lone": {
+   "tried": 6,
+   "crops": 2
+  },
+  "wall_crawl/bonded/hinged/lone": {
+   "tried": 3,
+   "crops": 1
+  },
+  "traverse/bonded/rubs": {
+   "tried": 1,
+   "crops": 0
+  },
+  "concave_up/bonded/rubs": {
+   "tried": 4,
+   "crops": 0
+  },
+  "convex_up_hang/bonded/rubs/lone": {
+   "tried": 2,
+   "crops": 1
+  },
+  "concave_down/hinged/lone": {
+   "tried": 2,
+   "crops": 0
+  },
+  "wall_crawl/lone": {
+   "tried": 3,
+   "crops": 0
+  }
+ }
+}
