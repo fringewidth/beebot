@@ -317,3 +317,20 @@ def test_trainer_runs_saves_and_resumes(name, tmp_path, monkeypatch):
     policy, _ = think.load_policy(tmp_path / "runs/t/policy_step6.pt", "cpu")
     e = FakeThinkData(**fake).sample(np.random.default_rng(0))
     assert policy.think_then_act(e.obs.unsqueeze(0), [e.context_text], [e.images], max_new_tokens=2).thought is not None
+
+
+def test_matmul_gated_delta_rule_with_correlated_keys():
+    from beebot.vla.voxel import think
+    from transformers.models.qwen3_5.modeling_qwen3_5 import torch_chunk_gated_delta_rule
+
+    torch.manual_seed(0)
+    seq, heads, dim = 192, 4, 128
+    shared = torch.randn(1, 1, heads, dim)
+    k = 0.9 * shared + 0.1 * torch.randn(1, seq, heads, dim)  # keys with cosine about 0.99 (real slot runs: 0.67)
+    q, v = torch.randn(1, seq, heads, dim), torch.randn(1, seq, heads, dim)
+    beta = 0.5 + 0.5 * torch.rand(1, seq, heads)
+    g = -0.05 * torch.rand(1, seq, heads)
+    reference, _ = torch_chunk_gated_delta_rule(q, k, v, g=g, beta=beta, output_final_state=True, use_qk_l2norm_in_kernel=True)
+    matmul, _ = think.chunk_gated_delta_rule_matmul(q, k, v, g=g, beta=beta, output_final_state=True, use_qk_l2norm_in_kernel=True)
+    assert torch.isfinite(matmul).all()
+    assert (matmul - reference).abs().max() < 1e-4, f"max error {(matmul - reference).abs().max().item():.3g} against outputs of mean size {reference.abs().mean().item():.3g}"
