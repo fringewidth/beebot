@@ -466,6 +466,49 @@ def test_direction_words_turn_into_the_users_frame():
     assert not T.mappable("go to the far side") and not T.mappable("head north") and T.mappable("go to the far left")
 
 
+def test_forward_is_away_from_the_user_and_toward_me_is_the_near_side():
+    """The agreed convention (haiku_frame, basics): forward is the far side, "toward me" the near
+    side, "the front" the near side. The labels' "forward" is a move toward the board's front, so
+    for the default user (at the board's front, turns 0) it is "toward me", and their "backward"
+    is "forward"; "back" after a motion verb stays the far side; corners stay corners."""
+    from beebot.vla.voxel.haiku_frame import mapping, user_text_words
+
+    label = "move the blue cheese forward to the front of the floor"  # a real verified label
+    assert T.in_user_frame(label, 0) == "move the blue cheese toward me to the front of the floor"
+    assert T.in_user_frame(label, 2) == "move the blue cheese forward to the back of the floor"
+    assert T.in_user_frame("push the blue cheese backward", 0) == "push the blue cheese forward"
+    assert T.in_user_frame("push the blue cheese backward", 2) == "push the blue cheese toward me"
+    assert T.in_user_frame("one group heads back right, the other stays", 2) == "one group heads front left, the other stays"
+    assert T.in_user_frame("i look forward to it", 0) == "i look forward to it"
+    for turns in range(4):  # read back with haiku_frame's reader of the user's words: the board side meant
+        table = mapping(T.ORDER[turns])
+        assert user_text_words(T.in_user_frame("move it forward", turns), table) == {"front"}
+        assert user_text_words(T.in_user_frame("move it backward", turns), table) == {"back"}
+        assert user_text_words(T.in_user_frame("step back", turns), table) == {"back"}
+        said = T.in_user_frame(label, turns)
+        assert user_text_words(said, table) == {"front"} and not (re.search(r"\bforward", said) and table["toward"] == "front")
+
+
+def test_frame_labels_are_said_as_written(store, labels, tmp_path):
+    """haiku_frame rows are the user's own words ("forward" = away from them): never turned."""
+    n2 = index_of(store, 2)
+    frame = tmp_path / "frame"
+    frame.mkdir()
+    thought = "you asked: take three steps forward. i see robots. the camera looks from the board's front and you stand behind the camera, so you face the board from its front. forward is the board's back. first: form a wall."
+    row = {"rung": "plain", "text": "take three steps forward", "thought": thought, "switches": [], "camera": "front", "place": "behind", "user": "front", "pair_id": f"run-test:s{SEED}-{n2}:plain", "id": f"run-test:s{SEED}-{n2}"}
+    (frame / "verified.jsonl").write_text(json.dumps(row) + "\n")
+
+    def side_views(obs, rng, side=None):
+        return ["iso"], {"azimuth": {"front": 0.0, "right": 90.0, "back": 180.0, "left": 270.0}[side or "front"]}
+
+    data = T.ThinkData([store], [labels], held_share=0.0, views=side_views, refusal_share=0.0, frame_dirs=[frame])
+    ep = ep_of(data, 2)
+    rng = np.random.default_rng(0)
+    example = data.example(ep, 0, data.labelling(ep, rng), rng)
+    assert example.turns == 0 and "\ntake three steps forward<|im_end|>" in example.context_text
+    assert "you asked: take three steps forward." in example.reply_text and "forward is the board's back" in example.reply_text
+
+
 def test_the_users_place_is_the_camera_turned_by_the_stated_offset():
     assert T.quarter_turns(0) == 0 and T.quarter_turns(90) == 1 and T.quarter_turns(180) == 2 and T.quarter_turns(-90) == 3
     assert [T.user_turns(90, name) for name in ("behind", "left", "right", "opposite")] == [1, 0, 2, 3]  # a camera at the world's right

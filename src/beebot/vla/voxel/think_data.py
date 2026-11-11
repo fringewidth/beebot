@@ -114,7 +114,10 @@ of the instruction, the thoughts, the memory, the switch lines and the refusal's
 that user says it (in_user_frame): front/back/left/right and the corners (front/back first), -most
 and -ward forms, "in front of", "behind" and "to the left/right of" a thing, forward(s),
 backward(s), "back" after a motion verb, and "side by side" / "one behind the other" (swapped on a
-quarter turn); idioms ("right now", "nothing left", "come back") stay. A label whose wording cannot
+quarter turn); idioms ("right now", "nothing left", "come back") stay. The user's words follow the
+agreed convention (haiku_frame.py, basics.py): "forward" is away from the user, "toward me" toward
+them, "the front" the side nearest them; the labels' "forward" (toward the board's front) is said
+"toward me" by a user at the board's front, also when the frame is the world's. A label whose wording cannot
 be turned reliably (UNMAPPABLE: near/far side or end, north/south/east/west, toward me, top left,
 right-hand, clockwise, ...) is used only when turns is 0: otherwise another verified rung, then the
 template, then the user's place that makes turns 0 (counts()["frames"] counts each). The voxel
@@ -562,12 +565,19 @@ UNMAPPABLE = re.compile(  # direction words that cannot be turned reliably: used
     r"|\b(?:clockwise|counterclockwise|anticlockwise)\b"
 )
 MOTION_VERBS = r"(?:step|steps|move|moves|moving|head|heads|walk|walks|shift|shifts|slide|slides|push|pushes|roll|rolls|nudge|nudges|drift)"
+# The user's words (agreed convention, as haiku_frame.py and basics.py use them): from where the
+# user stands "forward" (ahead, away from me, north) is the far side and "toward me" (backward,
+# south) the near side; "the front" of the board is the near side and "the back" the far side.
+# The board-frame labels say forward(s) for a move toward the board's front (+y, the default
+# viewer's side) and backward(s) for one toward its back, so a move to the user's near side is
+# said "toward me" and one to the far side "forward"; "back" after a motion verb stays the far side.
 SAID = {  # how a turned word is said in each kind of place: plain, after "in front of"/"behind", after a motion verb or as forward/backward
     "plain": {d: d for d in ORDER},
     "preposition": {"front": "in front of", "back": "behind", "left": "to the left of", "right": "to the right of"},
-    "motion": {"front": "forward", "back": "back", "left": "left", "right": "right"},
-    "adverb": {"front": "forward", "back": "backward", "left": "to the left", "right": "to the right"},
+    "motion": {"front": "toward me", "back": "back", "left": "left", "right": "right"},
+    "adverb": {"front": "toward me", "back": "forward", "left": "to the left", "right": "to the right"},
 }
+FORWARD = re.compile(r"(?<!\blook )(?<!\blooks )(?<!\blooking )\b(forward|backward)s?\b")  # the board-frame labels' forward = the board's front, backward = its back
 
 
 def quarter_turns(degrees):
@@ -622,11 +632,15 @@ def in_user_frame(text, turns):
     """Text with every direction word turned from the world frame (front = +y, toward the default
     viewer; left = -x) into the frame of a user `turns` quarter turns round the arena (1: at the
     world's right, looking across it). Corners keep front/back first, "in front of" and "behind"
-    become the user's word for that side, forward(s) and backward(s) and "back" after a motion verb
-    turn too, and "side by side" and "one behind the other" swap on a quarter turn. Every turned
-    word is written through a marker, so nothing is turned twice. turns 0 returns the text as it is."""
+    become the user's word for that side, "back" after a motion verb turns too, and "side by side"
+    and "one behind the other" swap on a quarter turn. The labels' forward(s) and backward(s) (a
+    move toward the board's front or back) become the user's word for a move to that side (SAID
+    "adverb": "toward me" to the near side, "forward" to the far side, "to the left/right"), at
+    turns 0 too: the default user stands at the board's front, so the labels' "forward" is "toward
+    me" and their "backward" is "forward". Every turned word is written through a marker, so
+    nothing is turned twice. Otherwise turns 0 returns the text as it is."""
     if not turns:
-        return text
+        return FORWARD.sub(lambda m: SAID["adverb"]["front" if m.group(1) == "forward" else "back"], text)
     kept = []
 
     def put(value):
@@ -643,9 +657,8 @@ def in_user_frame(text, turns):
     text = re.sub(r"\bin front of\b", lambda m: mark("front", "preposition"), text)
     text = re.sub(r"\bto the (left|right) of\b(?! the (?:floor|arena|area|grid|ground|field|world|map|room|space|board)\b)", lambda m: mark(m.group(1), "preposition"), text)  # beside a thing; of the floor it is a region
     text = re.sub(r"\bbehind\b", lambda m: mark("back", "preposition"), text)
-    text = re.sub(r"\bforwards?\b", lambda m: mark("front", "adverb"), text)
-    text = re.sub(r"\bbackwards?\b", lambda m: mark("back", "adverb"), text)
-    text = re.sub(r"\b(" + MOTION_VERBS + r") back\b", lambda m: m.group(1) + " " + mark("back", "motion"), text)
+    text = FORWARD.sub(lambda m: mark("front" if m.group(1) == "forward" else "back", "adverb"), text)
+    text = re.sub(r"\b(" + MOTION_VERBS + r") back\b(?![ -](?:left|right)\b)", lambda m: m.group(1) + " " + mark("back", "motion"), text)  # "heads back right" is a corner
     text = re.sub(r"\brear\b", "back", text)
 
     def corner(m):
@@ -1073,18 +1086,21 @@ class ThinkData:
             position, user = parts[0]["place"], parts[0]["user"]
             if ORDER[user_turns(azimuth, position)] != user:
                 raise ValueError(f"views drew azimuth {azimuth:.0f} for side {side}: the user would stand at the board's {ORDER[user_turns(azimuth, position)]}, not its {user}")
-            text_turns, turns = 0, user_turns(azimuth, position)
+            turns = user_turns(azimuth, position)
             self.frames["haiku_frame"] += 1
         else:
             images, azimuth = views_and_pose((views or self.views)(obs, rng))
             parts, position, turns = self.user_frame(ep, parts, rng, azimuth)
-            text_turns = turns
-        memory = [in_user_frame(self.thought_of(ep, parts, ev), text_turns) for ev in memory_before(events, t)]
-        thought = in_user_frame(self.thought_of(ep, parts, here), text_turns) if here is not None else ""
+
+        def said(text):  # board-frame labels turned into the user's frame; frame labels are the user's words already
+            return text if side else in_user_frame(text, turns)
+
+        memory = [said(self.thought_of(ep, parts, ev)) for ev in memory_before(events, t)]
+        thought = said(self.thought_of(ep, parts, here)) if here is not None else ""
         return Example(
             obs=obs,
             images=images,
-            context_text=context(in_user_frame(parts[j]["instruction"], text_turns), memory, self.system, USER_POSITIONS[position][1]),
+            context_text=context(said(parts[j]["instruction"]), memory, self.system, USER_POSITIONS[position][1]),
             reply_text=act_reply(thought),
             act=True,
             codes=codes,
@@ -1095,7 +1111,7 @@ class ThinkData:
             rung=parts[j]["rung"],
             family=ep.family,
             kind=here.kind if here is not None else "plain",
-            instruction=in_user_frame(parts[j]["instruction"], text_turns),
+            instruction=said(parts[j]["instruction"]),
             store=self.stores[ep.store],
             user=position,
             turns=turns,

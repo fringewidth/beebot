@@ -280,7 +280,7 @@ class PolicyActor:
             self.frames[i] = (position, turns, azimuth)
         position, turns, _ = self.frames[i]
         j = part_at(e.starts, t)
-        text = T.context(T.in_user_frame(e.texts[j], 0 if e.as_said else turns), self.memory[i], self.system, T.USER_POSITIONS[position][1])
+        text = T.context(e.texts[j] if e.as_said else T.in_user_frame(e.texts[j], turns), self.memory[i], self.system, T.USER_POSITIONS[position][1])
         thought = None
         if e.oracle and t == e.starts[j]:
             part = S.instruction_at(e.task, t) if e.task.parts else e.task
