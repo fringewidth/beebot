@@ -196,15 +196,25 @@ def probe_args(batch, weights):
     return ["--name", "probe", "--model", MODEL, "--data", "fake", "--data_kwargs", json.dumps(FAKE), "--batch", str(batch), "--accumulate", "1", "--weights_dtype", weights, "--checkpointing", "true", "--steps", str(PROBE_STEPS), "--warmup_steps", "50", "--log_every", "10", "--val_examples", "0", "--val_every_minutes", "100000", "--save_every_minutes", "100000", "--save_resume", "false", "--widths", "384,512"]
 
 
+def steady_window(steps):
+    """The last logged window (rows at steps 1, 10, 20, 30, 40) in which nothing compiled: a
+    graph first met late (a rare row width or reply budget) costs minutes of compilation, which is
+    not the training rate (Colab v5e-1, November 2026: a sixth compile in steps 30-40 made that
+    window read 0.08 examples/s against 1.63 in the windows before). The last window when every
+    window compiled."""
+    quiet = [b for a, b in zip(steps, steps[1:]) if b.get("compiles") == a.get("compiles")]
+    return quiet[-1] if quiet else steps[-1]
+
+
 def summary(phase, chips, rows, batch, weights):
-    """The steady rate: the last logged window (steps 30-40, after the compilations of steps 1 and 2)."""
+    """The steady rate: the last logged window without a compilation (steady_window)."""
     steps = [r for r in rows if "examples_per_s" in r]
     if not steps or steps[-1]["step"] < PROBE_STEPS:
         note(phase=phase, chips=chips, batch=batch, weights=weights, failed=True, steps=steps[-1]["step"] if steps else 0)
         return None
-    last = steps[-1]
-    note(phase=phase, chips=chips, batch=batch, weights=weights, examples_per_s=last["examples_per_s"], step_s=last.get("step_s"), hbm_gb=last.get("gpu_gb"), compiles=last.get("compiles"), compile_minutes=round(last.get("compile_s", 0) / 60, 1), first_step_minutes=steps[0]["minutes"], data_wait=last.get("data_wait"), cpu_fallbacks=last.get("cpu_fallbacks"), loss=last.get("loss"))
-    return last
+    steady, last = steady_window(steps), steps[-1]
+    note(phase=phase, chips=chips, batch=batch, weights=weights, examples_per_s=steady["examples_per_s"], step_s=steady.get("step_s"), steady_window_end=steady["step"], last_window_examples_per_s=last["examples_per_s"], hbm_gb=last.get("gpu_gb"), compiles=last.get("compiles"), compile_minutes=round(last.get("compile_s", 0) / 60, 1), first_step_minutes=steps[0]["minutes"], data_wait=steady.get("data_wait"), cpu_fallbacks=last.get("cpu_fallbacks"), loss=last.get("loss"))
+    return steady
 
 
 def out_of_memory(phase):
