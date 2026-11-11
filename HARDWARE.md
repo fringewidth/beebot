@@ -678,3 +678,94 @@ all under `free_cube`, 9% under `switch_cube`.
 The reason is the actuator, not a bug in either: round 1 models a geared hinge that can hold a
 torque for as long as it takes to pry a face open; the cube has a flywheel impulse of a few
 milliseconds, which cannot shear a face bond at any speed it reaches.
+
+### Switchable magnets in the swarm (2026-11-11)
+
+The training stores use the voxel world's `switch_cube` rule: a cube releases its bonds to move.
+With permanent magnets `cube_swarm` refuses all of those moves (0 of 121, above), and 45% of the
+stores' pivots have a face bond besides the support (71% an edge contact). The cubes are to have
+switchable magnets (electromagnets or electropermanent), so `cube_swarm` now has them:
+`Swarm(release=True)`. While a cube moves, its magnet pairs with every cube except the ones it
+leans on (`Pivot.leans`: its support, and for a quarter turn the cube it comes to rest against)
+are off; when the scene is still they are back on and the scene settles for 0.1 s more. The steel
+floor still pulls on every magnet. `Swarm.moves` also runs several moves at once (planned on the
+grid before any of them moves, flywheels braked together); `move` is its one-order case, step for
+step the old move (checked on 33 moves in four scenes: identical results and poses). `Swarm.spin` is a raw
+flywheel spin about any axis. Measurements: `hardware/cube_outcomes.py`, rows in
+`runs/cube_outcomes/`, the full tables in `runs/cube_outcomes/report.txt`; how the voxel world
+uses them in `src/beebot/vla/voxel/README.md`, "Move outcomes measured in MuJoCo".
+
+**Release frees edge contacts and slots, but not a cube in a crowd.** One mover in a small scene,
+60 trials released, 200 permanent (lattice outcome once the scene rests):
+
+| move | permanent: reached / stayed / harmful | released |
+| --- | --- | --- |
+| floor roll away from an edge contact | 0.15 / 0.85 / 0 | 0.93 / 0.07 / 0 |
+| floor roll into a slot | 0.01 / 0.71 / 0.28 | 0.48 / 0.48 / 0.03 |
+| floor peel (away from a face bond) | 0 / 1.00 / 0 | 0.28 / 0.72 / 0 |
+| convex up from hanging | 0.65 / 0.29 / 0.06 | 0.85 / 0 / 0.15 |
+| convex up onto a lone cube | 0.17 / 0.04 / 0.79 | 0.20 / 0.02 / 0.78 |
+| convex down off a lone stack of two | 0.71 / 0 / 0.29 | 0.78 / 0 / 0.22 |
+| concave up a lone stack of two | 0 / 0 / 1.00 (it topples) | 0 / 0 / 1.00 |
+
+Every other template (floor roll, traverse, convex up onto a row, convex down off a row, concave
+up a backed wall, concave down, wall crawl) is within a few percent either way. In the stores'
+own scenes (380 moves, cropped to five columns around the mover) a released floor roll with a
+bond or an edge contact stays two times in three, and 0.90 of those with a bond, an edge contact
+and a slot stay: the cubes beside the mover are pulled onto it by their own edge magnets to the
+cubes around it, and grip it by friction. Releasing only the mover's pairs does not free it. At
+4,839 rpm a cube in the middle of a row rolled out sideways 3 times in 10; at 6,000 rpm 10 of 10;
+faster threw it off the lattice (7,500: 3 of 10, 9,000: 8 of 10). A cube in the front row of a
+2 x 5 patch got out at most 2 times in 10 at any speed up to 9,000 rpm (10 trials each).
+`cube_swarm.RPM` was calibrated with permanent magnets and is unchanged; release mode has not been
+calibrated.
+
+**Harm per pivot.** In the ten-cube layouts, moves drawn at random by class: 529 pivots, reached
+0.52, stayed 0.36, off the lattice 0.09, strayed 0.01, knock 0.02: **12.3% harmful** (the scripted
+demonstration's 4.2% chose its moves). Over the stores' mix of moves: 9.3% harmful, 47% reached,
+44% stayed. A small-swarm episode of about 115 pivots meets about 11 harmful ends.
+
+**Where harm comes from.** Store-weighted: convex down 36% of the harm, convex up 24%, concave up
+15%, floor roll 12%, convex up from hanging 9%. A lone support (a cube or stack of two that
+touches nothing else) is 2.7% of the pivots and 21% of the harm; 12 of the 17 knocks seen were
+a lone support shoved or dropped with the mover thrown past it. Nearly every other harmful end is
+the mover left tilted, in its start cell (24 of 82) or one cell along its motion (23).
+
+**Cube-level levers.** The five harm-source moves above (convex up onto a lone cube, onto a row,
+from hanging, convex down off a lone stack, concave up a lone stack), released, 30 trials each
+with the same seeds in every variant (`runs/cube_outcomes/levers-release.jsonl`). Harmful share:
+
+| variant | convex up, lone | convex up, row | convex up, hanging | convex down, lone | concave up, lone | all five |
+| --- | --- | --- | --- | --- | --- | --- |
+| as built | 0.80 | 0.07 | 0.27 | 0.37 | 1.00 | 0.50 |
+| pivot speed x 0.85 | 0.03 | 0.03 | 0.03 | 0.00 | 1.00 | 0.22 |
+| pivot speed x 1.15 | 0.90 | 0.27 | 0.67 | 0.47 | 1.00 | 0.66 |
+| magnets x 1.4 (edge and face) | 0.14 | 0.07 | 0.00 | 0.03 | 0.90 | 0.23 |
+| magnets x 0.7 | 1.00 | 0.70 | 0.87 | 0.50 | 1.00 | 0.81 |
+| brake torque x 0.6 | 0.47 | 0.10 | 0.20 | 0.07 | 0.90 | 0.35 |
+| brake torque x 1.5 | 0.80 | 0.10 | 0.33 | 0.43 | 1.00 | 0.53 |
+
+1. **Slower convex moves are the cheapest cut.** At 0.85 of the calibrated speed convex up onto a
+   lone cube lands 0.67 of the time with 0.03 harm (0.20 and 0.80 now), convex down off a lone
+   stack lands every time (0.63 now); the cost is more harmless stays (from hanging 0.50, onto a
+   row 0.30). Round 3's harm-aware calibration found the same for permanent magnets (15,800 rpm
+   over a lone cube, `RPM` uses 18,852 for every convex up).
+1. **Stronger magnets** (x 1.4) cut harm as much, with fewer stays; weaker ones (x 0.7) make most
+   convex moves harmful. A softer brake (x 0.6) helps a little.
+1. **Nothing saves a lone stack of two under concave up**: it topples 0.90 to 1.00 of the time at
+   every setting. The planner has to climb backed walls only.
+1. Before a demonstration, `RPM` should be recalibrated for release mode (speed per primitive and
+   per held or free, success minus 3 x harm as in round 3); the voxel world's outcome table
+   (`outcomes/mujoco_release.json`) then has to be measured and fit again.
+
+**A cube off the lattice.** Of 30 tilted movers (replayed from their seeds: all 30 ended off
+again), none settled after another second. A raw spin (`Swarm.spin`, released, about each of the
+6 world axes at 5,000, 10,000, 15,000 and 20,000 rpm, each from a fresh replay) left the cube
+aligned in a cell without disturbing another in 28 of 720 tries, and at least one of the 24 worked
+for 17 of the 30 cubes. So a cube can be righted, by searching, and `plan` does not try: it
+refuses a cube that is off. A recovery move would need its own primitive and controller.
+
+**Several movers at once.** 80 steps of the stores with 2 to 7 pivots within two cells of each
+other, run together and the first mover again alone from the same scene: it ended the same way in
+73 (5 worse with company, 2 better); a knock came in 7% of mover rows together and 5% alone. No
+difference shows at this count.

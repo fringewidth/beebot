@@ -72,6 +72,7 @@ class VoxelWorld:
     friction: torch.Tensor = None  # (B, K) float: the press that slides the object (FRICTION light, HEAVY_FRICTION heavy)
     food: torch.Tensor = None  # (B, K) bool: can be eaten; False for a passive block
     zones: torch.Tensor = None  # (B, H, W) long: the colour painted on each floor cell (on top of the terrain), -1 for none
+    stuck: torch.Tensor = None  # (B, D, H, W) bool: robots a move left off the lattice (OutcomeModel); they never act again. None: none
 
     def index(self, i):
         """A sub-batch: an int, a slice or an index tensor."""
@@ -129,6 +130,8 @@ def concat(worlds):
     if not plain:
         k = max(w.cheese_alive.shape[1] for w in worlds)
         worlds = [with_objects(w, k) for w in worlds]
+    if any(w.stuck is not None for w in worlds):
+        worlds = [w if w.stuck is not None else replace(w, stuck=torch.zeros(w.mass.shape, dtype=torch.bool, device=w.mass.device)) for w in worlds]
     return VoxelWorld(*(None if getattr(worlds[0], f.name) is None else torch.cat([getattr(w, f.name) for w in worlds]) for f in fields(VoxelWorld)))
 
 
@@ -406,11 +409,91 @@ def leans(here, code, side):
     return torch.stack([here + support, here + rest], dim=1)
 
 
+PRIMITIVES = ("floor_roll", "traverse", "wall_crawl", "concave_up", "concave_down", "convex_up", "convex_up_hang", "convex_down")  # cube_swarm's names; a floor roll is on the floor or terrain, a traverse on a cube
+_FACE6 = torch.tensor([(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)])
+_EDGE12 = torch.tensor([(a, b, c) for a in (-1, 0, 1) for b in (-1, 0, 1) for c in (-1, 0, 1) if abs(a) + abs(b) + abs(c) == 2])
+
+
+def _read(grid, scene, coords, outside=False, floor=None):
+    """grid (B, D, H, W) bool read at coords (M, ..., 3) of scenes scene (M,): `outside` off the
+    grid, `floor` (default `outside`) below z = 0."""
+    b, d, h, w = grid.shape
+    flat, inside = flat_index(coords, (d, h, w))
+    rows = scene.view(-1, *([1] * (flat.dim() - 1))).expand(flat.shape)
+    out = torch.where(inside, grid.reshape(b, -1)[rows, flat], torch.tensor(outside, device=grid.device))
+    if floor is not None:
+        out = torch.where(coords[..., 0] < 0, torch.tensor(floor, device=grid.device), out)
+    return out
+
+
+def pivot_geometry(code, side):
+    """(h, s, half) of M pivots: the motion h (M, 3), the support side s (M, 3) and whether it is a
+    half turn (M,), from move codes and pivot_moves' support side indices (cube_swarm.plan's h, s)."""
+    step_ = DIR_TABLE.to(code.device)[code.long()]
+    s = _SIDE_TABLE.to(code.device)[side.long()]
+    half = _HALF_TURN.to(code.device)[code.long()]
+    return torch.where(half.unsqueeze(1), step_ - s, step_), s, half
+
+
+def pivot_features(world, scene, here, code, side):
+    """What a pivot is and what holds it back, for M pivots of cubes at here (M, 3) in scenes
+    scene (M,) making move code (M,) on support side `side` (M,) (pivot_moves' index), on the scene
+    as the step begins. A dict of (M,) long tensors, the same counts as cube_swarm.plan:
+    primitive  index into PRIMITIVES
+    bonds      cubes face to face with the mover, other than its support
+    hinges     cubes touching it only by an edge, other than the edge it pivots on
+    rubs       solid cells (cube, terrain, floor) beside the cells it passes into, along the pivot axis
+    lone       1 when what it leans on (its support, and for a quarter turn the cell it comes to
+               rest against) are cubes that touch no other cube or terrain by a face (a single cube
+               or a stack of two on the floor, which a launch can shove or tip)"""
+    device = here.device
+    cubes = world.mass > 0.5
+    solid = cubes | world.walls | (cheese_id_map(world) >= 0)
+    h, s, half = pivot_geometry(code, side)
+    up = s[:, 0] == 0
+    support_cube = _read(cubes, scene, here + s)
+    below_solid = _read(solid, scene, here + torch.tensor([-1, 0, 0], device=device), outside=False, floor=True)
+    primitive = torch.where(
+        half,
+        torch.where(up, torch.where(below_solid, PRIMITIVES.index("convex_up"), PRIMITIVES.index("convex_up_hang")), PRIMITIVES.index("convex_down")),
+        torch.where(
+            s[:, 0] < 0,
+            torch.where(support_cube, PRIMITIVES.index("traverse"), PRIMITIVES.index("floor_roll")),
+            torch.where(h[:, 0] > 0, PRIMITIVES.index("concave_up"), torch.where(h[:, 0] < 0, PRIMITIVES.index("concave_down"), PRIMITIVES.index("wall_crawl"))),
+        ),
+    )
+    faces = _FACE6.to(device)
+    edges = _EDGE12.to(device)
+    at_faces = _read(cubes, scene, here.unsqueeze(1) + faces)  # (M, 6)
+    bonds = (at_faces & (faces.unsqueeze(0) != s.unsqueeze(1)).any(dim=2)).sum(dim=1)
+    at_edges = _read(cubes, scene, here.unsqueeze(1) + edges)  # (M, 12)
+    hinges = (at_edges & (edges.unsqueeze(0) != (h + s).unsqueeze(1)).any(dim=2)).sum(dim=1)
+    axis = torch.linalg.cross(h, s)
+    target = here + h + torch.where(half.unsqueeze(1), s, torch.zeros_like(s))
+    passed = torch.stack([target, torch.where(half.unsqueeze(1), here + h, target)], dim=1)  # (M, 2, 3); a quarter turn passes into its target only
+    hard = cubes | world.walls
+    beside = torch.cat([passed + axis.unsqueeze(1), passed - axis.unsqueeze(1)], dim=1)  # (M, 4, 3)
+    counted = torch.cat([torch.ones_like(half), half, torch.ones_like(half), half]).view(4, -1).t()
+    rubs = (_read(hard, scene, beside, floor=True) & counted).sum(dim=1)
+    rest = here + torch.where(half.unsqueeze(1), s, h + s)
+    leaned = torch.stack([here + s, rest], dim=1)  # (M, 2, 3)
+    leaned_cube = _read(cubes, scene, leaned)
+    near = leaned.unsqueeze(2) + faces.view(1, 1, 6, 3)  # (M, 2, 6, 3)
+    own = (near == here.view(-1, 1, 1, 3)).all(dim=3) | (near == leaned.flip(1).unsqueeze(2)).all(dim=3)
+    touching = (_read(hard, scene, near) & ~own & leaned_cube.unsqueeze(2)).any(dim=(1, 2))
+    lone = support_cube & ~touching
+    return {"primitive": primitive, "bonds": bonds, "hinges": hinges, "rubs": rubs, "lone": lone.long()}
+
+
 def rule_table(world, rule, sides=False):
-    """pivot_moves of a scene batch under a named rule (RULES)."""
+    """pivot_moves of a scene batch under a named rule (RULES); a stuck robot (VoxelWorld.stuck)
+    has STAY only."""
     if rule not in RULES:
         raise ValueError(f"unknown rule {rule!r}")
-    return pivot_moves(world.mass > 0.5, world.walls, cheese_id_map(world) >= 0, release=rule == "switch_cube", sides=sides)
+    out = pivot_moves(world.mass > 0.5, world.walls, cheese_id_map(world) >= 0, release=rule == "switch_cube", sides=sides)
+    if world.stuck is not None:
+        (out[0] if sides else out)[:, :STAY] &= ~world.stuck.unsqueeze(1)
+    return out
 
 
 def rule_moves(world, rule):
@@ -685,10 +768,14 @@ def fall(world):
     occupied = sub.mass > 0.5
     loose = occupied & ~supported(sub, occupied)
     solid = sub.walls | (cheese_id_map(sub) >= 0)
+    stuck = None if sub.stuck is None else sub.stuck.clone()
     for z in range(1, occupied.shape[1]):
         drop = loose[:, z] & ~occupied[:, z - 1] & ~solid[:, z - 1]
         occupied[:, z - 1] |= drop
         occupied[:, z] &= ~drop
+        if stuck is not None:  # a stuck robot falls with its column
+            stuck[:, z - 1] |= drop & stuck[:, z]
+            stuck[:, z] &= ~drop
     pos = sub.cheese_pos.clone()
     below = None if sub.form is None else (_shift(_rim(sub.form), 0, -1) & ~_rim(sub.form)).flatten(2)  # (B, K, 216): the voxels just under each object's lowest voxels
     for c in range(pos.shape[1]):
@@ -706,7 +793,11 @@ def fall(world):
     mass[on] = occupied.to(mass.dtype)
     cheese_pos = world.cheese_pos.clone()
     cheese_pos[on] = pos
-    return replace(world, mass=mass, cheese_pos=cheese_pos)
+    if stuck is None:
+        return replace(world, mass=mass, cheese_pos=cheese_pos)
+    all_stuck = world.stuck.clone()
+    all_stuck[on] = stuck
+    return replace(world, mass=mass, cheese_pos=cheese_pos, stuck=all_stuck)
 
 
 def coverage(world):
@@ -724,14 +815,192 @@ def eat_cheeses(world):
     return world.cheese_alive & food & (covered >= EAT_SHARE * open_) & (covered >= EAT_MIN_SHARE * full_shell(world))
 
 
-def step(world, codes, score=None, rule=None):
+# ---------------------------------------------------------------------------------------------
+# Move outcomes measured in MuJoCo (README "Move outcomes"; hardware/cube_outcomes.py)
+#
+# Without an outcome model a pivot the rule allows simply happens (callers drop moves at random
+# with fail_moves). With one, every pivot gets the outcome MuJoCo gives its class (pivot_class:
+# primitive, and whether it has bonds, hinges, rubs and a lone support): reached (it moves),
+# stayed, or one of the harmful ends MuJoCo left behind in a trial of that class, replayed on the
+# grid in the move's frame: the mover and any knocked cube go to the cells they ended in, and a
+# cube that ended off the lattice is stuck there (VoxelWorld.stuck: it never acts again, falls
+# with its column, and blocks a sliding object). Thinly measured classes borrow from coarser ones:
+# each class's (reached, stayed, harmful) is its counts plus PRIOR trials' worth of the class one
+# tag coarser (BACKOFF), down to the primitive and to all moves; a harmful draw replays a trial of
+# the finest class that has one.
+
+OUTCOME_MODELS = ("mujoco_release",)  # tables in outcomes/<name>.json; mujoco_release: cube_swarm with release (switchable magnets, the switch_cube rule)
+TAGS = ("bonded", "hinged", "rubs", "lone")
+BACKOFF = (TAGS, ("bonded", "hinged", "lone"), ("bonded", "hinged"), ("bonded",), ())  # finest to coarsest
+PRIOR = 8.0  # trials' worth of the coarser class each class's counts are shrunk toward
+N_CLASSES = len(PRIMITIVES) << len(TAGS)
+
+
+def pivot_class(features):
+    """(M,) long class index of pivots from pivot_features: primitive, then a bit per tag."""
+    bits = [features["bonds"] > 0, features["hinges"] > 0, features["rubs"] > 0, features["lone"] > 0]
+    out = features["primitive"].clone()
+    for bit in bits:
+        out = out * 2 + bit.long()
+    return out
+
+
+def class_name(index, tags=TAGS):
+    """The key of class `index` (cube_outcomes.class_key) with only `tags` kept."""
+    bits = [(index >> (len(TAGS) - 1 - k)) & 1 for k in range(len(TAGS))]
+    kept = [tag for tag, bit in zip(TAGS, bits) if bit and tag in tags]
+    return "/".join([PRIMITIVES[index >> len(TAGS)]] + kept)
+
+
+def _coarse(key, tags):
+    name, *rest = key.split("/")
+    return "/".join([name] + [tag for tag in rest if tag in tags])
+
+
+class OutcomeModel:
+    """Outcome probabilities per pivot class from a measured table (cube_outcomes fit):
+    {"name", "classes": {key: {"reached": n, "stayed": n, "harm": [aftermath, ...]}}}, an aftermath
+    being one MuJoCo trial's harmful end: [[from, to, stuck], ...] for the mover (first, from
+    (0, 0, 0)) and every cube it knocked, cells in the move's frame (h, s, h x s)."""
+
+    def __init__(self, table):
+        self.name = table["name"]
+        pooled = {}  # (backoff level, key with that level's tags): counts of every class that falls in it
+        for key, entry in table["classes"].items():
+            for tags in BACKOFF:
+                into = pooled.setdefault((tags, _coarse(key, tags)), {"reached": 0, "stayed": 0, "harm": []})
+                into["reached"] += entry["reached"]
+                into["stayed"] += entry["stayed"]
+                into["harm"] += entry["harm"]
+        everything = [sum(e[k] for e in table["classes"].values()) for k in ("reached", "stayed")] + [sum(len(e["harm"]) for e in table["classes"].values())]
+        self.reach = torch.zeros(N_CLASSES)
+        self.stay = torch.zeros(N_CLASSES)
+        self.first = torch.zeros(N_CLASSES, dtype=torch.long)
+        self.count = torch.zeros(N_CLASSES, dtype=torch.long)
+        self.source = []  # the finest key with trials that each class's counts come from, None when its primitive was never measured
+        self.aftermaths = []
+        for index in range(N_CLASSES):
+            probs = torch.tensor(everything, dtype=torch.float) / max(sum(everything), 1)
+            harm, source = [], None
+            for tags in reversed(BACKOFF):  # coarsest first: each level is its counts plus PRIOR trials of the level above
+                entry = pooled.get((tags, class_name(index, tags)))
+                if entry is None:
+                    continue
+                counts = torch.tensor([entry["reached"], entry["stayed"], len(entry["harm"])], dtype=torch.float)
+                probs = (counts + PRIOR * probs) / (counts.sum() + PRIOR)
+                harm = entry["harm"] or harm
+                source = class_name(index, tags)
+            if source is None:
+                self.source.append(None)
+                self.reach[index] = 1.0  # never measured: the move happens
+                continue
+            if not harm:  # no harmful end of this primitive was seen: nothing to replay
+                probs[2] = 0.0
+                probs = probs / probs.sum()
+            self.source.append(source)
+            self.reach[index], self.stay[index] = probs[0], probs[1]
+            self.first[index] = len(self.aftermaths)
+            self.count[index] = len(harm)
+            self.aftermaths += [torch.tensor([[*a, *b, int(c)] for a, b, c in one], dtype=torch.long) for one in harm]
+
+    @classmethod
+    def load(cls, name):
+        """The model named `name` (OUTCOME_MODELS), from outcomes/<name>.json beside this module."""
+        import json
+        from pathlib import Path
+
+        if name not in OUTCOME_MODELS:
+            raise ValueError(f"unknown outcome model {name!r}")
+        return cls(json.loads((Path(__file__).parent / "outcomes" / f"{name}.json").read_text()))
+
+    def probabilities(self, index):
+        """(reached, stayed, harmful) of class `index`."""
+        return float(self.reach[index]), float(self.stay[index]), float(1 - self.reach[index] - self.stay[index])
+
+    def draw(self, world, codes, rule, ids, noise):
+        """Outcomes of the pivots among codes (after refuse) drawn with noise (B, D, H, W) uniform:
+        returns (codes with every pivot that does not reach its target turned to STAY, the harmful
+        events (scene, here, h, s, aftermath index) to apply after the robots move)."""
+        cubes = world.mass > 0.5
+        scene, z, y, x = (cubes & (codes != STAY)).nonzero(as_tuple=True)
+        here = torch.stack([z, y, x], dim=1)
+        code = codes[scene, z, y, x].long()
+        if world.friction is not None:
+            press = chain_press(world, codes, ids)[scene, z, y, x] >= 0
+        else:
+            flat, inside = flat_index(here + DIR_TABLE.to(codes.device)[code], world.mass.shape[-3:])
+            press = inside & (ids.reshape(ids.shape[0], -1)[scene, flat] >= 0)
+        table, side = rule_table(world, rule, sides=True)
+        pivots = table[scene, code, z, y, x] & ~press
+        scene, here, code = scene[pivots], here[pivots], code[pivots]
+        sides = side[scene, code, here[:, 0], here[:, 1], here[:, 2]]
+        index = pivot_class(pivot_features(world, scene, here, code, sides))
+        u = noise[scene, here[:, 0], here[:, 1], here[:, 2]].float()
+        reach, stay = self.reach[index], self.stay[index]
+        out = codes.clone()
+        miss = u >= reach
+        out[scene[miss], here[miss, 0], here[miss, 1], here[miss, 2]] = STAY
+        harm = (u >= reach + stay) & (self.count[index] > 0)
+        rest = (1 - reach - stay)[harm].clamp(min=1e-9)
+        pick = ((u[harm] - (reach + stay)[harm]) / rest * self.count[index][harm]).long().clamp(min=0)
+        pick = self.first[index][harm] + torch.minimum(pick, self.count[index][harm] - 1)
+        h, s, _ = pivot_geometry(code[harm], sides[harm])
+        return out, (scene[harm], here[harm], h, s, pick)
+
+    def apply(self, mass, stuck, blocked, events):
+        """Replay harmful events on mass (B, D, H, W) after the robots moved: each participant of
+        the aftermath that is still in its cell goes to the cell it ended in, if that is inside the
+        grid and free (else it stays), stuck if it ended off the lattice. blocked: walls and
+        objects. Returns (mass, stuck)."""
+        scene, here, h, s, pick = events
+        if not len(scene):
+            return mass, stuck
+        mass, stuck = mass.clone(), stuck.clone()
+        d, hh, w = mass.shape[-3:]
+        frames = torch.stack([h, s, torch.linalg.cross(h, s)], dim=2)  # (E, 3, 3): world = frame @ local
+        for e in range(len(scene)):
+            b = int(scene[e])
+            rows = self.aftermaths[int(pick[e])]
+            start = here[e] + rows[:, 0:3] @ frames[e].t()
+            end = here[e] + rows[:, 3:6] @ frames[e].t()
+            present = [k for k in range(len(rows)) if (start[k] >= 0).all() and start[k, 0] < d and start[k, 1] < hh and start[k, 2] < w and mass[b, start[k, 0], start[k, 1], start[k, 2]] > 0.5]
+            was_stuck = {k: bool(stuck[b, start[k, 0], start[k, 1], start[k, 2]]) for k in present}
+            for k in present:
+                mass[b, start[k, 0], start[k, 1], start[k, 2]] = 0
+                stuck[b, start[k, 0], start[k, 1], start[k, 2]] = False
+            for k in present:
+                cell = end[k]
+                free = (cell >= 0).all() and cell[0] < d and cell[1] < hh and cell[2] < w and mass[b, cell[0], cell[1], cell[2]] < 0.5 and not blocked[b, cell[0], cell[1], cell[2]]
+                at = cell if free else start[k]
+                mass[b, at[0], at[1], at[2]] = 1
+                stuck[b, at[0], at[1], at[2]] = was_stuck[k] or bool(rows[k, 6])
+        return mass, stuck
+
+
+def step(world, codes, score=None, rule=None, outcomes=None, noise=None):
     """Advance every scene one step under action codes (B, D, H, W). Returns (world, StepInfo).
-    rule: a pivot rule (RULES); moves it forbids do not happen (refuse). None: any move."""
+    rule: a pivot rule (RULES); moves it forbids do not happen (refuse). None: any move.
+    outcomes: an OutcomeModel (needs a rule): each pivot reaches, stays or ends as MuJoCo shows
+    for its class, drawn with noise (B, D, H, W) uniform in [0, 1) (default torch.rand). None:
+    every allowed pivot happens, as before. A stuck robot (VoxelWorld.stuck) never acts."""
     ids = cheese_id_map(world)
     if rule is not None:
         codes = refuse(world, codes, rule, ids)
+    if world.stuck is not None:
+        codes = torch.where(world.stuck, torch.full_like(codes, STAY), codes)
+    events = None
+    if outcomes is not None:
+        if rule is None:
+            raise ValueError("an outcome model needs a pivot rule")
+        noise = torch.rand(world.mass.shape, device=world.mass.device) if noise is None else noise
+        codes, events = outcomes.draw(world, codes, rule, ids, noise)
     mass, force = move_robots(world, codes, ids, score)
-    mass, pos, pushed = push_cheeses(world, mass, force)
+    stuck = world.stuck
+    if events is not None:
+        stuck = torch.zeros(mass.shape, dtype=torch.bool, device=mass.device) if stuck is None else stuck
+        mass, stuck = outcomes.apply(mass, stuck, world.walls | (ids >= 0), events)
+        world = replace(world, stuck=stuck)
+    mass, pos, pushed = push_cheeses(world if stuck is None else replace(world, walls=world.walls | stuck), mass, force)
     moved = fall(replace(world, mass=mass, cheese_pos=pos))
     eaten = eat_cheeses(moved)
     return replace(moved, cheese_alive=moved.cheese_alive & ~eaten), StepInfo(pushed=pushed, eaten=eaten)

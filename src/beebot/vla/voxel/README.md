@@ -283,13 +283,13 @@ What was measured and what is extrapolated:
 | | basis |
 | --- | --- |
 | one extra face bond holds the cube | measured: 0 of 121 (77 with exactly one bond); floor peel, convex up and down, traverse, wall crawl. Concave moves with a bond were not tried and are assumed held too |
-| free cubes move | measured: floor roll 34 of 34, concave up 12 of 14, concave down 5 of 5, convex up from hanging 21 of 33, convex up 0.77 to 0.91 with retries. Here an allowed move simply happens; `--failure` is the only noise, and a harmful failure (off the lattice, a knocked neighbour: 3 to 9% of convex ups, more in the ten-cube scene) is not modelled |
+| free cubes move | measured: floor roll 34 of 34, concave up 12 of 14, concave down 5 of 5, convex up from hanging 21 of 33, convex up 0.77 to 0.91 with retries. With `--failure` an allowed move simply happens unless dropped; with `--outcomes mujoco_release` every pivot ends as MuJoCo shows for its class, harmful ends included ("Move outcomes measured in MuJoCo") |
 | the pivot table (support, swing) | `cube_swarm.plan`, which every measured move went through |
 | terrain as a support and never a bond | extrapolated from the steel floor (grip 0.3); no terrain in MuJoCo |
 | a cheese: rolled over, never climbed, never a bond; presses unrestricted | assumed; no cheese in MuJoCo. A cube held by a bond can still press |
-| an edge contact does not hold | optimistic: hinged movers reached 16 of 23, but a floor roll away from an edge contact stayed 18 of 22 times at the calibrated speed |
-| sliding into a slot beside a cube works | optimistic: 3 of 22 got in, 6 ended off the lattice. `pivot_moves(rubs=True)` refuses it; no named rule uses it, because it rules out every filled 2 x 2 footprint |
-| one at a time | assumed; only single movers were simulated |
+| an edge contact does not hold | optimistic with `--failure`: with permanent magnets a floor roll away from an edge contact stays 0.85 of the time (isolated, 199 trials); released, 0.07, but in the stores' crowded scenes a held floor roll stays 0.66. `--outcomes` gives each its measured rate (class tag hinged) |
+| sliding into a slot beside a cube works | optimistic with `--failure`: with permanent magnets 0.01 got in and 0.28 ended off the lattice (200 trials); released 0.48 and 0.03. `--outcomes` gives the measured rate (class tag rubs). `pivot_moves(rubs=True)` refuses it; no named rule uses it, because it rules out every filled 2 x 2 footprint |
+| one at a time | measured with release: several movers within two cells of each other end as they do alone (73 of 80 paired steps the same) |
 | what holds a structure up | unchanged: the voxel world's support rule |
 
 `hardware/physics.py` (`allowed_moves`) is a different, looser rule for a geared crawler: it
@@ -407,6 +407,152 @@ cube world (`suite.fits` knows nothing of the rule), so tasks no free cube can d
 and dropped.
 
 Tests: `tests/test_vla_voxel_free_cube.py`.
+
+## Move outcomes measured in MuJoCo (`world.OutcomeModel`, `--outcomes`)
+
+The stores up to 2026-11-11 fail a move by dropping it to STAY with a fixed rate per move class
+(`--failure 0.10,up_over=0.23`): an allowed pivot otherwise always lands. MuJoCo's cubes do not
+behave like that, and the policy is to run on them. With `--outcomes mujoco_release` the world's
+step gives every pivot the outcome MuJoCo gives its class instead, so the demonstrations show
+what MuJoCo shows:
+
+```
+OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_demos_v2 --scenes 6000 --cube --rule switch_cube --outcomes mujoco_release --counts log --compact
+```
+
+`--outcomes` takes the place of `--failure` (giving both is an error) and needs a rule. The store
+records `config["outcomes"]`; stores without the key were drawn the old way and replay exactly as
+before (`world.step` without `outcomes` is unchanged, byte for byte on a test store). `small.pt`
+also holds `stuck`: per episode the `[t, z, y, x]` of every robot stuck off the lattice in mass
+frame t.
+
+**Classes.** `world.pivot_features` names each pivot the way `hardware/cube_swarm.plan` does (same
+counts on 2,310 random pivots): the primitive (floor roll on floor or terrain, traverse on a
+cube, wall crawl, concave up and down, convex up from the floor or from hanging, convex down) and
+four tags: bonded (another cube face to face, not the support), hinged (another cube touching by
+an edge, not the pivot edge), rubs (a solid cell beside where it passes in, along the pivot axis)
+and lone (what it leans on is a cube, or a stack of two, that touches nothing else by a face).
+`world.pivot_class` packs them into one of 128 classes.
+
+**Outcomes.** Per class the table (`outcomes/mujoco_release.json`, written by
+`hardware/cube_outcomes.py fit`) holds how often the move reached and stayed in MuJoCo, and every
+harmful end as MuJoCo left it: the cells the mover and each cube it disturbed ended in, and
+whether each ended off the lattice, relative to the mover's start in the move's frame (h, s,
+h x s). A harmful draw replays one such trial on the grid, turned to the move at hand:
+
+1. **Off the lattice.** The cube goes to its nearest cell and is stuck there (`VoxelWorld.stuck`):
+   it never acts again (the rule gives it STAY only, the world turns any action of it to STAY),
+   it falls with its column, and a sliding object stops at it. Other cubes may still pivot on it,
+   as `cube_swarm.plan` lets them. In MuJoCo it lies tilted and `plan` refuses it; it does not
+   settle by itself, and only a search over raw spins rights it (below), which no grid action
+   stands for.
+1. **Strayed.** The mover goes to the third cell it ended in.
+1. **Knock.** The mover and every cube that ended in another cell or off the lattice go where
+   they ended, the ones off the lattice stuck.
+
+A participant whose end cell is taken, a wall, an object or off the grid stays where it was (and
+is stuck if it ended off the lattice). Thinly measured classes borrow from coarser ones: a class's
+(reached, stayed, harmful) is its counts plus `PRIOR` (8) trials' worth of the class one tag
+coarser, dropping rubs, then lone, then hinged, then bonded (`world.BACKOFF`), down to the
+primitive and to all moves; a harmful draw replays a trial of the finest class that has one
+(`OutcomeModel.source`). A hard threshold (40 trials, else the coarse pool) did worse: it pooled
+free floor rolls (always reach) with held ones (mostly stay).
+
+### What MuJoCo shows (`hardware/cube_outcomes.py`, release mode)
+
+All in `cube_swarm.Swarm(release=True)`, the switchable magnets the `switch_cube` stores assume
+(HARDWARE.md, "Switchable magnets"), at `cube_swarm.RPM`, with cube.py's jitter. Outcomes are
+what a move leaves on the lattice once the scene is at rest. Rows and the full per-class tables:
+`runs/cube_outcomes/` (`report.txt`).
+
+1. **Store moves** (`stores`): 380 pivots from the ten training stores (`voxel_full/s0..s7`,
+   `voxel_build/s0,s1`), each in its scene cropped to the 5 x 5 columns around the mover, drawn
+   per class in proportion to how often the stores attempt it, in the 42 classes that make 95% of
+   the 158,713 pivots of 400 episodes. 45% of store pivots (by class weight) have terrain or an
+   object within the crop and cannot be replayed (no terrain or objects in MuJoCo); their classes
+   get the rates of the ones that can.
+1. **Ten-cube scene** (`layouts`): 529 single moves in cube_swarm's five ten-cube layouts, drawn
+   at random by class as `cube_swarm.walk` draws them.
+1. **Isolated** (`isolated`): 15 one-mover scenes, 60 trials each (200 with permanent magnets).
+1. **Together**: 80 store steps with 2 to 7 movers within two cells, run at once and the first
+   mover alone from the same scene.
+
+Store-weighted, per pivot (the first column of each pair is MuJoCo, the second the old grid with
+`--failure 0.10,up_over=0.23`; reached / stayed / off / strayed / knock):
+
+| primitive | share of pivots | MuJoCo | old grid | new grid, held out |
+| --- | --- | --- | --- | --- |
+| all | 0.96 measured | 0.47 / 0.44 / 0.08 / 0.00 / 0.01 | 0.86 / 0.13 / 0 / 0 / 0.01 | 0.45 / 0.46 / 0.08 / 0.00 / 0.01 |
+| floor roll, free | 0.14 | 1.00 / 0 / 0 / 0 / 0 | 0.89 / 0.11 / 0 / 0 / 0 | 1.00 / 0 / 0 / 0 / 0 |
+| floor roll, bonded or hinged | 0.34 | 0.31 / 0.66 / 0.03 / 0 / 0 | 0.89 / 0.11 / 0 / 0 / 0 | 0.29 / 0.68 / 0.03 / 0 / 0 |
+| convex up | 0.12 | 0.35 / 0.46 / 0.15 / 0.01 / 0.01 | 0.75 / 0.22 / 0 / 0 / 0.03 | 0.38 / 0.46 / 0.14 / 0 / 0.01 |
+| convex down | 0.10 | 0.59 / 0.08 / 0.26 / 0.03 / 0.05 | 0.90 / 0.10 / 0 / 0 / 0 | 0.64 / 0.06 / 0.24 / 0 / 0.05 |
+| concave up | 0.08 | 0.38 / 0.45 / 0.16 / 0 / 0.01 | 0.89 / 0.11 / 0 / 0 / 0 | 0.22 / 0.61 / 0.17 / 0 / 0 |
+| wall crawl | 0.07 | 0.26 / 0.68 / 0.06 / 0 / 0 | 0.83 / 0.11 / 0 / 0 / 0.06 | 0.20 / 0.72 / 0.07 / 0 / 0.01 |
+| traverse | 0.06 | 0.65 / 0.35 / 0 / 0 / 0 | 0.90 / 0.10 / 0 / 0 / 0 | 0.64 / 0.36 / 0 / 0 / 0 |
+| convex up from hanging | 0.05 | 0.40 / 0.43 / 0.17 / 0 / 0 | 0.74 / 0.23 / 0 / 0 / 0.02 | 0.32 / 0.48 / 0.19 / 0 / 0.01 |
+| concave down | 0.02 | 0.22 / 0.78 / 0 / 0 / 0 | 0.90 / 0.10 / 0 / 0 / 0 | 0.23 / 0.77 / 0 / 0 / 0 |
+
+1. **Half the store's moves do not happen.** A free floor roll always lands; a held one (a bond or
+   an edge contact, released) stays two times in three: the side neighbours are pulled onto the
+   mover by their own magnets to the cubes around it and grip it by friction. 0.90 of floor rolls
+   with a bond, an edge contact and a slot stay.
+1. **9.3% of pivots end harmful** (store-weighted; 12.3% of the ten-cube moves, 529 pivots), nearly
+   all a mover left off the lattice: in its start cell (24 of the 82 seen) or one cell along its
+   motion h (23), the rest scattered. Knocks are rarer (0.7%): 12 of the 17 seen have a lone
+   support, shoved a cell along s or dropped a cell, the mover thrown past it. Harm by primitive:
+   convex down 36%, convex up 24%, concave up 15%, floor roll 12%, convex up from hanging 9%. Lone
+   supports (2.7% of pivots) give 21% of it. At 9.3% an episode of 115 pivots meets about 11
+   harmful ends.
+1. **Release against permanent magnets** (isolated, harmful share where it differs): floor roll
+   away from an edge contact reaches 0.93 (permanent 0.15), into a slot 0.48 with 0.03 off
+   (permanent 0.01 and 0.28 off), floor peel 0.28 (permanent 0); convex up from hanging goes off
+   0.13 (permanent 0.06). Convex up onto a lone cube is harmful 0.78 either way, a lone stack of
+   two topples under concave up every time.
+1. **Several movers at once** change nothing measurable at this count: of 80 paired steps the
+   first mover ended the same with company and alone in 73 (5 worse with company, 2 better); a
+   knock came in 7% of mover rows with company and 5% alone. The grid keeps judging each pivot
+   alone (its rule already stops a cube pivoting on a moving one). A difference of a few percent
+   would need several hundred pairs to see.
+1. **What it does to the demonstrations.** The same 12-scene draw (`--cube --rule switch_cube
+   --counts log`, coverage and objects) kept 38 episodes with `--failure 0.10,up_over=0.23` and 13
+   with `--outcomes mujoco_release`: the attractor expert plans as if moves land, and half do not.
+
+`grid_mujoco_outcome_gap`: per class the total variation distance between MuJoCo's outcomes on
+the store moves and the grid's on the same cropped scenes (24 plays each), weighted by how often
+the stores attempt the class:
+
+| | gap |
+| --- | --- |
+| before (`--failure 0.10,up_over=0.23`) | 0.459 |
+| after, 5-fold held out, table fit on store moves | 0.113 |
+| after, 5-fold, ten-cube moves added to the fit | 0.135 |
+| after, 5-fold, ten-cube and isolated moves added | 0.168 |
+| after, shipped table, in sample | 0.074 |
+| a perfect grid at these counts (bootstrap) | 0.099 |
+
+The held-out gap is the noise floor plus 0.014: at 5 to 44 moves per class most of what is left
+is sampling. Over the store-weighted mixture per primitive (the table above) it is 0.398 before
+and 0.024 after. The shipped table is fit on the store moves alone, the best of the three.
+
+What the grid still cannot show:
+
+1. **Terrain and objects.** 45% of store pivots have terrain or an object within two columns;
+   MuJoCo has neither, and those moves take the rates of their class measured without them.
+1. **Righting a cube.** A cube off the lattice never settles by itself (30 of 30 still off after
+   another second), but some raw flywheel spin rights 17 of 30 without disturbing anyone (28 of
+   720 spins, 6 axes x 4 speeds, `cube_outcomes recover`). The grid has no such action; its cube
+   stays stuck.
+1. **Seeing it.** A stuck cube is observed as a robot like any other (`observe` has no channel for
+   it, and the renderer draws it upright); the stores record where they are (`stuck`) so a later
+   observation can show them.
+1. **Sub-cell knocks.** MuJoCo counts a neighbour shoved more than 0.1 L as a knock; when it is
+   still in its cell and upright the lattice does not change, and the grid shows the mover's own
+   end (0.2% of store moves).
+1. **Speeds.** The table is for `cube_swarm.RPM`. A recalibration (HARDWARE.md: slower convex
+   moves cut harm) changes MuJoCo's outcomes, and the table has to be measured and fit again.
+
+Tests: `tests/test_vla_voxel_outcomes.py`.
 
 ## Coverage
 
@@ -1162,7 +1308,7 @@ demonstrations for exactly this case.
 | `--scaled` | on | task sizes fitted to the swarm (below) |
 | `--keep`, `--fit` | on | keep each drawn task and draw new scenes for it; draw only tasks the swarm can do |
 | `--rule`, `--moves`, `--expert`, `--steps` | `switch_cube`, cube, attractor, 72 | the training set-up |
-| `--failure` | `0.1,up_over=0.23` | the training stores' move failures (`rollout.FAILURE`); world.py's MuJoCo-measured outcome model (`--outcomes`) instead once world.py has one (`demos.DEMO_MOVES`) |
+| `--outcomes` | `mujoco_release` | world.py's MuJoCo-measured outcome model in place of the training stores' failure rates (`demos.DEMO_MOVES`) |
 | `--coverage`, `--objects`, `--build` | 1.0 each | one try a scene from every sampler, as from the suite's own |
 
 Each value is a default that a given option overrides (`--demo --build 0`). `small.pt` records
