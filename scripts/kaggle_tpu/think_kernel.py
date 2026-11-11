@@ -72,6 +72,9 @@ def find(name, max_depth=7):
 # The code: the tpu-port branch of the public repo, cloned at the session's start (so fixes pushed
 # while the kernel waits in the queue reach it), with this script replaced by the branch's own copy;
 # the beebot-src-tpu dataset when the clone fails.
+# TPU images may ship torch_tpu, a torch device backend that auto-loads on `import torch` and refuses
+# the torch 2.9.0 under torch_xla 2.9.0 (seen on Colab's v5e image, November 2026): keep it unloaded
+os.environ["TORCH_DEVICE_BACKEND_AUTOLOAD"] = "0"
 CLONE = "/tmp/beebot-repo"
 if not os.environ.get("BEEBOT_SRC"):
     cloned = subprocess.run(["git", "clone", "--depth", "1", "-b", "tpu-port", "https://github.com/fringewidth/beebot.git", CLONE], check=False).returncode == 0
