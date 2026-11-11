@@ -39,7 +39,7 @@ T0 = float(os.environ.get("BEEBOT_T0", time.time()))  # the session's start, kep
 # end of the same schedule; without a resume.pt it exits at once (never trains from scratch). The
 # pushed kernel sets the role (BEEBOT_ROLE, kept across the re-exec); a kernel pushed before roles
 # existed gets this file's default.
-ROLE = os.environ.get("BEEBOT_ROLE", "second")
+ROLE = os.environ.get("BEEBOT_ROLE", "first")
 SESSION_MINUTES = 9 * 60  # Kaggle's TPU session limit
 MARGIN_MINUTES = 35  # the real run's last validation, last save and the output upload (a session cut by the limit may lose its output)
 SECOND_SETUP_MINUTES = 30  # the second session's start: packages, model, data, resume.pt, compilation

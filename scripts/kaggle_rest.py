@@ -84,12 +84,31 @@ def tpu_push(owner, slug, path, datasets):
     return call(f"{RPC}/SaveKernel", body)
 
 
-def logs(owner, slug):
-    raw = call(f"{RPC}/GetKernelSessionLogsStream", {"userName": owner, "kernelSlug": slug}, raw=True)
+def logs(owner, slug, seconds=30):
+    """The session's log so far. A running session's log is an event stream that stays open
+    ("data: {...}" lines): read for `seconds`, then keep what arrived; a finished one's is a JSON
+    list (one entry per line, '[' or ',' first)."""
+    request = urllib.request.Request(f"{RPC}/GetKernelSessionLogsStream", data=json.dumps({"userName": owner, "kernelSlug": slug}).encode(), method="POST")
+    request.add_header("Authorization", f"Bearer {token()}")
+    request.add_header("Content-Type", "application/json")
+    raw, end = b"", time.time() + seconds
     try:
-        return "".join(e.get("data", "") for e in json.loads(raw) if isinstance(e, dict))
-    except (ValueError, TypeError):
-        return ""
+        with urllib.request.urlopen(request, timeout=seconds) as response:
+            while time.time() < end:
+                piece = response.read1(1 << 16)
+                if not piece:
+                    break
+                raw += piece
+    except Exception:  # the stream's timeout or a cut chunk: what arrived is kept
+        pass
+    text = []
+    for line in raw.decode(errors="replace").splitlines():
+        line = line.strip().removeprefix("data:").strip().lstrip("[,").rstrip("]")
+        try:
+            text.append(json.loads(line).get("data", ""))
+        except (ValueError, AttributeError):
+            pass
+    return "".join(text)
 
 
 def account(spec):
