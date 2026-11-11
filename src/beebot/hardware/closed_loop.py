@@ -891,12 +891,21 @@ def report(rows, moves, emit=print):
         )
     details = ("reached", "stayed", "off", "strayed", "knock", "refused", "blocked", "cube off", "displaced")
     emit("")
-    emit("| primitive | hindrance | moves | " + " | ".join(details) + " |")
-    emit("| --- | --- | --- | " + " | ".join("---" for _ in details) + " |")
+    emit("| primitive | hindrance | moves | " + " | ".join(details) + " | harmful per pivot |")
+    emit("| --- | --- | --- | " + " | ".join("---" for _ in details) + " | --- |")
     groups = sorted({(m["primitive"], hindrance(m)) for m in moves})
     for name, kind in groups + [("all", "")]:
         part = [m for m in moves if name == "all" or (m["primitive"], hindrance(m)) == (name, kind)]
-        emit(f"| {name or '(not attempted)'} | {kind} | {len(part)} | " + " | ".join(str(sum(m['detail'] == d for m in part)) for d in details) + " |")
+        pivots = sum(m["primitive"] != "" for m in part)
+        rate = f"{sum(m['detail'] in HARMFUL for m in part) / pivots:.3f}" if pivots else "-"
+        emit(f"| {name or '(not attempted)'} | {kind} | {len(part)} | " + " | ".join(str(sum(m['detail'] == d for m in part)) for d in details) + f" | {rate} |")
+    firsts = []
+    for r in rows:
+        harmful = [m["t"] for m in moves if m["kind"] == r["kind"] and m["i"] == r["i"] and m["detail"] in HARMFUL]
+        firsts.append(min(harmful) if harmful else None)
+    hit = [f for f in firsts if f is not None]
+    emit("")
+    emit(f"first harmful pivot: {len(hit)} of {len(rows)} episodes have one; step of the first: median {np.median(hit) if hit else '-'}, quartiles {np.percentile(hit, 25) if hit else '-'} to {np.percentile(hit, 75) if hit else '-'}")
     emit("")
     emit("| kind | moves | reached | stayed | harmful | not attempted | harmful per episode |")
     emit("| --- | --- | --- | --- | --- | --- | --- |")
