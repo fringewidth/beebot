@@ -18,9 +18,9 @@ def scene(cells, size=8):
     return world_from_arrays(mass, gravity=True)
 
 
-def episode(cells, task=None, steps=3, seed=0):
+def episode(cells, task=None, steps=3, seed=0, size=8):
     task = task or S.Task("construction", "build a tower 9 high", {"kind": "tower", "height": 9, "forbid": set()})
-    return R.Episode(scene(cells), {}, task, [task.text], [0], [{}], steps, seed)
+    return R.Episode(scene(cells, size), {}, task, [task.text], [0], [{}], steps, seed)
 
 
 def scripted(moves):
@@ -95,6 +95,36 @@ def test_stop_rule_freezes_a_scene_once_its_checker_passes():
     _, going = play_mujoco([episode([(0, 1, 1)], tower, steps=3)], scripted(actor), stop=False, swarm={"jitter": NOMINAL})
     assert stopped.first_pass[0] == 0 and len(stopped.moves[0]) == 1
     assert len(going.moves[0]) == 3 and going.passes[0] == [True, True, True]
+
+
+class EastPolicy:
+    """A stand-in for ThinkVoxelPolicy: no thought, every robot's argmax is a roll east; keeps the
+    observations it was given."""
+
+    visual = None
+
+    def __init__(self):
+        self.seen = []
+
+    def think_then_act(self, obs, contexts, images=None, max_new_tokens=0):
+        from beebot.vla.voxel.lm import PATCH
+        from beebot.vla.voxel.think import ThinkStep
+        from beebot.vla.voxel.world import N_ACTIONS
+
+        self.seen.append(obs.clone())
+        b = len(contexts)
+        logits = torch.zeros(b, (obs.shape[-1] // PATCH) ** 3, PATCH**3, N_ACTIONS)
+        logits[..., EAST] = 1.0
+        return ThinkStep([[] for _ in contexts], [""] * b, [""] * b, torch.ones(b, dtype=torch.bool), torch.ones(b, dtype=torch.bool), logits)
+
+
+def test_a_policy_acts_on_the_lattice_read_back_from_mujoco():
+    ep = episode([(0, 2, 2), (0, 9, 9)], steps=2, size=16)
+    policy = EastPolicy()
+    played, executor = play_mujoco([ep], R.PolicyActor(policy, [ep]), swarm={"jitter": NOMINAL})
+    assert len(policy.seen) == 2
+    robots = {tuple(c) for c in (policy.seen[1][0, 0] > 0.5).nonzero().tolist()}  # channel 0: robots
+    assert robots == {tuple(c) for c in executor.steps[0][0]["cells"]} == {(0, 2, 3), (0, 9, 10)}
 
 
 def test_grid_tracker_matches_the_grid_step():

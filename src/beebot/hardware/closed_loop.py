@@ -838,11 +838,15 @@ def run_episode(job):
     return row, moves
 
 
-def measure(kinds=KINDS, per_kind=3, seed=0, robots=ROBOTS, mode="sequential", swarm=None, stop=False, snap=False, workers=4, out=None, log=print):
+def measure(kinds=KINDS, per_kind=3, seed=0, robots=ROBOTS, mode="sequential", swarm=None, stop=False, snap=False, workers=4, out=None, steps=None, log=None):
     """Every hostable kind played by the expert in MuJoCo and on the grid (run_episode), in
     `workers` processes; rows appended to `out` (episodes) and out's .moves.jsonl (one row per
-    mover) as they finish. Returns (episode rows, move rows)."""
+    mover) as they finish. steps: a cap on every episode's length. Returns (episode rows, move
+    rows)."""
+    log = log or (lambda line: print(line, flush=True))
     episodes = hostable_episodes(kinds, per_kind, seed, robots)
+    if steps:
+        episodes = [replace(e, steps=min(e.steps, steps)) for e in episodes]
     log(f"{len(episodes)} episodes: " + ", ".join(f"{k} {sum(e.key['kind'] == k for e in episodes)}" for k in kinds))
     rows, moves = [], []
     moves_path = None if out is None else out.replace(".jsonl", "") + ".moves.jsonl"
@@ -947,6 +951,7 @@ def main():
     parser.add_argument("--swarm", nargs="*", help="cube_swarm.Swarm options, key=value")
     parser.add_argument("--stop", action="store_true", help="a scene that passes its checker makes no more moves")
     parser.add_argument("--snap", action="store_true", help="put cubes off the lattice back on the nearest free cell")
+    parser.add_argument("--steps", type=int, help="a cap on the episode's steps (72, 144 for build, otherwise)")
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--out", help="measure: episode rows; episode: the trajectory (.npz)")
     parser.add_argument("--video", help="episode, render: write an MP4 here")
@@ -967,10 +972,12 @@ def main():
     elif args.command == "render":
         print(f"{render(args.paths[0], args.video, args.slow)} s of video")
     elif args.command == "measure":
-        rows, moves = measure(args.kinds, args.per_kind, args.seed, tuple(args.robots), args.mode, swarm_options(args.swarm), args.stop, args.snap, args.workers, args.out)
+        rows, moves = measure(args.kinds, args.per_kind, args.seed, tuple(args.robots), args.mode, swarm_options(args.swarm), args.stop, args.snap, args.workers, args.out, args.steps)
         report(rows, moves)
     else:
         episode = hostable_episodes([args.kind], args.index + 1, args.seed, tuple(args.robots))[args.index]
+        if args.steps:
+            episode = replace(episode, steps=min(episode.steps, args.steps))
         policy = None
         if args.checkpoint or args.model or args.tiny:
             from beebot.vla.voxel.scorecard import load_model
