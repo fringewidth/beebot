@@ -256,3 +256,21 @@ def test_trainer_runs_saves_and_resumes(name, tmp_path, monkeypatch):
     policy, _ = think.load_policy(tmp_path / "runs/t/policy_step6.pt", "cpu")
     e = FakeThinkData(**fake).sample(np.random.default_rng(0))
     assert policy.think_then_act(e.obs.unsqueeze(0), [e.context_text], [e.images], max_new_tokens=2).thought is not None
+
+
+def test_step_losses_with_step_totals_are_token_and_robot_means():
+    """think_train divides every micro-batch's summed losses by the whole step's reply tokens and
+    robots, so the micro-batches add up to the step's token-weighted text and robot-weighted action
+    means however bucketing splits them (a mean of micro-batch means weighted short replies ~3x)."""
+    policy = tiny("Qwen/Qwen3-0.6B").eval()
+    batch = examples(policy, 8, seed=2)
+    for e in [e for e in batch if e.act][:2]:
+        e.reply_text = "<think>\n\n</think>\n\n<tool_call>"
+    rows = sorted(policy.rows(batch), key=lambda p: p.length)
+    text_total = sum(p.reply_len for p in rows)
+    robot_total = float(sum((p.obs[0] > 0.5).sum().item() for p in rows if p.act))
+    with torch.no_grad():
+        whole = policy(rows)
+        parts = [policy(rows[k : k + 2], text_total=text_total, robot_total=robot_total) for k in range(0, len(rows), 2)]
+    assert sum(o["text"].item() for o in parts) == pytest.approx(whole["text"].item(), rel=1e-4)
+    assert sum(o["action"].item() for o in parts) == pytest.approx(whole["action"].item(), rel=1e-4)

@@ -531,3 +531,12 @@ def test_tokenize_expands_the_images_and_labels_only_the_reply(data, tokenizer):
     broken = T.Example(**{**example.__dict__, "context_text": example.context_text + T.IMAGES})
     with pytest.raises(ValueError, match="IMAGES"):
         T.tokenize(broken, tokenizer)
+
+
+def test_pool_picks_in_proportion_to_weight():
+    episodes = [T.Episode(0, e, 0, e, "logic", False, [], [], [], "eat:absent" if e < 2 else "eat:single", 0.1 if e < 2 else 1.0) for e in range(6)]
+    pool = T.Pool(episodes)
+    rng = np.random.default_rng(0)
+    picks = [pool.pick(pool.episodes, rng).e for _ in range(20000)]
+    share = sum(p < 2 for p in picks) / len(picks)
+    assert abs(share - 0.2 / 4.2) < 0.01  # two episodes at 0.1 among four at 1.0

@@ -1,0 +1,2354 @@
+{
+ "stores": [
+  "data/vla/voxel_full/s0",
+  "data/vla/voxel_full/s1",
+  "data/vla/voxel_full/s2",
+  "data/vla/voxel_full/s3",
+  "data/vla/voxel_full/s4",
+  "data/vla/voxel_full/s5",
+  "data/vla/voxel_full/s6",
+  "data/vla/voxel_full/s7",
+  "data/vla/voxel_build/s0",
+  "data/vla/voxel_build/s1"
+ ],
+ "scenes": 6000,
+ "rows": [
+  {
+   "key": "formation|mask",
+   "store": 0.1056045284353902,
+   "keep": 0.11533670144460924,
+   "ratio": 0.9156194612181366,
+   "still_passes": 0.0
+  },
+  {
+   "key": "construction|tower",
+   "store": 0.0892125357469265,
+   "keep": 0.08116563333427769,
+   "ratio": 1.0991417436430015,
+   "still_passes": 0.11042944785276074
+  },
+  {
+   "key": "herd|herd_region",
+   "store": 0.0639169786845131,
+   "keep": 0.10236365917515076,
+   "ratio": 0.6244108426716855,
+   "still_passes": 0.0
+  },
+  {
+   "key": "runner|eat:single",
+   "store": 0.0629735546448893,
+   "keep": 0.08759607503556545,
+   "ratio": 0.7189084056485521,
+   "still_passes": 0.0
+  },
+  {
+   "key": "logic|eat:absent",
+   "store": 0.041068427724873964,
+   "keep": 0.006766918301936555,
+   "ratio": 6.069000081339982,
+   "still_passes": 1.0
+  },
+  {
+   "key": "parallel|parallel:region+tower",
+   "store": 0.03405171143017188,
+   "keep": 0.03282516170773644,
+   "ratio": 1.0373661440987316,
+   "still_passes": 0.03296703296703297
+  },
+  {
+   "key": "construction|fill",
+   "store": 0.032400719360830214,
+   "keep": 0.02246915966554624,
+   "ratio": 1.4420085060196013,
+   "still_passes": 0.012987012987012988
+  },
+  {
+   "key": "zones|goto_zone",
+   "store": 0.032282791355877236,
+   "keep": 0.018431440457760895,
+   "ratio": 1.7515066947621,
+   "still_passes": 0.0
+  },
+  {
+   "key": "logic|eat:none",
+   "store": 0.03116247530882396,
+   "keep": 0.007626802948038989,
+   "ratio": 4.085915883907357,
+   "still_passes": 1.0
+  },
+  {
+   "key": "zones|line_zone",
+   "store": 0.030897137297679768,
+   "keep": 0.01828189530191699,
+   "ratio": 1.6900401619978633,
+   "still_passes": 0.0
+  },
+  {
+   "key": "herd|herd_trench",
+   "store": 0.02759515315899643,
+   "keep": 0.026619037740214513,
+   "ratio": 1.0366698236167742,
+   "still_passes": 0.06818181818181818
+  },
+  {
+   "key": "construction|bridge",
+   "store": 0.025560895073557594,
+   "keep": 0.02011382346100479,
+   "ratio": 1.2708123407323917,
+   "still_passes": 0.0
+  },
+  {
+   "key": "blocks|push_thing:attrs>region",
+   "store": 0.02320233497449807,
+   "keep": 0.021758820175287706,
+   "ratio": 1.0663415933208464,
+   "still_passes": 0.0
+  },
+  {
+   "key": "parallel|parallel:region+region",
+   "store": 0.02240632094106548,
+   "keep": 0.018169736435034063,
+   "ratio": 1.233167086445053,
+   "still_passes": 0.15384615384615385
+  },
+  {
+   "key": "things|surround_thing:attrs",
+   "store": 0.021875644918777085,
+   "keep": 0.012225316490238967,
+   "ratio": 1.7893724826055184,
+   "still_passes": 0.0
+  },
+  {
+   "key": "things|eat_thing:attrs",
+   "store": 0.019369674813526343,
+   "keep": 0.012337475357121895,
+   "ratio": 1.5699869100322101,
+   "still_passes": 0.0
+  },
+  {
+   "key": "parallel|parallel:region+surround",
+   "store": 0.01824935876647307,
+   "keep": 0.022170069353858436,
+   "ratio": 0.8231529850084562,
+   "still_passes": 0.0
+  },
+  {
+   "key": "parallel|parallel:surround+tower",
+   "store": 0.013620684572068753,
+   "keep": 0.013832926915560912,
+   "ratio": 0.9846567292093906,
+   "still_passes": 0.0
+  },
+  {
+   "key": "zones|push_thing:attrs>zone",
+   "store": 0.013148972552256848,
+   "keep": 0.021758820175287706,
+   "ratio": 0.6043054010433259,
+   "still_passes": 0.0
+  },
+  {
+   "key": "things|push_thing:attrs>region",
+   "store": 0.011556944485391669,
+   "keep": 0.010916796376604828,
+   "ratio": 1.0586388246792535,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|conditional:surround_goto@else",
+   "store": 0.01084937645567381,
+   "keep": 0.0052340804545365615,
+   "ratio": 2.0728333371853838,
+   "still_passes": 0.0
+  },
+  {
+   "key": "blocks|line_blocks",
+   "store": 0.010289218432147175,
+   "keep": 0.019141779948019425,
+   "ratio": 0.5375267326282156,
+   "still_passes": 0.0
+  },
+  {
+   "key": "logic|eat:single",
+   "store": 0.008815118370234971,
+   "keep": 0.008823164194790203,
+   "ratio": 0.9990881021391417,
+   "still_passes": 0.0
+  },
+  {
+   "key": "parallel|parallel:eat+region",
+   "store": 0.006397594268698959,
+   "keep": 0.010281229464268245,
+   "ratio": 0.6222596520127665,
+   "still_passes": 0.0
+  },
+  {
+   "key": "logic|eat:all",
+   "store": 0.006014328252601787,
+   "keep": 0.009720435129853615,
+   "ratio": 0.6187303523203863,
+   "still_passes": 0.0
+  },
+  {
+   "key": "blocks|push_thing:attrs>trench",
+   "store": 0.005896400247648811,
+   "keep": 0.008748391616868252,
+   "ratio": 0.6739982051420331,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|conditional:surround_goto@then",
+   "store": 0.005866918246410566,
+   "keep": 0.0028787442499951087,
+   "ratio": 2.0380130143275266,
+   "still_passes": 0.0
+  },
+  {
+   "key": "things|catch_thing:attrs",
+   "store": 0.004952976208025,
+   "keep": 0.005720102211029242,
+   "ratio": 0.8658894588412941,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:lamp post",
+   "store": 0.004628674194404317,
+   "keep": 0.004161551539451831,
+   "ratio": 1.112247235321761,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:cross",
+   "store": 0.004481264188213096,
+   "keep": 0.0046947040498442364,
+   "ratio": 0.9545360347819535,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:podium",
+   "store": 0.0043633361832601195,
+   "keep": 0.004442937586603379,
+   "ratio": 0.982083609820836,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|count:tower",
+   "store": 0.0043633361832601195,
+   "keep": 0.007066008613624358,
+   "ratio": 0.6175107365206054,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|surround_thing:super",
+   "store": 0.004274890179545387,
+   "keep": 0.003962946629863397,
+   "ratio": 1.0787150519089235,
+   "still_passes": 0.0
+  },
+  {
+   "key": "motion|stay",
+   "store": 0.004009552168401191,
+   "keep": 0.0026544265162292565,
+   "ratio": 1.5105154141154968,
+   "still_passes": 1.0
+  },
+  {
+   "key": "motion|goto",
+   "store": 0.003891624163448215,
+   "keep": 0.0025796539383073054,
+   "ratio": 1.5085838087266024,
+   "still_passes": 0.0
+  },
+  {
+   "key": "logic|eat:or",
+   "store": 0.003862142162209971,
+   "keep": 0.005682715922068267,
+   "ratio": 0.6796296375139435,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:arch",
+   "store": 0.0038326601609717267,
+   "keep": 0.0038505459083895952,
+   "ratio": 0.99535500995355,
+   "still_passes": 0.0
+  },
+  {
+   "key": "parallel|parallel:surround+surround",
+   "store": 0.0038326601609717267,
+   "keep": 0.004486354675317053,
+   "ratio": 0.8542927250175268,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|conditional:eat_tower@else",
+   "store": 0.003744214157256995,
+   "keep": 0.0034769248733707158,
+   "ratio": 1.076875196796287,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:use:sit",
+   "store": 0.0036852501547805067,
+   "keep": 0.0052426663521919865,
+   "ratio": 0.7029343290632417,
+   "still_passes": 0.0
+  },
+  {
+   "key": "motion|approach",
+   "store": 0.0036852501547805067,
+   "keep": 0.0022805636266195017,
+   "ratio": 1.6159383197052841,
+   "still_passes": 0.0
+  },
+  {
+   "key": "motion|groups",
+   "store": 0.0035378401485892863,
+   "keep": 0.0025796539383073054,
+   "ratio": 1.371439826115093,
+   "still_passes": 0.0
+  },
+  {
+   "key": "motion|line",
+   "store": 0.003508358147351042,
+   "keep": 0.002430108782463404,
+   "ratio": 1.4437041554142345,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|conditional:eat_tower@then",
+   "store": 0.003508358147351042,
+   "keep": 0.0028787442499951087,
+   "ratio": 1.2187113000250034,
+   "still_passes": 0.0
+  },
+  {
+   "key": "logic|eat:except",
+   "store": 0.003390430142398066,
+   "keep": 0.004934990142848758,
+   "ratio": 0.6870186250140949,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|surround_thing:near",
+   "store": 0.003243020136206846,
+   "keep": 0.0034395385844097404,
+   "ratio": 0.9428648804541266,
+   "still_passes": 0.0
+  },
+  {
+   "key": "motion|follow",
+   "store": 0.0031545741324921135,
+   "keep": 0.0026918128051902314,
+   "ratio": 1.17191437919071,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:use:span",
+   "store": 0.0030071641263008935,
+   "keep": 0.005375954479790088,
+   "ratio": 0.5593730634449703,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|surround_thing:compare",
+   "store": 0.0030071641263008935,
+   "keep": 0.003028289405839011,
+   "ratio": 0.9930240222425952,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:stool",
+   "store": 0.002977682125062649,
+   "keep": 0.0027546213036940947,
+   "ratio": 1.0809769462936405,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:groups>stay",
+   "store": 0.002800790117633185,
+   "keep": 0.0012337475357121896,
+   "ratio": 2.2701485000465746,
+   "still_passes": 1.0
+  },
+  {
+   "key": "things|push_thing:attrs>trench",
+   "store": 0.002800790117633185,
+   "keep": 0.004374195808434126,
+   "ratio": 0.6402982948849314,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:slide",
+   "store": 0.002771308116394941,
+   "keep": 0.0024288058806765135,
+   "ratio": 1.1410167187272404,
+   "still_passes": 0.0
+  },
+  {
+   "key": "parallel|parallel:eat+surround",
+   "store": 0.0026828621126802087,
+   "keep": 0.006056578811678022,
+   "ratio": 0.4429665981572361,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|line@count",
+   "store": 0.002417524101536012,
+   "keep": 0.0015702241363609684,
+   "ratio": 1.5396044714601582,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:goto>stay",
+   "store": 0.0023880421002977683,
+   "keep": 0.0017571555811658457,
+   "ratio": 1.3590385085385206,
+   "still_passes": 1.0
+  },
+  {
+   "key": "reasoning|push_thing:next_to>region",
+   "store": 0.002358560099059524,
+   "keep": 0.0026918128051902314,
+   "ratio": 0.8761976666846429,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|push_thing:super>region",
+   "store": 0.002358560099059524,
+   "keep": 0.002916130538956084,
+   "ratio": 0.8087978461704396,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:use:table",
+   "store": 0.002299596096583036,
+   "keep": 0.002265898169167723,
+   "ratio": 1.0148717748546001,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:use:contain",
+   "store": 0.002270114095344792,
+   "keep": 0.0023547569208997904,
+   "ratio": 0.9640545379424323,
+   "still_passes": 0.0
+  },
+  {
+   "key": "motion|climb",
+   "store": 0.0021816680916300598,
+   "keep": 0.0028787442499951087,
+   "ratio": 0.757854085729834,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@half",
+   "store": 0.0021816680916300598,
+   "keep": 0.0014954515584390175,
+   "ratio": 1.4588691150299304,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:fence",
+   "store": 0.002093222087915328,
+   "keep": 0.0015550281553111827,
+   "ratio": 1.3460991563181344,
+   "still_passes": 0.0
+  },
+  {
+   "key": "blocks|push_thing:weight>region",
+   "store": 0.0020637400866770836,
+   "keep": 0.008150210993492646,
+   "ratio": 0.25321308716115826,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@count",
+   "store": 0.0020342580854388398,
+   "keep": 0.0011215886688292632,
+   "ratio": 1.813729170037211,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:number 1",
+   "store": 0.0020047760842005955,
+   "keep": 0.002058561081792899,
+   "ratio": 0.9738725277243367,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:standing ring",
+   "store": 0.0020047760842005955,
+   "keep": 0.0019993219139715205,
+   "ratio": 1.00272801002728,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|approach@count",
+   "store": 0.0020047760842005955,
+   "keep": 0.0011215886688292632,
+   "ratio": 1.7874432400366713,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|climb@count",
+   "store": 0.0018868480792476193,
+   "keep": 0.0014206789805170667,
+   "ratio": 1.328131200027248,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:bridge",
+   "store": 0.0018573660780093753,
+   "keep": 0.0014217400277130813,
+   "ratio": 1.3064034505640343,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter L",
+   "store": 0.0018278840767711312,
+   "keep": 0.001658696698998595,
+   "ratio": 1.1020001895914302,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:use:shelter",
+   "store": 0.0018278840767711312,
+   "keep": 0.0023103275450337564,
+   "ratio": 0.7911796232964118,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:bench",
+   "store": 0.0017984020755328872,
+   "keep": 0.0015254085714004933,
+   "ratio": 1.1789641865469234,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:approach>stay",
+   "store": 0.0017689200742946431,
+   "keep": 0.0017945418701268215,
+   "ratio": 0.9857223750202231,
+   "still_passes": 1.0
+  },
+  {
+   "key": "build|build:dog",
+   "store": 0.001739438073056399,
+   "keep": 0.0009774462690527433,
+   "ratio": 1.779574108704832,
+   "still_passes": null
+  },
+  {
+   "key": "build|build:ladder",
+   "store": 0.0015625460656269348,
+   "keep": 0.0018364142024627297,
+   "ratio": 0.8508679923796477,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter D",
+   "store": 0.0015625460656269348,
+   "keep": 0.0010070658529634327,
+   "ratio": 1.551582809633475,
+   "still_passes": 0.0
+  },
+  {
+   "key": "motion|gather",
+   "store": 0.0015625460656269348,
+   "keep": 0.0015328378473999928,
+   "ratio": 1.0193811878257921,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter J",
+   "store": 0.0015330640643886908,
+   "keep": 0.0015846477392218717,
+   "ratio": 0.9674478601417684,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter Y",
+   "store": 0.0015330640643886908,
+   "keep": 0.0013476910679363582,
+   "ratio": 1.1375485828040572,
+   "still_passes": 0.0
+  },
+  {
+   "key": "parallel|parallel:eat+eat",
+   "store": 0.0015330640643886908,
+   "keep": 0.0017571555811658457,
+   "ratio": 0.8724691659753465,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:gate",
+   "store": 0.0014741000619122027,
+   "keep": 0.0008145385575439528,
+   "ratio": 1.8097363817337275,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter I",
+   "store": 0.0014151360594357146,
+   "keep": 0.001273642108159635,
+   "ratio": 1.1110939645993119,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|eat_thing:next_to",
+   "store": 0.0014151360594357146,
+   "keep": 0.0025048813603853544,
+   "ratio": 0.5649513313548743,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|eat_thing:super",
+   "store": 0.0014151360594357146,
+   "keep": 0.003028289405839011,
+   "ratio": 0.46730542223180954,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter H",
+   "store": 0.0013856540581974705,
+   "keep": 0.0011847833564275676,
+   "ratio": 1.1695421366954215,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter N",
+   "store": 0.0013856540581974705,
+   "keep": 0.0010070658529634327,
+   "ratio": 1.375931925524025,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:shelf",
+   "store": 0.0013856540581974705,
+   "keep": 0.001688316282909284,
+   "ratio": 0.8207313239967869,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:table",
+   "store": 0.0013856540581974705,
+   "keep": 0.000770109181677919,
+   "ratio": 1.799295594916033,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:obelisk",
+   "store": 0.0013561720569592263,
+   "keep": 0.0016290771150879056,
+   "ratio": 0.8324787355975145,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:herd_region>stay",
+   "store": 0.0013266900557209822,
+   "keep": 0.0008598846461024351,
+   "ratio": 1.5428698043794797,
+   "still_passes": 1.0
+  },
+  {
+   "key": "build|build:letter W",
+   "store": 0.0012972080544827382,
+   "keep": 0.0010663050207848108,
+   "ratio": 1.2165450121654502,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:tent",
+   "store": 0.0012972080544827382,
+   "keep": 0.0007849189736332636,
+   "ratio": 1.6526649221870262,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:bed",
+   "store": 0.0012677260532444942,
+   "keep": 0.0006516308460351622,
+   "ratio": 1.9454666103637568,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|push_thing:near>region",
+   "store": 0.0012677260532444942,
+   "keep": 0.002729199094151207,
+   "ratio": 0.46450479042048876,
+   "still_passes": 0.0
+  },
+  {
+   "key": "things|push_thing:weight>region",
+   "store": 0.001208762050768006,
+   "keep": 0.005794874788951193,
+   "ratio": 0.2085915735526666,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:chair",
+   "store": 0.001179280049529762,
+   "keep": 0.0012292127322936013,
+   "ratio": 0.9593783228467953,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:igloo",
+   "store": 0.001179280049529762,
+   "keep": 0.000947826685142054,
+   "ratio": 1.2441937624419377,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:pot",
+   "store": 0.001179280049529762,
+   "keep": 0.0007849189736332636,
+   "ratio": 1.5024226565336603,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter T",
+   "store": 0.001149798048291518,
+   "keep": 0.001895653370284108,
+   "ratio": 0.6065444591904446,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:giraffe",
+   "store": 0.001120316047053274,
+   "keep": 0.0008145385575439528,
+   "ratio": 1.3753996501176327,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter U",
+   "store": 0.001120316047053274,
+   "keep": 0.0007997287655886081,
+   "ratio": 1.4008700140087,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:wall with a door",
+   "store": 0.001120316047053274,
+   "keep": 0.0015846477392218717,
+   "ratio": 0.7069811285651384,
+   "still_passes": null
+  },
+  {
+   "key": "build|build:letter V",
+   "store": 0.0010908340458150299,
+   "keep": 0.0010959246046955,
+   "ratio": 0.9953550099535502,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:gather>stay",
+   "store": 0.0010908340458150299,
+   "keep": 0.0008224983571414596,
+   "ratio": 1.3262446500272096,
+   "still_passes": 1.0
+  },
+  {
+   "key": "build|build:cup",
+   "store": 0.0010613520445767858,
+   "keep": 0.0011847833564275676,
+   "ratio": 0.8958195089581951,
+   "still_passes": 0.0
+  },
+  {
+   "key": "motion|spread",
+   "store": 0.0010613520445767858,
+   "keep": 0.0020188596038926737,
+   "ratio": 0.5257186000107857,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:crate",
+   "store": 0.0010318700433385418,
+   "keep": 0.0009330168931867095,
+   "ratio": 1.1059500110595,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@top",
+   "store": 0.0010318700433385418,
+   "keep": 0.0008598846461024351,
+   "ratio": 1.2000098478507066,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter B",
+   "store": 0.0010023880421002977,
+   "keep": 0.000947826685142054,
+   "ratio": 1.057564698075647,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter O",
+   "store": 0.0010023880421002977,
+   "keep": 0.000947826685142054,
+   "ratio": 1.057564698075647,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:approach>gather",
+   "store": 0.0010023880421002977,
+   "keep": 0.0006729532012975578,
+   "ratio": 1.489536033363893,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:castle tower",
+   "store": 0.0009729060408620537,
+   "keep": 0.0009330168931867095,
+   "ratio": 1.0427528675703859,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:tower>stay",
+   "store": 0.0009729060408620537,
+   "keep": 0.00044863546753170537,
+   "ratio": 2.1685892250444905,
+   "still_passes": 1.0
+  },
+  {
+   "key": "build|build:hut",
+   "store": 0.0009434240396238097,
+   "keep": 0.0007108700138565406,
+   "ratio": 1.3271400132714,
+   "still_passes": null
+  },
+  {
+   "key": "build|build:number 0",
+   "store": 0.0009139420383855656,
+   "keep": 0.0010959246046955,
+   "ratio": 0.833946089420542,
+   "still_passes": null
+  },
+  {
+   "key": "build|build:number 6",
+   "store": 0.0009139420383855656,
+   "keep": 0.001125544188606189,
+   "ratio": 0.8120001396989489,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:number 8",
+   "store": 0.0008844600371473216,
+   "keep": 0.000696060221901196,
+   "ratio": 1.2706659701534684,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|eat_thing:near",
+   "store": 0.0008844600371473216,
+   "keep": 0.0022805636266195017,
+   "ratio": 0.3878251967292682,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|eat_thing:compare",
+   "store": 0.0008549780359090775,
+   "keep": 0.0019067007370097472,
+   "ratio": 0.44840704118567026,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@top",
+   "store": 0.0008549780359090775,
+   "keep": 0.000934657224024386,
+   "ratio": 0.9147503640187672,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:goto>goto",
+   "store": 0.0008254960346708335,
+   "keep": 0.0002990903116878035,
+   "ratio": 2.760022650056625,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:spread>stay",
+   "store": 0.0008254960346708335,
+   "keep": 0.0010468160909073122,
+   "ratio": 0.7885779000161788,
+   "still_passes": 1.0
+  },
+  {
+   "key": "switch|switch:bridge>stay",
+   "store": 0.0007960140334325894,
+   "keep": 0.0002990903116878035,
+   "ratio": 2.661450412554603,
+   "still_passes": 1.0
+  },
+  {
+   "key": "switch|switch:herd_region>goto",
+   "store": 0.0007370500309561013,
+   "keep": 0.00044863546753170537,
+   "ratio": 1.642870625033705,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter A",
+   "store": 0.0006780860284796131,
+   "keep": 0.000873777725365331,
+   "ratio": 0.7760394992858187,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:groups>gather",
+   "store": 0.0006780860284796131,
+   "keep": 0.00044863546753170537,
+   "ratio": 1.5114409750310085,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:groups>goto",
+   "store": 0.0006780860284796131,
+   "keep": 0.0003364766006487789,
+   "ratio": 2.0152546333746786,
+   "still_passes": 0.0
+  },
+  {
+   "key": "logic|eat:ordered",
+   "store": 0.000619122026003125,
+   "keep": 0.006617373146092653,
+   "ratio": 0.09356008983242796,
+   "still_passes": 0.0
+  },
+  {
+   "key": "logic|eat:and",
+   "store": 0.000589640024764881,
+   "keep": 0.00598180623375607,
+   "ratio": 0.09857223750202232,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:approach>goto",
+   "store": 0.000560158023526637,
+   "keep": 0.000598180623375607,
+   "ratio": 0.9364362562692121,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:goto>gather",
+   "store": 0.0005306760222883929,
+   "keep": 0.0006729532012975578,
+   "ratio": 0.7885779000161787,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:herd_trench>stay",
+   "store": 0.0005306760222883929,
+   "keep": 0.000598180623375607,
+   "ratio": 0.8871501375182009,
+   "still_passes": 1.0
+  },
+  {
+   "key": "build|build:sofa",
+   "store": 0.0005011940210501489,
+   "keep": 0.000696060221901196,
+   "ratio": 0.720044049753632,
+   "still_passes": 0.0
+  },
+  {
+   "key": "blocks|push_thing:weight>trench",
+   "store": 0.0004422300185736608,
+   "keep": 0.0022805636266195017,
+   "ratio": 0.1939125983646341,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:fill>stay",
+   "store": 0.0004422300185736608,
+   "keep": 0.00022431773376585269,
+   "ratio": 1.9714447500404462,
+   "still_passes": 1.0
+  },
+  {
+   "key": "switch|switch:herd_region>gather",
+   "store": 0.0004422300185736608,
+   "keep": 0.00014954515584390175,
+   "ratio": 2.95716712506067,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|push_thing:super>trench",
+   "store": 0.0003832660160971727,
+   "keep": 0.0011589749577902385,
+   "ratio": 0.33069395807130075,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:house",
+   "store": 0.00032430201362068455,
+   "keep": 0.00039986438279430406,
+   "ratio": 0.8110300081103,
+   "still_passes": null
+  },
+  {
+   "key": "reasoning|push_thing:next_to>trench",
+   "store": 0.00032430201362068455,
+   "keep": 0.0008972709350634107,
+   "ratio": 0.3614315375074151,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@front",
+   "store": 0.00032430201362068455,
+   "keep": 0.00022431773376585269,
+   "ratio": 1.4457261500296603,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|groups@smaller",
+   "store": 0.00032430201362068455,
+   "keep": 3.738628896097544e-05,
+   "ratio": 8.674356900177964,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@not_right",
+   "store": 0.00032430201362068455,
+   "keep": 0.00014954515584390175,
+   "ratio": 2.168589225044491,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:eat:none>stay",
+   "store": 0.00032430201362068455,
+   "keep": 0.00026170402272682804,
+   "ratio": 1.2391938428825664,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:spread>goto",
+   "store": 0.00032430201362068455,
+   "keep": 0.0003364766006487789,
+   "ratio": 0.9638174333531072,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@left",
+   "store": 0.0002948200123824405,
+   "keep": 0.0001869314448048772,
+   "ratio": 1.5771558000323571,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@back",
+   "store": 0.0002948200123824405,
+   "keep": 0.0004112491785707298,
+   "ratio": 0.7168890000147079,
+   "still_passes": null
+  },
+  {
+   "key": "subset|spread@left",
+   "store": 0.0002948200123824405,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.9714447500404464,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:tower>goto",
+   "store": 0.0002948200123824405,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.9714447500404464,
+   "still_passes": 0.0
+  },
+  {
+   "key": "motion|move",
+   "store": 0.00026533801114419646,
+   "keep": 0.0010468160909073122,
+   "ratio": 0.25347146786234315,
+   "still_passes": null
+  },
+  {
+   "key": "subset|approach@cheese",
+   "store": 0.00026533801114419646,
+   "keep": 0.00022431773376585269,
+   "ratio": 1.1828668500242676,
+   "still_passes": null
+  },
+  {
+   "key": "subset|approach@left",
+   "store": 0.00026533801114419646,
+   "keep": 0.00011215886688292634,
+   "ratio": 2.3657337000485352,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@largest",
+   "store": 0.00026533801114419646,
+   "keep": 0.0,
+   "ratio": Infinity,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@not_larger",
+   "store": 0.00026533801114419646,
+   "keep": 7.477257792195088e-05,
+   "ratio": 3.5486005500728037,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@not_right",
+   "store": 0.00026533801114419646,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.7743002750364019,
+   "still_passes": null
+  },
+  {
+   "key": "subset|spread@not_left",
+   "store": 0.00026533801114419646,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.7743002750364019,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@right",
+   "store": 0.00026533801114419646,
+   "keep": 0.00011215886688292634,
+   "ratio": 2.3657337000485352,
+   "still_passes": null
+  },
+  {
+   "key": "subset|spread@smaller",
+   "store": 0.00026533801114419646,
+   "keep": 0.0001869314448048772,
+   "ratio": 1.4194402200291214,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:gather>gather",
+   "store": 0.00026533801114419646,
+   "keep": 0.0003364766006487789,
+   "ratio": 0.7885779000161787,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|approach@larger",
+   "store": 0.00023585600990595241,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.5771558000323573,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@right",
+   "store": 0.00023585600990595241,
+   "keep": 7.477257792195088e-05,
+   "ratio": 3.1543116000647147,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|groups@right",
+   "store": 0.00023585600990595241,
+   "keep": 0.00011215886688292634,
+   "ratio": 2.1028744000431425,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:eat:absent>stay",
+   "store": 0.00023585600990595241,
+   "keep": 0.00011215886688292634,
+   "ratio": 2.1028744000431425,
+   "still_passes": 1.0
+  },
+  {
+   "key": "switch|switch:eat:single>stay",
+   "store": 0.00023585600990595241,
+   "keep": 0.00022431773376585269,
+   "ratio": 1.0514372000215713,
+   "still_passes": 1.0
+  },
+  {
+   "key": "switch|switch:fill>gather",
+   "store": 0.00023585600990595241,
+   "keep": 7.477257792195088e-05,
+   "ratio": 3.1543116000647147,
+   "still_passes": 0.0
+  },
+  {
+   "key": "reasoning|push_thing:near>trench",
+   "store": 0.00020637400866770837,
+   "keep": 0.0008972709350634107,
+   "ratio": 0.23000188750471873,
+   "still_passes": null
+  },
+  {
+   "key": "subset|goto@not_back",
+   "store": 0.00020637400866770837,
+   "keep": 0.0,
+   "ratio": Infinity,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@not_front",
+   "store": 0.00020637400866770837,
+   "keep": 0.0002990903116878035,
+   "ratio": 0.6900056625141563,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|groups@back",
+   "store": 0.00020637400866770837,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.3800113250283126,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|tower@larger",
+   "store": 0.00020637400866770837,
+   "keep": 0.0001869314448048772,
+   "ratio": 1.1040090600226502,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:herd_trench>gather",
+   "store": 0.00020637400866770837,
+   "keep": 0.0003364766006487789,
+   "ratio": 0.6133383666792501,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:spread>gather",
+   "store": 0.00020637400866770837,
+   "keep": 0.0004112491785707298,
+   "ratio": 0.5018223000102955,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|approach@right",
+   "store": 0.00017689200742946432,
+   "keep": 0.00026170402272682804,
+   "ratio": 0.6759239142995818,
+   "still_passes": null
+  },
+  {
+   "key": "subset|goto@back",
+   "store": 0.00017689200742946432,
+   "keep": 7.477257792195088e-05,
+   "ratio": 2.365733700048536,
+   "still_passes": null
+  },
+  {
+   "key": "subset|goto@not_smaller",
+   "store": 0.00017689200742946432,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.182866850024268,
+   "still_passes": null
+  },
+  {
+   "key": "subset|groups@left",
+   "store": 0.00017689200742946432,
+   "keep": 0.0001869314448048772,
+   "ratio": 0.9462934800194144,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|line@front",
+   "store": 0.00017689200742946432,
+   "keep": 7.477257792195088e-05,
+   "ratio": 2.365733700048536,
+   "still_passes": null
+  },
+  {
+   "key": "subset|line@largest",
+   "store": 0.00017689200742946432,
+   "keep": 7.477257792195088e-05,
+   "ratio": 2.365733700048536,
+   "still_passes": null
+  },
+  {
+   "key": "subset|move@larger",
+   "store": 0.00017689200742946432,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.182866850024268,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|move@not_back",
+   "store": 0.00017689200742946432,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.182866850024268,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|move@not_right",
+   "store": 0.00017689200742946432,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.182866850024268,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|move@not_smaller",
+   "store": 0.00017689200742946432,
+   "keep": 0.00048602175649268073,
+   "ratio": 0.36395903077669783,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|move@smaller",
+   "store": 0.00017689200742946432,
+   "keep": 0.00011215886688292634,
+   "ratio": 1.577155800032357,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@cheese",
+   "store": 0.00017689200742946432,
+   "keep": 7.477257792195088e-05,
+   "ratio": 2.365733700048536,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:fill>goto",
+   "store": 0.00017689200742946432,
+   "keep": 0.00014954515584390175,
+   "ratio": 1.182866850024268,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:gather>goto",
+   "store": 0.00017689200742946432,
+   "keep": 0.0004112491785707298,
+   "ratio": 0.4301334000088248,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:herd_trench>spread",
+   "store": 0.00017689200742946432,
+   "keep": 0.0001869314448048772,
+   "ratio": 0.9462934800194144,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@cheese",
+   "store": 0.00014741000619122025,
+   "keep": 3.738628896097544e-05,
+   "ratio": 3.942889500080893,
+   "still_passes": null
+  },
+  {
+   "key": "subset|goto@larger",
+   "store": 0.00014741000619122025,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.9857223750202232,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|line@left",
+   "store": 0.00014741000619122025,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.9857223750202232,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@front",
+   "store": 0.00014741000619122025,
+   "keep": 0.0003364766006487789,
+   "ratio": 0.43809883334232147,
+   "still_passes": null
+  },
+  {
+   "key": "subset|tower@smaller",
+   "store": 0.00014741000619122025,
+   "keep": 0.00011215886688292634,
+   "ratio": 1.314296500026964,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:eat:all>stay",
+   "store": 0.00014741000619122025,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.9857223750202232,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:move>stay",
+   "store": 0.00014741000619122025,
+   "keep": 0.00048602175649268073,
+   "ratio": 0.30329919231391483,
+   "still_passes": null
+  },
+  {
+   "key": "things|push_thing:weight>trench",
+   "store": 0.00014741000619122025,
+   "keep": 0.0014206789805170667,
+   "ratio": 0.10376025000212875,
+   "still_passes": 0.0
+  },
+  {
+   "key": "build|build:letter X",
+   "store": 0.00011792800495297621,
+   "keep": 0.0010811148127401553,
+   "ratio": 0.10908000109080003,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|approach@front",
+   "store": 0.00011792800495297621,
+   "keep": 0.0002990903116878035,
+   "ratio": 0.39428895000808933,
+   "still_passes": null
+  },
+  {
+   "key": "subset|approach@smaller",
+   "store": 0.00011792800495297621,
+   "keep": 0.00022431773376585269,
+   "ratio": 0.5257186000107856,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|approach@smallest",
+   "store": 0.00011792800495297621,
+   "keep": 7.477257792195088e-05,
+   "ratio": 1.5771558000323573,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@smaller",
+   "store": 0.00011792800495297621,
+   "keep": 7.477257792195088e-05,
+   "ratio": 1.5771558000323573,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|groups@front",
+   "store": 0.00011792800495297621,
+   "keep": 0.0002990903116878035,
+   "ratio": 0.39428895000808933,
+   "still_passes": null
+  },
+  {
+   "key": "subset|groups@largest",
+   "store": 0.00011792800495297621,
+   "keep": 0.00011215886688292634,
+   "ratio": 1.0514372000215713,
+   "still_passes": null
+  },
+  {
+   "key": "subset|line@larger",
+   "store": 0.00011792800495297621,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.7885779000161787,
+   "still_passes": null
+  },
+  {
+   "key": "subset|line@right",
+   "store": 0.00011792800495297621,
+   "keep": 0.00011215886688292634,
+   "ratio": 1.0514372000215713,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|line@smallest",
+   "store": 0.00011792800495297621,
+   "keep": 3.738628896097544e-05,
+   "ratio": 3.1543116000647147,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|move@back",
+   "store": 0.00011792800495297621,
+   "keep": 7.477257792195088e-05,
+   "ratio": 1.5771558000323573,
+   "still_passes": null
+  },
+  {
+   "key": "subset|move@right",
+   "store": 0.00011792800495297621,
+   "keep": 0.00011215886688292634,
+   "ratio": 1.0514372000215713,
+   "still_passes": null
+  },
+  {
+   "key": "subset|spread@not_back",
+   "store": 0.00011792800495297621,
+   "keep": 3.738628896097544e-05,
+   "ratio": 3.1543116000647147,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@not_smaller",
+   "store": 0.00011792800495297621,
+   "keep": 3.738628896097544e-05,
+   "ratio": 3.1543116000647147,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|tower@front",
+   "store": 0.00011792800495297621,
+   "keep": 3.738628896097544e-05,
+   "ratio": 3.1543116000647147,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:herd_region>spread",
+   "store": 0.00011792800495297621,
+   "keep": 0.00022431773376585269,
+   "ratio": 0.5257186000107856,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:tower>gather",
+   "store": 0.00011792800495297621,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.7885779000161787,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|approach@back",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.591433425012134,
+   "still_passes": null
+  },
+  {
+   "key": "subset|approach@largest",
+   "store": 8.844600371473216e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 1.182866850024268,
+   "still_passes": null
+  },
+  {
+   "key": "subset|goto@not_largest",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.591433425012134,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@not_left",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00022431773376585269,
+   "ratio": 0.3942889500080892,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@not_smallest",
+   "store": 8.844600371473216e-05,
+   "keep": 3.738628896097544e-05,
+   "ratio": 2.365733700048536,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|groups@smallest",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.7885779000161784,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|line@back",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.591433425012134,
+   "still_passes": null
+  },
+  {
+   "key": "subset|line@smaller",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.591433425012134,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|move@front",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.7885779000161784,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|move@left",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00022431773376585269,
+   "ratio": 0.3942889500080892,
+   "still_passes": null
+  },
+  {
+   "key": "subset|move@not_front",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.7885779000161784,
+   "still_passes": null
+  },
+  {
+   "key": "subset|move@not_larger",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00026170402272682804,
+   "ratio": 0.3379619571497909,
+   "still_passes": null
+  },
+  {
+   "key": "subset|move@not_left",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.591433425012134,
+   "still_passes": null
+  },
+  {
+   "key": "subset|spread@larger",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00022431773376585269,
+   "ratio": 0.3942889500080892,
+   "still_passes": null
+  },
+  {
+   "key": "subset|spread@not_cheese",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.7885779000161784,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@not_front",
+   "store": 8.844600371473216e-05,
+   "keep": 0.0003738628896097544,
+   "ratio": 0.2365733700048536,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@not_larger",
+   "store": 8.844600371473216e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 1.182866850024268,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@not_smallest",
+   "store": 8.844600371473216e-05,
+   "keep": 0.0,
+   "ratio": Infinity,
+   "still_passes": null
+  },
+  {
+   "key": "subset|tower@back",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.7885779000161784,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|tower@left",
+   "store": 8.844600371473216e-05,
+   "keep": 0.0002990903116878035,
+   "ratio": 0.295716712506067,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:bridge>gather",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.7885779000161784,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:eat:absent>gather",
+   "store": 8.844600371473216e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 1.182866850024268,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:absent>goto",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.7885779000161784,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:all>goto",
+   "store": 8.844600371473216e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 1.182866850024268,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:except>stay",
+   "store": 8.844600371473216e-05,
+   "keep": 3.738628896097544e-05,
+   "ratio": 2.365733700048536,
+   "still_passes": 1.0
+  },
+  {
+   "key": "switch|switch:eat:none>gather",
+   "store": 8.844600371473216e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.7885779000161784,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:none>goto",
+   "store": 8.844600371473216e-05,
+   "keep": 3.738628896097544e-05,
+   "ratio": 2.365733700048536,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:eat:or>stay",
+   "store": 8.844600371473216e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 1.182866850024268,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:herd_trench>goto",
+   "store": 8.844600371473216e-05,
+   "keep": 0.0001869314448048772,
+   "ratio": 0.4731467400097072,
+   "still_passes": null
+  },
+  {
+   "key": "build|build:snowman",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.0003554350069282703,
+   "ratio": 0.165892501658925,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|goto@not_cheese",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.5257186000107856,
+   "still_passes": null
+  },
+  {
+   "key": "subset|goto@smallest",
+   "store": 5.8964002476488104e-05,
+   "keep": 3.738628896097544e-05,
+   "ratio": 1.5771558000323573,
+   "still_passes": null
+  },
+  {
+   "key": "subset|groups@larger",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.00022431773376585269,
+   "ratio": 0.2628593000053928,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|move@cheese",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.39428895000808933,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|move@not_smallest",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.0,
+   "ratio": Infinity,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@largest",
+   "store": 5.8964002476488104e-05,
+   "keep": 3.738628896097544e-05,
+   "ratio": 1.5771558000323573,
+   "still_passes": null
+  },
+  {
+   "key": "subset|spread@smallest",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.0001869314448048772,
+   "ratio": 0.3154311600064714,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|tower@cheese",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.5257186000107856,
+   "still_passes": null
+  },
+  {
+   "key": "subset|tower@largest",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.0001869314448048772,
+   "ratio": 0.3154311600064714,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|tower@right",
+   "store": 5.8964002476488104e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 0.7885779000161787,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:approach>spread",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.0003738628896097544,
+   "ratio": 0.1577155800032357,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:bridge>goto",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.5257186000107856,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:eat:all>gather",
+   "store": 5.8964002476488104e-05,
+   "keep": 3.738628896097544e-05,
+   "ratio": 1.5771558000323573,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:and>gather",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.0,
+   "ratio": Infinity,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:or>goto",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.39428895000808933,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:move>gather",
+   "store": 5.8964002476488104e-05,
+   "keep": 0.00022431773376585269,
+   "ratio": 0.2628593000053928,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|eat@front",
+   "store": 2.9482001238244052e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 0.39428895000808933,
+   "still_passes": null
+  },
+  {
+   "key": "subset|eat@left",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.2628593000053928,
+   "still_passes": null
+  },
+  {
+   "key": "subset|eat@right",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.2628593000053928,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|groups@cheese",
+   "store": 2.9482001238244052e-05,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.7885779000161787,
+   "still_passes": null
+  },
+  {
+   "key": "subset|line@cheese",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.2628593000053928,
+   "still_passes": null
+  },
+  {
+   "key": "subset|move@smallest",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.0,
+   "ratio": Infinity,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|spread@not_largest",
+   "store": 2.9482001238244052e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 0.39428895000808933,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:bridge>spread",
+   "store": 2.9482001238244052e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 0.39428895000808933,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:absent>spread",
+   "store": 2.9482001238244052e-05,
+   "keep": 7.477257792195088e-05,
+   "ratio": 0.39428895000808933,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:and>goto",
+   "store": 2.9482001238244052e-05,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.7885779000161787,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:ordered>gather",
+   "store": 2.9482001238244052e-05,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.7885779000161787,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:ordered>stay",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.19714447500404467,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:single>goto",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.0,
+   "ratio": Infinity,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:gather>spread",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.00026170402272682804,
+   "ratio": 0.11265398571659696,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:goto>spread",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.0005607943344146316,
+   "ratio": 0.05257186000107857,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:groups>spread",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.0004112491785707298,
+   "ratio": 0.07168890000147078,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:move>goto",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.00026170402272682804,
+   "ratio": 0.11265398571659696,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:spread>spread",
+   "store": 2.9482001238244052e-05,
+   "keep": 0.0001869314448048772,
+   "ratio": 0.1577155800032357,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|eat@back",
+   "store": 0.0,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.0,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|eat@larger",
+   "store": 0.0,
+   "keep": 0.00011215886688292634,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "subset|eat@largest",
+   "store": 0.0,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "subset|eat@smallest",
+   "store": 0.0,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "subset|move@largest",
+   "store": 0.0,
+   "keep": 0.00014954515584390175,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "subset|move@not_cheese",
+   "store": 0.0,
+   "keep": 0.00026170402272682804,
+   "ratio": 0.0,
+   "still_passes": 0.0
+  },
+  {
+   "key": "subset|tower@smallest",
+   "store": 0.0,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:all>spread",
+   "store": 0.0,
+   "keep": 7.477257792195088e-05,
+   "ratio": 0.0,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:eat:and>stay",
+   "store": 0.0,
+   "keep": 7.477257792195088e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:except>goto",
+   "store": 0.0,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:or>gather",
+   "store": 0.0,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:or>spread",
+   "store": 0.0,
+   "keep": 7.477257792195088e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:ordered>goto",
+   "store": 0.0,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:eat:single>gather",
+   "store": 0.0,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.0,
+   "still_passes": 0.0
+  },
+  {
+   "key": "switch|switch:fill>spread",
+   "store": 0.0,
+   "keep": 7.477257792195088e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:move>spread",
+   "store": 0.0,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  },
+  {
+   "key": "switch|switch:tower>spread",
+   "store": 0.0,
+   "keep": 3.738628896097544e-05,
+   "ratio": 0.0,
+   "still_passes": null
+  }
+ ],
+ "weights": {
+  "{\"apart\": false, \"counts\": \"log\", \"coverage\": 0.3, \"expert\": \"attractor\", \"failure\": [0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.23000000417232513, 0.23000000417232513, 0.23000000417232513, 0.23000000417232513, 0.10000000149011612, 0.23000000417232513, 0.23000000417232513, 0.23000000417232513, 0.23000000417232513, 0.0], \"fit\": true, \"moves\": \"cube\", \"objects\": 1.0, \"robots\": [6, 115], \"rule\": \"switch_cube\", \"steps\": 72}": {
+   "parallel|parallel:region+region": 0.8109201186051583,
+   "construction|bridge": 0.7868982444911434,
+   "formation|mask": 1.092156777303099,
+   "construction|tower": 0.9098007657188911,
+   "parallel|parallel:region+tower": 0.96397979217724,
+   "construction|fill": 0.693477185346372,
+   "logic|eat:except": 1.4555646143938004,
+   "parallel|parallel:surround+surround": 1.1705589556313778,
+   "herd|herd_trench": 0.9646272875110429,
+   "parallel|parallel:eat+eat": 1.1461723107223907,
+   "runner|eat:single": 1.3909977851738504,
+   "logic|eat:none": 0.24474316858517925,
+   "herd|herd_region": 1.6015096658496024,
+   "logic|eat:single": 1.0009127301775549,
+   "logic|eat:or": 1.4713896287071262,
+   "logic|eat:absent": 0.16477178886100932,
+   "parallel|parallel:region+surround": 1.2148410055145789,
+   "switch|switch:goto>stay": 0.7358143229328928,
+   "subset|climb@count": 0.7529376615649748,
+   "subset|groups@larger": 3.804316605801978,
+   "switch|switch:herd_region>stay": 0.6481428291366333,
+   "switch|switch:approach>gather": 0.6713499892591726,
+   "motion|line": 0.6926626873308923,
+   "subset|move@front": 1.268105535267326,
+   "reasoning|push_thing:super>region": 1.2364028968856429,
+   "things|eat_thing:attrs": 0.6369479857507117,
+   "things|surround_thing:attrs": 0.5588551348145763,
+   "zones|line_zone": 0.5917019148337045,
+   "zones|goto_zone": 0.5709370126820016,
+   "zones|push_thing:attrs>zone": 1.6547924249452548,
+   "reasoning|conditional:surround_goto@else": 0.4824314536343088,
+   "reasoning|eat_thing:super": 2.1399280907636125,
+   "blocks|line_blocks": 1.8603725904208332,
+   "reasoning|push_thing:next_to>region": 1.1412949817405933,
+   "blocks|push_thing:attrs>region": 0.9377857960934989,
+   "reasoning|conditional:surround_goto@then": 0.49067400108333714,
+   "parallel|parallel:surround+tower": 1.015582355084222,
+   "switch|switch:groups>stay": 0.4404998175139132,
+   "subset|tower@right": 1.2681055352673258,
+   "subset|goto@not_front": 1.449263468876944,
+   "reasoning|conditional:eat_tower@then": 0.8205388757612109,
+   "blocks|push_thing:weight>region": 3.949242952689672,
+   "blocks|push_thing:weight>trench": 5.156962510087125,
+   "things|push_thing:attrs>region": 0.944609225250151,
+   "logic|eat:ordered": 10.688318082967463,
+   "switch|switch:herd_region>goto": 0.6086906569283166,
+   "subset|goto@not_back": 0.0,
+   "switch|switch:spread>stay": 1.2681055352673258,
+   "motion|groups": 0.7291606827787124,
+   "switch|switch:eat:none>stay": 0.8069762497155709,
+   "subset|move@not_back": 0.8454036901782173,
+   "blocks|push_thing:attrs>trench": 1.4836834762627713,
+   "reasoning|count:tower": 1.61940504165895,
+   "things|catch_thing:attrs": 1.1548818267613148,
+   "motion|gather": 0.9809873008671767,
+   "subset|approach@left": 0.4227018450891087,
+   "subset|goto@smaller": 0.6340527676336629,
+   "switch|switch:groups>gather": 0.6616202792699093,
+   "switch|switch:goto>goto": 0.362315867219236,
+   "subset|tower@largest": 3.1702638381683146,
+   "reasoning|surround_thing:super": 0.9270288740574936,
+   "reasoning|surround_thing:compare": 1.0070249838887588,
+   "logic|eat:all": 1.6162129371054152,
+   "parallel|parallel:eat+region": 1.6070461852466111,
+   "subset|groups@right": 0.47553957572524724,
+   "motion|goto": 0.6628733479806476,
+   "subset|line@count": 0.6495174692832646,
+   "switch|switch:approach>goto": 1.0678783454882745,
+   "motion|follow": 0.8533046592453034,
+   "motion|stay": 0.6620256838527953,
+   "subset|goto@half": 0.6854624514958518,
+   "reasoning|conditional:eat_tower@else": 0.9286127148020576,
+   "parallel|parallel:eat+surround": 2.257506557289086,
+   "subset|goto@count": 0.5513502327249242,
+   "motion|approach": 0.618835501210455,
+   "switch|switch:tower>stay": 0.4611292855517549,
+   "subset|approach@right": 1.47945645781188,
+   "reasoning|eat_thing:next_to": 1.7700639763106423,
+   "switch|switch:move>gather": 3.804316605801978,
+   "subset|spread@cheese": 0.42270184508910863,
+   "subset|spread@not_cheese": 1.268105535267326,
+   "reasoning|eat_thing:compare": 2.230116630987366,
+   "subset|goto@top": 0.8333264946042427,
+   "switch|switch:eat:all>gather": 0.6340527676336629,
+   "switch|switch:gather>goto": 2.3248601479900977,
+   "subset|spread@right": 0.4227018450891087,
+   "reasoning|surround_thing:near": 1.0605973567690363,
+   "subset|goto@not_smaller": 0.8454036901782173,
+   "motion|spread": 1.9021583029009888,
+   "switch|switch:spread>goto": 1.0375408924914484,
+   "things|push_thing:attrs>trench": 1.5617720802766013,
+   "motion|climb": 1.3195152191295147,
+   "subset|approach@larger": 0.6340527676336629,
+   "reasoning|push_thing:near>region": 2.1528303273142972,
+   "switch|switch:herd_trench>stay": 1.1272049202376229,
+   "switch|switch:groups>goto": 0.4962152094524319,
+   "switch|switch:eat:single>stay": 0.9510791514504945,
+   "subset|spread@not_larger": 0.8454036901782173,
+   "subset|groups@smaller": 0.11528232138793872,
+   "switch|switch:approach>stay": 1.0144844282138608,
+   "switch|switch:goto>gather": 1.2681055352673258,
+   "reasoning|push_thing:super>trench": 3.0239439687143923,
+   "subset|move@not_front": 1.268105535267326,
+   "subset|goto@not_left": 2.536211070534652,
+   "subset|approach@count": 0.5594583243826439,
+   "switch|switch:bridge>stay": 0.37573497341254103,
+   "subset|spread@front": 2.2825899634811866,
+   "subset|goto@not_larger": 0.2818012300594057,
+   "subset|line@front": 0.42270184508910863,
+   "things|push_thing:weight>region": 4.794057511376476,
+   "switch|switch:move>stay": 3.2970743916950473,
+   "subset|line@right": 0.9510791514504945,
+   "subset|goto@left": 0.6340527676336629,
+   "subset|tower@smaller": 0.7608633211603956,
+   "subset|move@smaller": 0.634052767633663,
+   "subset|goto@right": 0.31702638381683146,
+   "switch|switch:fill>stay": 0.5072422141069304,
+   "switch|switch:groups>spread": 13.949160887940584,
+   "switch|switch:eat:and>gather": 0.0,
+   "subset|groups@left": 1.0567546127227716,
+   "reasoning|eat_thing:near": 2.5784812550435623,
+   "logic|eat:and": 10.144844282138607,
+   "switch|switch:eat:none>gather": 1.268105535267326,
+   "switch|switch:gather>stay": 0.754008696645437,
+   "subset|move@not_smallest": 0.0,
+   "switch|switch:herd_region>spread": 1.902158302900989,
+   "subset|spread@top": 1.0931944269545915,
+   "subset|goto@cheese": 0.2536211070534652,
+   "switch|switch:fill>gather": 0.31702638381683146,
+   "subset|move@larger": 0.8454036901782173,
+   "switch|switch:move>goto": 8.87673874687128,
+   "subset|approach@front": 2.5362110705346517,
+   "switch|switch:tower>gather": 1.2681055352673258,
+   "subset|spread@left": 0.5072422141069304,
+   "switch|switch:tower>goto": 0.5072422141069304,
+   "subset|line@back": 1.6908073803564345,
+   "switch|switch:eat:absent>gather": 0.8454036901782173,
+   "switch|switch:spread>gather": 1.992737269705798,
+   "subset|line@largest": 0.42270184508910863,
+   "switch|switch:herd_region>gather": 0.3381614760712869,
+   "subset|move@not_smaller": 2.747561993079206,
+   "switch|switch:herd_trench>spread": 1.0567546127227716,
+   "subset|spread@not_right": 0.46112928555175486,
+   "subset|spread@not_left": 0.5636024601188114,
+   "subset|line@smallest": 0.31702638381683146,
+   "subset|move@back": 0.6340527676336629,
+   "motion|move": 3.94521722083168,
+   "switch|switch:eat:none>goto": 0.42270184508910863,
+   "subset|tower@left": 3.381614760712869,
+   "switch|switch:gather>gather": 1.2681055352673258,
+   "subset|move@cheese": 2.5362110705346517,
+   "subset|groups@largest": 0.9510791514504945,
+   "reasoning|push_thing:next_to>trench": 2.7667757133105297,
+   "switch|switch:eat:absent>spread": 2.5362110705346517,
+   "subset|move@not_left": 1.6908073803564345,
+   "subset|goto@larger": 1.0144844282138608,
+   "switch|switch:approach>spread": 6.340527676336629,
+   "subset|line@left": 1.0144844282138608,
+   "switch|switch:eat:absent>stay": 0.47553957572524724,
+   "subset|goto@front": 0.6916939283276324,
+   "switch|switch:herd_trench>gather": 1.6304214024865618,
+   "switch|switch:bridge>gather": 1.268105535267326,
+   "switch|switch:fill>goto": 0.8454036901782173,
+   "switch|switch:eat:ordered>stay": 5.072422141069303,
+   "subset|tower@front": 0.31702638381683146,
+   "subset|groups@back": 0.724631734438472,
+   "subset|approach@smallest": 0.6340527676336629,
+   "subset|approach@cheese": 0.8454036901782174,
+   "switch|switch:eat:or>goto": 2.5362110705346517,
+   "switch|switch:eat:all>stay": 1.0144844282138608,
+   "subset|move@not_right": 0.8454036901782173,
+   "subset|spread@back": 1.3949160887940584,
+   "switch|switch:eat:or>stay": 0.8454036901782173,
+   "subset|approach@smaller": 1.902158302900989,
+   "reasoning|push_thing:near>trench": 4.347790406630832,
+   "subset|groups@smallest": 1.268105535267326,
+   "subset|goto@not_right": 0.5636024601188114,
+   "things|push_thing:weight>trench": 9.637602068031677,
+   "subset|approach@largest": 0.8454036901782173,
+   "subset|goto@not_smallest": 0.42270184508910863,
+   "switch|switch:eat:ordered>gather": 1.2681055352673258,
+   "subset|line@larger": 1.2681055352673258,
+   "switch|switch:eat:and>goto": 1.2681055352673258,
+   "subset|eat@left": 3.804316605801978,
+   "subset|goto@largest": 0.0,
+   "subset|goto@not_cheese": 1.902158302900989,
+   "subset|spread@smallest": 3.1702638381683146,
+   "subset|tower@larger": 0.9057896680480899,
+   "subset|groups@front": 2.5362110705346517,
+   "subset|eat@front": 2.5362110705346517,
+   "subset|move@not_larger": 2.95891291562376,
+   "subset|spread@largest": 0.6340527676336629,
+   "switch|switch:herd_trench>goto": 2.113509225445543,
+   "subset|move@left": 2.536211070534652,
+   "subset|spread@smaller": 0.7045030751485144,
+   "subset|spread@not_front": 4.227018450891086,
+   "subset|spread@not_smaller": 0.31702638381683146,
+   "subset|approach@back": 1.6908073803564345,
+   "subset|tower@cheese": 1.902158302900989,
+   "subset|line@cheese": 3.804316605801978,
+   "switch|switch:spread>spread": 6.340527676336629,
+   "subset|line@smaller": 1.6908073803564345,
+   "subset|goto@not_largest": 1.6908073803564345,
+   "switch|switch:eat:absent>goto": 1.268105535267326,
+   "switch|switch:eat:all>goto": 0.8454036901782173,
+   "subset|goto@back": 0.42270184508910863,
+   "subset|move@right": 0.9510791514504945,
+   "subset|goto@smallest": 0.6340527676336629,
+   "switch|switch:goto>spread": 19.02158302900989,
+   "subset|spread@not_smallest": 0.0,
+   "switch|switch:bridge>goto": 1.902158302900989,
+   "subset|tower@back": 1.268105535267326,
+   "switch|switch:eat:except>stay": 0.42270184508910863,
+   "subset|spread@larger": 2.536211070534652,
+   "subset|spread@not_back": 0.31702638381683146,
+   "switch|switch:eat:single>goto": 0.0,
+   "subset|move@smallest": 0.0,
+   "subset|eat@right": 3.804316605801978,
+   "subset|groups@cheese": 1.2681055352673258,
+   "switch|switch:bridge>spread": 2.5362110705346517,
+   "subset|spread@not_largest": 2.5362110705346517,
+   "switch|switch:gather>spread": 8.87673874687128
+  },
+  "{\"apart\": false, \"build\": 1.0, \"counts\": \"log\", \"coverage\": 0.0, \"expert\": \"attractor\", \"failure\": [0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.10000000149011612, 0.23000000417232513, 0.23000000417232513, 0.23000000417232513, 0.23000000417232513, 0.10000000149011612, 0.23000000417232513, 0.23000000417232513, 0.23000000417232513, 0.23000000417232513, 0.0], \"fit\": true, \"moves\": \"cube\", \"objects\": 0.0, \"only\": \"build\", \"robots\": [6, 115], \"rule\": \"switch_cube\", \"steps\": 144}": {
+   "build|build:podium": 1.0182432432432433,
+   "build|build:giraffe": 0.7270614035087719,
+   "build|build:bench": 0.8482021857923498,
+   "build|build:fence": 0.7428873239436621,
+   "build|build:arch": 1.0046666666666666,
+   "build|build:letter D": 0.6445031446540881,
+   "build|build:letter Y": 0.8790833333333333,
+   "build|build:wall with a door": 1.4144649122807018,
+   "build|build:dog": 0.5619322033898304,
+   "build|build:cross": 1.0476293859649124,
+   "build|build:standing ring": 0.9972794117647059,
+   "build|build:number 8": 0.7869888888888887,
+   "build|build:letter T": 1.6486837606837605,
+   "build|build:lamp post": 0.8990806794055202,
+   "build|build:use:table": 0.9853461538461538,
+   "build|build:gate": 0.5525666666666667,
+   "build|build:number 1": 1.026828431372549,
+   "build|build:use:sit": 1.4226079999999999,
+   "build|build:bridge": 0.7654603174603175,
+   "build|build:sofa": 1.3888039215686274,
+   "build|build:letter N": 0.7267801418439717,
+   "build|build:pot": 0.6655916666666667,
+   "build|build:castle tower": 0.959,
+   "build|build:slide": 0.8764113475177305,
+   "build|build:shelf": 1.2184255319148936,
+   "build|build:ladder": 1.1752704402515723,
+   "build|build:hut": 0.7535000000000001,
+   "build|build:letter L": 0.9074408602150539,
+   "build|build:stool": 0.925089108910891,
+   "build|build:use:shelter": 1.2639354838709678,
+   "build|build:chair": 1.0423416666666665,
+   "build|build:letter A": 1.2885942028985506,
+   "build|build:number 6": 1.2315268817204301,
+   "build|build:use:span": 1.7877156862745098,
+   "build|build:use:contain": 1.0372857142857141,
+   "build|build:letter V": 1.0046666666666668,
+   "build|build:letter I": 0.9000138888888888,
+   "build|build:house": 1.2329999999999999,
+   "build|build:cup": 1.1162962962962963,
+   "build|build:letter U": 0.7138421052631578,
+   "build|build:tent": 0.6050833333333334,
+   "build|build:table": 0.5557730496453901,
+   "build|build:bed": 0.514015503875969,
+   "build|build:obelisk": 1.201231884057971,
+   "build|build:letter W": 0.8220000000000001,
+   "build|build:letter J": 1.033647435897436,
+   "build|build:crate": 0.9042000000000001,
+   "build|build:igloo": 0.8037333333333333,
+   "build|build:number 0": 1.1991182795698925,
+   "build|build:letter O": 0.9455686274509805,
+   "build|build:letter B": 0.9455686274509805,
+   "build|build:letter H": 0.8550354609929078,
+   "build|build:letter X": 9.167583333333333,
+   "build|build:snowman": 6.0280000000000005
+  }
+ },
+ "noop_share": {
+  "store": 0.08974321176921489,
+  "keep": 0.026506878873331585
+ }
+}

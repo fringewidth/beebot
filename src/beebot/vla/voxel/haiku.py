@@ -250,7 +250,7 @@ def store_options(store):
 
     config = torch.load(Path(store) / "small.pt", map_location="cpu", weights_only=False)["config"]
     attempts = [json.loads(line) for line in (Path(store) / "attempts.jsonl").read_text().splitlines() if line.strip()]
-    options = {"seed": config["seed"], "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart")), "coverage": float(config.get("coverage", 0.0)), "objects": float(config.get("objects", 0.0)), "build": float(config.get("build", 0.0)), "only": config.get("only")}
+    options = {"seed": config["seed"], "robots": config["robots"], "counts": config.get("counts", "uniform"), "fit": bool(config.get("fit")), "rule": config.get("rule"), "apart": bool(config.get("apart")), "coverage": float(config.get("coverage", 0.0)), "objects": float(config.get("objects", 0.0)), "build": float(config.get("build", 0.0)), "only": config.get("only"), "keep": bool(config.get("keep"))}
     return options, attempts
 
 
@@ -263,7 +263,7 @@ def drawn_items(options, limit, attempts=None, keep=None):
     scenes = 10**9  # full chunks until the limit or the store's attempts run out
     index = 0
     out = []
-    for _, world, _, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart")), float(options.get("coverage", 0.0)), float(options.get("objects", 0.0)), float(options.get("build", 0.0)), options.get("only")):
+    for _, world, _, tasks, _ in D.draws(scenes, seed, options.get("chunk", 24), robots, options.get("counts", "uniform"), bool(options.get("fit")) or robots is not None, options.get("rule"), bool(options.get("apart")), float(options.get("coverage", 0.0)), float(options.get("objects", 0.0)), float(options.get("build", 0.0)), options.get("only"), keep=bool(options.get("keep"))):
         for i, task in enumerate(tasks):
             e = None
             if attempts is not None:
@@ -1386,6 +1386,7 @@ def options_of(args):
         "objects": getattr(args, "objects", 0.0),
         "build": getattr(args, "build", 0.0),
         "only": getattr(args, "only", None),
+        "keep": getattr(args, "keep", False),
     }
 
 
@@ -1445,6 +1446,7 @@ def main(argv=None):
     parser.add_argument("--coverage", type=float, default=0.0, help="as demos --coverage: coverage tasks (suite.sample_coverage) per scene, after the suite's own")
     parser.add_argument("--objects", type=float, default=0.0, help="as demos --objects: object tasks (objects.sample_objects) per scene, after the coverage tasks")
     parser.add_argument("--build", type=float, default=0.0, help="as demos --build: build tasks (voxel/build.py) per scene, after the coverage tasks")
+    parser.add_argument("--keep", action="store_true", help="as demos --keep: keep each drawn task and draw new scenes for it (join only to a store written with --keep)")
     parser.add_argument("--only", choices=("build",), default=None, help="as demos --only: draw only the build tasks (item indices count build tasks only; join only to a store written with --only build)")
     parser.add_argument("--cube", action="store_true", help="as demos --cube: robots in suite.ROBOTS")
     parser.add_argument("--free-cube", action="store_true", help="as demos --free-cube: --cube and --rule free_cube")

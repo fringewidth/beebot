@@ -330,12 +330,20 @@ def run():
         counts["wait"] += time.time() - t_wait
         if cfg.bucket:
             rows = sorted(rows, key=lambda p: p.length)
+        # the step's loss is the mean over all its reply tokens and robot voxels, whichever
+        # micro-batch they land in (a mean of micro-batch means overweights the short replies
+        # that bucketing groups together, about 3x per token)
+        text_total = sum(p.reply_len for p in rows)
+        robot_total = max(1.0, float(sum((p.obs[0] > 0.5).sum().item() for p in rows if p.act)))
+        step_losses = {"loss": 0.0, "text": 0.0, "action": 0.0}
         for k in range(cfg.accumulate):
             with autocast():
-                out = policy(rows[k * cfg.batch : (k + 1) * cfg.batch])
-            scaler.scale(out["loss"] / cfg.accumulate).backward()
-            for key in ("loss", "text", "action"):
-                window[key].append(out[key].item())
+                out = policy(rows[k * cfg.batch : (k + 1) * cfg.batch], text_total=text_total, robot_total=robot_total)
+            scaler.scale(out["loss"]).backward()
+            for key in step_losses:
+                step_losses[key] += out[key].item()
+        for key, value in step_losses.items():
+            window[key].append(value)
             counts["tokens"] += out["tokens"]
             counts["examples"] += out["examples"]
         if text_stream is not None:

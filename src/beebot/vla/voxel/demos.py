@@ -56,9 +56,13 @@ MOVES = {"all": None, "cube": CUBE_MOVES}
 EXPERTS = ("attractor", "planner")  # suite.Expert; free_cube.FreeCubeExpert (needs a rule)
 
 
-def contrast(rng, world, metas, tasks, check=False):
+def contrast(rng, world, metas, tasks, check=False, keep=False):
     """Each scene's own task plus one training task of every other family its scene allows
-    (check: and its swarm is large enough for, suite.fits)."""
+    (check: and its swarm is large enough for, suite.fits). keep=False also adds logic's "none"
+    and "absent" forms, which fit every scene while the other forms often do not: in the stores of
+    2026-11-10 and before they made about 60% of logic tasks, nearly all of them contrast tasks.
+    keep=True adds only tasks with a plan; those two forms then come from the scene samples alone,
+    at their drawn share (suite.sample_tasks keep)."""
     worlds, out_metas, out = [], [], []
     for i, task in enumerate(tasks):
         w = world.index(i)
@@ -72,7 +76,7 @@ def contrast(rng, world, metas, tasks, check=False):
             other = make(w, metas[i], 0)
             if other is not None and check and not S.fits(other, w, 0):
                 continue
-            if other is not None and other.plan or (other is not None and other.spec.get("form") in ("none", "absent")):
+            if other is not None and other.plan or (not keep and other is not None and other.spec.get("form") in ("none", "absent")):
                 worlds.append(w)
                 out_metas.append(metas[i])
                 out.append(other)
@@ -82,7 +86,7 @@ def contrast(rng, world, metas, tasks, check=False):
 ONLY = ("build",)  # families that can be drawn alone (draws only=...)
 
 
-def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False, rule=None, spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None):
+def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False, rule=None, spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False):
     """(c, world, metas, tasks, run_seed) of each chunk of scenes, in the order write() plays them:
     the scene sample, its contrast tasks, then round(coverage x the chunk's scenes) coverage tasks
     (suite.sample_coverage, one per scene, from a generator of their own seeded by (seed, 7), so
@@ -98,7 +102,11 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
     (seed, 13) generator, so chunk c holds exactly the build tasks of chunk c of the full draw with
     the same seed, chunk and build share, played with the same run seed. Indices (attempts.jsonl
     lines, haiku item ids) then count build tasks only: a store and a Haiku export join only when
-    both were made with --only build (haiku.store_options reads it from the store)."""
+    both were made with --only build (haiku.store_options reads it from the store).
+    keep: every sampler keeps a drawn task and draws new scenes for it instead of drawing a new task
+    (suite.sample_tasks keep), and contrast adds only tasks with a plan. keep=False draws exactly as
+    the stores and Haiku labels of 2026-11-10 and before (whose task mix favours tasks that fit most
+    scenes); stores record it in config["keep"]."""
     if only is not None and only not in ONLY:
         raise ValueError(f"only: one of {ONLY}")
     if only == "build" and not build:
@@ -114,7 +122,7 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
             if n_build:
                 from beebot.vla.voxel.build import sample_build
 
-                world, metas, tasks = sample_build(builds, n_build, robots=robots, counts=counts)
+                world, metas, tasks = sample_build(builds, n_build, robots=robots, counts=counts, keep=keep)
             else:
                 continue
             run_seed = seed * 1_000_003 + c
@@ -124,11 +132,11 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
                 world = apart(world, np.random.default_rng(run_seed))
             yield c, world, metas, tasks, run_seed
             continue
-        world, metas, tasks = S.sample_tasks(rng, min(chunk, n_scenes - c), "train", robots=robots, check=check, counts=counts)
-        world, metas, tasks = contrast(rng, world, metas, tasks, check=check)
+        world, metas, tasks = S.sample_tasks(rng, min(chunk, n_scenes - c), "train", robots=robots, check=check, counts=counts, keep=keep)
+        world, metas, tasks = contrast(rng, world, metas, tasks, check=check, keep=keep)
         n_coverage = int(round(coverage * min(chunk, n_scenes - c)))
         if n_coverage:
-            more, more_metas, more_tasks = S.sample_coverage(extra, n_coverage, robots=robots, counts=counts)
+            more, more_metas, more_tasks = S.sample_coverage(extra, n_coverage, robots=robots, counts=counts, keep=keep)
             world = VoxelWorld(*(torch.cat([getattr(world, f), getattr(more, f)]) for f in FIELDS))
             metas, tasks = metas + more_metas, tasks + more_tasks
         if objects:
@@ -137,14 +145,14 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
             world = with_objects(world, MAX_OBJECTS)
             n_objects = int(round(objects * min(chunk, n_scenes - c)))
             if n_objects:
-                more, more_metas, more_tasks = O.sample_objects(things, n_objects, robots=robots, counts=counts)
+                more, more_metas, more_tasks = O.sample_objects(things, n_objects, robots=robots, counts=counts, keep=keep)
                 world = concat([world, more])
                 metas, tasks = metas + more_metas, tasks + more_tasks
         n_build = int(round(build * min(chunk, n_scenes - c)))
         if n_build:
             from beebot.vla.voxel.build import sample_build
 
-            more, more_metas, more_tasks = sample_build(builds, n_build, robots=robots, counts=counts)
+            more, more_metas, more_tasks = sample_build(builds, n_build, robots=robots, counts=counts, keep=keep)
             world = concat([world, more])
             metas, tasks = metas + more_metas, tasks + more_tasks
         run_seed = seed * 1_000_003 + c
@@ -155,7 +163,7 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
         yield c, world, metas, tasks, run_seed
 
 
-def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None):
+def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False):
     """Write the store. moves: "all" or "cube" (MOVES). robots: (low, high) robot counts, with
     tasks fitted to the swarm (None: the world's density range). failure: (27,) per-action
     failure probabilities (world.failure_rates) or None. compact: write mass and actions in
@@ -184,7 +192,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     attempts = open(out / "attempts.jsonl", "w")
     row, tried, kept = 0, {}, {}
     t0 = time.time()
-    for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced, coverage, objects, build, only):
+    for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced, coverage, objects, build, only, keep):
         if objects:
             from beebot.vla.voxel.objects import ObjectExpert
 
@@ -228,7 +236,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         attempts.flush()
         print(f"{min(c + chunk, n_scenes)} scenes, {row} demos, {time.time() - t0:.0f} s; kept/tried {json.dumps({f: f'{kept.get(f, 0)}/{tried[f]}' for f in sorted(tried)})}", flush=True)
     writer.close()
-    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "objects": objects, "build": build, "only": only}
+    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "objects": objects, "build": build, "only": only, "keep": keep}
     torch.save({**{k: torch.stack(v) for k, v in small.items()}, "phases": [[] for _ in range(row)], "count": row, "robots": torch.tensor(swarm), "subgoals": subgoals, "instructions": instructions, "config": config}, out / "small.pt")
     (out / "done").write_text(str(row))
     return row
@@ -272,6 +280,7 @@ def main():
     parser.add_argument("--coverage", type=float, default=0.0, help="coverage tasks (suite.sample_coverage: stay, selectors, switches, ...) per scene, drawn after the suite's own")
     parser.add_argument("--objects", type=float, default=0.0, help="object tasks (objects.sample_objects: properties, blocks, zones, reasoning) per scene, drawn after the coverage tasks")
     parser.add_argument("--build", type=float, default=0.0, help="build tasks (voxel/build.py: build a named object or something for a use) per scene, drawn after the coverage tasks; they need long episodes (build.episode_steps), so give --steps")
+    parser.add_argument("--keep", action="store_true", help="keep each drawn task and draw new scenes for it, and add contrast tasks with a plan only (draws keep); without it the task mix favours tasks that fit most scenes, as in the stores of 2026-11-10")
     parser.add_argument("--only", choices=ONLY, default=None, help="draw only this family's tasks (with --build: the build tasks of the full draw, nothing else); attempts and labels then count those tasks only")
     parser.add_argument("--fit", action="store_true", help="draw only tasks the scene's swarm can do, also without --robots (with --robots or --cube this is always on)")
     args = parser.parse_args()
@@ -285,7 +294,7 @@ def main():
     expert = args.expert or ("planner" if args.free_cube else "attractor")
     if expert == "planner" and rule is None:
         parser.error("--expert planner needs --rule")
-    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.objects, args.build, args.only)
+    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.objects, args.build, args.only, args.keep)
 
 
 if __name__ == "__main__":
