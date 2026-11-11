@@ -9,6 +9,7 @@ Prints one JSON line per step bucket and one for all steps.
 """
 
 import argparse
+import dataclasses
 import glob
 import json
 import sys
@@ -19,7 +20,7 @@ import torch
 from beebot.vla.voxel import think
 from beebot.vla.voxel.lm import patchify3
 from beebot.vla.voxel.think_data import ThinkData
-from beebot.vla.voxel.views import ViewSpec, scene_views
+from beebot.vla.voxel.views import ViewSpec, scene_views, side_azimuth
 from beebot.vla.voxel.world import STAY
 
 
@@ -34,7 +35,11 @@ def main():
     policy, tokenizer = think.load_policy(args.checkpoint, args.device, torch.float32)
     policy.eval()
     spec = ViewSpec()
-    data = ThinkData(args.stores.split(","), sorted(glob.glob("data/vla/haiku/run-s[01]")), tokenizer, 0, mismatch="drop", views=lambda obs, rng: scene_views(obs, rng, spec))
+
+    def views(obs, rng, side=None):  # side: a camera at that board side (labels said only in the world's frame ask for the front)
+        return scene_views(obs, rng, spec if side is None else dataclasses.replace(spec, azimuth=side_azimuth(side, rng)))
+
+    data = ThinkData(args.stores.split(","), sorted(glob.glob("data/vla/haiku/run-s[01]")), tokenizer, 0, mismatch="drop", views=views)
     rng = np.random.default_rng(7)
     examples = []
     while len(examples) < args.examples:  # held-out episodes, acting steps only
