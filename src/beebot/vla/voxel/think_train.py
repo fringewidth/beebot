@@ -326,6 +326,8 @@ def run():
             next_val = elapsed + cfg.val_every_minutes * 60 if do_val else next_val
             next_save = elapsed + cfg.save_every_minutes * 60 if do_save else next_save
             paused += time.time() - t_pause
+            counts = {"tokens": 0, "examples": 0, "wait": 0.0}  # the throughput window starts again after the pause
+            t_window = time.time()
         for g, lr in zip(optimizer.param_groups, base_lrs):
             g["lr"] = lr * lr_factor(step, cfg)
         optimizer.zero_grad(set_to_none=True)
@@ -346,10 +348,10 @@ def run():
             scaler.scale(out["loss"]).backward()
             for key in step_losses:
                 step_losses[key] += out[key].item()
+            counts["tokens"] += out["tokens"]  # every micro-batch of the step, once
+            counts["examples"] += out["examples"]
         for key, value in step_losses.items():
             window[key].append(value)
-            counts["tokens"] += out["tokens"]
-            counts["examples"] += out["examples"]
         if text_stream is not None:
             chunk = torch.stack([next(text_stream) for _ in range(cfg.lm_batch)]).to(device)
             with autocast():
@@ -366,7 +368,7 @@ def run():
         if lead and (step % cfg.log_every == 0 or step - first_step in (1, 10)):
             seconds = time.time() - t_window
             row = {"step": step, "minutes": round((time.time() - t0 - paused) / 60, 2), **{k: round(float(np.mean(v)), 5) for k, v in window.items() if v}}
-            row.update({"lr_lm": optimizer.param_groups[0]["lr"], "tokens_per_s": round(counts["tokens"] * world / seconds, 1), "examples_per_s": round(counts["examples"] * world / seconds, 2), "data_wait": round(counts["wait"] / seconds, 3), "gpu_gb": memory_gb(device)})
+            row.update({"lr_lm": optimizer.param_groups[0]["lr"], "tokens_per_s": round(counts["tokens"] * world / seconds, 1), "examples_per_s": round(counts["examples"] * world / seconds, 2), "window_examples": counts["examples"] * world, "data_wait": round(counts["wait"] / seconds, 3), "gpu_gb": memory_gb(device)})
             log(row)
             window = {k: [] for k in window}
             counts = {"tokens": 0, "examples": 0, "wait": 0.0}
