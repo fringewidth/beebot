@@ -688,6 +688,12 @@ class Pool:
         return group[min(int(np.searchsorted(total, rng.random() * total[-1], side="right")), len(group) - 1)]
 
 
+def store_key(config):
+    """A store's identity independent of where it sits on disk: its seed and what it draws alone
+    (scripts/vla_quarantine.py lists episodes by it)."""
+    return f"{config.get('seed')}|{config.get('only')}"
+
+
 def mix_group(config):
     """A store's draw options without its seed: the stores of one group share one task mix
     (scripts/vla_task_mix.py weighs each group's episodes to its keep mix)."""
@@ -750,7 +756,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -771,6 +777,12 @@ class ThinkData:
         # (demos.draws keep); None samples every episode equally
         mix = json.loads(Path(mix).read_text()) if isinstance(mix, (str, Path)) else (mix or {})
         self.mix = mix.get("weights", mix)
+        # quarantine: scripts/vla_quarantine.py's output (a path or its dict): episodes to skip
+        # (store_key, attempts index) and Haiku pair_ids to drop (their episodes use templates)
+        quarantine = json.loads(Path(quarantine).read_text()) if isinstance(quarantine, (str, Path)) else (quarantine or {})
+        self.skipped = {(key, int(n)) for key, n, *_ in quarantine.get("episodes", [])}
+        self.dropped = {pair_id for pair_id, *_ in quarantine.get("labels", [])}
+        self.quarantined = 0
         self.stores = [str(s) for s in stores]
         self.data = [load(s) for s in self.stores]
         self.labels = []
@@ -778,7 +790,11 @@ class ThinkData:
             directory = Path(directory)
             assert not H.is_test(directory), f"{directory} is the held-out test set; it never goes into training"
             items = {(item["seed"], item["index"]): item for item in H.read_jsonl(directory / "items.jsonl")}
-            self.labels.append((H.Labels(directory.name, root=directory.parent), label_options(directory), items))
+            labels = H.Labels(directory.name, root=directory.parent)
+            if self.dropped:  # quarantined label rows go before any choice is made from them
+                labels.by_key = {k: [r for r in rows if r.get("pair_id") not in self.dropped] for k, rows in labels.by_key.items()}
+                labels.part_key = {k: [r for r in rows if r.get("pair_id") not in self.dropped] for k, rows in labels.part_key.items()}
+            self.labels.append((labels, label_options(directory), items))
         self.episodes = []
         self.frames = {"turned": 0, "world": 0, "rung_swapped": 0, "template_instead": 0, "world_frame_forced": 0}
         self.rewritten = {"haiku_thoughts": 0, "haiku_changed": 0, "haiku_lines_changed": 0, "template_thoughts": 0, "template_changed": 0}
@@ -816,6 +832,9 @@ class ThinkData:
         out = []
         for n, row in enumerate(H.read_jsonl(Path(path) / "attempts.jsonl")):
             if row["e"] < 0:
+                continue
+            if (store_key(config), n) in self.skipped:
+                self.quarantined += 1
                 continue
             entries = store["instructions"][row["e"]]
             choices, parts, refusals = [], [], []
