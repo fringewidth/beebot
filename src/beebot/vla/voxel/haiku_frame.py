@@ -3,13 +3,14 @@
     python -m beebot.vla.voxel.haiku_frame items    [--out data/vla/haiku/frame] [--seed 0]
     python -m beebot.vla.voxel.haiku_frame generate [--out data/vla/haiku/frame] [--limit N]
     python -m beebot.vla.voxel.haiku_frame check    [--out data/vla/haiku/frame]
+    python -m beebot.vla.voxel.haiku_frame camera   [--out data/vla/haiku/frame] [--to data/vla/haiku/frame-camera]
 
 The earlier labels (haiku.py) were written in the board's frame: Haiku saw the scene and never a
 user standing somewhere. ThinkData then turned the direction words mechanically into the user's
 frame, which leaves the model to learn the mapping with no reasoning about it, and drops every
 label with compass or foreign direction words. Here each verified item whose task has a direction
 gets a camera side (the board side the oblique camera looks from) and a user position relative
-to the camera (USER_POSITIONS); Haiku writes what that user would type and a thought that first
+to the camera (PLACES); Haiku writes what that user would type and a thought that first
 states where the user stands on the board and what their words mean there, then plans in the
 board's terms:
 
@@ -27,6 +28,21 @@ sub-goal names the same board directions as the canonical one and no user-relati
 user's direction words, English, Spanish or French (USER_WORDS, accents ignored), mapped onto the
 board, name the same directions as the task; each statement of what their words mean, "<their
 words> is the board's <side>" or the other way round, maps them right).
+
+camera: the rows in the camera's frame (camera_frame.py: the user always stands at the camera and
+the policy works in the camera's frame, since the board's own sides cannot be seen). Each verified
+row is put with its camera at the board side its user stood at ("user"), which makes its
+instruction right as written, and its thought is rewritten deterministically (camera_row): the
+sentence that places the camera and the user ("the camera looks from the board's X and you stand
+..., so you face the board from its Y.") and the statements that map the user's words onto the
+board ("<their words> is the board's Z", everything between that sentence and "first:") go, as
+they are trivial now; the quote is the instruction as written; the board words of "i see ...",
+"first: ..." and the switch lines are said in the camera's frame (think_data.in_user_frame with the
+camera's quarter turn). A rewritten row is kept when it passes camera_problems (the first clause
+names the turned canonical first sub-goal's directions, the user's direction words the turned
+task's, no board-frame words are left); the others go to dropped.jsonl with their reasons. Rows:
+{"rung", "text", "thought", "switches", "id", "pair_id", "camera"}; ThinkData(frame_dirs=...)
+reads them.
 """
 
 import argparse
@@ -40,7 +56,7 @@ import unicodedata
 from pathlib import Path
 
 from beebot.vla.voxel import haiku as H
-from beebot.vla.voxel.think_data import ORDER, USER_POSITIONS
+from beebot.vla.voxel.think_data import ORDER, bare, in_user_frame
 
 SOURCES = ("data/vla/haiku/run-s?", "data/vla/haiku/run-s?-later")
 BATCH = 12
@@ -57,6 +73,7 @@ PLACES = {  # how the prompt says the user's place relative to the camera
     "right": "to the right of the camera",
     "opposite": "opposite the camera, facing it",
 }
+PLACE_TURNS = {"behind": 0, "left": -1, "right": 1, "opposite": 2}  # quarter turns round the board from the camera's side to the user's
 SIDE_NAMES = {"front": "front", "right": "right", "back": "back", "left": "left"}
 NOT_A_THING = r"(?!\s+(?:del|de la|de las|de los|du|des|de l')\b)"  # "cerca del queso", "près du fromage": near a thing, no direction
 SIDE_WORD = r"(?:droit|droite|gauche|derech[oa]|izquierd[oa]|du|de)"  # "l'avant droit", "l'avant du sol": the front, not forward
@@ -110,7 +127,7 @@ def mapping(user_side):
 
 def user_side(camera_side, place):
     """The board side the user stands at: the camera's side turned by the place's offset."""
-    return ORDER[(ORDER.index(camera_side) + USER_POSITIONS[place][0] // 90) % 4]
+    return ORDER[(ORDER.index(camera_side) + PLACE_TURNS[place]) % 4]
 
 
 def board_words(text):
@@ -253,6 +270,70 @@ def problems(entry, row):
     return out
 
 
+FRAME_PHRASE = re.compile(r"the camera looks from the board's \w+\b.*?you face the board from its \w+\.\s*")  # the sentence placing the camera and the user
+SCENE = re.compile(r"\bi see\b")
+CAMERA_OUT = "data/vla/haiku/frame-camera"
+
+
+def camera_row(row):
+    """A verified row in the camera's frame, the camera put at the board side its user stood at
+    (row["user"]; the user is at the camera), so its instruction is right as written. The thought
+    keeps the quote (the instruction as written), "i see ..." and "first: ...", drops the sentence
+    that places the camera and the user and the statements after it that map the user's words onto
+    the board, and says the board words in the camera's frame; so do the switch lines."""
+    turns = ORDER.index(row["user"])
+    found = FRAME_PHRASE.search(row["thought"])
+    if found is None:
+        raise ValueError(f"{row['pair_id']} has no sentence placing the camera and the user")
+    head, tail = row["thought"][: found.start()], row["thought"][found.end() :]
+    seen = SCENE.search(head)
+    cut = tail.rfind("first:")
+    kept = [head[seen.start() :].strip() if seen else "", tail[cut:].strip() if cut >= 0 else ""]
+
+    def said(text):
+        return in_user_frame(text.replace("the board's ", "the "), turns)
+
+    thought = " ".join([f"you asked: {bare(row['text']).lower()}."] + [said(part) for part in kept if part])
+    return {"rung": row["rung"], "text": row["text"], "thought": thought, "switches": [said(line) for line in row.get("switches") or []], "id": row["id"], "pair_id": row["pair_id"], "camera": row["user"]}
+
+
+def camera_problems(entry, row):
+    """Why a camera row disagrees with its item (empty: it agrees): its first clause must name the
+    directions of the canonical first sub-goal said in the camera's frame, the user's direction
+    words (USER_WORDS; the user at the camera: mapping("front")) those of the task said there, and no
+    board-frame sentence may be left."""
+    turns = ORDER.index(row["camera"])
+    out = []
+    if FRAME_PHRASE.search(row["thought"]) or "board's" in row["thought"] or "you face" in row["thought"]:
+        out.append("board_words_left")
+    if board_words(first_clause(row["thought"])) != board_words(in_user_frame(entry["sub_goals"][0], turns)):
+        out.append("first_directions")
+    named = user_text_words(row["text"], mapping("front"))
+    if named and named != set(board_words(in_user_frame(entry["task"] or entry["sub_goals"][0], turns))):
+        out.append("text_directions")
+    return out
+
+
+def camera_rows(out, to):
+    """Rewrite out/verified.jsonl into the camera's frame: to/verified.jsonl (rows that pass
+    camera_problems) and to/dropped.jsonl (the others, with their problems); prints a summary."""
+    to.mkdir(parents=True, exist_ok=True)
+    items = {e["id"]: e for e in H.read_jsonl(out / "items.jsonl")}
+    kept, dropped = [], []
+    for row in H.read_jsonl(out / "verified.jsonl"):
+        turned = camera_row(row)
+        found = camera_problems(items[row["id"]], turned)
+        if found:
+            dropped.append({**turned, "problems": found})
+        else:
+            kept.append(turned)
+    (to / "verified.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in kept))
+    (to / "dropped.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in dropped))
+    reasons = collections.Counter(p for r in dropped for p in r["problems"])
+    print(json.dumps({"run": "haiku-frame-camera", "rows": len(kept) + len(dropped), "kept": len(kept), "dropped": len(dropped), **reasons, "cameras": dict(collections.Counter(r["camera"] for r in kept))}))
+    return kept, dropped
+
+
 def generate(out, provider=H.haiku, limit=None, workers=H.WORKERS, passes=2):
     entries = H.read_jsonl(out / "items.jsonl")[:limit]
     by_id = {e["id"]: e for e in entries}
@@ -288,8 +369,9 @@ def report(out):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("stage", choices=("items", "generate", "check"))
+    parser.add_argument("stage", choices=("items", "generate", "check", "camera"))
     parser.add_argument("--out", default="data/vla/haiku/frame")
+    parser.add_argument("--to", default=CAMERA_OUT, help="camera: where the camera-frame rows go")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--workers", type=int, default=H.WORKERS)
@@ -303,6 +385,8 @@ def main(argv=None):
     elif args.stage == "generate":
         generate(out, limit=args.limit, workers=args.workers)
         report(out)
+    elif args.stage == "camera":
+        camera_rows(out, Path(args.to))
     else:  # re-run the checks on every generated row and rewrite verified.jsonl
         by_id = {e["id"]: e for e in H.read_jsonl(out / "items.jsonl")}
         rows = H.read_jsonl(out / "generated.jsonl")

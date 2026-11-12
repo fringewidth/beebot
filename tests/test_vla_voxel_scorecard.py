@@ -12,10 +12,11 @@ from beebot.vla.voxel import rollout as R
 from beebot.vla.voxel import scorecard as C
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel import think_data as T
+from beebot.vla.voxel.camera_frame import SIDES, turn_grid
 from beebot.vla.voxel.lm import PATCH, world_at
 from beebot.vla.voxel.play_store import load
 from beebot.vla.voxel.think import ThinkStep
-from beebot.vla.voxel.world import N_ACTIONS, STAY
+from beebot.vla.voxel.world import DIRS, N_ACTIONS, STAY, observe
 
 
 def short(episodes, steps=4):
@@ -34,16 +35,18 @@ def switch():
 
 class Scripted:
     """A stand-in policy: think_then_act answers from script(context, row) -> (thought, act, answer),
-    acting rows choose `move` everywhere; every context is kept."""
+    acting rows choose `move` everywhere; every context and observation is kept."""
 
     visual = None
 
     def __init__(self, script, move=STAY):
         self.script, self.move = script, move
         self.calls = []
+        self.seen = []
 
     def think_then_act(self, obs, contexts, images=None, max_new_tokens=0):
         self.calls.append(list(contexts))
+        self.seen.append(obs.clone())
         replies = [self.script(c, k) for k, c in enumerate(contexts)]
         b = len(contexts)
         n = (obs.shape[-1] // PATCH) ** 3
@@ -210,47 +213,97 @@ def think_data_tests():
     return module
 
 
-def test_rollout_contexts_equal_think_data_examples(tmp_path):
+def drawn_stand_in(obs, rng=None, side=None):
+    """The stand-in views from the side asked for, else from a side drawn from rng."""
+    return T.stand_in_views(obs, side=side or SIDES[int(rng.integers(4))])
+
+
+def test_rollout_contexts_and_observations_equal_think_data_examples(tmp_path):
     """For training episodes (an eat-two template with a switch line and done, and an instruction
     change), the context the rollout builds at every step, given the thoughts training emits, is the
-    context ThinkData produced for that step, in the world's frame and in a turned one."""
+    context ThinkData produced for that step, and the observation the policy gets is the example's
+    (both in the camera's frame), for cameras on several sides."""
     TD = think_data_tests()
     store = TD.synthetic_store(tmp_path / "store")
-    data = T.ThinkData([store], [], held_share=0.0, views=T.stand_in_views)
+    data = T.ThinkData([store], [], held_share=0.0, views=drawn_stand_in)
     raw = load(store)
     frames = set()
     for e in (4, 5):
         ep = next(x for x in data.episodes if x.e == e)
         parts = data.labelling(ep, np.random.default_rng(0))
         entries = data.instructions(ep)
-        for seed in range(4):
+        for seed in (0, 1, 4, 11):  # cameras at the world's left, right, back and front
             examples = [data.example(ep, t, parts, np.random.default_rng(seed)) for t in range(TD.STEPS)]
             thoughts = [x.reply_text[len("<think>\n") : x.reply_text.index("\n</think>")] for x in examples]
-            episode = R.Episode(world_at(raw, [(e, 0)]), {}, None, [x["text"] for x in entries], [int(x["t"]) for x in entries], [x["record"] for x in entries], TD.STEPS, seed, user=examples[0].user)
+            episode = R.Episode(world_at(raw, [(e, 0)]), {}, None, [x["text"] for x in entries], [int(x["t"]) for x in entries], [x["record"] for x in entries], TD.STEPS, seed, camera=SIDES[examples[0].turns])
             policy = Scripted(lambda c, k: (thoughts[len(policy.calls) - 1], True, ""))
-            actor = R.PolicyActor(policy, [episode], views=T.stand_in_views)
+            actor = R.PolicyActor(policy, [episode], views=drawn_stand_in)
             for t in range(TD.STEPS):
                 actor(world_at(raw, [(e, t)]), t)
             assert [calls[0] for calls in policy.calls] == [x.context_text for x in examples]
-            assert actor.frames[0][:2] == (examples[0].user, examples[0].turns)
+            assert all(torch.equal(seen[0], x.obs) for seen, x in zip(policy.seen, examples))
+            assert actor.frames[0][0] == examples[0].turns
             frames.add(examples[0].turns)
-    assert 0 in frames and len(frames) > 1  # both the world's frame and a turned one were compared
+    assert frames == {0, 1, 2, 3}  # the world's frame and every turned one were compared
 
 
-def test_user_frame_is_drawn_per_episode_and_turns_the_instruction(motion):
+def test_the_camera_frame_is_set_per_episode_and_turns_the_instruction(motion):
     base = replace(short(motion, steps=2)[0], texts=["go to the front left of the floor"])
-    turned = R.play_policy(Scripted(lambda c, k: ("", True, "")), [replace(base, user="behind")], views=T.stand_in_views)[0]
-    assert (turned.user, turned.turns) == ("behind", 1)  # the stand-in camera is at azimuth 45
+    turned = R.play_policy(Scripted(lambda c, k: ("", True, "")), [base], views=T.stand_in_views)[0]
+    assert turned.turns == 1  # the stand-in camera is at azimuth 45
     policy = Scripted(lambda c, k: ("", True, ""))
-    R.play_policy(policy, [replace(base, user="behind")], views=T.stand_in_views)
+    R.play_policy(policy, [base], views=T.stand_in_views)
     said = T.in_user_frame("go to the front left of the floor", 1)
-    assert said != "go to the front left of the floor" and policy.calls[0][0].endswith(f"(i'm standing behind the camera)\n{said}<|im_end|>\n<|im_start|>assistant\n")
-    world = R.play_policy(Scripted(lambda c, k: ("", True, "")), [replace(base, user="behind", texts=["head north"])], views=T.stand_in_views)[0]
-    assert world.turns == 0 and world.user == "left"  # cannot be turned: the place that keeps the world's frame
-    users = {R.play_policy(Scripted(lambda c, k: ("", True, "")), [replace(base, seed=s)])[0].user for s in range(12)}
-    assert len(users) > 1  # drawn per episode from its seed
+    assert said != "go to the front left of the floor" and policy.calls[0][0] == f"<|im_start|>user\n<IMAGES>\n{said}<|im_end|>\n<|im_start|>assistant\n"
+    world = R.play_policy(Scripted(lambda c, k: ("", True, "")), [replace(base, texts=["head north"])], views=T.stand_in_views)[0]
+    assert world.turns == 0  # cannot be turned: the camera looks from the world's front
+    turns = {R.play_policy(Scripted(lambda c, k: ("", True, "")), [replace(base, seed=s)])[0].turns for s in range(12)}
+    assert len(turns) > 1  # the camera is drawn per episode from its seed (SceneViews)
     record = {**base.records[0], "plain": "go to the front left of the floor", "subgoals": ["go to the front left of the floor"]}
     thought = R.oracle_thought(base.texts[0], record, {"terrain": {"layout": "flat floor"}, "cheeses": []}, 1)
     played = R.Played(0.0, False, False, thoughts=[{"t": 0, "part": 0, "text": thought, "forced": True}], turns=1)
     checks = C.thought_checks(replace(base, records=[record]), played)[0]
     assert checks["parse"] and checks["first"] and checks["resolves"], (thought, checks)
+
+
+def camera_at(azimuths):
+    """Fake views: one image, the camera at azimuths[side] (side None: drawn by the views); the
+    sides asked for are kept."""
+    asked = []
+
+    def views(obs, rng, side=None):
+        asked.append(side)
+        return ["image"], {"azimuth": azimuths[side]}
+
+    views.asked = asked
+    return views
+
+
+def test_the_policy_sees_its_cameras_frame_and_its_moves_are_turned_back(motion):
+    """A camera at the world's right (quarter turn 1): the policy gets the observation turned into
+    that camera's frame, and its move to the camera's right (+x') is the world's back (-y) when the
+    world steps."""
+    e = short(motion, steps=1)[0]
+    policy = Scripted(lambda c, k: ("", True, ""), move=DIRS.index((0, 0, 1)))
+    played = R.play_policy(policy, [e], views=camera_at({None: 100.0}), rule=None, failure=None, record=True)[0]
+    assert played.turns == 1 and played.camera == 100.0
+    assert torch.equal(policy.seen[0][0], turn_grid(observe(R.prepare_world(e.world))[0], 1))
+    assert (played.actions[0] == DIRS.index((0, -1, 0))).all()  # what the world stepped with, everywhere
+    behind = R.play_policy(Scripted(lambda c, k: ("", True, ""), move=DIRS.index((0, 0, 1))), [e], views=camera_at({None: 5.0}), rule=None, failure=None, record=True)[0]
+    assert behind.turns == 0 and (behind.actions[0] == DIRS.index((0, 0, 1))).all()  # the default camera: the world's own frame
+
+
+def test_the_camera_side_is_pinned_drawn_or_the_front_for_words_that_cannot_turn(motion):
+    """Episode.camera pins the camera's board side; an instruction whose direction words cannot be
+    turned (north, the far side) puts the camera at the world's front; otherwise the views draw it.
+    The user is at the camera: the user turn carries the instruction only."""
+    base = short(motion, steps=1)[0]
+    azimuths = {None: 190.0, "front": 20.0, "left": 280.0}
+    for texts, camera, side, turns in ((["go to the front left of the floor"], None, None, 2), (["head north"], None, "front", 0), (["go to the front left of the floor"], "left", "left", 3)):
+        views = camera_at(azimuths)
+        policy = Scripted(lambda c, k: ("", True, ""))
+        played = R.play_policy(policy, [replace(base, texts=texts, camera=camera)], views=views)[0]
+        assert views.asked[0] == side and played.turns == turns
+        said = T.in_user_frame(texts[0], turns)
+        assert policy.calls[0][0] == f"<|im_start|>user\n<IMAGES>\n{said}<|im_end|>\n<|im_start|>assistant\n"
+    assert SIDES[3] == "left" and T.in_user_frame("go to the front left of the floor", 2) == "go to the back right of the floor"
