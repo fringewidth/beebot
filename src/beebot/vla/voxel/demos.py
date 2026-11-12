@@ -9,7 +9,13 @@ Store fields as voxel/play_store (mass, actions memory-mapped; small.pt with the
 records {"e", "w0", "w1", "family", "form", "text"} covering whole episodes. small.pt also holds,
 per kept episode, "robots" (the swarm's size) and "subgoals" (what the expert was after at every
 step: Expert.subgoals), and "config" (the options below). attempts.jsonl has one row per episode
-played, kept or not: {"family", "kind", "robots", "score", "unasked", "e"} with e = -1 when dropped.
+played, kept or not: {"family", "kind", "robots", "score", "unasked", "e", "draw"} with e = -1 when
+dropped and draw the hash of what was drawn (draw_digest; stores of 2026-11-11 and before have none).
+
+Draws must not depend on Python's string hashing (PYTHONHASHSEED, random per process): a draw
+that iterates a set of strings picks differently in every process, so a store and a Haiku export
+drawn in two processes part ways from the first such pick (s0, s1, s2 and s7 of voxel_full).
+Iterate sorted(set) when the order reaches a generator or the task; draw_digest catches the rest.
 
 Demonstrations a pivoting cube can carry out (--cube): only the 14 moves without a horizontal
 diagonal (--moves cube), 72 steps (--steps), swarms of 6 robots up to the usual maximum with only
@@ -39,13 +45,24 @@ option every move fails with the --failure rates, as in the stores before 2026-1
 Further options, all off unless given: --compact writes the grids by robot (play_store's compact
 format, about 40 times smaller; load() reads both); --counts log draws the robot count
 log-uniformly over --robots, so small swarms are as common as large ones; --fit draws only tasks
-the scene's swarm can do (suite.fits) also when --robots is not given.
+the scene's swarm can do (suite.fits) also when --robots is not given; --empty makes every scene
+an empty flat floor and gives up the drawn tasks it does not allow; --scaled fits task sizes to
+the swarm (draws).
+
+The grant demo's case (--demo, PRESETS): about ten cubes on MuJoCo's empty floor, 8 to 12 robots,
+--empty --scaled --keep --fit, rule switch_cube, world.py's measured outcome model (--outcomes
+mujoco_release), and one try a scene from every sampler (README "Demo: ten cubes
+on an empty floor").
+
+    OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_demo --scenes 6000 --demo --compact
 """
 
 import argparse
+import hashlib
 import json
 import re
 import time
+from dataclasses import fields as dataclass_fields
 from dataclasses import replace
 from pathlib import Path
 
@@ -67,7 +84,9 @@ def maker_problem(task, world, meta, i, arrays, rule, score):
     gravity_shape  a formation shape that needs gravity off, drawn under a rule (gravity on)
     done_at_start  the task (a switch: its last instruction, when it arrives) already passes before
                    any move, unless doing nothing is the task
-    short_tower    a tower that stops short of the asked height
+    short_tower    a tower job that stops short of the asked height, judged by the job's own share
+                   (suite.tower_shares), whatever the task around it: a tower, a parallel task's
+                   tower, counting's, a conditional's tower branch, a selector's ("tower@...")
     (bugs B1, B2/B9 and B3 of the data sweep of 2026-11-11; scripts/vla_quarantine.py lists the
     episodes of older stores that have them.)"""
     kind = S.task_kind(task)
@@ -75,28 +94,54 @@ def maker_problem(task, world, meta, i, arrays, rule, score):
         record = S.record_spec(task)  # the shape and standing live in the record, not task.spec
         if record.get("shape") in FLOATING or record.get("standing"):
             return "gravity_shape"
-    if kind == "tower" and score < 1.0:
-        return "short_tower"
-    if NOTHING_TO_DO.search(kind):
-        return None
     static = {"walls": world.walls[i].numpy(), "cheese_color": world.cheese_color[i].tolist(), "gravity": bool(world.gravity[i]), "meta": meta}
     t0, part = (task.spec["steps"][-1], task.parts[-1]) if task.parts else (0, task)
-    snap = {"mass": arrays["mass"][i, t0].numpy().astype(np.float32), "cheese_pos": arrays["cheese_pos"][i, t0].numpy().astype(np.int64), "cheese_alive": arrays["cheese_alive"][i, t0].numpy().copy()}
+    def snapshot(t):  # taken only where needed: a nothing-to-do switch's last instruction can arrive after a short episode's last frame
+        return {"mass": arrays["mass"][i, t].numpy().astype(np.float32), "cheese_pos": arrays["cheese_pos"][i, t].numpy().astype(np.int64), "cheese_alive": arrays["cheese_alive"][i, t].numpy().copy()}
+
+    if "tower" in kind:
+        if any(share < 1.0 for share in S.tower_shares(S.record_spec(part), static, snapshot(t0), snapshot(-1))):
+            return "short_tower"
+    if NOTHING_TO_DO.search(kind):
+        return None
+    snap = snapshot(t0)
     still, _ = S.score(part, static, snap, snap, [])
     return "done_at_start" if still >= SUCCESS.get(task.family, 0.75) else None
 FIELDS = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
 OBJECT_FIELDS = ("form", "colour2", "pattern", "friction", "food", "zones")  # per episode in small.pt when the draw has objects (README "Objects")
 MOVES = {"all": None, "cube": CUBE_MOVES}
 EXPERTS = ("attractor", "planner")  # suite.Expert; free_cube.FreeCubeExpert (needs a rule)
+# How the demo's moves fail: the outcome model world.py measured in MuJoCo (--outcomes).
+DEMO_MOVES = {"outcomes": OUTCOME_MODELS[0]}
+PRESETS = {  # CLI presets: option defaults that given options override; small.pt records the name under config["preset"]
+    "demo": {  # the grant demo: about ten pivoting cubes on MuJoCo's empty flat floor (README "Demo: ten cubes on an empty floor")
+        "robots": (8, 12),
+        "empty": True,
+        "scaled": True,
+        "keep": True,
+        "fit": True,
+        "rule": "switch_cube",
+        "moves": "cube",
+        "expert": "attractor",
+        "steps": S.CUBE_STEPS,
+        **DEMO_MOVES,
+        "coverage": 1.0,  # one try a scene from every sampler, as from the suite's own; empty gives up the tries an
+        "objects": 1.0,  # empty floor does not allow, so what the floor allows sets the mix, not a share
+        "build": 1.0,
+    },
+}
 
 
-def contrast(rng, world, metas, tasks, check=False, keep=False):
+def contrast(rng, world, metas, tasks, check=False, keep=False, scaled=False):
     """Each scene's own task plus one training task of every other family its scene allows
     (check: and its swarm is large enough for, suite.fits). keep=False also adds logic's "none"
     and "absent" forms, which fit every scene while the other forms often do not: in the stores of
     2026-11-10 and before they made about 60% of logic tasks, nearly all of them contrast tasks.
     keep=True adds only tasks with a plan; those two forms then come from the scene samples alone,
-    at their drawn share (suite.sample_tasks keep)."""
+    at their drawn share (suite.sample_tasks keep). scaled: the makers' sizes fitted to the swarm
+    (suite.sample_tasks). No scenes (world None, an empty draw that gave no task): nothing."""
+    if world is None:
+        return None, [], []
     worlds, out_metas, out = [], [], []
     for i, task in enumerate(tasks):
         w = world.index(i)
@@ -106,7 +151,7 @@ def contrast(rng, world, metas, tasks, check=False, keep=False):
         for family in S.FAMILIES:
             if family == task.family:
                 continue
-            _, make = S.MAKERS[family](rng, "")
+            _, make = S.MAKERS[family](rng, "", scaled=scaled)
             other = make(w, metas[i], 0)
             if other is not None and check and not S.fits(other, w, 0):
                 continue
@@ -117,10 +162,47 @@ def contrast(rng, world, metas, tasks, check=False, keep=False):
     return VoxelWorld(*(torch.cat([getattr(x, f) for x in worlds]) for f in FIELDS)), out_metas, out
 
 
+def canonical(value):
+    """value as plain JSON that is the same in every process: dict keys sorted, sets sorted, arrays
+    and tensors as dtype, shape and a hash of their bytes, Tasks as what they ask (all fields but
+    the expert's plan, which may change with the expert while the task stays the same)."""
+    if isinstance(value, S.Task):
+        return {"family": value.family, "text": value.text, "spec": canonical(value.spec), "held_out": value.held_out, "runners": canonical(value.runners), "parts": canonical(value.parts)}
+    if isinstance(value, dict):
+        return {str(k): canonical(v) for k, v in sorted(value.items(), key=lambda kv: str(kv[0]))}
+    if isinstance(value, (set, frozenset)):
+        return sorted((canonical(v) for v in value), key=lambda v: json.dumps(v, sort_keys=True))
+    if isinstance(value, (list, tuple)):
+        return [canonical(v) for v in value]
+    if isinstance(value, torch.Tensor):
+        value = value.detach().cpu().numpy()
+    if isinstance(value, np.ndarray):
+        return {"dtype": str(value.dtype), "shape": list(value.shape), "sha1": hashlib.sha1(np.ascontiguousarray(value).tobytes()).hexdigest()}
+    if isinstance(value, np.generic):
+        return value.item()
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise TypeError(f"no canonical form for {type(value).__name__}")
+
+
+def draw_digest(world, metas, tasks, i):
+    """A short hash of draw i of a chunk (draws): its task (family, text, spec, parts), its meta
+    and every field of its scene. write() records it in attempts.jsonl ("draw"), and a fresh
+    draw (voxel/haiku.py) checks it, so a store and an export join only on the same draw."""
+    scene = {f.name: canonical(getattr(world, f.name)[i]) for f in dataclass_fields(world) if getattr(world, f.name) is not None}
+    text = json.dumps({"task": canonical(tasks[i]), "meta": canonical(metas[i]), "scene": scene}, sort_keys=True)
+    return hashlib.sha1(text.encode()).hexdigest()[:16]
+
+
 ONLY = ("build",)  # families that can be drawn alone (draws only=...)
 
 
-def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False, rule=None, spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False):
+def joined(world, more):
+    """Two batches of scenes as one (world.concat); either may be None, a draw that gave no task."""
+    return more if world is None else world if more is None else concat([world, more])
+
+
+def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False, rule=None, spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False, empty=False, scaled=False):
     """(c, world, metas, tasks, run_seed) of each chunk of scenes, in the order write() plays them:
     the scene sample, its contrast tasks, then round(coverage x the chunk's scenes) coverage tasks
     (suite.sample_coverage, one per scene, from a generator of their own seeded by (seed, 7), so
@@ -140,11 +222,20 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
     keep: every sampler keeps a drawn task and draws new scenes for it instead of drawing a new task
     (suite.sample_tasks keep), and contrast adds only tasks with a plan. keep=False draws exactly as
     the stores and Haiku labels of 2026-11-10 and before (whose task mix favours tasks that fit most
-    scenes); stores record it in config["keep"]."""
+    scenes); stores record it in config["keep"].
+    empty (needs keep): every scene of every sampler is an empty flat floor (no terrain, cheese,
+    object or zone; gravity on), and a drawn task that no such scene fits is given up instead of
+    replaced (suite.sample_tasks empty), so each share counts tries and what comes back is the
+    draw's own mix cut to what an empty floor allows; a chunk can hold fewer tasks, or none (then
+    it is not yielded). scaled: task sizes fitted to the swarm (suite.sample_tasks scaled: towers a
+    single column, a letter or the wall at half size, when the swarm cannot do the full one).
+    Both off draw exactly as before; stores record them in config["empty"] and config["scaled"]."""
     if only is not None and only not in ONLY:
         raise ValueError(f"only: one of {ONLY}")
     if only == "build" and not build:
         raise ValueError("only build needs a build share above 0")
+    if empty and not keep:
+        raise ValueError("empty needs keep (a task no empty floor fits is given up after suite.KEEP_TRIES scenes)")
     rng = np.random.default_rng(seed)
     extra = np.random.default_rng((seed, 7))
     things = np.random.default_rng((seed, 11))
@@ -156,8 +247,8 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
             if n_build:
                 from beebot.vla.voxel.build import sample_build
 
-                world, metas, tasks = sample_build(builds, n_build, robots=robots, counts=counts, keep=keep)
-            else:
+                world, metas, tasks = sample_build(builds, n_build, robots=robots, counts=counts, keep=keep, empty=empty)
+            if not tasks:
                 continue
             run_seed = seed * 1_000_003 + c
             if rule is not None:
@@ -166,29 +257,33 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
                 world = apart(world, np.random.default_rng(run_seed))
             yield c, world, metas, tasks, run_seed
             continue
-        world, metas, tasks = S.sample_tasks(rng, min(chunk, n_scenes - c), "train", robots=robots, check=check, counts=counts, keep=keep)
-        world, metas, tasks = contrast(rng, world, metas, tasks, check=check, keep=keep)
+        world, metas, tasks = S.sample_tasks(rng, min(chunk, n_scenes - c), "train", robots=robots, check=check, counts=counts, keep=keep, empty=empty, scaled=scaled)
+        world, metas, tasks = contrast(rng, world, metas, tasks, check=check, keep=keep, scaled=scaled)
         n_coverage = int(round(coverage * min(chunk, n_scenes - c)))
         if n_coverage:
-            more, more_metas, more_tasks = S.sample_coverage(extra, n_coverage, robots=robots, counts=counts, keep=keep)
-            world = VoxelWorld(*(torch.cat([getattr(world, f), getattr(more, f)]) for f in FIELDS))
+            more, more_metas, more_tasks = S.sample_coverage(extra, n_coverage, robots=robots, counts=counts, keep=keep, empty=empty, scaled=scaled)
+            world = joined(world, more)
             metas, tasks = metas + more_metas, tasks + more_tasks
         if objects:
             from beebot.vla.voxel import objects as O
 
-            world = with_objects(world, MAX_OBJECTS)
+            world = None if world is None else with_objects(world, MAX_OBJECTS)
             n_objects = int(round(objects * min(chunk, n_scenes - c)))
             if n_objects:
-                more, more_metas, more_tasks = O.sample_objects(things, n_objects, robots=robots, counts=counts, keep=keep)
-                world = concat([world, more])
+                more, more_metas, more_tasks = O.sample_objects(things, n_objects, robots=robots, counts=counts, keep=keep, empty=empty, scaled=scaled)
+                world = joined(world, more)
                 metas, tasks = metas + more_metas, tasks + more_tasks
         n_build = int(round(build * min(chunk, n_scenes - c)))
         if n_build:
             from beebot.vla.voxel.build import sample_build
 
-            more, more_metas, more_tasks = sample_build(builds, n_build, robots=robots, counts=counts, keep=keep)
-            world = concat([world, more])
+            more, more_metas, more_tasks = sample_build(builds, n_build, robots=robots, counts=counts, keep=keep, empty=empty)
+            world = joined(world, more)
             metas, tasks = metas + more_metas, tasks + more_tasks
+        if not tasks:
+            continue
+        if objects:  # every world of the draw carries the object fields, also when only the build tasks of a chunk came back
+            world = with_objects(world, MAX_OBJECTS)
         run_seed = seed * 1_000_003 + c
         if rule is not None:
             world = replace(world, gravity=torch.ones_like(world.gravity))
@@ -197,7 +292,7 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
         yield c, world, metas, tasks, run_seed
 
 
-def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False, outcomes=None, risk=True):
+def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False, empty=False, scaled=False, preset=None, outcomes=None, risk=True):
     """Write the store. moves: "all" or "cube" (MOVES). robots: (low, high) robot counts, with
     tasks fitted to the swarm (None: the world's density range). failure: (27,) per-action
     failure probabilities (world.failure_rates) or None. compact: write mass and actions in
@@ -211,7 +306,9 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     drawn (draws). objects: object tasks per scene drawn (draws), played by objects.ObjectExpert
     (the attractor expert only); small.pt then holds each episode's object fields (OBJECT_FIELDS).
     build: build tasks per scene drawn (draws), played by build.make_expert while the others play
-    as without them (build.Mixed). only: "build" plays the build tasks alone (draws).
+    as without them (build.Mixed). only: "build" plays the build tasks alone (draws). empty,
+    scaled: empty flat floors only, task sizes fitted to the swarm (draws). preset: the name of the
+    CLI preset the options came from ("demo", PRESETS), recorded in config with them.
     outcomes: the name of a measured outcome model (world.OUTCOME_MODELS) in place of failure:
     every pivot ends as MuJoCo shows for its class (world.step); small.pt then holds "stuck", per
     episode the [t, z, y, x] of every robot stuck off the lattice in mass frame t.
@@ -236,7 +333,8 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     row, tried, kept = 0, {}, {}
     t0 = time.time()
     weighed = weigher(model if risk else None)
-    for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced, coverage, objects, build, only, keep):
+    for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced, coverage, objects, build, only, keep, empty, scaled):
+        digests = [draw_digest(world, metas, tasks, i) for i in range(len(tasks))]  # before playing: the experts may write into tasks and metas
         if objects:
             from beebot.vla.voxel.objects import ObjectExpert
 
@@ -259,7 +357,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
             is_demo = passed and problem is None
             n_robots = int(world.mass[i].sum())
             rejected = {"rejected": problem} if problem else {}
-            attempts.write(json.dumps({"family": task.family, "kind": S.task_kind(task), "robots": n_robots, "score": round(float(score), 4), "unasked": bool(unasked), "e": row if is_demo else -1, **rejected}) + "\n")
+            attempts.write(json.dumps({"family": task.family, "kind": S.task_kind(task), "robots": n_robots, "score": round(float(score), 4), "unasked": bool(unasked), "e": row if is_demo else -1, **rejected, "draw": digests[i]}) + "\n")
             if not is_demo:
                 continue
             kept[task.family] = kept.get(task.family, 0) + 1
@@ -285,7 +383,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         attempts.flush()
         print(f"{min(c + chunk, n_scenes)} scenes, {row} demos, {time.time() - t0:.0f} s; kept/tried {json.dumps({f: f'{kept.get(f, 0)}/{tried[f]}' for f in sorted(tried)})}", flush=True)
     writer.close()
-    config = {"seed": seed, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "objects": objects, "build": build, "only": only, "keep": keep}
+    config = {"seed": seed, "chunk": chunk, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "objects": objects, "build": build, "only": only, "keep": keep, "empty": empty, "scaled": scaled, "preset": preset}
     if outcomes is not None:  # stores drawn before outcome models have no key: their moves failed by `failure`
         config["outcomes"] = outcomes
         config["risk"] = bool(risk)
@@ -349,6 +447,12 @@ def main():
     parser.add_argument("--keep", action="store_true", help="keep each drawn task and draw new scenes for it, and add contrast tasks with a plan only (draws keep); without it the task mix favours tasks that fit most scenes, as in the stores of 2026-11-10")
     parser.add_argument("--only", choices=ONLY, default=None, help="draw only this family's tasks (with --build: the build tasks of the full draw, nothing else); attempts and labels then count those tasks only")
     parser.add_argument("--fit", action="store_true", help="draw only tasks the scene's swarm can do, also without --robots (with --robots or --cube this is always on)")
+    parser.add_argument("--empty", action="store_true", help="every scene an empty flat floor (no terrain, cheese, object or zone; gravity on); a drawn task no such scene fits is given up, so the shares count tries (draws empty; needs --keep)")
+    parser.add_argument("--scaled", action="store_true", help="task sizes fitted to the swarm: a tower a single column, a letter or the wall at half size, when the swarm cannot do the full one (draws scaled)")
+    parser.add_argument("--demo", action="store_true", help="the grant demo's case, about ten cubes on MuJoCo's empty floor: " + " ".join(f"--{k} {' '.join(map(str, v)) if isinstance(v, tuple) else '' if v is True else v}".rstrip() for k, v in PRESETS["demo"].items()) + ", each unless given")
+    preset = "demo" if parser.parse_known_args()[0].demo else None
+    if preset is not None:
+        parser.set_defaults(**PRESETS[preset])
     args = parser.parse_args()
     torch.set_num_threads(args.threads)
     cube = args.cube or args.free_cube
@@ -362,9 +466,11 @@ def main():
     expert = args.expert or ("planner" if args.free_cube else "attractor")
     if expert == "planner" and rule is None:
         parser.error("--expert planner needs --rule")
+    if args.empty and not args.keep:
+        parser.error("--empty needs --keep")
     if args.outcomes and rule is None:
         parser.error("--outcomes needs --rule")
-    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.objects, args.build, args.only, args.keep, args.outcomes, not args.blind)
+    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.objects, args.build, args.only, args.keep, args.empty, args.scaled, preset, args.outcomes, not args.blind)
 
 
 if __name__ == "__main__":

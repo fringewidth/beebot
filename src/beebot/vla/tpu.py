@@ -5,6 +5,9 @@ and the closed-loop evaluation stay on the CPU: they are full of data-dependent 
 control flow that XLA would recompile endlessly. Batches are moved to the TPU once per step, and
 each evaluation runs on a CPU copy of the model. On any other device every helper is a no-op, so
 train.py reads the same on CUDA, MPS and CPU.
+
+The xla_* helpers below serve voxel/think_train.py (one process per chip, data-parallel); torch_xla
+is imported only inside them.
 """
 
 import torch
@@ -44,3 +47,144 @@ def cpu_view(policy, build, device):
     copy = build().to("cpu")
     copy.load_state_dict({k: v.detach().to("cpu") for k, v in policy.state_dict().items()})
     return copy
+
+
+# ---- one process per chip (voxel/think_train.py)
+
+
+def xla_setup(index=0):
+    """(rank, world, device) of this process: its TPU chip, its ordinal among the processes. With
+    BEEBOT_XLA_CACHE set, compiled graphs persist under it (one directory per process index and
+    process count), so a later run of the same shapes skips compiling."""
+    import os
+
+    import torch_xla.core.xla_model as xm
+    import torch_xla.runtime as xr
+
+    cache = os.environ.get("BEEBOT_XLA_CACHE")
+    if cache:
+        try:
+            xr.initialize_cache(os.path.join(cache, f"{os.environ.get('BEEBOT_XLA_PROCESSES', '1')}-{index}"), readonly=False)
+        except Exception as error:  # an older torch_xla, or the runtime already started
+            print(f"no persistent XLA cache: {error}", flush=True)
+    # fp32 matmuls at full precision: TPUs default to one bf16 pass, which the linear-attention
+    # inverse (think.unit_lower_inverse) and the delta rule's state products cannot afford
+    try:
+        import torch_xla.backends
+
+        torch_xla.backends.set_mat_mul_precision("highest")
+    except Exception as error:  # torch_xla before 2.6
+        print(f"could not set the XLA matmul precision: {error}", flush=True)
+    # torch's checkpoint and fork_rng look up torch.<device type> for XLA tensors, which torch_xla
+    # 2.9 does not register (AttributeError: module 'torch' has no attribute 'xla'): a stub module.
+    # It has no _initialized, so torch keeps no device RNG state for it (torch_xla's checkpoint
+    # keeps the XLA RNG state itself)
+    if not hasattr(torch, "xla"):
+        import types
+
+        torch._register_device_module("xla", types.ModuleType("torch.xla"))
+    return xr.global_ordinal(), xr.world_size(), xm.xla_device()
+
+
+def xla_launch(fn, args):
+    """fn(index, *args) in one process per TPU chip."""
+    import torch_xla.distributed.xla_multiprocessing as xmp
+
+    xmp.spawn(fn, args=args)
+
+
+def xla_average_gradients(params, world):
+    """Mean gradient over the processes, inside the step's graph (no host sync)."""
+    import torch_xla.core.xla_model as xm
+
+    grads = []
+    for p in params:
+        if p.grad is None:
+            p.grad = torch.zeros_like(p)
+        grads.append(p.grad)
+    xm.all_reduce(xm.REDUCE_SUM, grads, scale=1.0 / world)
+
+
+def xla_agree(flags, device):
+    """Boolean flags true on any process, on every process (one host sync)."""
+    import torch_xla.core.xla_model as xm
+
+    t = torch.tensor([float(f) for f in flags], device=device)
+    t = xm.all_reduce(xm.REDUCE_MAX, t)
+    return [bool(f) for f in t.cpu().tolist()]
+
+
+def xla_barrier(tag):
+    import torch_xla.core.xla_model as xm
+
+    xm.rendezvous(tag)
+
+
+def xla_mark_step():
+    import torch_xla.core.xla_model as xm
+
+    xm.mark_step()
+
+
+def xla_memory_gb(device):
+    """HBM in use (peak when torch_xla reports it) on this chip, in GB."""
+    import torch_xla.core.xla_model as xm
+
+    info = xm.get_memory_info(device)
+    used = info.get("peak_bytes_used", info.get("bytes_used"))
+    if used is None and "kb_total" in info:
+        used = (info["kb_total"] - info["kb_free"]) * 1024
+    return round((used or 0) / 1e9, 2)
+
+
+def xla_report():
+    """Graph compilations so far, their total seconds, and aten ops that fell back to the CPU."""
+    import torch_xla.debug.metrics as met
+
+    data = met.metric_data("CompileTime")
+    fallbacks = met.executed_fallback_ops() if hasattr(met, "executed_fallback_ops") else [n for n in met.counter_names() if n.startswith("aten::")]
+    return {"compiles": data[0] if data else 0, "compile_s": round(data[1] / 1e9, 1) if data else 0.0, "cpu_fallbacks": sorted(fallbacks)}
+
+
+def xla_checkpoint_function():
+    """torch_xla's activation checkpointing (it keeps XLA from merging the recomputation back
+    into the forward pass), reentrant; torch's when torch_xla lacks it or BEEBOT_TORCH_CHECKPOINT is set."""
+    import inspect
+    import os
+
+    from torch.utils.checkpoint import checkpoint
+
+    if not os.environ.get("BEEBOT_TORCH_CHECKPOINT"):  # set: torch's own
+        try:
+            from torch_xla.utils.checkpoint import checkpoint
+        except ImportError:
+            pass
+    if "use_reentrant" in inspect.signature(checkpoint).parameters:
+        return checkpoint
+
+    def reentrant(function, *args, use_reentrant=True, **kwargs):  # a torch_xla without the argument: reentrant only
+        return checkpoint(function, *args, **kwargs)
+
+    return reentrant
+
+
+def checkpoint(function, *args):
+    """function(*args) with its activations recomputed in the backward pass: torch_xla's
+    checkpoint (reentrant; xla_checkpoint_function) on XLA tensors, torch's non-reentrant one
+    elsewhere."""
+    if any(isinstance(a, torch.Tensor) and a.device.type == "xla" for a in args):
+        return xla_checkpoint_function()(function, *args, use_reentrant=True)
+    from torch.utils.checkpoint import checkpoint as torch_checkpoint
+
+    return torch_checkpoint(function, *args, use_reentrant=False)
+
+
+def to_cpu(value):
+    """Tensors (in dicts, lists and tuples, as in an optimizer state) moved to the CPU."""
+    if isinstance(value, torch.Tensor):
+        return value.detach().cpu()
+    if isinstance(value, dict):
+        return {k: to_cpu(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(to_cpu(v) for v in value)
+    return value

@@ -275,18 +275,24 @@ def in_frame(record, turns):
     return {**record, "plain": T.in_user_frame(record.get("plain", ""), turns), "subgoals": [T.in_user_frame(g, turns) for g in record.get("subgoals") or []]}
 
 
+def said_texts(episode, played):
+    """The episode's instructions as the policy was given them: turned into the user's frame, or
+    as written when they are the user's words already (rollout.Episode.as_said)."""
+    return list(episode.texts) if episode.as_said else [T.in_user_frame(text, played.turns) for text in episode.texts]
+
+
 def thought_checks(episode, played):
     """Per instruction j: the check of the first thought given on its first step, against the
     record and the instruction said in the episode's user frame."""
     out = []
-    for j, (text, start, record) in enumerate(zip(episode.texts, episode.starts, episode.records)):
+    for j, (text, start, record) in enumerate(zip(said_texts(episode, played), episode.starts, episode.records)):
         if start >= episode.steps:
             continue
         thought = next((t["text"] for t in played.thoughts if t["part"] == j and t["t"] == start), "")
         # a thought that maps the user's words onto the board (think_data.FRAME_SENTENCE) plans in the
         # board's terms: its record stays in the board's frame
         frame = 0 if T.FRAME_SENTENCE in thought else played.turns
-        out.append({"part": j, "thought": thought, **check_thought(thought, T.in_user_frame(text, played.turns), in_frame(record, frame))})
+        out.append({"part": j, "thought": thought, **check_thought(thought, text, in_frame(record, frame))})
     return out
 
 
@@ -385,7 +391,7 @@ def testset_episodes(directory=TESTSET, per_family=None, families=FAMILIES, seed
     found = {}
     index = 0
     robots = tuple(config["robots"]) if config.get("robots") else None
-    for _, world, metas, tasks, _ in D.draws(10**9, config["seed"], config.get("chunk", 24), robots, config.get("counts", "uniform"), bool(config.get("fit")) or robots is not None, config.get("rule"), bool(config.get("apart")), float(config.get("coverage", 0.0)), float(config.get("objects", 0.0)), float(config.get("build", 0.0)), config.get("only"), keep=bool(config.get("keep"))):
+    for _, world, metas, tasks, _ in D.draws(10**9, config["seed"], config.get("chunk", 24), robots, config.get("counts", "uniform"), bool(config.get("fit")) or robots is not None, config.get("rule"), bool(config.get("apart")), float(config.get("coverage", 0.0)), float(config.get("objects", 0.0)), float(config.get("build", 0.0)), config.get("only"), keep=bool(config.get("keep")), empty=bool(config.get("empty")), scaled=bool(config.get("scaled"))):
         for i, task in enumerate(tasks):
             if index in wanted:
                 found[index] = (world.index(i), metas[i], task)
@@ -465,7 +471,7 @@ def episode_row(arm, episode, played, seconds, thinking):
         "user": played.user,
         "turns": played.turns,
         "camera": played.camera,
-        "said": [T.in_user_frame(text, played.turns) for text in episode.texts],
+        "said": said_texts(episode, played),
         "seconds": round(seconds, 3),
     }
     if thinking:

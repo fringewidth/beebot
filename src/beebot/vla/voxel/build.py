@@ -161,24 +161,30 @@ def make_build(rng, split_held, name=None, use=None, demonstrate=False):
     return dict(NEEDS), make
 
 
-def sample_build(rng, n, split="train", robots=None, counts="uniform", check=True, name=None, use=None, demonstrate=False, keep=False):
+def sample_build(rng, n, split="train", robots=None, counts="uniform", check=True, name=None, use=None, demonstrate=False, keep=False, empty=False):
     """(world, metas, tasks) of n scenes with one build task each, as suite.sample_coverage draws
     its families: split "train", "test", "wording" or "objects" (held-out names); robots (low,
     high) draws each scene's robot count (counts: "uniform" or "log"), None the world's density
     range. A count no object fits is drawn again. check: also the suite's bound (score_bound).
     keep: as suite.sample_tasks' keep (the task and its count are kept for up to
-    suite.KEEP_TRIES scenes); keep=False draws exactly as before."""
+    suite.KEEP_TRIES scenes); keep=False draws exactly as before. empty: every scene an empty
+    flat floor (suite.scenes empty), and with keep a task no scene fits is given up, so fewer
+    than n come back (suite.sample_tasks)."""
     split_held = split if split in ("objects", "wording") else ""
     worlds, metas, out = [], [], []
-    kept, tries = None, 0
-    while len(out) < n:
+    kept, tries, given_up = None, 0, 0
+    while len(out) + given_up < n:
+        if empty and keep and kept is not None and tries >= S.KEEP_TRIES:
+            given_up += 1
+            kept = None
+            continue
         if not keep or kept is None or tries >= S.KEEP_TRIES:
             needs, make = make_build(rng, split_held, name, use, demonstrate)
             count = None if robots is None else S.draw_count(rng, robots[0], robots[1], counts)
             kept, tries = (needs, make, count), 0
         needs, make, count = kept
         needs, tries = dict(needs), tries + 1
-        world, meta = S.scenes(rng, 1, robots=count, **needs)
+        world, meta = S.scenes(rng, 1, robots=count, empty=empty, **needs)
         task = make(world, meta[0], 0)
         if task is None or (check and S.score_bound(task, world, 0) < S.PASS_MARK):
             continue
@@ -186,6 +192,8 @@ def sample_build(rng, n, split="train", robots=None, counts="uniform", check=Tru
         worlds.append(world)
         metas.append(meta[0])
         out.append(task)
+    if not out:
+        return None, [], []
     return VoxelWorld(*(torch.cat([getattr(w, f) for w in worlds]) for f in FIELDS)), metas, out
 
 

@@ -1,0 +1,121 @@
+46 episodes: formation:mask 2, construction:tower 2, parallel:region+region 2, parallel:region+tower 2, motion:stay 2, motion:goto 2, motion:gather 2, motion:spread 2, motion:groups 2, motion:line 2, motion:move 2, subset:goto 2, subset:gather 0, subset:spread 2, subset:groups 2, subset:line 2, subset:move 2, switch:then stay 2, switch:then goto 2, switch:then gather 2, switch:then spread 2, zones:goto_zone 2, zones:line_zone 2, build 2
+formation:mask           0 robots 11  grid True  ideal True  mujoco False (0.21)  moves 292 harmful 8  sim   31.0 s  wall   82.0 s
+formation:mask           1 robots 11  grid True  ideal True  mujoco False (0.20)  moves 413 harmful 8  sim   30.3 s  wall   82.7 s
+construction:tower       0 robots 12  grid True  ideal True  mujoco False (0.33)  moves 635 harmful 20  sim   31.5 s  wall   87.1 s
+construction:tower       1 robots 10  grid True  ideal True  mujoco False (0.33)  moves 572 harmful 11  sim   30.0 s  wall   80.9 s
+parallel:region+region   0 robots 11  grid True  ideal False mujoco True  (1.00)  moves 469 harmful 12  sim   37.4 s  wall  112.6 s
+parallel:region+region   1 robots 11  grid True  ideal True  mujoco True  (1.00)  moves 421 harmful 9  sim   18.2 s  wall   47.6 s
+parallel:region+tower    0 robots 12  grid True  ideal True  mujoco True  (0.83)  moves 534 harmful 11  sim   22.5 s  wall   64.9 s
+parallel:region+tower    1 robots 11  grid True  ideal False mujoco True  (0.75)  moves 245 harmful 2  sim   18.5 s  wall   63.8 s
+motion:stay              0 robots 12  grid True  ideal True  mujoco True  (1.00)  moves   0 harmful 0  sim    0.0 s  wall    3.5 s
+motion:stay              1 robots 10  grid True  ideal True  mujoco True  (1.00)  moves   0 harmful 0  sim    0.0 s  wall    2.9 s
+motion:goto              0 robots 11  grid True  ideal True  mujoco False (0.27)  moves 520 harmful 9  sim   26.2 s  wall   86.5 s
+motion:goto              1 robots 12  grid True  ideal True  mujoco True  (0.75)  moves 627 harmful 15  sim   52.2 s  wall  172.1 s
+motion:gather            0 robots 10  grid True  ideal True  mujoco False (0.30)  moves 408 harmful 12  sim   26.2 s  wall   88.0 s
+motion:gather            1 robots 12  grid True  ideal True  mujoco False (0.58)  moves 560 harmful 21  sim   58.2 s  wall  226.5 s
+motion:spread            0 robots 11  grid True  ideal True  mujoco False (0.55)  moves 205 harmful 5  sim   16.5 s  wall   53.9 s
+motion:spread            1 robots 11  grid True  ideal True  mujoco False (0.64)  moves 279 harmful 4  sim   51.8 s  wall  159.4 s
+motion:groups            0 robots 12  grid True  ideal True  mujoco True  (1.00)  moves 388 harmful 15  sim   39.2 s  wall  150.8 s
+motion:groups            1 robots 12  grid True  ideal True  mujoco False (0.73)  moves 473 harmful 10  sim    7.4 s  wall   32.0 s
+motion:line              0 robots 10  grid True  ideal True  mujoco False (0.10)  moves 294 harmful 6  sim   29.3 s  wall   94.4 s
+motion:line              1 robots 11  grid True  ideal True  mujoco False (0.09)  moves 422 harmful 6  sim   24.6 s  wall   72.7 s
+motion:move              0 robots 11  grid False ideal False mujoco False (0.42)  moves 359 harmful 8  sim   39.1 s  wall  125.2 s
+motion:move              1 robots 12  grid True  ideal True  mujoco False (0.08)  moves 507 harmful 9  sim   17.7 s  wall   75.9 s
+subset:goto              0 robots 11  grid True  ideal True  mujoco True  (1.00)  moves 183 harmful 3  sim    5.3 s  wall   17.2 s
+subset:goto              1 robots 10  grid True  ideal True  mujoco False (0.00)  moves 213 harmful 2  sim   10.6 s  wall   53.9 s
+subset:spread            0 robots 12  grid True  ideal True  mujoco False (0.00)  moves 274 harmful 0  sim  109.5 s  wall  482.4 s
+subset:spread            1 robots 11  grid True  ideal True  mujoco False (0.00)  moves 213 harmful 0  sim   67.2 s  wall  299.4 s
+subset:groups            0 robots 11  grid True  ideal True  mujoco False (0.00)  moves 189 harmful 3  sim   48.0 s  wall  248.9 s
+subset:groups            1 robots 11  grid True  ideal True  mujoco False (0.00)  moves 247 harmful 3  sim   39.6 s  wall  222.5 s
+subset:line              0 robots 10  grid True  ideal True  mujoco False (0.12)  moves 352 harmful 5  sim   27.2 s  wall   57.0 s
+subset:line              1 robots 12  grid True  ideal True  mujoco False (0.14)  moves 226 harmful 2  sim   29.2 s  wall   56.3 s
+subset:move              0 robots 10  grid True  ideal True  mujoco False (0.00)  moves 145 harmful 5  sim   18.1 s  wall   43.2 s
+subset:move              1 robots 12  grid True  ideal True  mujoco False (0.00)  moves 328 harmful 5  sim   29.6 s  wall   76.9 s
+switch:then stay         0 robots 12  grid True  ideal True  mujoco True  (1.00)  moves 144 harmful 4  sim   12.1 s  wall   19.0 s
+switch:then stay         1 robots 11  grid True  ideal True  mujoco True  (1.00)  moves  90 harmful 6  sim    5.3 s  wall    9.3 s
+switch:then goto         0 robots 10  grid True  ideal True  mujoco False (0.00)  moves 567 harmful 10  sim   25.9 s  wall   38.9 s
+switch:then goto         1 robots 10  grid True  ideal True  mujoco False (0.10)  moves 576 harmful 16  sim   31.0 s  wall   39.2 s
+switch:then gather       0 robots 11  grid True  ideal True  mujoco False (0.55)  moves 575 harmful 13  sim   49.1 s  wall  135.2 s
+switch:then gather       1 robots 10  grid True  ideal True  mujoco False (0.50)  moves 540 harmful 14  sim   23.9 s  wall   67.2 s
+switch:then spread       0 robots 11  grid True  ideal True  mujoco False (0.64)  moves 228 harmful 5  sim    5.5 s  wall   27.7 s
+switch:then spread       1 robots 12  grid True  ideal True  mujoco False (0.33)  moves 421 harmful 5  sim   36.0 s  wall  104.3 s
+zones:goto_zone          0 robots 12  grid True  ideal True  mujoco False (0.67)  moves 512 harmful 12  sim   39.6 s  wall  122.6 s
+zones:goto_zone          1 robots 10  grid True  ideal True  mujoco True  (0.80)  moves 350 harmful 10  sim   13.7 s  wall   40.1 s
+zones:line_zone          0 robots 11  grid True  ideal True  mujoco False (0.38)  moves 350 harmful 6  sim   24.9 s  wall   64.7 s
+zones:line_zone          1 robots 12  grid True  ideal True  mujoco False (0.33)  moves 334 harmful 6  sim   41.9 s  wall  114.0 s
+build                    0 robots 10  grid True  ideal True  mujoco False (0.33)  moves 675 harmful 9  sim  100.7 s  wall  205.8 s
+build                    1 robots 12  grid True  ideal True  mujoco False (0.50)  moves 1054 harmful 17  sim   60.9 s  wall  199.8 s
+| kind | n | grid, failures | grid, no failures | MuJoCo | MuJoCo, stop at pass | MuJoCo score | damaged after passing (grid / MuJoCo) | off the lattice (episodes) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| formation:mask | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.20 | 0 / 0 | 2 |
+| construction:tower | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.33 | 0 / 0 | 2 |
+| parallel:region+region | 2 | 1.00 | 0.50 | 1.00 | 1.00 | 1.00 | 1 / 0 | 2 |
+| parallel:region+tower | 2 | 1.00 | 0.50 | 1.00 | 1.00 | 0.79 | 1 / 0 | 2 |
+| motion:stay | 2 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0 / 0 | 0 |
+| motion:goto | 2 | 1.00 | 1.00 | 0.50 | 0.50 | 0.51 | 0 / 0 | 2 |
+| motion:gather | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.44 | 0 / 0 | 2 |
+| motion:spread | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.59 | 0 / 0 | 2 |
+| motion:groups | 2 | 1.00 | 1.00 | 0.50 | 1.00 | 0.86 | 0 / 1 | 2 |
+| motion:line | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.10 | 0 / 0 | 2 |
+| motion:move | 2 | 0.50 | 0.50 | 0.00 | 0.00 | 0.25 | 0 / 0 | 2 |
+| subset:goto | 2 | 1.00 | 1.00 | 0.50 | 0.50 | 0.50 | 0 / 0 | 2 |
+| subset:spread | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0 / 0 | 0 |
+| subset:groups | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0 / 0 | 2 |
+| subset:line | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.13 | 0 / 0 | 2 |
+| subset:move | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.00 | 0 / 0 | 2 |
+| switch:then stay | 2 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0 / 0 | 2 |
+| switch:then goto | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.05 | 0 / 0 | 2 |
+| switch:then gather | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.52 | 0 / 0 | 2 |
+| switch:then spread | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.48 | 0 / 0 | 2 |
+| zones:goto_zone | 2 | 1.00 | 1.00 | 0.50 | 0.50 | 0.73 | 0 / 0 | 2 |
+| zones:line_zone | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.35 | 0 / 0 | 2 |
+| build | 2 | 1.00 | 1.00 | 0.00 | 0.00 | 0.42 | 0 / 0 | 2 |
+| all | 46 | 0.98 | 0.93 | 0.26 | 0.28 | 0.45 | 2 / 1 | 42 |
+
+| primitive | hindrance | moves | reached | stayed | off | strayed | knock | refused | blocked | cube off | displaced |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| (not attempted) |  | 10361 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 10260 | 101 |
+| concave_up | bonded | 17 | 0 | 16 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| concave_up | hinged | 2 | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
+| convex_down | bonded | 3 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| convex_down | free | 26 | 13 | 0 | 6 | 0 | 7 | 0 | 0 | 0 | 0 |
+| convex_down | hinged | 28 | 22 | 4 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
+| convex_down | rubs | 5 | 0 | 0 | 4 | 1 | 0 | 0 | 0 | 0 | 0 |
+| convex_up | bonded | 242 | 0 | 221 | 10 | 2 | 9 | 0 | 0 | 0 | 0 |
+| convex_up | free | 73 | 24 | 2 | 15 | 3 | 29 | 0 | 0 | 0 | 0 |
+| convex_up | hinged | 51 | 22 | 11 | 10 | 0 | 8 | 0 | 0 | 0 | 0 |
+| convex_up | rubs | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| floor_peel | bonded | 3057 | 15 | 2997 | 34 | 0 | 11 | 0 | 0 | 0 | 0 |
+| floor_roll | free | 1327 | 1305 | 1 | 21 | 0 | 0 | 0 | 0 | 0 | 0 |
+| floor_roll | hinged | 2190 | 44 | 1962 | 164 | 0 | 20 | 0 | 0 | 0 | 0 |
+| traverse | hinged | 22 | 2 | 17 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| wall_crawl | bonded | 4 | 0 | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| all |  | 17409 | 1447 | 5239 | 270 | 7 | 85 | 0 | 0 | 10260 | 101 |
+
+| kind | moves | reached | stayed | harmful | not attempted | harmful per episode |
+| --- | --- | --- | --- | --- | --- | --- |
+| formation:mask | 705 | 91 | 296 | 16 | 302 | 8.00 |
+| construction:tower | 1207 | 70 | 239 | 31 | 867 | 15.50 |
+| parallel:region+region | 890 | 114 | 189 | 21 | 566 | 10.50 |
+| parallel:region+tower | 779 | 102 | 147 | 13 | 517 | 6.50 |
+| motion:stay | 0 | 0 | 0 | 0 | 0 | 0.00 |
+| motion:goto | 1147 | 96 | 286 | 24 | 741 | 12.00 |
+| motion:gather | 968 | 87 | 408 | 33 | 440 | 16.50 |
+| motion:spread | 484 | 7 | 233 | 9 | 235 | 4.50 |
+| motion:groups | 861 | 73 | 235 | 25 | 528 | 12.50 |
+| motion:line | 716 | 73 | 215 | 12 | 416 | 6.00 |
+| motion:move | 866 | 77 | 157 | 17 | 615 | 8.50 |
+| subset:goto | 396 | 44 | 32 | 5 | 315 | 2.50 |
+| subset:spread | 487 | 0 | 487 | 0 | 0 | 0.00 |
+| subset:groups | 436 | 4 | 297 | 6 | 129 | 3.00 |
+| subset:line | 578 | 23 | 201 | 7 | 347 | 3.50 |
+| subset:move | 473 | 1 | 133 | 10 | 329 | 5.00 |
+| switch:then stay | 234 | 77 | 81 | 10 | 66 | 5.00 |
+| switch:then goto | 1143 | 89 | 196 | 26 | 832 | 13.00 |
+| switch:then gather | 1115 | 88 | 282 | 27 | 718 | 13.50 |
+| switch:then spread | 649 | 3 | 132 | 10 | 504 | 5.00 |
+| zones:goto_zone | 862 | 140 | 239 | 22 | 461 | 11.00 |
+| zones:line_zone | 684 | 100 | 222 | 12 | 350 | 6.00 |
+| build | 1729 | 88 | 532 | 26 | 1083 | 13.00 |
+
+time: 0.46 s simulated and 1.44 s wall per step with movers (3193 steps, 1.41 waves each); per episode 31.8 s simulated (median 29.2), 100.3 s MuJoCo wall, 102.4 s wall with the expert
