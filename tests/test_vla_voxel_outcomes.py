@@ -252,3 +252,25 @@ def test_a_measured_knock_fits_and_replays_as_a_knock_in_any_direction():
     for r in (row, turned):
         assert C.grid_outcomes([r], model, runs=4)[0, C.LATTICE.index("knock")] == 1.0
     assert C.grid_outcomes([row], failure=torch.zeros(27), runs=4)[0, C.LATTICE.index("reached")] == 1.0
+
+
+def test_a_kick_plan_gives_a_class_its_rpms():
+    from beebot.hardware import cube_outcomes as C
+    from beebot.hardware.cube_swarm import RPM
+
+    g = {"primitive": "convex_up", "bonds": 1, "hinges": 1, "rubs": 0, "lone": 0}
+    assert C.kick({}, g) == [RPM["convex_up"]]
+    assert C.kick({"kicks": {"convex_up": [0.8, 1.0]}}, g) == [0.8 * RPM["convex_up"], RPM["convex_up"]]
+    assert C.kick({"kicks": {"convex_up/bonded/hinged": 0.9, "convex_up": [0.8, 1.0]}}, g) == [0.9 * RPM["convex_up"]]  # the class before the primitive
+    assert C.kick({"escalate": [0.7, 0.9], "speed": {"convex_up": 0.5}}, g) == [0.35 * RPM["convex_up"], 0.45 * RPM["convex_up"]]
+
+
+def test_escalated_rows_give_every_prefix_of_their_schedule():
+    from beebot.hardware import cube_outcomes as C
+
+    row = {"cells": [[0, 5, 5]], "after": [[0, 5, 6]], "off_after": [], "cube": 0, "start": [0, 5, 5], "target": [0, 5, 6], "h": [0, 0, 1], "s": [-1, 0, 0], "key": "floor_roll", "detail": "reached", "movers": 1, "escalate": [0.7, 0.9, 1.1], "attempts": 2, "seed": 0, "direction": [0, 0, 1]}
+    assert C.plan_outcomes(row) == [((0.7,), "stayed"), ((0.7, 0.9), "reached"), ((0.7, 0.9, 1.1), "reached")]
+    single = {**row, "escalate": None, "rpm_factor": 1.2}
+    assert C.plan_outcomes(single) == [((1.2,), "reached")]
+    table, _ = C.kick_table([row], weight=5.0)
+    assert table["floor_roll"] == [0.7, 0.9]  # as good as the longer plan and shorter
