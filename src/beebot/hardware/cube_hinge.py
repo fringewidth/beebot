@@ -26,7 +26,9 @@ modelled; what is modelled is what any such mechanism has to live with:
    its magnets come back on, then the latch opens.
 1. Stall. If the mover has not arrived `stall` s after the reference ends (held by friction from
    squeezed neighbours, or by too little torque), the controller drives it back to 0 degrees, then
-   releases: a harmless failure by construction, as long as the way back is free.
+   releases: a harmless failure by construction, as long as the way back is free. A stall within
+   `near` degrees of the goal (typically the mover's far edge against a cube that sits a little
+   into the target cell) counts as arrived: the magnets come on and pull it home.
 
 What is judged is cube_swarm's (Swarm.moves): reached, stayed, off, strayed, knock. The flywheel
 of cube_swarm is still in the model (its mass) and stays braked.
@@ -55,9 +57,11 @@ class Drive:
     catch: float = 0.06  # L: the latch engages when the mover's edge is this close to the support's
     tolerance: float = 3.0  # degrees: arrived
     stall: float = 0.5  # s past the reference's end before the controller turns back
+    near: float = 10.0  # degrees: a stall this close to the goal counts as arrived (the magnets pull it home)
     hold: float = 0.1  # s: magnets on, then latch off after this long, then SETTLE
     floor_latch: bool = True  # the floor has latch features at the cell edges (a special floor)
     stiffness: float = 0.005  # s: the latch constraint's time constant (MuJoCo solref)
+    face_friction: float = None  # friction of the cubes' faces (slippery skins); the floor keeps the scene's. MuJoCo takes the larger of two
 
 
 def smooth(u):
@@ -154,6 +158,10 @@ class Hinge:
             self.arrived = self.clock
             self.outcome = "arrived" if self.phase == "go" else "returned"
             self.phase = "hold"
+        elif self.phase == "go" and self.clock > duration + drive.stall and abs(angle - self.end) < math.radians(drive.near):
+            self.arrived = self.clock  # stopped short against a cube at the target: magnets on, they close the gap
+            self.outcome = "near"
+            self.phase = "hold"
         elif self.phase == "go" and self.clock > duration + drive.stall:
             self.phase, self.start, self.end, self.clock = "back", angle, 0.0, 0.0
             self.outcome = "stalled"
@@ -194,6 +202,8 @@ class HingeSwarm(Swarm):
 
     def scene_xml(self, centres):
         xml = super().scene_xml(centres)
+        if self.drive.face_friction is not None:  # cube on cube slides at face_friction, cube on floor grips at the scene's
+            xml = xml.replace('type="box"', f'type="box" friction="{self.drive.face_friction} 0.005 0.0001"').replace('type="plane"', f'type="plane" friction="{self.friction} 0.005 0.0001"')
         solref = f"{self.drive.stiffness} 1"
         latches = "".join(f'<connect name="latch{i}{end}" body1="c{i}" anchor="0 0 0" active="false" solref="{solref}"/>' for i in range(self.n) for end in "ab")
         return xml.replace("</mujoco>", f"<equality>{latches}</equality>\n</mujoco>")
