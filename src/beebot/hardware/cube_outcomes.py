@@ -555,6 +555,19 @@ def fit(rows, name, magnets):
     return {"name": name, "magnets": magnets, "rows": sum(sum(e["lattice"].values()) for e in classes.values()), "classes": dict(sorted(classes.items()))}
 
 
+def legal(row, rule=RULE):
+    """Whether the grid's rule allows a single-mover row's move in its scene (world.rule_table,
+    which forbids a move that leaves a cube held up only by the mover: world.overhangs). The walks
+    of cube_swarm drew some moves the rule now forbids; a table fit on them (fit --legal) leaves
+    them out, since the grid never makes them."""
+    from beebot.vla.voxel.world import DIRS, rule_table
+
+    world = grid_world(row["cells"])
+    start = tuple(row["start"])
+    code = DIRS.index(tuple(a - b for a, b in zip(row["target"], start)))
+    return bool(rule_table(world, rule)[0, code, start[0], start[1], start[2]])
+
+
 def grid_outcomes(rows, model=None, failure=None, runs=32, seed=0):
     """The grid's lattice outcomes of the moves of single-mover rows, each played `runs` times in
     its cropped scene under rule switch_cube: with an OutcomeModel, or with failure rates
@@ -1144,6 +1157,7 @@ def main():
     f.add_argument("--magnets", default="release", choices=MAGNETS)
     f.add_argument("--setting", default="old", help="fit the rows of this cube setting (setting_of)")
     f.add_argument("--sets", nargs="+", default=["isolated", "layouts", "stores"], help="the sets of moves fit on")
+    f.add_argument("--legal", action="store_true", help="only moves the grid's rule allows in their scene (legal: no cube left held up only by the mover)")
     f.add_argument("--out", required=True)
     k = sub.add_parser("compare", help="harm and reached per cube setting, store-weighted and ten-cube")
     k.add_argument("paths", nargs="+")
@@ -1183,7 +1197,13 @@ def main():
     if args.command == "fit":
         rows = [json.loads(line) for p in args.paths for line in open(p)]
         rows = [x for x in rows if x["magnets"] == args.magnets and setting_of(x) == args.setting and x["set"] in args.sets]
+        dropped = 0
+        if args.legal:
+            kept = [x for x in rows if x["detail"] == "refused" or x.get("movers", 1) != 1 or legal(x)]
+            dropped, rows = len(rows) - len(kept), kept
         table = fit(rows, args.name, args.magnets)
+        if args.legal:
+            table["legal"] = {"dropped": dropped}
         table["sources"] = [str(p) for p in args.paths]
         table["setting"] = args.setting
         for entry in table["classes"].values():

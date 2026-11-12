@@ -273,6 +273,11 @@ For a cube at c, on the scene as the step begins:
 1. **One at a time.** A cube does not pivot on a cube that is itself pivoting in the same step
    (its support, or the cube it comes to rest against).
 1. **Presses.** A move into a cheese is a press, not a pivot, and is not restricted.
+1. **No overhangs.** With gravity on, a move is refused when, with the mover in its new cell,
+   fewer cubes are connected by faces to the floor, terrain or a cheese than before
+   (`world.overhangs`, in `rule_table` for both named rules): a cube held up only by the mover
+   drops when it leaves (MuJoCo, HARDWARE.md "Adopting the hinge cube"). Under `free_cube` a cube
+   on the mover's face already holds it, so there it only matters for a support hanging on it.
 1. **Consequence.** Every pivot ends face to face with its support or the surface it continues
    on. A cube that has touched a group can only crawl over it; a group never splits; a group in
    which every cube has two face neighbours inside it (a 2 x 2 patch) never moves again. Only a
@@ -435,10 +440,13 @@ an edge, not the pivot edge), rubs (a solid cell beside where it passes in, alon
 and lone (what it leans on is a cube, or a stack of two, that touches nothing else by a face).
 `world.pivot_class` packs them into one of 128 classes.
 
-**Tables.** `mujoco_release` (as built), `mujoco_release_v2` (climbs at 0.85 of `RPM`) and
-`mujoco_release_v3` (magnets x 1.4 with per-primitive kick plans and escalating retries, fit on
-store and ten-cube moves; the demo's: `demos.DEMO_MOVES`), HARDWARE.md "Cutting harm" and "Kick
-plans and retries". A retried move is one grid step whose outcome is its last attempt's.
+**Tables.** The flywheel cube's: `mujoco_release` (as built), `mujoco_release_v2` (climbs at 0.85
+of `RPM`) and `mujoco_release_v3` (magnets x 1.4 with per-primitive kick plans and escalating
+retries, fit on store and ten-cube moves), HARDWARE.md "Cutting harm" and "Kick plans and
+retries"; a retried move is one grid step whose outcome is its last attempt's. The hinge cube's
+(the demo's, `demos.DEMO_MOVES`): `mujoco_hinge_v1` (`cube_hinge.HingeSwarm`, Drive torque 0.3 N m,
+fit on its store and ten-cube moves less the ones the rule refuses, `fit --legal`), HARDWARE.md
+"Adopting the hinge cube".
 
 **Outcomes.** Per class the table (`outcomes/mujoco_release.json`, written by
 `hardware/cube_outcomes.py fit`) holds how often the move reached and stayed in MuJoCo, and every
@@ -1314,7 +1322,7 @@ demonstrations for exactly this case.
 | `--scaled` | on | task sizes fitted to the swarm (below) |
 | `--keep`, `--fit` | on | keep each drawn task and draw new scenes for it; draw only tasks the swarm can do |
 | `--rule`, `--moves`, `--expert`, `--steps` | `switch_cube`, cube, attractor, 72 | the training set-up |
-| `--outcomes` | `mujoco_release_v3` | world.py's MuJoCo-measured outcome model of the demo's cube setting (magnets x 1.4, the m14-sel kick plans with retries: HARDWARE.md, "Kick plans and retries") in place of the training stores' failure rates (`demos.DEMO_MOVES`); the older tables stay loadable by name |
+| `--outcomes` | `mujoco_hinge_v1` | world.py's MuJoCo-measured outcome model of the demo's cube, the hinge cube (latched-edge servo pivot: HARDWARE.md, "Adopting the hinge cube") in place of the training stores' failure rates (`demos.DEMO_MOVES`); the flywheel cube's tables (`mujoco_release_v3` and before) stay loadable by name |
 | `--coverage`, `--objects`, `--build` | 1.0 each | one try a scene from every sampler, as from the suite's own |
 
 Each value is a default that a given option overrides (`--demo --build 0`). `small.pt` records

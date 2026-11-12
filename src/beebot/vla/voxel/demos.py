@@ -51,7 +51,7 @@ the swarm (draws).
 
 The grant demo's case (--demo, PRESETS): about ten cubes on MuJoCo's empty floor, 8 to 12 robots,
 --empty --scaled --keep --fit, rule switch_cube, world.py's measured outcome model of the demo's
-cube setting (--outcomes mujoco_release_v3, DEMO_MOVES), and one try a scene from every sampler (README "Demo: ten cubes
+cube (--outcomes mujoco_hinge_v1, the hinge cube, DEMO_MOVES), and one try a scene from every sampler (README "Demo: ten cubes
 on an empty floor").
 
     OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_demo --scenes 6000 --demo --compact
@@ -112,8 +112,9 @@ OBJECT_FIELDS = ("form", "colour2", "pattern", "friction", "food", "zones")  # p
 MOVES = {"all": None, "cube": CUBE_MOVES}
 EXPERTS = ("attractor", "planner")  # suite.Expert; free_cube.FreeCubeExpert (needs a rule)
 # How the demo's moves fail: the outcome model world.py measured in MuJoCo (--outcomes) for the cube
-# setting the demo runs (HARDWARE.md, "Kick plans and retries"); older tables stay loadable by name.
-DEMO_MOVES = {"outcomes": "mujoco_release_v3"}
+# the demo runs, the hinge cube (HARDWARE.md, "Redesign options"); older tables (the flywheel cube's
+# mujoco_release_v3 and before) stay loadable by name.
+DEMO_MOVES = {"outcomes": "mujoco_hinge_v1"}
 PRESETS = {  # CLI presets: option defaults that given options override; small.pt records the name under config["preset"]
     "demo": {  # the grant demo: about ten pivoting cubes on MuJoCo's empty flat floor (README "Demo: ten cubes on an empty floor")
         "robots": (8, 12),
@@ -438,7 +439,7 @@ def main():
     parser.add_argument("--moves", choices=sorted(MOVES), default=None)
     parser.add_argument("--robots", type=int, nargs=2, default=None, metavar=("LOW", "HIGH"))
     parser.add_argument("--failure", default=None, help="move failure probability, optionally per class: 0.15,up_over=0.3")
-    parser.add_argument("--outcomes", choices=OUTCOME_MODELS, default=None, help="move outcomes measured in MuJoCo per pivot class, in place of --failure (needs --rule); mujoco_release_v3 is the demo's cube setting (DEMO_MOVES)")
+    parser.add_argument("--outcomes", choices=OUTCOME_MODELS, default=None, help="move outcomes measured in MuJoCo per pivot class, in place of --failure (needs --rule); mujoco_hinge_v1 is the demo's cube, the hinge cube (DEMO_MOVES)")
     parser.add_argument("--blind", action="store_true", help="with --outcomes: the experts plan as if every move lands, instead of weighing their moves by the model (write risk)")
     parser.add_argument("--compact", action="store_true", help="store mass and actions by robot (play_store's compact format) instead of dense grids")
     parser.add_argument("--counts", choices=S.COUNTS, default="uniform", help="how the robot count is drawn over --robots; log makes small swarms as common as large ones")

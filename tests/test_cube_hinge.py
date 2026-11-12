@@ -40,3 +40,12 @@ def test_a_cube_climbs_onto_a_support_that_has_turned():
     climb = swarm.move(1, (1, 0, -1))
     assert swarm.hinges[0].latched and swarm.hinges[0].miss < 0.05
     assert (climb.detail, climb.cell) == ("reached", (1, 0, 2))
+
+
+def test_the_closed_loop_builds_hinge_cubes_from_a_drive_option():
+    from beebot.hardware.closed_loop import make_swarm
+    from beebot.hardware.cube_swarm import Swarm
+
+    swarm = make_swarm([(0, 0, 1)], 0, {"drive": {"torque": 0.2}, "jitter": NOMINAL})
+    assert isinstance(swarm, HingeSwarm) and swarm.drive == Drive(torque=0.2)
+    assert type(make_swarm([(0, 0, 1)], 0, {})) is Swarm

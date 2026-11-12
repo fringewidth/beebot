@@ -37,7 +37,8 @@ MuJoCo hosts a flat steel floor and cubes, nothing else: no terrain, no cheese o
 
 Swarm options (`swarm`, a dict passed to cube_swarm.Swarm) select the cube model, e.g. a
 release-bonds magnet mode once cube_swarm has one; without options the cubes have permanent
-magnets, under which a cube with a second face neighbour never moves (HARDWARE.md).
+magnets, under which a cube with a second face neighbour never moves (HARDWARE.md). The option
+"drive" (`--drive`, cube_hinge.Drive fields) selects the hinge cube, the demo's (make_swarm).
 
     from beebot.hardware.closed_loop import hostable_episodes, play_mujoco, render
     from beebot.vla.voxel.rollout import ExpertActor, PolicyActor
@@ -47,6 +48,7 @@ magnets, under which a cube with a second face neighbour never moves (HARDWARE.m
 
     python -m beebot.hardware.closed_loop measure --per-kind 3 --workers 4 --out runs/closed_loop/sequential.jsonl
     python -m beebot.hardware.closed_loop episode --kind build --video runs/closed_loop/build.mp4
+    python -m beebot.hardware.closed_loop episode --kind motion:goto --drive '{"torque": 0.3}' --video runs/closed_loop/goto-hinge.mp4
     python -m beebot.hardware.closed_loop episode --kind motion:goto --checkpoint runs/X/policy.pt --device mps
     python -m beebot.hardware.closed_loop report runs/closed_loop/sequential.jsonl
 """
@@ -175,6 +177,20 @@ def judge(swarm, before, orders, targets):
     return out
 
 
+def make_swarm(cells, seed, options):
+    """The cubes of one episode: cube_swarm.Swarm with these options, or with options["drive"]
+    (cube_hinge.Drive fields, {} for the defaults) the hinge cube, cube_hinge.HingeSwarm: each
+    mover latches its pivot edge to its support and a torque-limited servo turns it (HARDWARE.md,
+    "Redesign options"; switchable magnets always)."""
+    options = dict(options)
+    drive = options.pop("drive", None)
+    if drive is None:
+        return Swarm(cells, seed=seed, **options)
+    from beebot.hardware.cube_hinge import Drive, HingeSwarm
+
+    return HingeSwarm(cells, drive=Drive(**drive), seed=seed, **options)
+
+
 def move_together(swarm, orders, watch=None):
     """Swarm.move for several cubes at once: each move is planned on the scene as it is now (the
     other movers count as standing still), every mover's flywheel is spun up and braked at the
@@ -184,6 +200,8 @@ def move_together(swarm, orders, watch=None):
     classified by judge(). Returns a Move per order; sim and wall seconds are those of the call."""
     if len(orders) == 1:
         return [swarm.move(*orders[0], watch=watch)]
+    if hasattr(swarm, "drive"):  # the hinge cube drives its movers together itself (HingeSwarm.moves)
+        return swarm.moves(orders, watch=watch)
     clock = time.perf_counter()
     began = swarm.data.time
     before = pose(swarm)
@@ -358,7 +376,7 @@ class Executor(Tracked):
                 raise ValueError(f"MuJoCo cannot host episode {e.key}: terrain or objects")
         self.mode, self.rule, self.snap, self.record = mode, rule, snap, record
         options = dict(swarm or {})
-        self.swarms = [Swarm(cells_of(e.world), seed=int(e.seed), **options) for e in episodes]
+        self.swarms = [make_swarm(cells_of(e.world), int(e.seed), options) for e in episodes]
         self.moves = [[] for _ in episodes]
         self.steps = [[] for _ in episodes]
         self.frames = [[] for _ in episodes]
@@ -986,6 +1004,7 @@ def main():
     parser.add_argument("--robots", type=int, nargs=2, default=list(ROBOTS))
     parser.add_argument("--mode", choices=MODES, default="sequential")
     parser.add_argument("--swarm", nargs="*", help="cube_swarm.Swarm options, key=value")
+    parser.add_argument("--drive", default=None, help='the hinge cube (cube_hinge.HingeSwarm) with these Drive fields as JSON ({} for the defaults; the demo\'s: {"torque": 0.3}) instead of the flywheel cube')
     parser.add_argument("--stop", action="store_true", help="a scene that passes its checker makes no more moves")
     parser.add_argument("--snap", action="store_true", help="put cubes off the lattice back on the nearest free cell")
     parser.add_argument("--steps", type=int, help="a cap on the episode's steps (72, 144 for build, otherwise)")
@@ -999,6 +1018,9 @@ def main():
     parser.add_argument("--device", default="mps")
     parser.add_argument("--dtype", default="bf16", choices=["fp32", "bf16", "fp16"])
     args = parser.parse_args()
+    swarm = swarm_options(args.swarm)
+    if args.drive is not None:
+        swarm["drive"] = json.loads(args.drive)
     if args.command == "report":
         rows, moves = [], []
         for path in args.paths:
@@ -1009,7 +1031,7 @@ def main():
     elif args.command == "render":
         print(f"{render(args.paths[0], args.video, args.slow)} s of video")
     elif args.command == "measure":
-        rows, moves = measure(args.kinds, args.per_kind, args.seed, tuple(args.robots), args.mode, swarm_options(args.swarm), args.stop, args.snap, args.workers, args.out, args.steps)
+        rows, moves = measure(args.kinds, args.per_kind, args.seed, tuple(args.robots), args.mode, swarm, args.stop, args.snap, args.workers, args.out, args.steps)
         report(rows, moves)
     else:
         episode = hostable_episodes([args.kind], args.index + 1, args.seed, tuple(args.robots))[args.index]
@@ -1024,7 +1046,7 @@ def main():
         else:
             actor = R.ExpertActor([episode], int(episode.seed))
         clock = time.perf_counter()
-        played, executor = play_mujoco([episode], actor, args.mode, swarm_options(args.swarm), stop=args.stop, snap=args.snap, record=True)
+        played, executor = play_mujoco([episode], actor, args.mode, swarm, stop=args.stop, snap=args.snap, record=True)
         played = played[0]
         thoughts = actor.thoughts[0] if policy is not None else []
         steps = executor.steps[0]
