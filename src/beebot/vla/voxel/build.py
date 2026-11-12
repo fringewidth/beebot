@@ -39,7 +39,7 @@ import torch
 
 from beebot.vla.voxel import shapes as H
 from beebot.vla.voxel import suite as S
-from beebot.vla.voxel.controller import act
+from beebot.vla.voxel.controller import act, risky
 from beebot.vla.voxel.free_cube import FreeCubeExpert, distances
 from beebot.vla.voxel.world import CUBE_MOVES, STAY, VoxelWorld, cheese_id_map, failure_rates, flat_index, pivot_moves, refuse, rule_moves
 
@@ -380,6 +380,9 @@ class BuildPlanner(BuildSegments, FreeCubeExpert):
         paths = pivot_moves(scenery, world.walls, cheese, release=self.rule == "switch_cube")
         dist = distances(paths, target_grid & ~occupancy & ~world.walls & ~cheese, torch.zeros_like(world.mass, dtype=torch.int16), ~scenery).numpy()
         move_mask = rule_moves(world, self.rule) & CUBE_MOVES
+        odds = self.odds(world)
+        if odds is not None:  # jams try, and parkers take, only moves about as safe as standing still (controller.risky)
+            move_mask = move_mask & ~risky(odds, torch.zeros_like(move_mask))
         codes = self.crew(world, codes, segs, move_mask, generator, rank=lambda i: dist[i])
         return refuse(world, codes, self.rule, priority=torch.rand(world.mass.shape, generator=generator))
 

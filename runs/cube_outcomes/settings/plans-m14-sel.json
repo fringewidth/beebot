@@ -1,0 +1,10 @@
+{
+ "floor_roll": 1.2,
+ "traverse": 1.2,
+ "wall_crawl": 1.1,
+ "concave_up": [0.8, 0.9, 1.0, 1.12],
+ "concave_down": [0.8, 0.9, 1.0, 1.1, 1.2],
+ "convex_up": [0.8, 0.9, 1.0, 1.06],
+ "convex_up_hang": [0.8, 0.9, 1.0, 1.1],
+ "convex_down": [0.7, 0.8, 0.9]
+}

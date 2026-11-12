@@ -27,6 +27,13 @@ Sets of moves (`measure --set`):
 Magnets (`--magnets`): "release" is cube_swarm's Swarm(release=True), the switchable magnets of
 the switch_cube rule; "permanent" is Swarm(release=False).
 
+Cube settings (`measure --setting NAME`, rows tagged with it; `compare` and `fit --setting` select
+by it): --design scales cube.Cube fields (magnet pulls), --speed scales cube_swarm.RPM per
+primitive, --kicks gives a kick plan per class key or primitive (a factor, or a list of factors:
+escalating retries, `escalated`), --escalate one schedule for every move. `kicks` fits a
+per-class plan table from store rows (kick_table). HARDWARE.md, "Cutting harm" and "Kick plans
+and retries".
+
     python -m beebot.hardware.cube_outcomes draw --root ~/beebot --out runs/cube_outcomes/draw
     python -m beebot.hardware.cube_outcomes measure --set stores --draw runs/cube_outcomes/draw --total 600 --out runs/cube_outcomes/stores-release.jsonl
     python -m beebot.hardware.cube_outcomes fit runs/cube_outcomes/stores-release.jsonl --out src/beebot/vla/voxel/outcomes/mujoco_release.json
@@ -81,18 +88,17 @@ TEMPLATES = {
 
 
 def settle(swarm, longest=1.0):
-    """Run on until the scene is still, for at most `longest` s: a scene still moving when a move
-    ends reads as all off, so what a move leaves is read once it comes to rest."""
-    waited = 0.0
-    while not swarm.calm() and waited < longest:
-        swarm.run(0.1)
-        waited += 0.1
+    """Run on until the scene is still, for at most `longest` s, so that a move starts from rest
+    and what it leaves is read once the scene comes to rest (Swarm.rest)."""
+    swarm.rest(longest)
 
 
 def carry_out(swarm, orders, rpm=None):
-    """Swarm.moves on orders [(cube, direction)], as a dict: per order the mover's own end ("mover":
-    reached, stayed, off, strayed or refused, before any knock is charged) and its Move fields;
-    the cubes knocked with where they end; the grid before and after."""
+    """Swarm.moves on orders [(cube, direction)] from a scene at rest, as a dict: per order the
+    mover's own end ("mover": reached, stayed, off, strayed or refused, before any knock is
+    charged) and its Move fields; the cubes knocked with where they end; the grid before and after
+    and the cubes off the lattice before and after."""
+    settle(swarm)
     before = swarm.lattice()
     moves = swarm.moves(orders, rpm)
     settle(swarm)
@@ -113,6 +119,7 @@ def carry_out(swarm, orders, rpm=None):
         "shift": moves[0].shift if moves else 0.0,
         "before": before.cells.tolist(),
         "after": after.cells.tolist(),
+        "off_before": [int(j) for j in np.nonzero(before.off)[0]],
         "off_after": [int(j) for j in np.nonzero(after.off)[0]],
         "sim_seconds": moves[0].sim_seconds if moves else 0.0,
         "wall_seconds": moves[0].wall_seconds if moves else 0.0,
@@ -185,35 +192,93 @@ def trial(job):
     runs = [kept] + ([[kept[0]]] if job.get("alone") and len(kept) > 1 else [])
     rows = []
     rpm = job.get("rpm")
-    if job.get("rpm_factor"):  # one mover at its calibrated speed times the factor
-        from beebot.vla.voxel.world import PRIMITIVES
-
-        rpm = round(job["rpm_factor"] * RPM[PRIMITIVES[grid[kept[0]]["primitive"]]])
+    if job.get("rpm_factor") or job.get("kicks"):  # one mover at its kick (kick) times the factor
+        rpm = round(kick(job, grid[kept[0]])[0])
     for run, chosen in enumerate(runs):
         swarm = Swarm(cells, seed=job["seed"], release=job["magnets"] == "release", **swarm_options(job))
+        if len(chosen) == 1 and len(kick(job, grid[chosen[0]])) > 1:
+            k = chosen[0]
+            rows.append(escalated(swarm, (index[orders[k][0]], job["orders"][k][1]), job, grid[k], movers=1, alone=run == 1))
+            continue
         result = carry_out(swarm, [(index[orders[k][0]], job["orders"][k][1]) for k in chosen], rpm)
         for k, row in zip(chosen, result["orders"]):
             rows.append(row_of(job, grid[k], row, result, movers=len(chosen), alone=run == 1))
     return rows
 
 
+def kick(job, g):
+    """The flywheel rpms a move of grid class g (a grid_moves dict) is tried at, in order: the
+    primitive's calibrated speed (speeds_of job["speed"]) times job["rpm_factor"] (default 1)
+    times each factor of the move's kick plan. The plan is job["kicks"]'s entry for the class key,
+    else for the primitive's name (a per-class kick table, firmware only): a factor (one attempt)
+    or a list of factors (escalating retries, escalated); without one, job["escalate"], else 1."""
+    from beebot.vla.voxel.world import PRIMITIVES
+
+    name = PRIMITIVES[g["primitive"]] if isinstance(g["primitive"], int) else g["primitive"]
+    kicks = job.get("kicks") or {}
+    plan = kicks.get(class_key(g), kicks.get(name, job.get("escalate") or 1.0))
+    base = speeds_of(job.get("speed") or 1.0)[name] * (job.get("rpm_factor") or 1.0)
+    return [base * f for f in (plan if isinstance(plan, list) else [plan])]
+
+
+def escalated(swarm, order, job, g, **extra):
+    """One move with escalating retries at the rpms of its kick plan (kick): try at the first;
+    while an attempt leaves the scene as it was on the lattice (the mover stayed, no cube moved or
+    newly off), try again at the next. Every attempt draws its own speed and brake jitter
+    (Swarm.moves) from a scene the last attempt rocked, so no two are identical. Returns one row
+    for the whole move: the scene before the first attempt, after the last; tries holds each
+    attempt's lattice outcome, rpms their rpms, attempts their count, schedule the plan's rpms."""
+    schedule = [round(rpm) for rpm in kick(job, g)]
+    first, tries, rpms, knocked, sim, wall = None, [], [], [], 0.0, 0.0
+    for rpm in schedule:
+        result = carry_out(swarm, [order], rpm)
+        first = first or result
+        row = row_of(job, g, result["orders"][0], result, **extra)
+        tries.append(lattice_end(row)[0])
+        rpms.append(rpm)
+        knocked += result["knocked"]
+        sim += result["sim_seconds"]
+        wall += result["wall_seconds"]
+        if tries[-1] != "stayed":
+            break
+    whole = {**result, "before": first["before"], "off_before": first["off_before"], "knocked": knocked, "sim_seconds": sim, "wall_seconds": wall}
+    return row_of(job, g, result["orders"][0], whole, **extra, schedule=schedule, attempts=len(tries), tries=tries, rpms=rpms)
+
+
 def swarm_options(job):
     """Swarm keyword arguments a job sets: cube (a design varied by job["design"], a dict of
-    cube.Cube fields scaled by factors)."""
-    if not job.get("design"):
-        return {}
-    from dataclasses import replace
+    cube.Cube fields scaled by factors), faces and dwell (job["faces"], job["dwell"]: Swarm's),
+    speeds (job["speed"]: every primitive's cube_swarm.RPM times a factor, or a dict of factors
+    per primitive, 1 for the ones not named)."""
+    out = {}
+    if job.get("design"):
+        from dataclasses import replace
 
-    from beebot.hardware.cube_swarm import DESIGN
+        from beebot.hardware.cube_swarm import DESIGN
 
-    base = DESIGN.cube()
-    return {"cube": replace(base, **{name: getattr(base, name) * factor for name, factor in job["design"].items()})}
+        base = DESIGN.cube()
+        out["cube"] = replace(base, **{name: getattr(base, name) * factor for name, factor in job["design"].items()})
+    if job.get("faces"):
+        out["faces"] = True
+    if job.get("dwell"):
+        out["dwell"] = float(job["dwell"])
+    if job.get("speed"):
+        out["speeds"] = speeds_of(job["speed"])
+    return out
+
+
+def speeds_of(speed):
+    """cube_swarm.RPM scaled by a factor (a number) or by factors per primitive (a dict; 1 for the
+    primitives it does not name; floor_peel, a floor roll away from a bond, follows floor_roll)."""
+    if not isinstance(speed, dict):
+        return {name: rpm * speed for name, rpm in RPM.items()}
+    return {name: rpm * speed.get(name, speed.get("floor_roll", 1.0) if name == "floor_peel" else 1.0) for name, rpm in RPM.items()}
 
 
 def row_of(job, g, row, result, **extra):
     """One output row: the job's tags, the grid class and features, MuJoCo's outcome."""
     return {
-        **{key: job[key] for key in ("set", "magnets", "seed", "rpm", "rpm_factor", "design") if key in job},
+        **{key: job[key] for key in ("set", "magnets", "seed", "rpm", "rpm_factor", "kicks_name", "escalate", "design", "faces", "dwell", "speed", "setting") if key in job},
         **job.get("tags", {}),
         **extra,
         "key": class_key(g),
@@ -221,7 +286,7 @@ def row_of(job, g, row, result, **extra):
         "plan": [row["primitive"], row["bonds"], row["hinges"], row["rubs"]],
         **{f: row[f] for f in ("cube", "direction", "detail", "start", "target", "end", "mover")},
         "rpm_used": row["rpm"],
-        **{f: result[f] for f in ("knocked", "shift", "off_after", "sim_seconds", "wall_seconds")},
+        **{f: result[f] for f in ("knocked", "shift", "off_before", "off_after", "sim_seconds", "wall_seconds")},
         "cells": result["before"],
         "after": result["after"],
     }
@@ -267,8 +332,12 @@ def layout_walk(job):
         keys = sorted(kinds)
         pick = kinds[keys[rng.integers(len(keys))]]
         i, d, g = pick[rng.integers(len(pick))]
-        result = carry_out(swarm, [(i, d)], job.get("rpm"))
-        rows.append(row_of({**job, "set": "layouts"}, g, result["orders"][0], result, layout=layout, index=len(rows), movers=1, alone=False))
+        if len(kick(job, g)) > 1:
+            rows.append(escalated(swarm, (i, d), {**job, "set": "layouts"}, g, layout=layout, index=len(rows), movers=1, alone=False))
+        else:
+            rpm = round(kick(job, g)[0]) if job.get("kicks") or job.get("rpm_factor") else job.get("rpm")
+            result = carry_out(swarm, [(i, d)], rpm)
+            rows.append(row_of({**job, "set": "layouts"}, g, result["orders"][0], result, layout=layout, index=len(rows), movers=1, alone=False))
         over = rows[-1]["detail"] not in ("reached", "stayed")
     return rows
 
@@ -423,10 +492,12 @@ def frame_of(row):
 
 def lattice_end(row):
     """What a single move left on the lattice: (outcome, aftermath). outcome: knock when another
-    cube is in another cell or off the lattice afterwards, else the mover's reached, stayed, off or
-    strayed. aftermath (for the harmful ones): [[from, to, stuck]] for the mover and every such
-    cube, cells relative to the mover's start in the move's frame (world.OutcomeModel)."""
-    before, after, off = np.array(row["cells"]), np.array(row["after"]), set(row["off_after"])
+    cube is in another cell or newly off the lattice afterwards (a cube off before the move does
+    not count; rows of before 2026-11-11 have no off_before), else the mover's reached, stayed,
+    off or strayed. aftermath (for the harmful ones): [[from, to, stuck]] for the mover and every
+    such cube, cells relative to the mover's start in the move's frame (world.OutcomeModel)."""
+    before, after = np.array(row["cells"]), np.array(row["after"])
+    off = set(row["off_after"]) - set(row.get("off_before", ()))
     mover = row["cube"] if "cube" in row else [list(c) for c in row["cells"]].index(list(row["start"]))
     changed = [j for j in range(len(before)) if j != mover and (j in off or tuple(after[j]) != tuple(before[j]))]
     end = tuple(after[mover])
@@ -604,6 +675,69 @@ def recover(job):
     return [row]
 
 
+RIGHTING_RPM = (2000, 3500, 5000, 7000, 10000)
+
+
+def righting_axis(rot):
+    """The flywheel axis that turns a tilted cube back upright, from its own pose (what its IMU
+    reads): the world vector of the body axis, among the two that are not nearest vertical, most
+    nearly along the tilt axis (the axis turning the cube's most upright body axis onto +z), signed
+    to turn it that way; and the tilt in degrees. (3, 3) rot: body axes as columns."""
+    up = int(np.abs(rot[2]).argmax())
+    u = rot[:, up] * np.sign(rot[2, up])
+    tilt = np.cross(u, [0.0, 0.0, 1.0])
+    size = np.linalg.norm(tilt)
+    if size < 1e-9:
+        return None, 0.0
+    tilt /= size
+    others = [j for j in range(3) if j != up]
+    j = max(others, key=lambda k: abs(rot[:, k] @ tilt))
+    axis = rot[:, j] * np.sign(rot[:, j] @ tilt)
+    return axis, float(np.degrees(np.arccos(np.clip(u[2], -1.0, 1.0))))
+
+
+def right(job):
+    """Can one cheap move right a cube a move left off the lattice? Replay the trial (same seed:
+    the same end), read the cube's pose, and from fresh replays spin its flywheel about
+    righting_axis, toward upright and (for comparison) away, at each RIGHTING_RPM, released. Each
+    spin is judged at rest: righted when the cube ends aligned in a cell (its start cell, the
+    move's target or any other) and no other cube was newly put off or moved more than DISTURBED."""
+    from beebot.hardware.cube import DISTURBED
+
+    torch.set_num_threads(1)
+    cells = [tuple(c) for c in job["cells"]]
+    cube = cells.index(tuple(job["start"]))
+    direction = tuple(job["direction"])
+
+    def replay():
+        swarm = Swarm(cells, seed=job["seed"], release=True, **swarm_options(job))
+        carry_out(swarm, [(cube, direction)], job.get("rpm"))
+        return swarm
+
+    swarm = replay()
+    reading = swarm.lattice()
+    _, rot = swarm.poses()
+    axis, tilt = righting_axis(rot[cube])
+    row = {"seed": job["seed"], "key": job["key"], "off": bool(reading.off[cube]), "tilt": round(tilt, 1), "cell": reading.cells[cube].tolist(), "start": list(job["start"]), "target": job.get("target")}
+    if not row["off"] or axis is None:
+        return [row]
+    tries = []
+    for sense in (1, -1):
+        for rpm in RIGHTING_RPM:
+            swarm = replay()
+            before = swarm.lattice()
+            centres_before, _ = swarm.poses()
+            swarm.spin(cube, tuple(sense * axis), rpm, release=True)
+            swarm.rest()
+            after = swarm.lattice()
+            centres, _ = swarm.poses()
+            others = np.arange(swarm.n) != cube
+            disturbed = bool((others & after.off & ~before.off).any() or (np.abs(centres - centres_before).max(axis=1)[others] > DISTURBED).any())
+            tries.append({"sense": sense, "rpm": rpm, "aligned": not bool(after.off[cube]), "cell": after.cells[cube].tolist(), "disturbed": disturbed})
+    row["tries"] = tries
+    return [row]
+
+
 # ---------------------------------------------------------------------------------------------
 # Tables
 
@@ -634,17 +768,18 @@ def where_left(rows):
     return out
 
 
-def report(paths, draw, runs=24, seed=0):
-    """Print the measured tables: outcomes per class and set, permanent against release, the
-    harmful rate per pivot (stores-weighted and ten-cube), where harm comes from and what it
-    leaves, simultaneous against single movers, and grid_mujoco_outcome_gap before and after."""
+def report(paths, draw, runs=24, seed=0, setting="old"):
+    """Print the measured tables of one cube setting (setting_of): outcomes per class and set,
+    permanent against release, the harmful rate per pivot (stores-weighted and ten-cube), where
+    harm comes from and what it leaves, simultaneous against single movers, and
+    grid_mujoco_outcome_gap before and after."""
     from beebot.vla.voxel.world import OutcomeModel, failure_rates
 
     rows = [json.loads(line) for p in paths for line in open(p)]
-    rows = [r for r in rows if r["detail"] != "refused"]
+    rows = [r for r in rows if r["detail"] != "refused" and setting_of(r) == setting]
     weights = json.loads((Path(draw) / "weights.json").read_text())["counts"]
     total = sum(weights.values())
-    single = [r for r in rows if r.get("movers", 1) == 1 and r["set"] in ("isolated", "layouts", "stores") and not r.get("design") and not r.get("rpm_factor")]
+    single = [r for r in rows if r.get("movers", 1) == 1 and r["set"] in ("isolated", "layouts", "stores")]
     print("## Lattice outcomes per class (reached stayed off strayed knock), n, MuJoCo knock incl. sub-cell shoves")
     for magnets in MAGNETS:
         for name in ("isolated", "layouts", "stores"):
@@ -747,6 +882,163 @@ def report(paths, draw, runs=24, seed=0):
             print(f"   {label:32s} w {e['w']:.3f} n {e['n']:4d} before {0.5 * np.abs(m - old).sum():.3f} after {0.5 * np.abs(m - new).sum():.3f}  mujoco {np.round(m, 2)} old {np.round(old, 2)} new {np.round(new, 2)}")
 
 
+def setting_of(row):
+    """The cube setting a row was measured in: its "setting" tag, "old" for the rows of before
+    settings were named (release, the mover's pairs only, cube_swarm.RPM, DESIGN, judged before
+    the knock and rest fixes of 2026-11-11), "" for the lever rows of before (a design or
+    rpm_factor and no name)."""
+    if row.get("setting"):
+        return row["setting"]
+    return "" if row.get("design") or row.get("rpm_factor") else "old"
+
+
+def weighted(rows, weights, groups=None):
+    """Store-weighted lattice outcomes of single-mover rows: per class the shares of lattice_end
+    outcomes, mixed by how often the stores attempt each class (weights: class -> count), over the
+    classes measured. groups: {label: predicate on a class key} for mixtures over a part of the
+    classes. Returns {label: (shares (len(LATTICE),), share of the stores' pivots covered, rows)}
+    with "all" for every class."""
+    by = {}
+    for r in rows:
+        by.setdefault(r["key"], np.zeros(len(LATTICE)))[LATTICE.index(lattice_end(r)[0])] += 1
+    total = sum(weights.values())
+    out = {}
+    for label, keep in {"all": lambda k: True, **(groups or {})}.items():
+        mix, covered, n = np.zeros(len(LATTICE)), 0.0, 0
+        for key, counts in by.items():
+            if not keep(key):
+                continue
+            w = weights.get(key, 0) / total
+            mix += w * counts / counts.sum()
+            covered += w
+            n += int(counts.sum())
+        out[label] = (mix / max(covered, 1e-12), covered, n)
+    return out
+
+
+GROUPS = {
+    "floor roll, free": lambda k: k.split("/")[0] == "floor_roll" and "bonded" not in k and "hinged" not in k,
+    "floor roll, held": lambda k: k.split("/")[0] == "floor_roll" and ("bonded" in k or "hinged" in k),
+    "traverse": lambda k: k.split("/")[0] == "traverse",
+    "wall crawl": lambda k: k.split("/")[0] == "wall_crawl",
+    "convex up": lambda k: k.split("/")[0] == "convex_up",
+    "convex up, hanging": lambda k: k.split("/")[0] == "convex_up_hang",
+    "convex down": lambda k: k.split("/")[0] == "convex_down",
+    "concave up": lambda k: k.split("/")[0] == "concave_up",
+    "concave down": lambda k: k.split("/")[0] == "concave_down",
+    "lone support": lambda k: "lone" in k,
+}
+
+
+def compare(paths, draw):
+    """Per cube setting (setting_of): store moves mixed by how often the stores attempt each class
+    (harm per pivot, reached, stayed, off, strayed, knock; per primitive reached and harm) and the
+    ten-cube walks (the same, unweighted)."""
+    rows = [json.loads(line) for p in paths for line in open(p)]
+    rows = [r for r in rows if r["detail"] != "refused" and r.get("movers", 1) == 1 and r["magnets"] == "release" and setting_of(r)]
+    weights = json.loads((Path(draw) / "weights.json").read_text())["counts"]
+    settings = sorted({setting_of(r) for r in rows}, key=lambda s: (s != "old", s))
+    print(f"{'setting':28s} {'set':7s} {'n':>4s} {'harm':>6s} " + " ".join(f"{d:>7s}" for d in LATTICE))
+    per = {}
+    for s in settings:
+        part = [r for r in rows if setting_of(r) == s]
+        stores = [r for r in part if r["set"] == "stores"]
+        if stores:
+            mixes = weighted(stores, weights, GROUPS)
+            per[s] = mixes
+            m, covered, n = mixes["all"]
+            print(f"{s:28s} {'stores':7s} {n:4d} {1 - m[0] - m[1]:6.3f} " + " ".join(f"{v:7.3f}" for v in m) + f"   (covers {covered:.2f} of the stores' pivots)")
+        walks = [r for r in part if r["set"] == "layouts"]
+        if walks:
+            c = Counter(lattice_end(r)[0] for r in walks)
+            n = len(walks)
+            print(f"{'':28s} {'10-cube':7s} {n:4d} {1 - (c['reached'] + c['stayed']) / n:6.3f} " + " ".join(f"{c[d] / n:7.3f}" for d in LATTICE))
+    print("\nStore-weighted per primitive: reached / harmful (n)")
+    print(f"{'':20s}" + "".join(f"{s[:22]:>24s}" for s in per))
+    for label in GROUPS:
+        cells = []
+        for s in per:
+            m, _, n = per[s][label]
+            cells.append(f"{m[0]:.2f} / {1 - m[0] - m[1]:.2f} ({n:3d})" if n else "-")
+        print(f"{label:20s}" + "".join(f"{c:>24s}" for c in cells))
+    walked = {s: [r for r in rows if setting_of(r) == s and r["set"] == "layouts"] for s in settings}
+    walked = {s: part for s, part in walked.items() if part}
+    if not walked:
+        return
+    print("\nTen-cube per primitive: reached / harmful (n)")
+    print(f"{'':20s}" + "".join(f"{s[:22]:>24s}" for s in walked))
+    for label, member in GROUPS.items():
+        cells = []
+        for part in walked.values():
+            c = Counter(lattice_end(r)[0] for r in part if member(r["key"]))
+            n = sum(c.values())
+            cells.append(f"{c['reached'] / n:.2f} / {1 - (c['reached'] + c['stayed']) / n:.2f} ({n:3d})" if n else "-")
+        print(f"{label:20s}" + "".join(f"{c:>24s}" for c in cells))
+
+
+def factor_of(row):
+    """The kick a single-mover row was run at, as a factor of its primitive's calibrated speed
+    (cube_swarm.RPM): rpm_factor times the setting's speed factor for the primitive."""
+    name = row["key"].split("/")[0]
+    speed = row.get("speed") or 1.0
+    per = speed if not isinstance(speed, dict) else speed.get(name, 1.0)
+    return round(per * (row.get("rpm_factor") or 1.0), 3)
+
+
+def plan_outcomes(row):
+    """[(kick plan, lattice outcome)] a single-mover row tells: a row run at one kick gives its
+    factor (factor_of) and outcome; an escalated row (escalate, the factors it was tried at) gives
+    every prefix of its schedule, a move still staying after the prefix counting as stayed."""
+    end = lattice_end(row)[0]
+    if not row.get("escalate"):
+        return [((factor_of(row),), end)]
+    mult = factor_of(row)
+    schedule = tuple(round(mult * f, 3) for f in row["escalate"])
+    return [(schedule[:k], end if row["attempts"] <= k else "stayed") for k in range(1, len(schedule) + 1)]
+
+
+def kick_table(rows, weight=5.0, prior=4.0):
+    """A per-class kick table from store rows run at several kicks or escalation schedules
+    (plan_outcomes) with one magnet design (each scene counted once per plan): per class the plan that maximises reached - weight *
+    harmful, each class's shares shrunk toward its primitive's under the same plan by `prior`
+    pseudo-moves (most classes have a handful of moves per plan). A primitive's own entry (the
+    fallback for classes not seen) is its best pooled plan. A plan is a factor or, for escalating
+    retries, a list of factors (kick). Returns ({key: plan}, {key: (plan, n, reached, harm)})."""
+    cells, seen = {}, set()
+    for r in rows:
+        if r["detail"] == "refused" or r.get("movers", 1) != 1:
+            continue
+        key = r["key"]
+        scene = (r.get("store"), r.get("episode"), r.get("t"), r["seed"], tuple(r["start"]), tuple(r["direction"]))
+        for plan, end in plan_outcomes(r):
+            if (scene, plan) in seen:  # a replayed scene at the same plan replays identically (an escalation's first attempt is the single kick)
+                continue
+            seen.add((scene, plan))
+            for name in (key, key.split("/")[0]):
+                c = cells.setdefault((name, plan), Counter())
+                c["n"] += 1
+                c["reached"] += end == "reached"
+                c["harm"] += end not in ("reached", "stayed")
+    table, chosen = {}, {}
+    names = sorted({name for name, _ in cells}, key=lambda k: ("/" in k, k))
+    for name in names:
+        prim = name.split("/")[0]
+        options = []
+        for (other, plan), c in cells.items():
+            if other != name:
+                continue
+            pool = cells[(prim, plan)]
+            m = 0.0 if name == prim else prior
+            reach = (c["reached"] + m * pool["reached"] / pool["n"]) / (c["n"] + m)
+            harm = (c["harm"] + m * pool["harm"] / pool["n"]) / (c["n"] + m)
+            options.append((reach - weight * harm, -len(plan), plan, c["n"], reach, harm))
+        best = max(options)
+        plan = best[2][0] if len(best[2]) == 1 else list(best[2])
+        table[name] = plan
+        chosen[name] = (plan, *best[3:])
+    return table, chosen
+
+
 def print_tally(rows, by=("magnets", "set", "key")):
     table = tally(rows, by)
     print(f"{' / '.join(by):60s} {'n':>5s} " + " ".join(f"{d:>8s}" for d in DETAILS))
@@ -798,6 +1090,13 @@ def main():
     m.add_argument("--min-share", type=float, default=0.002, help="stores with --total: classes attempted less often are left to the coarser classes")
     m.add_argument("--design", default=None, help='cube.Cube fields scaled, as JSON: {"edge_pull": 0.8}')
     m.add_argument("--rpm-factor", type=float, default=None, help="isolated, stores: every move at its calibrated speed (cube_swarm.RPM) times this")
+    m.add_argument("--faces", action="store_true", help="the neighbours face to face with a mover switch off the face that touches it (Swarm faces)")
+    m.add_argument("--dwell", type=float, default=None, help="seconds the magnets are off before the flywheel spins, beyond BRAKE_AT (Swarm dwell)")
+    m.add_argument("--speed", default=None, help='flywheel speeds as cube_swarm.RPM times a factor, as JSON: 0.85, or per primitive {"convex_up": 0.85}')
+    m.add_argument("--kicks", default=None, help="a per-class kick table: JSON {class key or primitive: factor} or a path to one (kick)")
+    m.add_argument("--escalate", type=float, nargs="+", default=None, help="escalating retries: kick factors tried in order while a move stays (escalated)")
+    m.add_argument("--setting", default=None, help="a name for the cube setting, recorded on every row (compare, report and fit select by it)")
+    m.add_argument("--replay", default=None, help="stores: run the scenes of these stores rows again, with their seeds (paired with them)")
     m.add_argument("--templates", nargs="+", default=None, help="isolated: only these TEMPLATES")
     m.add_argument("--seed", type=int, default=0)
     m.add_argument("--workers", type=int, default=5)
@@ -810,6 +1109,12 @@ def main():
     c.add_argument("--seed", type=int, default=1)
     c.add_argument("--workers", type=int, default=5)
     c.add_argument("--out", required=True)
+    q = sub.add_parser("kicks", help="a per-class kick table from store rows run at several kicks (kick_table)")
+    q.add_argument("paths", nargs="+")
+    q.add_argument("--weight", type=float, default=5.0, help="harm penalty: maximise reached - weight * harmful")
+    q.add_argument("--prior", type=float, default=4.0, help="pseudo-moves shrinking a class toward its primitive")
+    q.add_argument("--settings", nargs="+", default=None, help="only rows of these settings")
+    q.add_argument("--out", required=True)
     t = sub.add_parser("tally")
     t.add_argument("paths", nargs="+")
     t.add_argument("--by", nargs="+", default=["magnets", "set", "key"])
@@ -817,26 +1122,50 @@ def main():
     f.add_argument("paths", nargs="+")
     f.add_argument("--name", default="mujoco_release")
     f.add_argument("--magnets", default="release", choices=MAGNETS)
+    f.add_argument("--setting", default="old", help="fit the rows of this cube setting (setting_of)")
+    f.add_argument("--sets", nargs="+", default=["isolated", "layouts", "stores"], help="the sets of moves fit on")
     f.add_argument("--out", required=True)
+    k = sub.add_parser("compare", help="harm and reached per cube setting, store-weighted and ten-cube")
+    k.add_argument("paths", nargs="+")
+    k.add_argument("--draw", required=True)
     v = sub.add_parser("recover", help="can a cube left off the lattice move again: raw spins from replayed off ends")
     v.add_argument("paths", nargs="+", help="isolated or stores rows (one move per scene, so a replay gives the same end)")
     v.add_argument("--limit", type=int, default=40)
     v.add_argument("--workers", type=int, default=8)
     v.add_argument("--out", required=True)
+    g = sub.add_parser("right", help="a cheap righting move for a cube left off the lattice: spins about the body axis that turns it upright (right)")
+    g.add_argument("paths", nargs="+", help="isolated or stores rows (one move per scene, so a replay gives the same end)")
+    g.add_argument("--setting", default="v1", help="off ends of this cube setting (setting_of)")
+    g.add_argument("--limit", type=int, default=40)
+    g.add_argument("--workers", type=int, default=6)
+    g.add_argument("--out", required=True)
     r = sub.add_parser("report")
     r.add_argument("paths", nargs="+")
     r.add_argument("--draw", required=True)
     r.add_argument("--runs", type=int, default=24, help="grid plays per scene for the gap")
+    r.add_argument("--setting", default="old", help="report the rows of this cube setting (setting_of)")
     args = parser.parse_args()
     if args.command == "tally":
         rows = [json.loads(line) for p in args.paths for line in open(p)]
         print_tally(rows, tuple(args.by))
         return
+    if args.command == "kicks":
+        rows = [json.loads(line) for p in args.paths for line in open(p)]
+        rows = [r for r in rows if r["set"] == "stores" and (args.settings is None or setting_of(r) in args.settings)]
+        table, chosen = kick_table(rows, args.weight, args.prior)
+        for name, (plan, n, reach, harm) in chosen.items():
+            print(f"{name:40s} {str(plan):28s} n {n:3d}  reached {reach:.2f}  harmful {harm:.2f}")
+        Path(args.out).write_text(json.dumps(table, indent=1) + "\n")
+        return
+    if args.command == "compare":
+        compare(args.paths, args.draw)
+        return
     if args.command == "fit":
         rows = [json.loads(line) for p in args.paths for line in open(p)]
-        rows = [x for x in rows if x["magnets"] == args.magnets and not x.get("design") and not x.get("rpm_factor") and x["set"] != "calibrate"]
+        rows = [x for x in rows if x["magnets"] == args.magnets and setting_of(x) == args.setting and x["set"] in args.sets]
         table = fit(rows, args.name, args.magnets)
         table["sources"] = [str(p) for p in args.paths]
+        table["setting"] = args.setting
         for entry in table["classes"].values():
             entry["lattice"], entry["detail"] = dict(entry["lattice"]), dict(entry["detail"])
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
@@ -845,14 +1174,17 @@ def main():
         return
     if args.command == "report":
         torch.set_num_threads(4)
-        report(args.paths, args.draw, args.runs)
+        report(args.paths, args.draw, args.runs, setting=args.setting)
         return
-    if args.command == "recover":
+    if args.command in ("recover", "right"):
         rows = [json.loads(line) for p in args.paths for line in open(p)]
         offs = [x for x in rows if x["magnets"] == "release" and x["detail"] != "refused" and x.get("movers", 1) == 1 and x["set"] in ("isolated", "stores") and not x.get("rpm_factor") and lattice_end(x)[0] == "off"]
+        if args.command == "right":
+            offs = [x for x in offs if setting_of(x) == args.setting]
         np.random.default_rng(0).shuffle(offs)
-        jobs = [{"cells": x["cells"], "seed": x["seed"], "start": x["start"], "direction": [a - b for a, b in zip(x["target"], x["start"])], "key": x["key"], **({"rpm": x["rpm"]} if x.get("rpm") else {}), **({"design": x["design"]} if x.get("design") else {})} for x in offs[: args.limit]]
-        run_jobs(recover, jobs, args.out, args.workers)
+        options = ("design", "faces", "dwell", "speed")
+        jobs = [{"cells": x["cells"], "seed": x["seed"], "start": x["start"], "target": x["target"], "direction": [a - b for a, b in zip(x["target"], x["start"])], "key": x["key"], **({"rpm": x["rpm"]} if x.get("rpm") else {}), **{k: x[k] for k in options if x.get(k)}} for x in offs[: args.limit]]
+        run_jobs(recover if args.command == "recover" else right, jobs, args.out, args.workers)
         return
     if args.command == "draw":
         torch.set_num_threads(4)
@@ -886,6 +1218,27 @@ def main():
     extra = {"design": design} if design else {}
     if args.rpm_factor:
         extra["rpm_factor"] = args.rpm_factor
+    if args.faces:
+        extra["faces"] = True
+    if args.dwell:
+        extra["dwell"] = args.dwell
+    if args.speed:
+        extra["speed"] = json.loads(args.speed)
+    if args.kicks:
+        text = Path(args.kicks).read_text() if Path(args.kicks).is_file() else args.kicks
+        extra["kicks"] = json.loads(text)
+        extra["kicks_name"] = Path(args.kicks).name if Path(args.kicks).is_file() else "inline"
+    if args.escalate:
+        extra["escalate"] = args.escalate
+    if args.setting:
+        extra["setting"] = args.setting
+    if args.set == "stores" and args.replay:
+        rows = [json.loads(line) for line in open(args.replay)]
+        rows = [x for x in rows if x["set"] == "stores" and x.get("movers", 1) == 1 and x["detail"] != "refused"]
+        tags = ("store", "episode", "t", "store_key")
+        jobs = [{"set": "stores", "magnets": x["magnets"], "seed": x["seed"], "cells": x["cells"], "orders": [(x["start"], x["direction"])], "tags": {k: x[k] for k in tags if k in x}, **extra} for x in rows[: args.limit]]
+        run_jobs(trial, jobs, args.out, args.workers)
+        return
     if args.set == "isolated":
         work, jobs = trial, [{**job, **extra} for job in isolated_jobs(args.trials, args.magnets, args.seed) if not args.templates or job["tags"]["template"] in args.templates]
     elif args.set == "layouts":

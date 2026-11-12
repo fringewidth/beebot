@@ -435,6 +435,11 @@ an edge, not the pivot edge), rubs (a solid cell beside where it passes in, alon
 and lone (what it leans on is a cube, or a stack of two, that touches nothing else by a face).
 `world.pivot_class` packs them into one of 128 classes.
 
+**Tables.** `mujoco_release` (as built), `mujoco_release_v2` (climbs at 0.85 of `RPM`) and
+`mujoco_release_v3` (magnets x 1.4 with per-primitive kick plans and escalating retries, fit on
+store and ten-cube moves; the demo's: `demos.DEMO_MOVES`), HARDWARE.md "Cutting harm" and "Kick
+plans and retries". A retried move is one grid step whose outcome is its last attempt's.
+
 **Outcomes.** Per class the table (`outcomes/mujoco_release.json`, written by
 `hardware/cube_outcomes.py fit`) holds how often the move reached and stayed in MuJoCo, and every
 harmful end as MuJoCo left it: the cells the mover and each cube it disturbed ended in, and
@@ -1309,7 +1314,7 @@ demonstrations for exactly this case.
 | `--scaled` | on | task sizes fitted to the swarm (below) |
 | `--keep`, `--fit` | on | keep each drawn task and draw new scenes for it; draw only tasks the swarm can do |
 | `--rule`, `--moves`, `--expert`, `--steps` | `switch_cube`, cube, attractor, 72 | the training set-up |
-| `--outcomes` | `mujoco_release` | world.py's MuJoCo-measured outcome model in place of the training stores' failure rates (`demos.DEMO_MOVES`) |
+| `--outcomes` | `mujoco_release_v3` | world.py's MuJoCo-measured outcome model of the demo's cube setting (magnets x 1.4, the m14-sel kick plans with retries: HARDWARE.md, "Kick plans and retries") in place of the training stores' failure rates (`demos.DEMO_MOVES`); the older tables stay loadable by name |
 | `--coverage`, `--objects`, `--build` | 1.0 each | one try a scene from every sampler, as from the suite's own |
 
 Each value is a default that a given option overrides (`--demo --build 0`). `small.pt` records
