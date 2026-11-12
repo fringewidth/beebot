@@ -50,8 +50,9 @@ def robot_list(world):
     return robots, robots // v, here
 
 
-def act(world, targets, valid, press_cheese=None, press_dir=None, jitter=JITTER_PROB, generator=None, allowed=None, odds=None):
-    """Action codes (B, D, H, W) int8 (STAY where no robot is).
+def act(world, targets, valid, press_cheese=None, press_dir=None, jitter=JITTER_PROB, generator=None, allowed=None, odds=None, note=None):
+    """Action codes (B, D, H, W) int8 (STAY where no robot is). note (a dict): filled with "before",
+    the codes the controller chose before the jitter (-1 off the robots), for the intended-action record (suite.Expert.intended).
 
     targets (B, S, 3) long, valid (B, S) bool: each scene's target voxels (a scene with none
     stays put). press_cheese (B,) long (-1 for none) and press_dir (B, 3) long: robots whose
@@ -111,6 +112,10 @@ def act(world, targets, valid, press_cheese=None, press_dir=None, jitter=JITTER_
         random_move = torch.randint(N_ACTIONS, move.shape, generator=generator, device=device)
     else:
         random_move = torch.multinomial(allowed.float(), 1, generator=generator).squeeze(1)
+    if note is not None:
+        before = torch.full_like(codes, -1)
+        before[robots] = move.to(torch.int8)
+        note["before"] = before.view(b, d, h, w)
     move = torch.where(jittered, random_move, move)
     codes[robots] = move.to(torch.int8)
     return codes.view(b, d, h, w)

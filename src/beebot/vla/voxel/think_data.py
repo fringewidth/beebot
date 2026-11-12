@@ -980,7 +980,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=(), overfit=0):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=(), overfit=0, intended=False):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -994,6 +994,7 @@ class ThinkData:
         if mismatch not in ("raise", "drop"):
             raise ValueError(f"mismatch is raise or drop, not {mismatch}")
         self.mismatch = mismatch
+        self.intended = intended  # train on the expert's intended codes (store field "intended_actions", stores drawn from 2026-11-12) in place of the executed ones ("actions")
         self.mismatches = []  # (store, attempt index, problem) of the episodes whose labels were dropped
         self.validation_views = validation_views
         # mix: scripts/vla_task_mix.py's output (a path or its "weights"): per group of draw options,
@@ -1233,7 +1234,7 @@ class ThinkData:
         starts = [int(entry["t"]) for entry in self.instructions(ep)]
         j = part_at(starts, t)
         here = next((ev for ev in events if ev.t == t), None)
-        codes = self.data[ep.store]["actions"][ep.e, t].long()
+        codes = self.data[ep.store]["intended_actions" if self.intended else "actions"][ep.e, t].long()
         obs = self.observation(ep, t)
         side = parts[0].get("camera") if len(parts) == 1 else None
         if side:  # a camera row: rendered from its camera's side, said as written
