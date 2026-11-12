@@ -827,6 +827,106 @@ moves; the rest has to come from choosing moves (the risk-weighing experts,
 `src/beebot/vla/voxel/README.md`). Its table is `outcomes/mujoco_release_v2.json`
 (`--outcomes mujoco_release_v2`, fit on the 380 store moves of this setting).
 
+### Kick plans and retries (2026-11-12)
+
+The settings above scale whole groups of moves. Two firmware levers go further, both in
+`cube_outcomes measure`:
+
+1. **Kick tables** (`--kicks`, `kick`): a factor of `RPM` per primitive or per class key (the grid
+   knows each move's class), e.g. floor rolls 1.2, convex down 0.75.
+1. **Escalating retries** (`--escalate`, or a list in a kick table): try a move at the first
+   factor; while it leaves the scene as it was on the lattice (the mover stayed, nothing else moved
+   or tipped), try again at the next (`escalated`). Every attempt draws new speed and brake jitter
+   from a scene the last attempt rocked, so retries are not identical. A row is the whole move
+   (`tries`, `rpms`, `attempts`); its outcome is that of its last attempt.
+
+`cube_outcomes kicks` fits a per-class table from store rows run at several kicks or escalation
+schedules (`kick_table`: per class the plan maximising reached - w x harmful, shrunk toward the
+primitive), counting each prefix of an escalation schedule as a plan of its own
+(`plan_outcomes`). `compare` now also prints the ten-cube walks per primitive.
+
+Rows in `runs/cube_outcomes/settings/`, tables `plans-*.json`; 10-cube walks pooled over three
+seeds (0, 1000, 2000) for the candidates, single seed otherwise; stores store-weighted. Kind:
+fw = firmware only, mech = stronger magnets (a magnet grade change). Dominated points are marked.
+
+| setting | kind | harm, 10-cube | reached, 10-cube | convex up | concave up | convex down | free floor roll | attempts | harm / reached, stores |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| as built (v1) | - | 0.125 | 0.52 | 0.44 | 0.70 | 0.71 | 1.00 | 1 | 0.093 / 0.47 (dominated) |
+| climbs x 0.85 (climb85, 2 seeds) | fw | 0.067 | 0.45 | 0.31 | 0.63 | 0.56 | 0.99 | 1 | 0.056 / 0.44 (dominated) |
+| per-class tables fit on stores (4) | fw | 0.083-0.106 | 0.49-0.55 | 0.35-0.42 | 0.57-0.73 | 0.34-0.44 | 1.00 | 1-1.4 | in sample 0.015-0.028 (all dominated) |
+| hand table, as-built magnets (v1-sel, 2 seeds) | fw | 0.085 | 0.50 | 0.42 | 0.82 | 0.43 | 0.99 | 1.7 | 0.070 / 0.47 (dominated) |
+| escalate 0.8, 1.0, 1.2 for all (esc3) | fw | 0.126 | 0.65 | 0.60 | 0.78 | 0.67 | 1.00 | 2.1 | 0.173 / 0.56 |
+| escalate 0.7 ... 1.2 for all (esc5) | fw | 0.138 | 0.64 | 0.57 | 0.90 | 0.64 | 1.00 | 3.5 | 0.186 / 0.55 (dominated) |
+| magnets x 1.4, climbs x 0.85 | mech + fw | 0.019 | 0.21 | 0.13 | 0.31 | 0.08 | 0.66 | 1 | 0.014 / 0.24 |
+| magnets x 1.2, climbs x 0.85 (3 seeds) | mech + fw | 0.035 | 0.35 | 0.23 | 0.35 | 0.36 | 0.94 | 1 | 0.019 / 0.33 |
+| m14-a: x 1.4, climbs 1.0, convex down 0.75, flats 1.1 (3 seeds) | mech + fw | 0.039 | 0.39 | 0.37 | 0.65 | 0.04 | 0.99 | 1 | 0.017 / 0.34 |
+| m12-lo: x 1.2, table `plans-m12-lo.json` (3 seeds) | mech + fw | 0.045 | 0.45 | 0.32 | 0.89 | 0.19 | 0.99 | 1.8 | 0.032 / 0.45 |
+| **m14-sel: x 1.4, table `plans-m14-sel.json` (3 seeds)** | **mech + fw** | **0.058** | **0.50** | **0.49** | **0.84** | **0.23** | **0.99** | **2.0** | **0.032 / 0.47** |
+| m12-a: x 1.2, climbs 1.0, convex down 0.75, flats 1.1 (3 seeds) | mech + fw | 0.062 | 0.48 | 0.45 | 0.77 | 0.13 | 1.00 | 1 | 0.032 / 0.46 (dominated) |
+| m12-sel: x 1.2, table `plans-m12-sel.json` (3 seeds) | mech + fw | 0.069 | 0.56 | 0.58 | 0.87 | 0.42 | 0.99 | 1.9 | 0.038 / 0.51 |
+| escalate 0.7 ... 1.2 for all, x 1.2 (esc5-m12) | mech + fw | 0.106 | 0.59 | 0.58 | 0.78 | 0.60 | 1.00 | 4.0 | 0.140 / 0.52 |
+
+`plans-m14-sel.json`: floor rolls and traverses at 1.2 of `RPM`, wall crawls 1.1, convex up
+escalating 0.8, 0.9, 1.0, 1.06 (20,000 rpm, `Cube.max_rpm`, caps it), concave up 0.8 ... 1.12,
+from hanging 0.8 ... 1.1, convex down 0.7, 0.8, 0.9, concave down 0.8 ... 1.2.
+
+What the search found:
+
+1. **Every kick-only setting lies on one trade-off.** More kick reaches more and overshoots more.
+   Escalation finds each scene's threshold and lifts reached (0.52 to 0.65 as built) but harms
+   as much as the plain kick at the top of its schedule; repeated sub-threshold attempts also
+   rock held cubes (held floor rolls in the stores 0.03 harmful at a single 1.0, 0.12 escalating
+   to 1.05).
+1. **Per-class tables fit on the stores overfit.** In sample they promise 0.015 to 0.028 harm on
+   the stores; on the ten-cube walks they give 0.083 to 0.106. A class has 1 to 30 store moves per
+   kick, and the walks' commonest class (convex up beside a bonded, hinged neighbour) behaves
+   differently there. Hand-set per-primitive plans transfer; per-class ones do not, at these
+   counts.
+1. **Stronger magnets move the whole trade-off down.** At x 1.2 and x 1.4 the same kicks harm
+   less, and kicks raised back (with retries for the climbs) recover the reach. Magnets x 1.4 with
+   the m14-sel plan halve as-built harm at about as-built reach and are the pick: the lowest harm
+   whose climbs work (convex up 0.49, concave up 0.84 against 0.31 and 0.63 with climbs x 0.85).
+   m12-lo and m14-a harm less but give up a climb (convex up 0.32; convex down 0.04).
+1. **Some harm no kick reaches.** A move leaning on a lone support (a cube or stack of two touching
+   nothing else by a face) harms 0.2 to 0.35 even at 0.7 of `RPM`, where it never reaches; without
+   lone moves m14-sel harms 0.034 per pivot. A held floor roll stays about two times in three at
+   any kick up to 1.2. Only choosing moves (the risk-weighing experts) avoids these.
+1. **Seeds vary.** Three seeds of the same setting differ by up to 0.03 harm per pivot (m14-sel
+   0.053, 0.077, 0.047; m12-a 0.042, 0.077, 0.069), mostly through how often a walk meets a lone
+   support. Settings closer than about 0.015 are not ranked.
+
+**Retries in the grid world.** The firmware retries within a move: the cube senses that it
+stayed (it is still level on its cell) and kicks again, harder, up to the plan's length. The grid
+keeps one step per move and takes the outcome of the whole move from the table (its last
+attempt), so the policy and the experts need nothing new; a move takes 2.0 attempts on average
+(up to 4), about 2 to 3 s instead of 1 to 1.5 s, which the MuJoCo playback shows and the grid's
+step does not. `closed_loop` does not yet run kick plans; a demo replayed there needs
+`--swarm` with the x 1.4 design and the plan before its numbers compare.
+
+**Table.** `outcomes/mujoco_release_v3.json` (`--outcomes mujoco_release_v3`, the demo's default,
+`demos.DEMO_MOVES`), fit on the 380 store moves and the 1,986 ten-cube moves of m14-sel. Fit on
+the stores alone it undercounts the ten-cube harm (grid 0.027 to 0.049 against MuJoCo 0.047 to
+0.077 per held-out seed, outcome TV 0.057 to 0.107); with two seeds of walks added it predicts the
+third at 0.052 to 0.065 (TV 0.026 to 0.051). On the stores (`report-m14-sel.txt`, fit on the
+stores, 5-fold) the class-weighted gap is 0.459 before (the failure rates) and 0.078 after, at a
+noise floor of 0.088.
+
+**The experts on it** (`scripts/expert_harm.py`: the demo preset's draws, 60 scenes, 126 tasks
+tried, every pivot `OutcomeModel.draw` decides):
+
+| table | experts | harmful per pivot | reached per pivot | tasks passing | kept | stuck per kept demo, at the end |
+| --- | --- | --- | --- | --- | --- | --- |
+| v3 (m14-sel) | risk-weighing | 0.021 | 0.63 | 0.55 | 62 | 1.9 |
+| v3 (m14-sel) | blind | 0.032 | 0.64 | 0.46 | 52 | 2.4 |
+| v2 (climbs x 0.85) | risk-weighing | 0.024 | 0.61 | 0.44 | 49 | 2.1 |
+| v2 (climbs x 0.85) | blind | 0.029 | 0.59 | 0.39 | 44 | 2.2 |
+
+Weighing moves by the table cuts the experts' harm by a third on v3 and passes more tasks; the
+experts' own mix of moves harms less than the walks' (0.021 against 0.058), because they seldom
+lean on lone supports. An episode of about 10 cubes still makes some 130 pivots in 72 steps, so
+even 2% per pivot leaves about two cubes stuck by the end of a demonstration. The pivots an
+expert makes, not only the harm per pivot, set what a demo loses.
+
 ### Closed loop: the grid's moves carried out in MuJoCo (2026-11-11)
 
 `hardware/closed_loop.py` runs a voxel-grid actor (the scripted expert now, the think-then-act
