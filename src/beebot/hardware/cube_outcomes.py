@@ -909,6 +909,19 @@ def compare(paths, draw):
             m, _, n = per[s][label]
             cells.append(f"{m[0]:.2f} / {1 - m[0] - m[1]:.2f} ({n:3d})" if n else "-")
         print(f"{label:20s}" + "".join(f"{c:>24s}" for c in cells))
+    walked = {s: [r for r in rows if setting_of(r) == s and r["set"] == "layouts"] for s in settings}
+    walked = {s: part for s, part in walked.items() if part}
+    if not walked:
+        return
+    print("\nTen-cube per primitive: reached / harmful (n)")
+    print(f"{'':20s}" + "".join(f"{s[:22]:>24s}" for s in walked))
+    for label, member in GROUPS.items():
+        cells = []
+        for part in walked.values():
+            c = Counter(lattice_end(r)[0] for r in part if member(r["key"]))
+            n = sum(c.values())
+            cells.append(f"{c['reached'] / n:.2f} / {1 - (c['reached'] + c['stayed']) / n:.2f} ({n:3d})" if n else "-")
+        print(f"{label:20s}" + "".join(f"{c:>24s}" for c in cells))
 
 
 def print_tally(rows, by=("magnets", "set", "key")):
