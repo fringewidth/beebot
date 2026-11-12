@@ -138,7 +138,7 @@ def test_generate_and_verify_end_to_end_resume_and_load(tmp_path, items):
     assert malformed_row["pairs"] == [] and malformed_row["rejects"][0]["reason"] == "malformed item"
     assert {row["id"] for row in H.read_jsonl(directory / "failures.jsonl")} == {items[1]["id"]}
     calls = fake.calls
-    assert H.generate(directory, provider, batch=4, workers=3) == [] or fake.calls > calls  # the dropped item is retried, nothing else
+    assert H.generate(directory, provider, batch=4, workers=3, sleep=no_sleep([])) == [] or fake.calls > calls  # the dropped item is retried, nothing else
     assert sum(1 for row in H.read_jsonl(directory / "generated.jsonl") if row["id"] == items[2]["id"]) == 1
     result = H.verify(directory, provider, batch=5, workers=2)
     assert result["kept"] > 0 and set(result["by_rung"]) <= set(H.RUNGS) | {H.REFUSAL, "*"}  # "*": a malformed item, every rung
