@@ -16,9 +16,11 @@ modelled; what is modelled is what any such mechanism has to live with:
    support feels the reaction, as it would), clipped to `torque` N m. A PD law tracks a
    minimum-jerk reference from 0 to 90 or 180 degrees at a mean `rate` deg/s.
 1. Edges. Between the mover and the cubes it leans on (its support, and for a quarter turn the
-   cube it comes to rest against) there is no contact while it turns: the four boxes meet at the
-   hinge edge, and MuJoCo's box contacts there (squeezed by the magnets) jam a turn that chamfered
-   or rounded edges would let pass. The latch fixes where the mover is relative to its support;
+   cube it comes to rest against), and (`edges`) the cubes that touch it only by an edge or a
+   corner, there is no contact while it turns: the four boxes meet at the hinge edge, and MuJoCo's
+   box contacts along shared edges (squeezed by the magnets) jam a turn that chamfered or rounded
+   edges would let pass. The turn never enters those cubes' cells (plan() checks the swept cells),
+   so only such edge contacts are dropped; faces that slide on each other keep their friction. The latch fixes where the mover is relative to its support;
    contact comes back when the mover arrives (or has come back).
 1. Magnets. The mover's magnets (cube_swarm's model) are all off for the move, toward cubes and
    toward the steel floor (switchable magnets: electropermanent, or electromagnets held off); the
@@ -61,6 +63,8 @@ class Drive:
     hold: float = 0.1  # s: magnets on, then latch off after this long, then SETTLE
     floor_latch: bool = True  # the floor has latch features at the cell edges (a special floor)
     stiffness: float = 0.005  # s: the latch constraint's time constant (MuJoCo solref)
+    edges: bool = True  # no contact either with cubes touching the mover only by an edge or a corner: the turn never enters their cells, and with chamfered edges they share no surface
+    relax: float = 0.0  # s: >0 switches off the steel pull of the cubes face to face with a mover (not those it leans on) for the move, and waits this long first, so the squeeze the magnets left can ease
     face_friction: float = None  # friction of the cubes' faces (slippery skins); the floor keeps the scene's. MuJoCo takes the larger of two
 
 
@@ -108,6 +112,8 @@ class Hinge:
         self.axis_s = R_s.T @ self.axis  # the hinge axis in the support's frame
         self.slot = slot
         self.leans = [at[c[::-1]] for c in pivot.leans if c[::-1] in at]  # cubes it does not touch meanwhile (chamfered edges)
+        corners = [np.array(e) for e in np.ndindex(3, 3, 3) if sum(v != 1 for v in e) >= 2]
+        self.edged = [at[tuple(int(v) for v in here + e - 1)] for e in corners if tuple(int(v) for v in here + e - 1) in at]  # touching it by an edge or a corner only
         if self.latched:
             for k, end in zip(slot, (-0.35, 0.35)):
                 point = mate + end * L * self.axis
@@ -230,12 +236,21 @@ class HingeSwarm(Swarm):
             off[hinge.cube, hinge.cube] = False
             self.magnets.floor[hinge.cube * sites : (hinge.cube + 1) * sites] = 0.0
         self.magnets.switch(off)
+        if self.drive.relax > 0:
+            at = {tuple(int(v) for v in c): i for i, c in enumerate(self.reading.cells)}
+            for hinge in active:
+                here = self.reading.cells[hinge.cube]
+                for face in np.vstack([np.eye(3, dtype=int), -np.eye(3, dtype=int)]):
+                    j = at.get(tuple(int(v) for v in here + face))
+                    if j is not None and j not in hinge.leans:
+                        self.magnets.floor[j * sites : (j + 1) * sites] = 0.0
+            self.run(self.drive.relax, watch)
         contype, conaffinity = self.model.geom_contype.copy(), self.model.geom_conaffinity.copy()
         geom = self.model.body_geomadr[self.bodies]
         self.model.geom_conaffinity[:] = 3  # the floor and every cube: 1 | 2
         for hinge in active:  # mover (2, 2) and the cubes it leans on (1, 1) do not touch
             self.model.geom_contype[geom[hinge.cube]] = self.model.geom_conaffinity[geom[hinge.cube]] = 2
-            for j in hinge.leans:
+            for j in hinge.leans + (hinge.edged if self.drive.edges else []):
                 self.model.geom_contype[geom[j]] = self.model.geom_conaffinity[geom[j]] = 1
         horizon = max(2 * (h.duration + self.drive.stall) for h in active) + 1.0
         elapsed = 0.0
