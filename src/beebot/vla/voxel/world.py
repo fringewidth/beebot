@@ -829,7 +829,14 @@ def eat_cheeses(world):
 # tag coarser (BACKOFF), down to the primitive and to all moves; a harmful draw replays a trial of
 # the finest class that has one.
 
-OUTCOME_MODELS = ("mujoco_release", "mujoco_release_v2")  # tables in outcomes/<name>.json; mujoco_release: cube_swarm with release (switchable magnets, the switch_cube rule); mujoco_release_v2: the same with climbs at 0.85 of cube_swarm.RPM (HARDWARE.md, "Cutting harm"), judged with the fixes of 2026-11-11
+# Tables in outcomes/<name>.json. mujoco_release: cube_swarm with release (switchable magnets, the
+# switch_cube rule). mujoco_release_v2: the same with climbs at 0.85 of cube_swarm.RPM (HARDWARE.md,
+# "Cutting harm"), judged with the fixes of 2026-11-11. mujoco_release_v3 (the demo's, demos.DEMO_MOVES):
+# edge and face magnets x1.4 and the per-primitive kick plans of
+# runs/cube_outcomes/settings/plans-m14-sel.json (floor rolls and traverses at 1.2 of RPM, wall crawls
+# 1.1, climbs and descents with escalating retries within the move: HARDWARE.md, "Kick plans and
+# retries"); a move's outcome is that of its last attempt.
+OUTCOME_MODELS = ("mujoco_release", "mujoco_release_v2", "mujoco_release_v3")
 TAGS = ("bonded", "hinged", "rubs", "lone")
 BACKOFF = (TAGS, ("bonded", "hinged", "lone"), ("bonded", "hinged"), ("bonded",), ())  # finest to coarsest
 PRIOR = 8.0  # trials' worth of the coarser class each class's counts are shrunk toward
