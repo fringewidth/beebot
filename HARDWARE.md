@@ -1309,3 +1309,55 @@ Rows: `runs/cube_redesign/` (`drop.py` splits the walks' harm as in the table ab
    hardware.
 1. Before trusting 0.021: two more walk seeds (`--seed 1000`, `--seed 2000`) and the store and walk
    runs at 0.15 N m to find how much motor margin the bar needs.
+
+### Adopting the hinge cube (2026-11-12)
+
+The hinge cube is the demo's cube (decision decide-hinge-cube). Three walk seeds at hinge-e03
+(Drive torque 0.3 N m, edge/corner contacts dropped, floor latches on): seeds 0 / 1000 / 2000 reach
+0.822 / 0.866 / 0.863 and harm 0.021 / 0.031 / 0.021 per move; stores 0.93 / 0.010.
+
+**Overhang rule.** The grid now refuses a move that leaves a cube held up only by the mover
+(`world.overhangs`, applied in `world.rule_table` for every named rule, in scenes with gravity):
+with the mover in its target cell, fewer cubes are face-connected to the floor, terrain or a
+cheese than before. It holds for any cube (whatever turns the mover, a cube that leans or hangs on
+it loses it), and under `free_cube` it adds almost nothing, since a cube on the mover's face already
+holds the mover. Of the 2,249 hinge walk moves, 110 were such overhangs; MuJoCo harmed on 32 of
+them (0.014 per move, the drop share of "The hinge cube in MuJoCo").
+
+**Table.** `outcomes/mujoco_hinge_v1.json` (`demos.DEMO_MOVES`), fit like v3 on the pooled 380
+store and 2,249 ten-cube moves, less the 118 the rule now refuses (`cube_outcomes fit --legal`):
+2,511 moves in 64 classes. Held-out walk seed (fit on the stores and the other two seeds,
+`runs/cube_redesign/holdout_gap.py`, 16 grid plays a move, `holdout-gap-hinge-v1.txt`):
+
+| held-out seed | every move: harm MuJoCo / grid | TV | moves the grid would make: harm MuJoCo / grid | reached MuJoCo / grid | TV |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 0.021 / 0.024 | 0.028 | 0.003 / 0.002 | 0.851 / 0.905 | 0.054 |
+| 1000 | 0.030 / 0.022 | 0.036 | 0.003 / 0.001 | 0.896 / 0.898 | 0.003 |
+| 2000 | 0.021 / 0.036 | 0.057 | 0.004 / 0.001 | 0.895 / 0.878 | 0.020 |
+
+"Moves the grid would make" (675 to 699 a seed) leaves out the overhangs and the walk scenes in
+which the grid's face-support rule already lets a cube fall before the move (MuJoCo holds it; about
+3 % of walk moves); on every move the grid's harm comes mostly from those scenes. Fit on the stores
+alone the planned moves' TV is 0.055 to 0.098 (the stores reach 0.93 where the walks reach
+0.85 to 0.90), as with v3 (0.057 to 0.107 before the walks were pooled). On the moves the grid makes
+the hinge cube's harm is 0.003 to 0.004 per move in MuJoCo.
+
+**The experts on it** (`scripts/expert_harm.py`, 60 demo-preset scenes, 126 tasks, risk-weighing;
+fell: robots the grid's gravity drops per pivot, counted every step they drop, which the table's
+harm does not count; `--overhangs` is the rule before; rows in `runs/cube_redesign/experts/`):
+
+| table | rule | harmful per pivot | fell per pivot | reached per pivot | tasks passing | kept | stuck per kept demo |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v3 (flywheel, m14-sel) | before | 0.021 | 0.0020 | 0.63 | 0.55 | 62 | 1.9 |
+| v3 (flywheel, m14-sel) | no overhangs | 0.021 | 0.0021 | 0.62 | 0.53 | 60 | 1.95 |
+| hinge v1 | before | 0.0018 | 0.0072 | 0.95 | 0.99 | 116 | 0.078 |
+| hinge v1 | no overhangs | 0.0017 | 0.0003 | 0.96 | 0.98 | 114 | 0.026 |
+
+With the hinge cube the drops the old rule let through were the largest harm left (0.0072 a pivot,
+four times the table's); the rule removes them and a third of the stuck robots, for two tasks of
+126. For the flywheel cube it changes nothing measurable.
+
+**Closed loop.** `closed_loop` takes `--drive '{"torque": 0.3}'` (swarm option "drive",
+`closed_loop.make_swarm`) to run the episode on `cube_hinge.HingeSwarm`; several movers at once go
+through `HingeSwarm.moves`. Smoke: the expert on motion:goto (index 0, seed 0, 24 steps) passed at
+step 13, 155 moves, none harmful, 153 s simulated in 159 s (`runs/closed_loop/goto-hinge-smoke.mp4`).

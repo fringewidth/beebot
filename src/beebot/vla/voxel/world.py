@@ -491,8 +491,44 @@ def rule_table(world, rule, sides=False):
     if rule not in RULES:
         raise ValueError(f"unknown rule {rule!r}")
     out = pivot_moves(world.mass > 0.5, world.walls, cheese_id_map(world) >= 0, release=rule == "switch_cube", sides=sides)
+    table = out[0] if sides else out
     if world.stuck is not None:
-        (out[0] if sides else out)[:, :STAY] &= ~world.stuck.unsqueeze(1)
+        table[:, :STAY] &= ~world.stuck.unsqueeze(1)
+    table &= ~overhangs(world, table)
+    return out
+
+
+def overhangs(world, table):
+    """(B, 27, D, H, W) bool: the moves of `table` (pivot_moves') that would leave a robot held up
+    only by the mover, in scenes with gravity on: with the mover at its target, fewer robots are
+    connected to the floor, a wall or a cheese (supported) than before the move. A cube that leans
+    or hangs on the mover drops when it leaves (MuJoCo: HARDWARE.md, "Redesign options"), so every
+    named rule forbids it; under free_cube a cube touching the mover by a face already holds it, so
+    there it only adds a support that hangs on the mover."""
+    out = torch.zeros_like(table)
+    occupied = world.mass > 0.5
+    movable = table[:, :STAY].any(dim=1) & occupied & world.gravity.view(-1, 1, 1, 1)
+    scene, z, y, x = movable.nonzero(as_tuple=True)
+    if scene.numel() == 0:
+        return out
+    held = supported(world, occupied)
+    before = held.flatten(1).sum(dim=1)
+    sub = world.index(scene)
+    lifted = occupied[scene].clone()
+    lifted[torch.arange(scene.numel(), device=scene.device), z, y, x] = False
+    critical = supported(sub, lifted).flatten(1).sum(dim=1) < before[scene] - held[scene, z, y, x].long()  # without the mover, another robot loses its support
+    for m in critical.nonzero().squeeze(1).tolist():
+        here = torch.stack([z[m], y[m], x[m]])
+        codes = table[scene[m], :STAY, z[m], y[m], x[m]].nonzero().squeeze(1)
+        there = here + DIR_TABLE.to(here.device)[codes]
+        inside = ((there >= 0) & (there < torch.tensor(occupied.shape[1:], device=here.device))).all(dim=1)
+        codes, there = codes[inside], there[inside]
+        if codes.numel() == 0:
+            continue
+        moved = lifted[m].unsqueeze(0).repeat(codes.numel(), 1, 1, 1)
+        moved[torch.arange(codes.numel(), device=here.device), there[:, 0], there[:, 1], there[:, 2]] = True
+        after = supported(world.index(scene[m].repeat(codes.numel())), moved).flatten(1).sum(dim=1)
+        out[scene[m], codes[after < before[scene[m]]], z[m], y[m], x[m]] = True
     return out
 
 
@@ -831,12 +867,16 @@ def eat_cheeses(world):
 
 # Tables in outcomes/<name>.json. mujoco_release: cube_swarm with release (switchable magnets, the
 # switch_cube rule). mujoco_release_v2: the same with climbs at 0.85 of cube_swarm.RPM (HARDWARE.md,
-# "Cutting harm"), judged with the fixes of 2026-11-11. mujoco_release_v3 (the demo's, demos.DEMO_MOVES):
+# "Cutting harm"), judged with the fixes of 2026-11-11. mujoco_release_v3 (the flywheel cube's last):
 # edge and face magnets x1.4 and the per-primitive kick plans of
 # runs/cube_outcomes/settings/plans-m14-sel.json (floor rolls and traverses at 1.2 of RPM, wall crawls
 # 1.1, climbs and descents with escalating retries within the move: HARDWARE.md, "Kick plans and
-# retries"); a move's outcome is that of its last attempt.
-OUTCOME_MODELS = ("mujoco_release", "mujoco_release_v2", "mujoco_release_v3")
+# retries"); a move's outcome is that of its last attempt. mujoco_hinge_v1 (the demo's,
+# demos.DEMO_MOVES): the hinge cube (hardware/cube_hinge.py, HingeSwarm with Drive torque 0.3 N m:
+# the mover latches its pivot edge to its support, magnets off, a torque-limited servo turns it, a
+# stall is driven back; HARDWARE.md, "Redesign options"), fit on its store and ten-cube moves less the
+# ones the rule forbids (overhangs).
+OUTCOME_MODELS = ("mujoco_release", "mujoco_release_v2", "mujoco_release_v3", "mujoco_hinge_v1")
 TAGS = ("bonded", "hinged", "rubs", "lone")
 BACKOFF = (TAGS, ("bonded", "hinged", "lone"), ("bonded", "hinged"), ("bonded",), ())  # finest to coarsest
 PRIOR = 8.0  # trials' worth of the coarser class each class's counts are shrunk toward

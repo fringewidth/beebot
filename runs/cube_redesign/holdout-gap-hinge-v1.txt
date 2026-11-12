@@ -1,0 +1,12 @@
+seed    0 stores only            all      n 759  harm mujoco 0.021 grid 0.026  reached mujoco 0.822 grid 0.880  TV 0.062
+seed    0 stores only            planned  n 699  harm mujoco 0.003 grid 0.004  reached mujoco 0.851 grid 0.948  TV 0.098
+seed    0 stores + other walks   all      n 759  harm mujoco 0.021 grid 0.024  reached mujoco 0.822 grid 0.845  TV 0.028
+seed    0 stores + other walks   planned  n 699  harm mujoco 0.003 grid 0.002  reached mujoco 0.851 grid 0.905  TV 0.054
+seed 1000 stores only            all      n 732  harm mujoco 0.030 grid 0.023  reached mujoco 0.866 grid 0.890  TV 0.024
+seed 1000 stores only            planned  n 675  harm mujoco 0.003 grid 0.002  reached mujoco 0.896 grid 0.955  TV 0.058
+seed 1000 stores + other walks   all      n 732  harm mujoco 0.030 grid 0.022  reached mujoco 0.866 grid 0.838  TV 0.036
+seed 1000 stores + other walks   planned  n 675  harm mujoco 0.003 grid 0.001  reached mujoco 0.896 grid 0.898  TV 0.003
+seed 2000 stores only            all      n 758  harm mujoco 0.021 grid 0.037  reached mujoco 0.863 grid 0.869  TV 0.022
+seed 2000 stores only            planned  n 693  harm mujoco 0.004 grid 0.002  reached mujoco 0.895 grid 0.950  TV 0.055
+seed 2000 stores + other walks   all      n 758  harm mujoco 0.021 grid 0.036  reached mujoco 0.863 grid 0.808  TV 0.057
+seed 2000 stores + other walks   planned  n 693  harm mujoco 0.004 grid 0.001  reached mujoco 0.895 grid 0.878  TV 0.020

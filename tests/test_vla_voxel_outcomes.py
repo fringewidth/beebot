@@ -274,3 +274,14 @@ def test_escalated_rows_give_every_prefix_of_their_schedule():
     assert C.plan_outcomes(single) == [((1.2,), "reached")]
     table, _ = C.kick_table([row], weight=5.0)
     assert table["floor_roll"] == [0.7, 0.9]  # as good as the longer plan and shorter
+
+
+def test_a_move_that_leaves_a_cube_held_up_only_by_the_mover_is_forbidden():
+    # C on A traverses toward D; B hangs on C's side, so C leaving would drop it (world.overhangs)
+    a, c, d, b = (0, 5, 5), (1, 5, 5), (0, 5, 4), (1, 5, 6)
+    left = code(0, 0, -1)
+    for rule in ("switch_cube", "free_cube"):
+        assert not bool(rule_table(scene([a, c, d, b]), rule)[0, left, 1, 5, 5])
+    assert bool(rule_table(scene([a, c, d]), "switch_cube")[0, left, 1, 5, 5])
+    off = replace(scene([a, c, d, b]), gravity=torch.zeros(1, dtype=torch.bool))  # without gravity nothing drops
+    assert bool(rule_table(off, "switch_cube")[0, left, 1, 5, 5])

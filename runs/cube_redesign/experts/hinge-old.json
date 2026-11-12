@@ -1,0 +1,4 @@
+24 scenes, 42 demos, 61 s; kept/tried {"build": "24/24", "construction": "1/2", "formation": "5/5", "logic": "2/2", "motion": "5/5", "parallel": "0/2", "subset": "1/1", "switch": "4/5"}
+48 scenes, 95 demos, 117 s; kept/tried {"build": "48/48", "construction": "5/7", "formation": "12/12", "logic": "3/3", "motion": "10/10", "parallel": "0/5", "reasoning": "2/2", "subset": "7/7", "switch": "8/9"}
+60 scenes, 116 demos, 152 s; kept/tried {"build": "60/60", "construction": "6/8", "formation": "14/14", "logic": "3/3", "motion": "12/12", "parallel": "1/7", "reasoning": "2/2", "subset": "8/8", "switch": "10/12"}
+{"outcomes": "mujoco_hinge_v1", "risk": true, "overhangs": true, "scenes": 60, "pivots": 14168, "reached": 0.9532, "stayed": 0.045, "harmful": 0.0018, "fell": 0.0072, "tried": 126, "kept": 116, "passing": 0.9921, "stuck_per_demo": 0.078}

@@ -1,0 +1,4 @@
+24 scenes, 20 demos, 86 s; kept/tried {"build": "6/24", "construction": "2/2", "formation": "3/5", "logic": "2/2", "motion": "2/5", "parallel": "0/2", "subset": "1/1", "switch": "4/5"}
+48 scenes, 48 demos, 166 s; kept/tried {"build": "14/48", "construction": "4/7", "formation": "7/12", "logic": "3/3", "motion": "6/10", "parallel": "0/5", "reasoning": "1/2", "subset": "5/7", "switch": "8/9"}
+60 scenes, 60 demos, 201 s; kept/tried {"build": "21/60", "construction": "4/8", "formation": "9/14", "logic": "3/3", "motion": "7/12", "parallel": "0/7", "reasoning": "1/2", "subset": "6/8", "switch": "9/12"}
+{"outcomes": "mujoco_release_v3", "risk": true, "overhangs": false, "scenes": 60, "pivots": 15816, "reached": 0.6242, "stayed": 0.355, "harmful": 0.0208, "fell": 0.0021, "tried": 126, "kept": 60, "passing": 0.5317, "stuck_per_demo": 1.95}

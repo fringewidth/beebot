@@ -2,11 +2,13 @@
 blind (demos --outcomes, --blind): plays the demo preset's draws (demos.PRESETS["demo"]) and counts
 every pivot world.OutcomeModel.draw decides.
 
-    PYTHONPATH=src python scripts/expert_harm.py --outcomes mujoco_release_v3 --scenes 40 [--blind]
+    PYTHONPATH=src python scripts/expert_harm.py --outcomes mujoco_hinge_v1 --scenes 60 [--blind] [--overhangs]
 
-Prints one JSON line: pivots, reached / stayed / harmful per pivot, demonstrations kept of tried,
-the share of episodes passing their checker, robots stuck off the lattice at the end of a kept
-demonstration.
+Prints one JSON line: pivots, reached / stayed / harmful per pivot, fell per pivot (robots the grid's
+gravity dropped a voxel, counted at every step they drop: a cube left held up by nothing, which the
+table's harm does not count), demonstrations kept of tried, the share of episodes passing their
+checker, robots stuck off the lattice at the end of a kept demonstration. --overhangs lets the rule
+allow moves that leave a cube held up only by the mover (world.overhangs), as before 2026-11-12.
 """
 
 import argparse
@@ -26,9 +28,12 @@ def main():
     parser.add_argument("--blind", action="store_true")
     parser.add_argument("--scenes", type=int, default=40)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--overhangs", action="store_true", help="the rule as before world.overhangs: moves leaving a cube held up only by the mover allowed")
     args = parser.parse_args()
+    if args.overhangs:
+        W.overhangs = lambda world, table: torch.zeros_like(table)
     torch.set_num_threads(2)
-    counts = {"pivots": 0, "reached": 0, "harmful": 0}
+    counts = {"pivots": 0, "reached": 0, "harmful": 0, "fell": 0}
     drawing = [False]  # pivot_class also serves the experts' odds; count only the calls from draw
     pivot_class, draw = W.pivot_class, W.OutcomeModel.draw
 
@@ -45,7 +50,17 @@ def main():
         counts["reached"] -= int((out != codes).sum())
         return out, events
 
-    W.pivot_class, W.OutcomeModel.draw = counted_class, counted_draw
+    fall = W.fall
+
+    def counted_fall(world):
+        on = world.gravity.nonzero().squeeze(1)
+        if on.numel():
+            sub = world.index(on)
+            occupied = sub.mass > 0.5
+            counts["fell"] += int((occupied & ~W.supported(sub, occupied)).sum())
+        return fall(world)
+
+    W.pivot_class, W.OutcomeModel.draw, W.fall = counted_class, counted_draw, counted_fall
     p = D.PRESETS["demo"]
     with tempfile.TemporaryDirectory() as out:
         D.write(out, args.scenes, args.seed, steps=p["steps"], moves=p["moves"], robots=p["robots"], fit=p["fit"], rule=p["rule"], expert=p["expert"], coverage=p["coverage"], objects=p["objects"], build=p["build"], keep=p["keep"], empty=p["empty"], scaled=p["scaled"], preset="demo", outcomes=args.outcomes, risk=not args.blind, compact=True)
@@ -57,11 +72,13 @@ def main():
     print(json.dumps({
         "outcomes": args.outcomes,
         "risk": not args.blind,
+        "overhangs": args.overhangs,
         "scenes": args.scenes,
         "pivots": counts["pivots"],
         "reached": round(reached / n, 4),
         "stayed": round(1 - reached / n - counts["harmful"] / n, 4),
         "harmful": round(counts["harmful"] / n, 4),
+        "fell": round(counts["fell"] / n, 4),
         "tried": len(rows),
         "kept": sum(r["e"] >= 0 for r in rows),
         "passing": round(sum(r["score"] >= D.SUCCESS.get(r["family"], 0.75) and not r["unasked"] for r in rows) / max(len(rows), 1), 4),
