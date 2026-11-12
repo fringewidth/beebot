@@ -291,7 +291,7 @@ note(phase="gate" if ROLE == "first" else "second", passed=True, examples_per_s=
 # code dataset fallback has none and samples every episode equally)
 MIX = os.path.join(os.path.dirname(SRC), "runs", "task_mix.json")
 QUARANTINE = os.path.join(os.path.dirname(SRC), "runs", "quarantine.json")  # bug-sweep episodes and labels to skip
-FRAME = os.path.join(os.path.dirname(SRC), "runs", "frame_verified.jsonl.gz")  # haiku_frame.py's verified thoughts (user frame mapped onto the board)
+FRAME = os.path.join(os.path.dirname(SRC), "runs", "frame_verified.jsonl.gz")  # haiku_frame.py camera stage's verified rows (data/vla/haiku/frame-camera: the user at the camera, said in its frame)
 if os.path.isfile(FRAME):
     import gzip
     import shutil
