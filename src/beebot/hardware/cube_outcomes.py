@@ -27,6 +27,13 @@ Sets of moves (`measure --set`):
 Magnets (`--magnets`): "release" is cube_swarm's Swarm(release=True), the switchable magnets of
 the switch_cube rule; "permanent" is Swarm(release=False).
 
+Cube settings (`measure --setting NAME`, rows tagged with it; `compare` and `fit --setting` select
+by it): --design scales cube.Cube fields (magnet pulls), --speed scales cube_swarm.RPM per
+primitive, --kicks gives a kick plan per class key or primitive (a factor, or a list of factors:
+escalating retries, `escalated`), --escalate one schedule for every move. `kicks` fits a
+per-class plan table from store rows (kick_table). HARDWARE.md, "Cutting harm" and "Kick plans
+and retries".
+
     python -m beebot.hardware.cube_outcomes draw --root ~/beebot --out runs/cube_outcomes/draw
     python -m beebot.hardware.cube_outcomes measure --set stores --draw runs/cube_outcomes/draw --total 600 --out runs/cube_outcomes/stores-release.jsonl
     python -m beebot.hardware.cube_outcomes fit runs/cube_outcomes/stores-release.jsonl --out src/beebot/vla/voxel/outcomes/mujoco_release.json
@@ -185,16 +192,57 @@ def trial(job):
     runs = [kept] + ([[kept[0]]] if job.get("alone") and len(kept) > 1 else [])
     rows = []
     rpm = job.get("rpm")
-    if job.get("rpm_factor"):  # one mover at its calibrated speed times the factor
-        from beebot.vla.voxel.world import PRIMITIVES
-
-        rpm = round(job["rpm_factor"] * speeds_of(job.get("speed") or 1.0)[PRIMITIVES[grid[kept[0]]["primitive"]]])
+    if job.get("rpm_factor") or job.get("kicks"):  # one mover at its kick (kick) times the factor
+        rpm = round(kick(job, grid[kept[0]])[0])
     for run, chosen in enumerate(runs):
         swarm = Swarm(cells, seed=job["seed"], release=job["magnets"] == "release", **swarm_options(job))
+        if len(chosen) == 1 and len(kick(job, grid[chosen[0]])) > 1:
+            k = chosen[0]
+            rows.append(escalated(swarm, (index[orders[k][0]], job["orders"][k][1]), job, grid[k], movers=1, alone=run == 1))
+            continue
         result = carry_out(swarm, [(index[orders[k][0]], job["orders"][k][1]) for k in chosen], rpm)
         for k, row in zip(chosen, result["orders"]):
             rows.append(row_of(job, grid[k], row, result, movers=len(chosen), alone=run == 1))
     return rows
+
+
+def kick(job, g):
+    """The flywheel rpms a move of grid class g (a grid_moves dict) is tried at, in order: the
+    primitive's calibrated speed (speeds_of job["speed"]) times job["rpm_factor"] (default 1)
+    times each factor of the move's kick plan. The plan is job["kicks"]'s entry for the class key,
+    else for the primitive's name (a per-class kick table, firmware only): a factor (one attempt)
+    or a list of factors (escalating retries, escalated); without one, job["escalate"], else 1."""
+    from beebot.vla.voxel.world import PRIMITIVES
+
+    name = PRIMITIVES[g["primitive"]] if isinstance(g["primitive"], int) else g["primitive"]
+    kicks = job.get("kicks") or {}
+    plan = kicks.get(class_key(g), kicks.get(name, job.get("escalate") or 1.0))
+    base = speeds_of(job.get("speed") or 1.0)[name] * (job.get("rpm_factor") or 1.0)
+    return [base * f for f in (plan if isinstance(plan, list) else [plan])]
+
+
+def escalated(swarm, order, job, g, **extra):
+    """One move with escalating retries at the rpms of its kick plan (kick): try at the first;
+    while an attempt leaves the scene as it was on the lattice (the mover stayed, no cube moved or
+    newly off), try again at the next. Every attempt draws its own speed and brake jitter
+    (Swarm.moves) from a scene the last attempt rocked, so no two are identical. Returns one row
+    for the whole move: the scene before the first attempt, after the last; tries holds each
+    attempt's lattice outcome, rpms their rpms, attempts their count, schedule the plan's rpms."""
+    schedule = [round(rpm) for rpm in kick(job, g)]
+    first, tries, rpms, knocked, sim, wall = None, [], [], [], 0.0, 0.0
+    for rpm in schedule:
+        result = carry_out(swarm, [order], rpm)
+        first = first or result
+        row = row_of(job, g, result["orders"][0], result, **extra)
+        tries.append(lattice_end(row)[0])
+        rpms.append(rpm)
+        knocked += result["knocked"]
+        sim += result["sim_seconds"]
+        wall += result["wall_seconds"]
+        if tries[-1] != "stayed":
+            break
+    whole = {**result, "before": first["before"], "off_before": first["off_before"], "knocked": knocked, "sim_seconds": sim, "wall_seconds": wall}
+    return row_of(job, g, result["orders"][0], whole, **extra, schedule=schedule, attempts=len(tries), tries=tries, rpms=rpms)
 
 
 def swarm_options(job):
@@ -230,7 +278,7 @@ def speeds_of(speed):
 def row_of(job, g, row, result, **extra):
     """One output row: the job's tags, the grid class and features, MuJoCo's outcome."""
     return {
-        **{key: job[key] for key in ("set", "magnets", "seed", "rpm", "rpm_factor", "design", "faces", "dwell", "speed", "setting") if key in job},
+        **{key: job[key] for key in ("set", "magnets", "seed", "rpm", "rpm_factor", "kicks_name", "escalate", "design", "faces", "dwell", "speed", "setting") if key in job},
         **job.get("tags", {}),
         **extra,
         "key": class_key(g),
@@ -284,8 +332,12 @@ def layout_walk(job):
         keys = sorted(kinds)
         pick = kinds[keys[rng.integers(len(keys))]]
         i, d, g = pick[rng.integers(len(pick))]
-        result = carry_out(swarm, [(i, d)], job.get("rpm"))
-        rows.append(row_of({**job, "set": "layouts"}, g, result["orders"][0], result, layout=layout, index=len(rows), movers=1, alone=False))
+        if len(kick(job, g)) > 1:
+            rows.append(escalated(swarm, (i, d), {**job, "set": "layouts"}, g, layout=layout, index=len(rows), movers=1, alone=False))
+        else:
+            rpm = round(kick(job, g)[0]) if job.get("kicks") or job.get("rpm_factor") else job.get("rpm")
+            result = carry_out(swarm, [(i, d)], rpm)
+            rows.append(row_of({**job, "set": "layouts"}, g, result["orders"][0], result, layout=layout, index=len(rows), movers=1, alone=False))
         over = rows[-1]["detail"] not in ("reached", "stayed")
     return rows
 
@@ -924,6 +976,69 @@ def compare(paths, draw):
         print(f"{label:20s}" + "".join(f"{c:>24s}" for c in cells))
 
 
+def factor_of(row):
+    """The kick a single-mover row was run at, as a factor of its primitive's calibrated speed
+    (cube_swarm.RPM): rpm_factor times the setting's speed factor for the primitive."""
+    name = row["key"].split("/")[0]
+    speed = row.get("speed") or 1.0
+    per = speed if not isinstance(speed, dict) else speed.get(name, 1.0)
+    return round(per * (row.get("rpm_factor") or 1.0), 3)
+
+
+def plan_outcomes(row):
+    """[(kick plan, lattice outcome)] a single-mover row tells: a row run at one kick gives its
+    factor (factor_of) and outcome; an escalated row (escalate, the factors it was tried at) gives
+    every prefix of its schedule, a move still staying after the prefix counting as stayed."""
+    end = lattice_end(row)[0]
+    if not row.get("escalate"):
+        return [((factor_of(row),), end)]
+    mult = factor_of(row)
+    schedule = tuple(round(mult * f, 3) for f in row["escalate"])
+    return [(schedule[:k], end if row["attempts"] <= k else "stayed") for k in range(1, len(schedule) + 1)]
+
+
+def kick_table(rows, weight=5.0, prior=4.0):
+    """A per-class kick table from store rows run at several kicks or escalation schedules
+    (plan_outcomes) with one magnet design (each scene counted once per plan): per class the plan that maximises reached - weight *
+    harmful, each class's shares shrunk toward its primitive's under the same plan by `prior`
+    pseudo-moves (most classes have a handful of moves per plan). A primitive's own entry (the
+    fallback for classes not seen) is its best pooled plan. A plan is a factor or, for escalating
+    retries, a list of factors (kick). Returns ({key: plan}, {key: (plan, n, reached, harm)})."""
+    cells, seen = {}, set()
+    for r in rows:
+        if r["detail"] == "refused" or r.get("movers", 1) != 1:
+            continue
+        key = r["key"]
+        scene = (r.get("store"), r.get("episode"), r.get("t"), r["seed"], tuple(r["start"]), tuple(r["direction"]))
+        for plan, end in plan_outcomes(r):
+            if (scene, plan) in seen:  # a replayed scene at the same plan replays identically (an escalation's first attempt is the single kick)
+                continue
+            seen.add((scene, plan))
+            for name in (key, key.split("/")[0]):
+                c = cells.setdefault((name, plan), Counter())
+                c["n"] += 1
+                c["reached"] += end == "reached"
+                c["harm"] += end not in ("reached", "stayed")
+    table, chosen = {}, {}
+    names = sorted({name for name, _ in cells}, key=lambda k: ("/" in k, k))
+    for name in names:
+        prim = name.split("/")[0]
+        options = []
+        for (other, plan), c in cells.items():
+            if other != name:
+                continue
+            pool = cells[(prim, plan)]
+            m = 0.0 if name == prim else prior
+            reach = (c["reached"] + m * pool["reached"] / pool["n"]) / (c["n"] + m)
+            harm = (c["harm"] + m * pool["harm"] / pool["n"]) / (c["n"] + m)
+            options.append((reach - weight * harm, -len(plan), plan, c["n"], reach, harm))
+        best = max(options)
+        plan = best[2][0] if len(best[2]) == 1 else list(best[2])
+        table[name] = plan
+        chosen[name] = (plan, *best[3:])
+    return table, chosen
+
+
 def print_tally(rows, by=("magnets", "set", "key")):
     table = tally(rows, by)
     print(f"{' / '.join(by):60s} {'n':>5s} " + " ".join(f"{d:>8s}" for d in DETAILS))
@@ -978,6 +1093,8 @@ def main():
     m.add_argument("--faces", action="store_true", help="the neighbours face to face with a mover switch off the face that touches it (Swarm faces)")
     m.add_argument("--dwell", type=float, default=None, help="seconds the magnets are off before the flywheel spins, beyond BRAKE_AT (Swarm dwell)")
     m.add_argument("--speed", default=None, help='flywheel speeds as cube_swarm.RPM times a factor, as JSON: 0.85, or per primitive {"convex_up": 0.85}')
+    m.add_argument("--kicks", default=None, help="a per-class kick table: JSON {class key or primitive: factor} or a path to one (kick)")
+    m.add_argument("--escalate", type=float, nargs="+", default=None, help="escalating retries: kick factors tried in order while a move stays (escalated)")
     m.add_argument("--setting", default=None, help="a name for the cube setting, recorded on every row (compare, report and fit select by it)")
     m.add_argument("--replay", default=None, help="stores: run the scenes of these stores rows again, with their seeds (paired with them)")
     m.add_argument("--templates", nargs="+", default=None, help="isolated: only these TEMPLATES")
@@ -992,6 +1109,12 @@ def main():
     c.add_argument("--seed", type=int, default=1)
     c.add_argument("--workers", type=int, default=5)
     c.add_argument("--out", required=True)
+    q = sub.add_parser("kicks", help="a per-class kick table from store rows run at several kicks (kick_table)")
+    q.add_argument("paths", nargs="+")
+    q.add_argument("--weight", type=float, default=5.0, help="harm penalty: maximise reached - weight * harmful")
+    q.add_argument("--prior", type=float, default=4.0, help="pseudo-moves shrinking a class toward its primitive")
+    q.add_argument("--settings", nargs="+", default=None, help="only rows of these settings")
+    q.add_argument("--out", required=True)
     t = sub.add_parser("tally")
     t.add_argument("paths", nargs="+")
     t.add_argument("--by", nargs="+", default=["magnets", "set", "key"])
@@ -1025,6 +1148,14 @@ def main():
     if args.command == "tally":
         rows = [json.loads(line) for p in args.paths for line in open(p)]
         print_tally(rows, tuple(args.by))
+        return
+    if args.command == "kicks":
+        rows = [json.loads(line) for p in args.paths for line in open(p)]
+        rows = [r for r in rows if r["set"] == "stores" and (args.settings is None or setting_of(r) in args.settings)]
+        table, chosen = kick_table(rows, args.weight, args.prior)
+        for name, (plan, n, reach, harm) in chosen.items():
+            print(f"{name:40s} {str(plan):28s} n {n:3d}  reached {reach:.2f}  harmful {harm:.2f}")
+        Path(args.out).write_text(json.dumps(table, indent=1) + "\n")
         return
     if args.command == "compare":
         compare(args.paths, args.draw)
@@ -1093,6 +1224,12 @@ def main():
         extra["dwell"] = args.dwell
     if args.speed:
         extra["speed"] = json.loads(args.speed)
+    if args.kicks:
+        text = Path(args.kicks).read_text() if Path(args.kicks).is_file() else args.kicks
+        extra["kicks"] = json.loads(text)
+        extra["kicks_name"] = Path(args.kicks).name if Path(args.kicks).is_file() else "inline"
+    if args.escalate:
+        extra["escalate"] = args.escalate
     if args.setting:
         extra["setting"] = args.setting
     if args.set == "stores" and args.replay:
