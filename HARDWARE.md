@@ -1115,3 +1115,197 @@ What this asks for before the demo:
 1. Off-lattice recovery: snap-back is a stand-in for a person resetting a cube. Without it one
    bad pivot early in an episode freezes a cube for good.
 1. The stop rule for demos: `--stop`.
+
+## Redesign options (2026-11-12)
+
+The bar for a move (one commanded pivot): reached >= 0.80, harmful <= 0.03. The best flywheel
+setting (m14-sel, above) gives 0.50 reached and 0.058 harmful in the ten-cube walks, and the
+reasons are structural: a ballistic flip has an energy window, a cube in a crowd is gripped, and a
+throw shoves a lone support. This section asks which actuation meets the bar by construction:
+a survey of lattice modular robots, a ranking of candidates, and a MuJoCo model of the first.
+
+### Survey: lattice modules with measured move reliability
+
+R = number read in the source; P = press only; - = not reported or not found. No system reports the
+bar for 5 cm modules in a crowded 3D lattice under gravity.
+
+| system | move | measured reliability | move time | size, mass, cost | connector | special floor | small-team build by New Year |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| [3D M-Blocks](https://people.csail.mit.edu/sclaici/pdf/romanishin20153d.pdf) (ICRA 2015) | ballistic, flywheel brake | one module, >= 20 trials each (R): traverse 1.00 (n = 41), horizontal traverse 0.70, vertical traverse 0.80, convex 0.95 / 1.00, concave 0.55 / 0.90, corner climb 1.00, stair 0.95 | 10-30 ms brake | 50 mm, 150 g, $130 | permanent magnets | no | medium (our current design) |
+| [M-Blocks 2.0](https://news.mit.edu/2019/self-transforming-robot-blocks-jump-spin-flip-identify-each-other-1030) (IROS 2019) | ballistic | "90 percent ... succeeded in getting into a line" (P); no per-move rate (paper closed) | - | 50 mm | permanent magnets | no | medium |
+| [ElectroVoxel](https://arxiv.org/pdf/2207.05732) (ICRA 2022) | electromagnetic launch, coast, catch about an edge | air table: pivots 52/52, traversals 0.94 of 30; parabolic flight 3/3 (R). Not shown in 1 g; authors note pivoting against gravity needs boost electronics and the cores saturate | pivot 1.5 s, 11.7-15.1 W per magnet | 60 mm, 103 g, $69 | 12 edge electromagnets | air table or microgravity | easy, but not for 1 g |
+| [EM-Cube](https://research.autodesk.com/app/uploads/2023/03/emcube-cubeshaped-selfreconfigurable-robots.pdf_recjheAyakGcvrPDv.pdf) (2008) | quasi-static slide in 10 mm steps | PVC: walking 33/33, convex 33/36 and 8/33; glass: walking 49/50, convex 50/64 and 47/49 (R). Against gravity failed | 0.1 s per step, 6 per cell | 60 mm, 120 g, tethered | magnets + electromagnets | low-friction plane | easy, horizontal only |
+| Telecubes, [Crystalline](https://core.ac.uk/download/337601028.pdf) | quasi-static expand / contract | - (connectors named the main problem) | - | - | switching magnets / key-lock | no | hard |
+| [ATRON](https://sccn.ucsd.edu/download/robot.pdf) | quasi-static hemisphere rotation | - (hardware rates not found) | - | 110 mm, 850 g | mechanical hooks | no | hard |
+| [Roombots](https://documents.epfl.ch/groups/e/ep/epflmedia/www/20140520_Roombots/roombots%20publication.pdf) (RAS 2014) | quasi-static, PID joints | 14-step wall climb: 10/15 runs unassisted, 5 assists in 210 steps, about 0.976 per step (derived from R). Magnets added to the gripper after misalignment and wear failures | - | 110 x 110 x 220 mm, 1.4 kg | gripper + magnet, 3.5 mm capture | grid plates with ports | very hard |
+| [SMORES-EP](https://www.modlabupenn.org/wp-content/uploads/tosun2016epface.pdf) | quasi-static, EP docking | docking rate not found; EP face 88 N, switches in 80 ms on 2.5 J (R) | tasks 130-260 s | 80 mm, 500 g | electropermanent magnets | no | hard |
+| [Soldercubes](https://fab.cba.mit.edu/classes/865.18/discrete/micro/solder_cubes.pdf) | quasi-static rotation | connector: 220 cycles before failure, 173 +/- 46 N (R) | 10 s heat, up to 60 s cool | 55 mm, 120 g, $193 | solder | no | medium, slow |
+| [HyMod](https://sheffield.ac.uk/media/22983/download) | quasi-static, 3 DOF | - (printed gears, then hooks failed under heavy loads) | - | about 620 g | mechanical hooks | no | hard |
+| [FreeBOT](https://freeformrobotics.org/wp-content/uploads/2022/02/IROS20_0857_FI.pdf), [FreeSN](https://freeformrobotics.org/wp-content/uploads/2023/09/FreeSN_TRO2023.pdf), [SnailBot](https://freeformrobotics.org/wp-content/uploads/2022/03/ICRA22_0763_FI.pdf) | quasi-static wheels on steel shells | - (FreeBOT stair climb "not 100% successful") | dock 0.5 s | 120 mm, 308 g (FreeBOT) | magnet on steel shell, any point | no | medium; off-lattice |
+| [Cubli](https://skoge.folk.ntnu.no/prost/proceedings/ecc-2013/data/papers/0829.pdf) | ballistic jump, then feedback balance on edge / corner | jump-up rate not reported | - | 150 mm | none | no | medium |
+| [TERMES](https://www.roboticsproceedings.org/rss07/p35.pdf) (relative robots, passive blocks) | quasi-static climbing on blocks | 40 laps of 2 ascents, 2 descents, 2 level crossings, 6 turns: 0 navigation errors; pick 20/20, place 20/20 (R) | 106-step build in 24 min | 110 mm robot | passive self-aligning block shape | blocks are the floor | medium-easy |
+| [BILL-E](https://cba.mit.edu/docs/papers/17.06.scitech.bille.pdf), [SOLL-E](https://ntrs.nasa.gov/api/citations/20230011353/downloads/IEEE_IROS_2023_SOLLE_Final.pdf) (relative robots) | quasi-static inchworm | placement rate not found | climb step 2-5 min | 520 g | bolted voxels | passive lattice | hard |
+| [RhoMorph](https://arxiv.org/pdf/2601.19529) (2026) | quasi-static, one servo, planar | 7 consecutive dockings within tolerance (R) | - | 140 mm | electromagnet + iron plate | planar | medium |
+
+Reading notes. For arXiv papers (ElectroVoxel, SMORES-EP, RhoMorph) alphaxiv had no summary, so
+the PDFs were read for the numbers. M-Blocks 2.0 per-move rates, ATRON, SMORES-EP docking, ARMADAS
+placement and Cubli jump-up rates were not found (closed or not reported).
+
+What the survey says for the decision:
+
+1. **Ballistic moves have never met the bar.** 3D M-Blocks, one module on an ideal lattice, spans
+   0.55 to 1.00 per primitive; its authors write that pivoting "exerts significant forces and
+   torques on the entire lattice" and that small lattices may not stay intact. That is our
+   simulated failure, measured on hardware.
+1. **The reliable results are quasi-static and closed loop**, with passive self-alignment: TERMES
+   (0 errors in about 480 climbing actions), Roombots (about 0.976 per step, after making the
+   connector magnet-assisted). Their failures were connector alignment and wear, not the motion.
+1. **Sliding is friction-limited**: EM-Cube's convex transitions swing from 0.24 to 0.96 with the
+   surface, and it could not move against gravity.
+1. **Electromagnetic edge hinges** (ElectroVoxel) are cheap and pivot 52/52 without gravity, but
+   are open-loop launch-and-catch and not shown in 1 g; a 5 cm cube's 45-degree apex puts the far
+   face about 35 mm from its catch, where an electromagnet's pull is negligible.
+
+### Candidates
+
+The policy's action space is the lattice moves per cube, so a candidate is judged first on whether
+it meets the bar, then on how much of the grid's move model it keeps, then on what a small team
+can build by New Year, then on speed.
+
+1. **Latched-edge servo pivot ("hinge cube").** The same cube and the same pivots (floor roll,
+   traverse, convex and concave up and down, wall crawl), but instead of a throw the mover latches
+   the edge it turns about to its support and a geared motor turns it about that edge under
+   position control. Nothing is ballistic: there is no energy window, a lone support feels only
+   the mover's weight (no impulse), stepping down is lowered, not dropped, and a move that cannot
+   finish is driven back to where it started, so a stall is harmless by construction. It keeps the
+   grid's move model exactly. It needs switchable magnets (electropermanent) on every face, as
+   the `switch_cube` rule already assumes, and a latch at the floor for floor moves (a steel
+   floor with latch features at the cell edges: a special floor). The unknown is the mechanism: a
+   latch and a torque source at whichever of the 12 edges is the pivot. No surveyed system does
+   this at 5 cm; Roombots and M-TRAN put the joint inside a two-cell module instead. Two routes
+   worth a bench test: (a) an electropermanent edge latch as the hinge plus a small linear
+   pusher per face that tips the cube off its support and lowers it onto the target face (six
+   pushers, each also the brake for the descent); (b) toothed, rounded edges with one geared
+   motor per axis driving the four parallel edges' pinions, which mesh with the support's edge.
+   Either is likely to need an 8-10 cm cube. Modelled below.
+1. **Relative robots on passive blocks (TERMES-style).** A few walking or wheeled robots carry
+   passive, self-aligning blocks with magnets; the blocks form the structure. It has the best
+   measured reliability in the survey (TERMES: 0 errors in about 480 climbing actions, 20/20 picks
+   and places) and is the easiest to build (passive blocks are cheap; one robot design). It keeps
+   the lattice of blocks, so the grid world can stay as it is with a planner that turns each block
+   move into robot trips, but the blocks are no longer robots: the demo becomes "a swarm builds
+   with blocks", moves get slower (a trip per block), and the policy's per-cube action space no
+   longer matches the hardware one to one.
+1. **Closed-loop reaction-wheel pivot (Cubli-style) on the present cube.** Keep the flywheel but
+   drive it with a motor both ways under feedback: an under-kick to the edge balance point, then a
+   controlled descent. It keeps everything, including the 5 cm cube, and is the cheapest change,
+   but the survey found no hardware evidence of a controlled descent at this size (Cubli is
+   15 cm), the motor must give about the gravity torque (0.04-0.05 N m at 150 g) on top of the
+   brake, and it does nothing for a cube gripped in a crowd. This is the line the control work on
+   the present design is testing (in-flight trim), so it is not repeated here.
+
+Not ranked: sliding cubes (EM-Cube: convex transitions 0.24 to 0.96 depending on the surface,
+failed against gravity), electromagnetic edge hinges (not shown in 1 g; open-loop launch and
+catch), and wheels in steel shells (FreeBOT, SnailBot: no reliability reported, off the lattice).
+
+### The hinge cube in MuJoCo (`hardware/cube_hinge.py`)
+
+`HingeSwarm` is `cube_swarm.Swarm` with the flywheel kick replaced by a servo about a latched
+edge; mass, size, magnets, contacts, placement error and jitter are cube_swarm's (the as-built
+magnets, not x 1.4). Tests: `tests/test_cube_hinge.py`.
+
+    python -m beebot.hardware.cube_outcomes measure --set stores --replay runs/cube_outcomes/stores-release.jsonl --drive '{"torque": 0.3}' --setting hinge-e03 --workers 4 --out runs/cube_redesign/stores-hinge-e03.jsonl
+    python -m beebot.hardware.cube_outcomes measure --set layouts --trials 20 --moves 8 --drive '{"torque": 0.3}' --setting hinge-e03 --workers 4 --out runs/cube_redesign/layouts-hinge-e03.jsonl
+
+1. **Latch.** The mover's pivot edge is held to the support's edge (a cube's, or the floor's: a
+   latch floor) by two soft point constraints, i.e. a hinge. It engages only if the edges are
+   within 0.06 L (3 mm) of each other; the placement error and drift seen were at most 0.03 L.
+1. **Motor.** A torque about the hinge on the mover and, opposite, on the support (a lone support
+   feels the reaction), clipped at 0.3 N m (a micro gearmotor at a high ratio; the gravity torque
+   of a 150 g cube about an edge is at most 0.05 N m). PD on the hinge angle along a minimum-jerk
+   reference at 150 deg/s: 0.6 s per quarter turn, 1.2 s per half turn, plus 0.2 s for latching
+   and magnets (1.2 s of simulated time per move on average).
+1. **Magnets.** The mover's are all off for the move (toward cubes and steel), on again when it
+   arrives, then the latch opens. Everyone else's stay on.
+1. **Stall.** If the mover has not arrived 0.5 s after the reference ends, it is driven back to 0
+   degrees: a harmless stay. Within 10 degrees of the goal (stopped by a cube sitting a little
+   into the target cell) it counts as arrived and the magnets pull it home.
+1. **Edges.** No contact while turning between the mover and the cubes it leans on, or cubes
+   that touch it only by an edge or a corner. The turn never enters their cells; what MuJoCo
+   produces there is box-on-box contact along a shared edge line, squeezed by the magnets, which
+   jams any turn and which chamfered or rounded edges (M-Blocks have them) do not have. Faces
+   that slide on each other keep their friction. This is the one modelling choice the result
+   rests on: with those contacts kept (setting hinge-t03) a turn stalls about a third of the time.
+
+Store replays (the same 380 scenes and seeds as every setting above), store-weighted:
+
+| setting | harm | reached | stayed | off | strayed | knock |
+| --- | --- | --- | --- | --- | --- | --- |
+| m14-sel (flywheel, magnets x 1.4, kick plans with retries) | 0.032 | 0.47 | 0.50 | 0.020 | 0.006 | 0.006 |
+| hinge, edge contacts kept (hinge-t03) | 0.019 | 0.68 | 0.30 | 0.002 | 0.013 | 0.004 |
+| hinge, same with slippery faces (mu 0.1 cube on cube) | 0.053 | 0.73 | 0.22 | 0.010 | 0.010 | 0.033 |
+| **hinge (hinge-e03)** | **0.010** | **0.93** | 0.06 | 0 | 0.010 | 0 |
+
+Per primitive (hinge-e03, store-weighted, reached / harmful): floor roll free 1.00 / 0, held 0.96 /
+0; traverse 0.91 / 0; wall crawl 0.80 / 0; convex up 0.94 / 0.03, from hanging 0.83 / 0; convex
+down 0.81 / 0.07; concave up 1.00 / 0; concave down 1.00 / 0; lone support 1.00 / 0 (m14-sel 0.67
+/ 0.22).
+
+Side results: at 1.0 N m with edge contacts kept (`stores-hinge-t10-v0.jsonl`, before the near-goal rule), reach rose (0.69) but harm too (0.071, knocks
+0.056: a strong motor drags gripped neighbours along); slippery faces likewise let neighbours be
+dragged; switching off the neighbours' steel pull for the move freed 1 of 24 stalled moves.
+
+Ten-cube walks (5 layouts x 20 seeds, up to 8 moves, a walk ends at its first harmful move; seed 0,
+the same scenes as m14-sel's seed-0 walks):
+
+| setting | pivots | reached | harm | of which: a cube the mover held up dropped | other knock | strayed | off |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| m14-sel, seed 0 (three seeds: 0.50 / 0.058) | 679 | 0.48 | 0.053 | 0.022 | 0.012 | 0.001 | 0.018 |
+| hinge, edge contacts kept (hinge-t03) | 741 | 0.73 | 0.027 | 0.018 | 0.007 | 0.003 | 0 |
+| **hinge (hinge-e03)** | **759** | **0.82** | **0.021** | 0.014 | 0.004 | 0.003 | 0 |
+
+Per primitive (hinge-e03, reached / harmful): floor roll free 0.97 / 0, held 0.79 / 0; traverse
+0.97 / 0.03; wall crawl 0.55 / 0.03; convex up 0.75 / 0.04, from hanging 1.00 / 0; convex down
+0.75 / 0.06; concave up 0.91 / 0; concave down 1.00 / 0; lone support 0.69 / 0.08 (m14-sel 0.38 /
+0.62). 116 of 759 moves stalled and came back harmlessly; none ended off the lattice.
+
+**The hinge cube meets the bar in simulation: 0.82 reached, 0.021 harmful per move in ten-cube
+walks, 0.93 / 0.010 on the store replays.** What that does and does not show:
+
+1. It is one seed set; the flywheel settings varied by up to 0.03 harm between seeds, so 0.021
+   is not safely under 0.03 until two more seeds agree.
+1. Two thirds of the remaining harm is a cube held up only by the mover dropping when the mover
+   leaves (an overhang the grid's support rule allows). No actuator fixes that; the planner has to
+   refuse it (the same class is 0.022 of m14-sel's harm). Without it, harm is 0.007.
+1. The rest: a lone support at height shoved one cell by a climb onto it (4 moves), a convex down
+   stuck halfway and left aligned in a third cell (2), and one wall crawl after which six cubes
+   flew off: almost certainly the solver (contacts with an edge neighbour restored after the
+   mover had passed into it), not physics, but unexamined.
+1. The result rests on chamfered or rounded edges (the dropped edge contacts). M-Blocks have
+   them; a bench test has to confirm that two cubes touching only along an edge do not grip.
+1. Half turns (convex up and down) are the hardest moves here too (0.75 / 0.04 and 0.75 / 0.06),
+   but they are carried, not thrown: the latch holds the hinge, the motor lowers the cube, and the
+   swing stops where a neighbour stands instead of striking it. The control work on the present
+   cube found its half turns stall against the floor or a neighbour at about 105 degrees with the
+   motor at 0.4 of gravity's torque; here the motor has 6 times gravity's torque and the path is
+   held by the latch, which is the difference.
+1. Not modelled: the mechanism itself (its mass, compliance and backlash; whether a latch can
+   be made at any of 12 edges), latch failure to engage beyond the 3 mm capture, sensing of the
+   hinge angle, power, and the latch floor. Speed: about 1.2 s per move against about 0.4 s for
+   a flip (0.8 to 1.2 s with m14-sel's retries).
+
+Rows: `runs/cube_redesign/` (`drop.py` splits the walks' harm as in the table above).
+
+### Recommendation
+
+1. Take the hinge cube (candidate 1) to a bench test before anything else: two cubes, one
+   latched edge, one motor, EPM faces. Measure the capture range of the latch, the torque a turn
+   takes with a neighbour pressed against the mover's face, and whether edge-only contacts grip.
+   An 8-10 cm cube is the realistic size for a first build by New Year.
+1. Keep relative robots on passive blocks (candidate 2) as the fallback if no latch mechanism fits
+   in a cube: it has the best measured reliability, at the cost of the "every cube is a robot"
+   story.
+1. On the grid side, refuse moves that leave a cube held up only by the mover, whatever the
+   hardware.
+1. Before trusting 0.021: two more walk seeds (`--seed 1000`, `--seed 2000`) and the store and walk
+   runs at 0.15 N m to find how much motor margin the bar needs.
