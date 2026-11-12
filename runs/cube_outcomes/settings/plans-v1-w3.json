@@ -1,0 +1,133 @@
+{
+ "concave_down": 1.2,
+ "concave_up": [
+  0.7,
+  0.8,
+  0.9,
+  1.05
+ ],
+ "convex_down": 0.8,
+ "convex_up": [
+  0.7,
+  0.8,
+  0.9,
+  1.05
+ ],
+ "convex_up_hang": 0.7,
+ "floor_roll": 1.0,
+ "traverse": 1.2,
+ "wall_crawl": [
+  0.7,
+  0.8
+ ],
+ "concave_down/bonded/hinged": 1.2,
+ "concave_down/bonded/hinged/rubs": 1.2,
+ "concave_down/hinged": 1.2,
+ "concave_down/hinged/rubs": [
+  0.7,
+  0.8,
+  0.9,
+  1.05,
+  1.2
+ ],
+ "concave_up/bonded": [
+  0.7,
+  0.8,
+  0.9,
+  1.05
+ ],
+ "concave_up/bonded/hinged": [
+  0.7,
+  0.8,
+  0.9
+ ],
+ "concave_up/bonded/hinged/rubs": [
+  0.7,
+  0.8,
+  0.9,
+  1.05
+ ],
+ "concave_up/hinged": 0.85,
+ "concave_up/hinged/rubs": 0.7,
+ "convex_down/bonded/hinged": 0.85,
+ "convex_down/bonded/hinged/rubs": 0.8,
+ "convex_down/hinged": [
+  0.7,
+  0.8
+ ],
+ "convex_down/hinged/rubs": 0.8,
+ "convex_down/hinged/rubs/lone": 1.1,
+ "convex_down/lone": 0.8,
+ "convex_down/rubs/lone": 0.8,
+ "convex_up/bonded": [
+  0.7,
+  0.8,
+  0.9,
+  1.05
+ ],
+ "convex_up/bonded/hinged": 1.0,
+ "convex_up/bonded/hinged/rubs": [
+  0.7,
+  0.8
+ ],
+ "convex_up/bonded/lone": 0.7,
+ "convex_up/hinged": [
+  0.7,
+  0.8,
+  0.9,
+  1.05,
+  1.2
+ ],
+ "convex_up/hinged/rubs": 0.85,
+ "convex_up/lone": [
+  0.7,
+  0.8,
+  0.9,
+  1.05
+ ],
+ "convex_up_hang/bonded/hinged": 1.0,
+ "convex_up_hang/bonded/hinged/rubs": 0.7,
+ "convex_up_hang/hinged": [
+  0.7,
+  0.8,
+  0.9
+ ],
+ "convex_up_hang/hinged/rubs": 0.7,
+ "floor_roll/bonded": [
+  0.8,
+  1.0,
+  1.2
+ ],
+ "floor_roll/bonded/hinged": 1.2,
+ "floor_roll/bonded/hinged/rubs": 1.2,
+ "floor_roll/hinged": 1.1,
+ "floor_roll/hinged/rubs": 1.0,
+ "traverse/bonded/hinged": 1.2,
+ "traverse/bonded/hinged/rubs": 1.2,
+ "traverse/hinged": 1.2,
+ "traverse/hinged/rubs": [
+  0.7,
+  0.8,
+  0.9,
+  1.05,
+  1.2
+ ],
+ "wall_crawl/bonded": [
+  0.7,
+  0.8
+ ],
+ "wall_crawl/bonded/hinged": [
+  0.7,
+  0.8
+ ],
+ "wall_crawl/bonded/hinged/rubs": [
+  0.7,
+  0.8
+ ],
+ "wall_crawl/bonded/rubs": [
+  0.7,
+  0.8
+ ],
+ "wall_crawl/hinged": 0.85,
+ "wall_crawl/hinged/rubs": 1.0
+}

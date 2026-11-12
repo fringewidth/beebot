@@ -46,7 +46,7 @@ import numpy as np
 import torch
 
 from beebot.vla.voxel import suite as S
-from beebot.vla.voxel.controller import act, direction_code
+from beebot.vla.voxel.controller import act, direction_code, risky
 from beebot.vla.voxel.world import CUBE_MOVES, DIR_TABLE, DIRS, STAY, _at, _FACES, _padded, _SIDES, cheese_id_map, failure_rates, flat_index, pivot_moves, rule_table
 
 FAR = 30000  # a distance no path has
@@ -156,12 +156,18 @@ class FreeCubeExpert(S.Expert):
             own = dist[scene, z, y, x].long()
             lower = truth & (beyond < own.unsqueeze(1))
             lower[:, STAY] = False
+            value = beyond.clamp(max=FAR).float()
+            odds = None if self.outcomes is None else self.outcomes.odds(world, self.rule, scene, here)
+            if odds is not None:  # weigh risk (controller.risky): leave out risky moves, rank by expected pivots to go
+                lower &= ~risky(odds, lower)
+                ahead = (own < FAR).unsqueeze(1)
+                value = torch.where(ahead, own.unsqueeze(1).float() - odds[..., 0] * (own.unsqueeze(1) - beyond.clamp(max=FAR)).float(), value)
             is_mobile = mobile[scene, z, y, x]
             lost = ~is_mobile & (own >= FAR) & self.wander  # crawlers with no way to a target head for the nearest one as the attractor would
             if lost.any():
-                greedy = act(world, targets, valid, jitter=0.0, generator=generator, allowed=table.permute(0, 2, 3, 4, 1)[occupied] & CUBE_MOVES)[scene, z, y, x].long()
+                greedy = act(world, targets, valid, jitter=0.0, generator=generator, allowed=table.permute(0, 2, 3, 4, 1)[occupied] & CUBE_MOVES, odds=self.odds(world))[scene, z, y, x].long()
                 lower[lost, greedy[lost]] = greedy[lost] != STAY
-            cost = torch.where(lower, beyond.clamp(max=FAR).float(), 2.0 * FAR) + torch.rand(lower.shape, generator=generator)
+            cost = torch.where(lower, value, 2.0 * FAR) + torch.rand(lower.shape, generator=generator) * (1.0 if odds is None else 1e-3)  # whole pivots tie-break at random; expected ones are fractions
             ranking = cost.argsort(dim=1)[:, :4].tolist()
             n_lower = lower.sum(dim=1).tolist()
             order = (own.float() + torch.rand(own.shape, generator=generator) + 2.0 * FAR * (~is_mobile)).argsort().tolist()  # mobile cubes first, each kind nearest first

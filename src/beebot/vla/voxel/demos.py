@@ -50,8 +50,8 @@ an empty flat floor and gives up the drawn tasks it does not allow; --scaled fit
 the swarm (draws).
 
 The grant demo's case (--demo, PRESETS): about ten cubes on MuJoCo's empty floor, 8 to 12 robots,
---empty --scaled --keep --fit, rule switch_cube, world.py's measured outcome model (--outcomes
-mujoco_release), and one try a scene from every sampler (README "Demo: ten cubes
+--empty --scaled --keep --fit, rule switch_cube, world.py's measured outcome model of the demo's
+cube setting (--outcomes mujoco_release_v3, DEMO_MOVES), and one try a scene from every sampler (README "Demo: ten cubes
 on an empty floor").
 
     OMP_NUM_THREADS=4 uv run python -m beebot.vla.voxel.demos --out data/vla/voxel_demo --scenes 6000 --demo --compact
@@ -111,8 +111,9 @@ FIELDS = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravit
 OBJECT_FIELDS = ("form", "colour2", "pattern", "friction", "food", "zones")  # per episode in small.pt when the draw has objects (README "Objects")
 MOVES = {"all": None, "cube": CUBE_MOVES}
 EXPERTS = ("attractor", "planner")  # suite.Expert; free_cube.FreeCubeExpert (needs a rule)
-# How the demo's moves fail: the outcome model world.py measured in MuJoCo (--outcomes).
-DEMO_MOVES = {"outcomes": OUTCOME_MODELS[0]}
+# How the demo's moves fail: the outcome model world.py measured in MuJoCo (--outcomes) for the cube
+# setting the demo runs (HARDWARE.md, "Kick plans and retries"); older tables stay loadable by name.
+DEMO_MOVES = {"outcomes": "mujoco_release_v3"}
 PRESETS = {  # CLI presets: option defaults that given options override; small.pt records the name under config["preset"]
     "demo": {  # the grant demo: about ten pivoting cubes on MuJoCo's empty flat floor (README "Demo: ten cubes on an empty floor")
         "robots": (8, 12),
@@ -292,7 +293,7 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
         yield c, world, metas, tasks, run_seed
 
 
-def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False, empty=False, scaled=False, preset=None, outcomes=None):
+def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False, empty=False, scaled=False, preset=None, outcomes=None, risk=True):
     """Write the store. moves: "all" or "cube" (MOVES). robots: (low, high) robot counts, with
     tasks fitted to the swarm (None: the world's density range). failure: (27,) per-action
     failure probabilities (world.failure_rates) or None. compact: write mass and actions in
@@ -312,6 +313,9 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     outcomes: the name of a measured outcome model (world.OUTCOME_MODELS) in place of failure:
     every pivot ends as MuJoCo shows for its class (world.step); small.pt then holds "stuck", per
     episode the [t, z, y, x] of every robot stuck off the lattice in mass frame t.
+    risk (with outcomes): the experts weigh their moves by the same model (Expert.outcomes,
+    controller.risky): expected progress, risky moves left out when a safer one also gets closer;
+    False plans as if every move lands. Stores record it in config["risk"].
     Returns the number of demonstrations."""
     if objects and expert != "attractor":
         raise ValueError("object tasks are demonstrated by the attractor expert (objects.ObjectExpert) only")
@@ -329,20 +333,21 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     attempts = open(out / "attempts.jsonl", "w")
     row, tried, kept = 0, {}, {}
     t0 = time.time()
+    weighed = weigher(model if risk else None)
     for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced, coverage, objects, build, only, keep, empty, scaled):
         digests = [draw_digest(world, metas, tasks, i) for i in range(len(tasks))]  # before playing: the experts may write into tasks and metas
         if objects:
             from beebot.vla.voxel.objects import ObjectExpert
 
-            other = lambda some: ObjectExpert(some, moves=MOVES[moves], seed=run_seed, rule=rule)  # noqa: E731
+            other = lambda some: weighed(ObjectExpert(some, moves=MOVES[moves], seed=run_seed, rule=rule))  # noqa: E731
         elif expert == "planner":
-            other = lambda some: FreeCubeExpert(some, seed=run_seed, rule=rule)  # noqa: E731
+            other = lambda some: weighed(FreeCubeExpert(some, seed=run_seed, rule=rule))  # noqa: E731
         else:
-            other = lambda some: S.Expert(some, moves=MOVES[moves], seed=run_seed, rule=rule)  # noqa: E731
+            other = lambda some: weighed(S.Expert(some, moves=MOVES[moves], seed=run_seed, rule=rule))  # noqa: E731
         if any(task.family == "build" for task in tasks):
             from beebot.vla.voxel import build as B
 
-            player = B.Mixed(tasks, other, lambda some: B.make_expert(some, moves=MOVES[moves], seed=run_seed, rule=rule))
+            player = B.Mixed(tasks, other, lambda some: weighed(B.make_expert(some, moves=MOVES[moves], seed=run_seed, rule=rule)))
         else:
             player = other(tasks)
         results, arrays = S.run(world, metas, tasks, player, steps=steps, seed=run_seed, record=True, failure=failure, rule=rule, outcomes=model)
@@ -382,10 +387,22 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     config = {"seed": seed, "chunk": chunk, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "objects": objects, "build": build, "only": only, "keep": keep, "empty": empty, "scaled": scaled, "preset": preset}
     if outcomes is not None:  # stores drawn before outcome models have no key: their moves failed by `failure`
         config["outcomes"] = outcomes
+        config["risk"] = bool(risk)
     extra = {"stuck": stuck} if model is not None else {}
     torch.save({**{k: torch.stack(v) for k, v in small.items()}, "phases": [[] for _ in range(row)], "count": row, "robots": torch.tensor(swarm), "subgoals": subgoals, "instructions": instructions, "config": config, **extra}, out / "small.pt")
     (out / "done").write_text(str(row))
     return row
+
+
+def weigher(model):
+    """A function that gives an expert the outcome model to weigh its moves by (Expert.outcomes;
+    None: every move lands) and returns it."""
+
+    def weighed(expert):
+        expert.outcomes = model
+        return expert
+
+    return weighed
 
 
 def instruction_entries(task, steps):
@@ -421,7 +438,8 @@ def main():
     parser.add_argument("--moves", choices=sorted(MOVES), default=None)
     parser.add_argument("--robots", type=int, nargs=2, default=None, metavar=("LOW", "HIGH"))
     parser.add_argument("--failure", default=None, help="move failure probability, optionally per class: 0.15,up_over=0.3")
-    parser.add_argument("--outcomes", choices=OUTCOME_MODELS, default=None, help="move outcomes measured in MuJoCo per pivot class, in place of --failure (needs --rule); mujoco_release for switch_cube")
+    parser.add_argument("--outcomes", choices=OUTCOME_MODELS, default=None, help="move outcomes measured in MuJoCo per pivot class, in place of --failure (needs --rule); mujoco_release_v3 is the demo's cube setting (DEMO_MOVES)")
+    parser.add_argument("--blind", action="store_true", help="with --outcomes: the experts plan as if every move lands, instead of weighing their moves by the model (write risk)")
     parser.add_argument("--compact", action="store_true", help="store mass and actions by robot (play_store's compact format) instead of dense grids")
     parser.add_argument("--counts", choices=S.COUNTS, default="uniform", help="how the robot count is drawn over --robots; log makes small swarms as common as large ones")
     parser.add_argument("--coverage", type=float, default=0.0, help="coverage tasks (suite.sample_coverage: stay, selectors, switches, ...) per scene, drawn after the suite's own")
@@ -453,7 +471,7 @@ def main():
         parser.error("--empty needs --keep")
     if args.outcomes and rule is None:
         parser.error("--outcomes needs --rule")
-    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.objects, args.build, args.only, args.keep, args.empty, args.scaled, preset, args.outcomes)
+    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.objects, args.build, args.only, args.keep, args.empty, args.scaled, preset, args.outcomes, not args.blind)
 
 
 if __name__ == "__main__":

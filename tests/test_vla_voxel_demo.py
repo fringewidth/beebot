@@ -154,7 +154,7 @@ def test_the_demo_preset_writes_an_empty_floor_store(tmp_path, monkeypatch):
     assert config["preset"] == "demo" and config["empty"] and config["scaled"] and config["keep"] and config["fit"]
     assert config["robots"] == [8, 12] and config["rule"] == "switch_cube" and config["moves"] == "cube" and config["expert"] == "attractor"
     assert config["coverage"] == 1.0 and config["objects"] == 1.0 and config["build"] == 0.0 and config["steps"] == 24  # given options win
-    assert config["outcomes"] == "mujoco_release" and config["failure"] is None  # world.py's measured outcome model in place of failure rates
+    assert config["outcomes"] == demos.DEMO_MOVES["outcomes"] == "mujoco_release_v3" and config["failure"] is None  # world.py's measured outcome model in place of failure rates
     attempts = [json.loads(line) for line in open(out / "attempts.jsonl")]
     assert attempts and all(8 <= a["robots"] <= 12 for a in attempts)
     assert store["count"] > 0 and not store["walls"].any() and not store["cheese_alive"].any() and store["gravity"].all()

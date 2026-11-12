@@ -1,7 +1,7 @@
 import numpy as np
 
 from beebot.hardware.cube import NOMINAL, Magnets
-from beebot.hardware.cube_swarm import DESIGN, DIRECTIONS, Swarm, SwarmMagnets, patch
+from beebot.hardware.cube_swarm import DESIGN, DIRECTIONS, Swarm, SwarmMagnets, disturbed, patch
 
 
 def test_fourteen_moves_without_horizontal_diagonals():
@@ -94,8 +94,38 @@ def test_released_pairs_keep_what_the_mover_leans_on():
     swarm = Swarm([(0, 0, 0), (0, 0, 1), (1, 0, 1), (0, 1, 0)], seed=0, jitter=NOMINAL, settle=0.05)
     pivot = swarm.plan(0, (1, 0, 0))  # concave up the stack at x = 1, beside the cube at y = 1
     assert pivot.primitive == "concave_up" and set(pivot.leans) == {(0, 0, 1), (1, 0, 1)}
-    cut = swarm.released([0], [pivot], swarm.lattice())
+    cut, quiet = swarm.released([0], [pivot], swarm.lattice())
     assert cut[0].tolist() == [False, False, False, True] and cut[3, 0] and not cut[1:3, 1:].any()
+    assert quiet is None  # neighbours' faces switch only with faces=True
+
+
+def test_faces_switch_off_the_neighbours_face_toward_the_mover():
+    swarm = Swarm([(0, 0, 0), (0, 0, 1), (1, 0, 1), (0, 1, 0)], seed=0, jitter=NOMINAL, settle=0.05, release=True, faces=True)
+    pivot = swarm.plan(0, (1, 0, 0))
+    cut, quiet = swarm.released([0], [pivot], swarm.lattice())
+    per = quiet.reshape(swarm.n, -1)
+    assert per.sum(axis=1).tolist() == [0, 0, 0, 9]  # the support and the cube above it lean; the cube at y = 1 quiets its face's 8 edge magnets and its centre
+    local = swarm.magnets.local[per[3]]  # (x, y, z) in m: the face toward the mover is the cube's -y face
+    assert np.allclose(local[:, 1], local[:, 1].min()) and local[:, 1].min() < -0.4 * swarm.cube.side
+
+
+def test_a_knock_counts_only_cubes_this_move_disturbed():
+    rot = np.stack([np.eye(3)] * 3)
+    tilted = np.array([[1, 0, 0], [0, np.cos(0.3), -np.sin(0.3)], [0, np.sin(0.3), np.cos(0.3)]])
+    before = rot.copy()
+    before[1] = tilted  # cube 1 was already tilted before the move
+    after = before.copy()
+    after[2] = tilted  # the move tilts cube 2
+    assert disturbed(before, after).tolist() == [False, False, True]
+    after[1] = tilted @ tilted  # and turns cube 1 further
+    assert disturbed(before, after).tolist() == [False, True, True]
+
+
+def test_a_cube_still_moving_does_not_put_the_others_off():
+    swarm = Swarm([(0, 0, 0), (0, 0, 3)], seed=0, jitter=NOMINAL, settle=0.05)
+    swarm.data.qvel[swarm.cube_dofs[1, 3]] = 5.0  # cube 1 spins
+    reading = swarm.lattice()
+    assert reading.off.tolist() == [False, True]
 
 
 def test_several_cubes_move_at_once():
