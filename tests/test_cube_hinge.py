@@ -31,3 +31,12 @@ def test_no_floor_latch_means_no_floor_pivot():
     roll = swarm.move(0, (0, 0, 1))
     assert (roll.detail, roll.cell) == ("stayed", (0, 0, 1))
     assert not swarm.hinges[0].latched
+
+
+def test_a_cube_climbs_onto_a_support_that_has_turned():
+    swarm = HingeSwarm([(0, 0, 0), (0, 0, 3)], seed=0, jitter=NOMINAL)
+    for _ in range(2):  # the support rolls twice: it lies turned 180 degrees
+        assert swarm.move(0, (0, 0, 1)).detail == "reached"
+    climb = swarm.move(1, (1, 0, -1))
+    assert swarm.hinges[0].latched and swarm.hinges[0].miss < 0.05
+    assert (climb.detail, climb.cell) == ("reached", (1, 0, 2))

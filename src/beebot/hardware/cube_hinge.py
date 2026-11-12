@@ -95,7 +95,7 @@ class Hinge:
         else:
             self.support_body = swarm.bodies[self.support]
             x_s, R_s = data.xpos[self.support_body].copy(), data.xmat[self.support_body].reshape(3, 3).copy()
-            mate = x_s + R_s @ ((h - s) / 2) * L
+            mate = x_s + (h - s) / 2 * L  # world offsets: the support may lie turned
         gap = edge - mate
         gap_across = gap - self.axis * (gap @ self.axis)
         self.miss = float(np.abs(gap_across).max() / L)
