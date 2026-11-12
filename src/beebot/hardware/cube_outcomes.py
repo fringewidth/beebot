@@ -113,6 +113,13 @@ def carry_out(swarm, orders, rpm=None):
             pivot_target = swarm.plan(cube, direction, before).target
             mover = "off" if after.off[cube] else "reached" if end == pivot_target else "stayed" if end == start else "strayed"
         rows.append({"cube": int(cube), "direction": [int(v) for v in direction], "primitive": m.primitive, "bonds": int(m.bonds), "hinges": int(m.hinges), "rubs": int(m.rubs), "target": [int(v) for v in pivot_target] if pivot_target else None, "start": list(start), "end": list(end), "mover": mover, "detail": m.detail, "rpm": int(m.rpm)})
+    servo = {}
+    for hinge in getattr(swarm, "hinges", ()):
+        from beebot.hardware.cube_hinge import servo_row
+
+        servo[int(hinge.cube)] = servo_row(hinge)
+    for row in rows:
+        row.update(servo.get(row["cube"], {}))
     return {
         "orders": rows,
         "knocked": [{"cube": int(j), "start": before.cells[j].tolist(), "end": after.cells[j].tolist(), "off": bool(after.off[j])} for j in knocked],
@@ -195,7 +202,7 @@ def trial(job):
     if job.get("rpm_factor") or job.get("kicks"):  # one mover at its kick (kick) times the factor
         rpm = round(kick(job, grid[kept[0]])[0])
     for run, chosen in enumerate(runs):
-        swarm = Swarm(cells, seed=job["seed"], release=job["magnets"] == "release", **swarm_options(job))
+        swarm = make_swarm(cells, job, release=job["magnets"] == "release")
         if len(chosen) == 1 and len(kick(job, grid[chosen[0]])) > 1:
             k = chosen[0]
             rows.append(escalated(swarm, (index[orders[k][0]], job["orders"][k][1]), job, grid[k], movers=1, alone=run == 1))
@@ -245,6 +252,17 @@ def escalated(swarm, order, job, g, **extra):
     return row_of(job, g, result["orders"][0], whole, **extra, schedule=schedule, attempts=len(tries), tries=tries, rpms=rpms)
 
 
+def make_swarm(cells, job, release):
+    """The scene a job runs in: cube_swarm.Swarm, or with job["drive"] (cube_hinge.Drive fields)
+    cube_hinge.HingeSwarm, whose cubes pivot about a latched edge under a servo (switchable
+    magnets always)."""
+    if job.get("drive") is not None:
+        from beebot.hardware.cube_hinge import Drive, HingeSwarm
+
+        return HingeSwarm(cells, seed=job["seed"], drive=Drive(**job["drive"]), **swarm_options(job))
+    return Swarm(cells, seed=job["seed"], release=release, **swarm_options(job))
+
+
 def swarm_options(job):
     """Swarm keyword arguments a job sets: cube (a design varied by job["design"], a dict of
     cube.Cube fields scaled by factors), faces and dwell (job["faces"], job["dwell"]: Swarm's),
@@ -278,13 +296,14 @@ def speeds_of(speed):
 def row_of(job, g, row, result, **extra):
     """One output row: the job's tags, the grid class and features, MuJoCo's outcome."""
     return {
-        **{key: job[key] for key in ("set", "magnets", "seed", "rpm", "rpm_factor", "kicks_name", "escalate", "design", "faces", "dwell", "speed", "setting") if key in job},
+        **{key: job[key] for key in ("set", "magnets", "seed", "rpm", "rpm_factor", "kicks_name", "escalate", "design", "faces", "dwell", "speed", "setting", "drive") if key in job},
         **job.get("tags", {}),
         **extra,
         "key": class_key(g),
         **{f: g[f] for f in ("primitive", "bonds", "hinges", "rubs", "lone", "h", "s", "half")},
         "plan": [row["primitive"], row["bonds"], row["hinges"], row["rubs"]],
         **{f: row[f] for f in ("cube", "direction", "detail", "start", "target", "end", "mover")},
+        **{f: row[f] for f in ("servo", "miss", "peak") if f in row},
         "rpm_used": row["rpm"],
         **{f: result[f] for f in ("knocked", "shift", "off_before", "off_after", "sim_seconds", "wall_seconds")},
         "cells": result["before"],
@@ -311,7 +330,7 @@ def layout_walk(job):
     torch.set_num_threads(1)
     layout = job["layout"]
     cells = [(z, y + 5, x + 3) for z, y, x in LAYOUTS[layout]]
-    swarm = Swarm(cells, seed=job["seed"], release=job["magnets"] == "release", **swarm_options(job))
+    swarm = make_swarm(cells, job, release=job["magnets"] == "release")
     rng = np.random.default_rng([job["seed"], 1])
     rows = []
     over = False
@@ -649,7 +668,7 @@ def recover(job):
     direction = tuple(job["direction"])
 
     def replay():
-        swarm = Swarm(cells, seed=job["seed"], release=True, **swarm_options(job))
+        swarm = make_swarm(cells, job, release=True)
         swarm.moves([(cube, direction)], job.get("rpm"))
         settle(swarm)
         return swarm
@@ -710,7 +729,7 @@ def right(job):
     direction = tuple(job["direction"])
 
     def replay():
-        swarm = Swarm(cells, seed=job["seed"], release=True, **swarm_options(job))
+        swarm = make_swarm(cells, job, release=True)
         carry_out(swarm, [(cube, direction)], job.get("rpm"))
         return swarm
 
@@ -1096,6 +1115,7 @@ def main():
     m.add_argument("--kicks", default=None, help="a per-class kick table: JSON {class key or primitive: factor} or a path to one (kick)")
     m.add_argument("--escalate", type=float, nargs="+", default=None, help="escalating retries: kick factors tried in order while a move stays (escalated)")
     m.add_argument("--setting", default=None, help="a name for the cube setting, recorded on every row (compare, report and fit select by it)")
+    m.add_argument("--drive", default=None, help='cube_hinge: pivot about a latched edge under a servo instead of a flywheel kick, with these Drive fields as JSON ({} for the defaults)')
     m.add_argument("--replay", default=None, help="stores: run the scenes of these stores rows again, with their seeds (paired with them)")
     m.add_argument("--templates", nargs="+", default=None, help="isolated: only these TEMPLATES")
     m.add_argument("--seed", type=int, default=0)
@@ -1232,6 +1252,8 @@ def main():
         extra["escalate"] = args.escalate
     if args.setting:
         extra["setting"] = args.setting
+    if args.drive is not None:
+        extra["drive"] = json.loads(args.drive)
     if args.set == "stores" and args.replay:
         rows = [json.loads(line) for line in open(args.replay)]
         rows = [x for x in rows if x["set"] == "stores" and x.get("movers", 1) == 1 and x["detail"] != "refused"]
