@@ -31,14 +31,17 @@ ThinkData(stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1/3, haiku_s
   held_share    episodes held out for validation by a stable hash of (seed, index)
   channels      observation channels (world.observe)
   system        optional system message text
-  views         views(obs, rng) -> images, or (images, pose): PIL images of the observation,
-                called at sample time with the sampler's rng (fresh randomization on every draw).
-                pose["azimuth"] is the camera's place round the arena in degrees, measured from
-                the world's front (+y) toward its right (+x): 0 front, 90 right, 180 back, 270
-                left; the camera looks at the arena. Plain images count as azimuth 0. The stand-in
-                is one isometric render (azimuth 45: the front right corner); the switch to the
-                randomized views is one line:
-                views=lambda obs, rng: scene_views(obs, rng, ViewSpec())  (voxel/views.py)
+  views         views(obs, rng, side=None) -> images, or (images, pose): PIL images of the
+                observation (world frame), called at sample time with the sampler's rng (fresh
+                randomization on every draw). pose["azimuth"] is the camera's place round the
+                arena in degrees, measured from the world's front (+y) toward its right (+x): 0
+                front, 90 right, 180 back, 270 left; the camera looks at the arena. Plain images
+                count as azimuth 0. side (a board side, views.side_azimuth) asks for a camera
+                there: frame labels need it, and so does a label whose words cannot be turned;
+                views without it cannot take those. The stand-in is one isometric render
+                (azimuth 45: the front right corner, or a quarter turn of it for a side); the
+                switch to the randomized views is think_train's `scene` (views.scene_views with
+                ViewSpec(), the azimuth drawn near the side when one is asked for)
   validation_views  the views of validation examples (e.g. a clean mode); None: `views`, with the
                 validation seed's rng, so validation examples are the same on every call and run
   mismatch      "raise": a label that does not belong to its episode raises ValueError; "drop":
@@ -57,26 +60,29 @@ tokenize(example, tokenizer, counts=None, slots=0) -> (input_ids (L,) long, labe
   otherwise the model appends its slots after the last token, which on an act example is the act
   marker.
 image_tokens(image) -> int; still(obs) -> (D, H, W) long, STAY everywhere (a refusal's action,
-  if a trainer needs one); stand_in_views(obs, rng=None) -> [PIL image]
+  if a trainer needs one); stand_in_views(obs, rng=None, side=None) -> ([PIL image], pose)
 
 Example (dataclass)
-  obs          (channels, D, H, W) float, the scene at step t (world.observe of the store's frame)
-  images       views(obs, rng): list of PIL images of that scene
+  obs          (channels, D, H, W) float, the scene at step t in the camera's frame
+               (camera_frame.turn_grid of world.observe of the store's frame, by turns)
+  images       views(obs, rng): list of PIL images of that scene (rendered from the world frame)
   context_text the text before the reply, with "<IMAGES>" exactly once, at the start of the user turn
   reply_text   act: "<think>\\n{thought}\\n</think>\\n\\n<tool_call>" or, on a step without a thought,
                "<think>\\n\\n</think>\\n\\n<tool_call>"; refusal: "<think>\\n{thought}\\n</think>\\n\\n{answer}<|im_end|>"
   act          True for an act example
-  codes        (D, H, W) long, the expert's action codes at step t (act); None for a refusal
+  codes        (D, H, W) long, the expert's action codes at step t in the camera's frame
+               (camera_frame.turn_codes, by turns) (act); None for a refusal
   seed, index  the episode's draw key (demos.draws: attempts.jsonl line index of seed's store)
   e, t         store row and step
-  rung         "close", "indirect", "casual" (Haiku), "refusal", or "template"
+  rung         "close", "indirect", "casual" (Haiku), "frame-plain", "frame-casual" (frame rows),
+               "refusal", or "template"
   family       the task family (attempts.jsonl)
   kind         "first", "change" (instruction change), "switch" (sub-goal switch), "done",
                "plain" (no thought this step) or "refusal"
-  instruction  the user instruction in the current turn (in the user's frame)
+  instruction  the user instruction in the current turn (in the camera's frame)
   store        the store directory
-  user         where the user stands relative to the camera: "behind", "left", "right", "opposite"
-  turns        the user's quarter turn round the arena (0: the world's own frame), see below
+  turns        the camera's quarter turn (camera_frame.quarter_turns of camera; 0: the world's own
+               frame): obs, codes and every direction word are in that camera's frame, see below
   camera       the camera's azimuth the views reported (degrees, as pose["azimuth"])
 
 Fixed tokens (checked by check_tokens on Qwen/Qwen3.5-4B, local_files_only): "<think>" 248068,
@@ -96,32 +102,38 @@ Text layout
 -----------
     [<|im_start|>system\\n{system}<|im_end|>\\n]                                  only with system
     [<|im_start|>assistant\\n{first thought}[\\n{latest line}]<|im_end|>\\n]       memory, t > 0
-    <|im_start|>user\\n<IMAGES>\\n{where the user stands}\\n{instruction}<|im_end|>\\n<|im_start|>assistant\\n
+    <|im_start|>user\\n<IMAGES>\\n{instruction}<|im_end|>\\n<|im_start|>assistant\\n
     reply_text                                                                   starts with "<think>\\n"
 
 The context ends exactly at "<|im_start|>assistant\\n" and the reply starts with "<think>\\n" (Qwen3.5's
 generation prompt ends in "<think>\\n", so the thought is always the reply's); an acting reply ends
 with "<tool_call>".
 
-The user's frame. The camera can be anywhere round the arena, and the user stands at one of four
-places relative to it, drawn per example: "(i'm standing behind the camera)" (seeing what the
-camera sees), "(i'm standing to the left of the camera)" and "(... to the right ...)" (a quarter
-turn round the arena from the camera, facing the arena), "(i'm standing opposite the camera,
-facing it)". The user's place round the arena is the camera's azimuth plus 0, -90, +90 or 180
-degrees, rounded to the nearest quarter turn (half way goes to the later one): turns 0 is the
-world's front (the world's own frame), 1 its right, 2 its back, 3 its left. Every direction word
-of the instruction, the thoughts, the memory, the switch lines and the refusal's answer is said as
-that user says it (in_user_frame): front/back/left/right and the corners (front/back first), -most
-and -ward forms, "in front of", "behind" and "to the left/right of" a thing, forward(s),
-backward(s), "back" after a motion verb, and "side by side" / "one behind the other" (swapped on a
-quarter turn); idioms ("right now", "nothing left", "come back") stay. The user's words follow the
-agreed convention (haiku_frame.py, basics.py): "forward" is away from the user, "toward me" toward
-them, "the front" the side nearest them; the labels' "forward" (toward the board's front) is said
-"toward me" by a user at the board's front, also when the frame is the world's. A label whose wording cannot
-be turned reliably (UNMAPPABLE: near/far side or end, north/south/east/west, toward me, top left,
-right-hand, clockwise, ...) is used only when turns is 0: otherwise another verified rung, then the
-template, then the user's place that makes turns 0 (counts()["frames"] counts each). The voxel
-observation and the action codes stay in the world's frame.
+The camera's frame (camera_frame.py). The user always stands at the camera, and the policy works
+entirely in the camera's frame: the board's own sides cannot be seen (turning the scene and the
+camera together by a quarter turn gives the same images), where things are relative to the camera
+can. The camera can be anywhere round the arena; its azimuth, rounded to the nearest quarter turn
+(half way goes to the later one), gives turns: 0 the camera at the world's front (the world's own
+frame), 1 at its right, 2 its back, 3 its left. The voxel observation (camera_frame.turn_grid) and
+the expert's action codes (camera_frame.turn_codes: the grid turned and each of the 27 codes
+replaced by its turned direction) are turned into that frame, and so is every direction word of
+the instruction, the thoughts, the memory, the switch lines and the refusal's answer
+(in_user_frame): front/back/left/right and the corners (front/back first), -most and -ward forms,
+"in front of", "behind" and "to the left/right of" a thing, forward(s), backward(s), "back" after a
+motion verb, and "side by side" / "one behind the other" (swapped on a quarter turn); idioms
+("right now", "nothing left", "come back") stay. In that frame "left" and "right" are the camera's,
+"the front" / "the near side" is nearest the camera, "the back" / "the far side" away from it,
+"forward", "ahead", "away" and "north" point away from it, "toward me", "backward" and "south"
+toward it, east is its right, west its left (haiku_frame.py, basics.py); the board-frame labels'
+"forward" (toward the board's front) is said "toward me" by a camera at the board's front, also
+when the frame is the world's. The user turn carries no word about where the user stands. Camera
+rows (frame_dirs) are in the camera's words already and never go through in_user_frame. A label
+whose wording cannot be turned reliably (UNMAPPABLE: near/far side or end,
+north/south/east/west, toward me, top left, right-hand, clockwise, ...) is used only when turns is
+0: otherwise another verified rung, then the template, then the views are asked for a camera at the
+world's front (side="front"), which makes turns 0 (counts()["frames"] counts each). Frame labels
+(frame_dirs: haiku_frame.py's camera rows) are written for a camera side and rendered from it, said
+as written.
 
 Memory is fixed in size: the latest first thought emitted before step t (of the instruction in
 force before t: on the step an instruction changes it is still the old one's) and the latest
@@ -144,8 +156,7 @@ scene_summary (at the part's first step) and "<sub-goal> next." switch lines.
 
 Rendered examples (data/vla/voxel_full/s0 with run-s0 and run-s0-later labels; render_examples, the CLI's --show)
 --------------------------------------------------------------------------------------------------------------
-These are in the world's frame, with "(i'm standing behind the camera)\\n" before each instruction left
-out for width; a turned one follows them.
+These are in the world's frame (a camera at the world's front, turns 0); a turned one follows them.
 First step, Haiku (e 0, t 0, parallel, rung casual):
     context: <|im_start|>user\\n<IMAGES>\\nsplit up pls, half go front n the rest go front right<|im_end|>\\n<|im_start|>assistant\\n
     reply:   <think>\\nyou asked: split up pls, half go front n the rest go front right. i see the robots. two halves, two spots. first: split into two groups: one should go to the front, the other should go to the front right.\\n</think>\\n\\n<tool_call>
@@ -166,9 +177,9 @@ Refusal (e 10, t 0, parallel):
     context: <|im_start|>user\\n<IMAGES>\\nsplit into two groups: one should surround the white cheese, the other should surround the cyan cheese<|im_end|>\\n<|im_start|>assistant\\n
     reply:   <think>\\nyou asked: split into two groups: ... i see white and red cheeses only, no cyan one. the second group has no cyan cheese to surround, so i will not split.\\n</think>\\n\\nthere is no cyan cheese in this scene, so i will not split or move.<|im_end|>
 
-A turned example (user behind the stand-in camera at azimuth 45: turns 1, the user at the world's
-right, so the world's "back to front" is the user's "right to left"):
-    context: <|im_start|>user\\n<IMAGES>\\n(i'm standing behind the camera)\\nbuild a bridge across the trench<|im_end|>\\n<|im_start|>assistant\\n
+A turned example (the stand-in camera at azimuth 45: turns 1, the camera at the world's right, so
+the world's "back to front" is the camera's "right to left"; obs and codes turned with it):
+    context: <|im_start|>user\\n<IMAGES>\\nbuild a bridge across the trench<|im_end|>\\n<|im_start|>assistant\\n
     reply:   <think>\\nyou asked: build a bridge across the trench. i see the swarm, a trench running right to left between two plateaus and a yellow cheese on a plateau in the center. that means: build a bridge across the trench. first: build a bridge across the trench.\\n</think>\\n\\n<tool_call>
 
 What images show (visible): the policy sees images, not the scene summary, so every thought (Haiku
@@ -203,6 +214,7 @@ import torch
 
 from beebot.vla.voxel import haiku as H
 from beebot.vla.voxel import suite as S
+from beebot.vla.voxel.camera_frame import SIDES, quarter_turns, turn_codes, turn_grid
 from beebot.vla.voxel.lm import world_at
 from beebot.vla.voxel.play_store import load
 from beebot.vla.voxel.world import N_CHANNELS, STAY, observe
@@ -248,27 +260,30 @@ def text_reply(thought, answer):
     return thought_block(thought) + answer.strip() + END
 
 
-def context(instruction, memory=(), system=None, standing=None):
+def context(instruction, memory=(), system=None):
     """The text before the reply: system, memory (earlier assistant text) and the user turn with
-    IMAGES, where the user stands (standing, a USER_POSITIONS sentence), then the instruction. It
-    ends exactly at the assistant's turn: the reply starts with "<think>\n"."""
+    IMAGES, then the instruction (the user stands at the camera: nothing says where). It ends
+    exactly at the assistant's turn: the reply starts with "<think>\n"."""
     out = f"{START}system\n{system}{END}\n" if system else ""
     if memory:
         out += f"{START}assistant\n" + "\n".join(memory) + f"{END}\n"
-    where = f"{standing}\n" if standing else ""
-    return out + f"{START}user\n{IMAGES}\n{where}{instruction.strip()}{END}\n{START}assistant\n"
+    return out + f"{START}user\n{IMAGES}\n{instruction.strip()}{END}\n{START}assistant\n"
 
 
-def stand_in_views(obs, rng=None, scale=ISO_SCALE):
-    """[one isometric image] of an observation (channels, D, H, W), drawn as render.render_scene
-    draws (robots grey, terrain sandy, objects in their per-voxel colour; no zones), ignoring rng.
-    It stands in for views.scene_views(obs, rng, ViewSpec()) until that exists; ThinkData's
-    `views` argument switches."""
+def stand_in_views(obs, rng=None, side=None, scale=ISO_SCALE):
+    """([one isometric image], pose) of an observation (channels, D, H, W, world frame), drawn as
+    render.render_scene draws (robots grey, terrain sandy, objects in their per-voxel colour; no
+    zones), ignoring rng, from the front right corner (azimuth STAND_IN_AZIMUTH). side: a board
+    side the camera must look from; the grid is then drawn turned by quarter turns j
+    (camera_frame.turn_grid), which is the world seen from azimuth STAND_IN_AZIMUTH + 90 j, j chosen
+    so that the azimuth's quarter turn is the side's. It stands in for views.scene_views."""
     from PIL import Image, ImageDraw
 
     from beebot.vla.voxel.render import BACKGROUND, ROBOT, SHADES, WALL
 
+    turns = 0 if side is None else (SIDES.index(side) - quarter_turns(STAND_IN_AZIMUTH)) % 4
     grid = obs.numpy() if isinstance(obs, torch.Tensor) else np.asarray(obs)
+    grid = turn_grid(grid, turns)
     robots, walls, things = grid[0] > 0.5, grid[1] > 0.5, grid[2] > 0.5
     solid = robots | walls | things
     covered = np.zeros_like(solid)  # solid on all three visible sides (+z, +y, +x): never seen
@@ -286,7 +301,7 @@ def stand_in_views(obs, rng=None, scale=ISO_SCALE):
         cx, cy = ox + (x - y) * s, oy + (x + y) * s / 2 - z * s
         for face, k in zip(([(cx, cy - s), (cx + s, cy - s / 2), (cx, cy), (cx - s, cy - s / 2)], [(cx - s, cy - s / 2), (cx, cy), (cx, cy + s), (cx - s, cy + s / 2)], [(cx, cy), (cx + s, cy - s / 2), (cx + s, cy + s / 2), (cx, cy + s)]), SHADES):
             draw.polygon(face, fill=tuple(int(c * k) for c in rgb))
-    return [image], {"azimuth": STAND_IN_AZIMUTH}
+    return [image], {"azimuth": (STAND_IN_AZIMUTH + 90.0 * turns) % 360.0}
 
 
 def views_and_pose(result):
@@ -685,15 +700,9 @@ def template_line(record, index):
     return f"{goal} next.".lower()
 
 
-# The user's frame: directions as the user standing around the arena says them
+# The camera's frame: directions as the user standing at the camera says them
 
-ORDER = ("front", "right", "back", "left")  # world directions counterclockwise seen from above, from the default viewer's side (+y)
-USER_POSITIONS = {  # the user's place relative to the camera: (degrees added to the camera's azimuth, what the user turn says)
-    "behind": (0, "(i'm standing behind the camera)"),
-    "left": (-90, "(i'm standing to the left of the camera)"),
-    "right": (90, "(i'm standing to the right of the camera)"),
-    "opposite": (180, "(i'm standing opposite the camera, facing it)"),
-}
+ORDER = SIDES  # world directions counterclockwise seen from above, from the default viewer's side (+y): front, right, back, left
 STAND_IN_AZIMUTH = 45.0  # render.render_scene looks from the front right corner (x to the lower right, y to the lower left)
 NOT_DIRECTIONS = (  # uses of the four words that are no direction: left as they are
     r"\b(?:all|alright|that's|thats|you're|youre) right\b",
@@ -703,7 +712,7 @@ NOT_DIRECTIONS = (  # uses of the four words that are no direction: left as they
     r"\b(?:come|came|comes|coming|go|goes|went|get|gets|got|bring|put|turn|hold|held|holding|fall|pull|give|sit|sitting|stand|standing|settle|settling|lie|lying|set) back\b(?! (?:left|right|of|side|corner|edge|half|row|plateau|area|part))",
     r"\bback (?:off|up|together|down)\b",
 )
-UNMAPPABLE = re.compile(  # direction words that cannot be turned reliably: used only when the user's frame is the world's
+UNMAPPABLE = re.compile(  # direction words that cannot be turned reliably: used only when the camera's frame is the world's
     r"\b(?:near|far|nearer|farther|further|this|that|other|opposite)\s+(?:side|end|edge|corner|wall|half)\b"
     r"|\b(?:north|south|east|west|northern|southern|eastern|western|northeast|northwest|southeast|southwest)\b"
     r"|\b(?:window|door|doorway|camera|viewer)\b"
@@ -729,18 +738,8 @@ SAID = {  # how a turned word is said in each kind of place: plain, after "in fr
 FORWARD = re.compile(r"(?<!\blook )(?<!\blooks )(?<!\blooking )\b(forward|backward)s?\b")  # the board-frame labels' forward = the board's front, backward = its back
 
 
-def quarter_turns(degrees):
-    """The quarter turn (0 front, 1 right, 2 back, 3 left) of a place around the arena at this
-    azimuth, nearest first (a place half way between two goes to the later one)."""
-    return int(((float(degrees) + 45.0) % 360.0) // 90.0)
-
-
-def user_turns(camera_azimuth, position):
-    return quarter_turns(camera_azimuth + USER_POSITIONS[position][0])
-
-
 def turn_word(word, turns):
-    """A world direction word as said from the user's side `turns` quarter turns round."""
+    """A world direction word as said from the camera's side `turns` quarter turns round."""
     return ORDER[(ORDER.index(word) - turns) % 4]
 
 
@@ -748,14 +747,13 @@ def mappable(text):
     return UNMAPPABLE.search(text) is None
 
 
-USER_NAMES = tuple(USER_POSITIONS)
-FRAME_SENTENCE = "you face the board from its"  # haiku_frame.py's thoughts: words already mapped onto the board
-
-
 def frame_choice(row):
-    """A verified haiku_frame.py row as a label choice: the instruction in the user's words, the
-    thought that maps them onto the board, and the camera side and user place it was written for."""
-    return {"rung": f"frame-{row['rung']}", "instruction": row["text"], "thought": row["thought"], "switches": row.get("switches") or [], "done": DONE_LINE, "camera": row["camera"], "place": row["place"], "user": row["user"], "pair_id": row["pair_id"]}
+    """A haiku_frame.py camera row (haiku_frame.camera_row: data/vla/haiku/frame-camera) as a label
+    choice: the instruction, thought and switch lines in the frame of a camera at the board side
+    row["camera"], where the user stands; rendered from that side and said as written."""
+    if "place" in row or "user" in row:
+        raise ValueError(f"{row.get('pair_id')} is a board-frame row (camera, place, user); frame_dirs takes haiku_frame.py's camera rows (python -m beebot.vla.voxel.haiku_frame camera)")
+    return {"rung": f"frame-{row['rung']}", "instruction": row["text"], "thought": row["thought"], "switches": row.get("switches") or [], "done": DONE_LINE, "camera": row["camera"], "pair_id": row["pair_id"]}
 
 
 def takes_side(views):
@@ -968,8 +966,7 @@ class Example:
     kind: str
     instruction: str
     store: str
-    user: str = "behind"  # where the user stands relative to the camera (USER_POSITIONS)
-    turns: int = 0  # the user's quarter turn round the arena (0: the world's own frame); every direction word is in that frame
+    turns: int = 0  # the camera's quarter turn round the arena (0: the world's own frame); obs, codes and every direction word are in that camera's frame
     camera: float = 0.0  # the camera's azimuth (degrees round the arena, 0 at the world's front, 90 at its right)
 
 
@@ -1010,9 +1007,10 @@ class ThinkData:
         self.skipped = {(key, int(n)) for key, n, *_ in quarantine.get("episodes", [])}
         self.dropped = {pair_id for pair_id, *_ in quarantine.get("labels", [])}
         self.quarantined = 0
-        # frame_dirs: haiku_frame.py outputs; their verified rows replace the labels of the
-        # single-instruction episodes they were written for (see frame_choice). The views must take
-        # side= (the board side the camera looks from), since each thought states it
+        # frame_dirs: haiku_frame.py's camera rows (data/vla/haiku/frame-camera); their verified
+        # rows replace the labels of the single-instruction episodes they were written for (see
+        # frame_choice). The views must take side= (the board side the camera looks from), since
+        # each row is said from its camera's side
         self.frame_rows = {}
         for directory in frame_dirs:
             for row in H.read_jsonl(Path(directory) / "verified.jsonl"):
@@ -1036,7 +1034,7 @@ class ThinkData:
                 labels.part_key = {k: [r for r in rows if r.get("pair_id") not in self.dropped] for k, rows in labels.part_key.items()}
             self.labels.append((labels, label_options(directory), items))
         self.episodes = []
-        self.frames = {"turned": 0, "world": 0, "rung_swapped": 0, "template_instead": 0, "world_frame_forced": 0, "haiku_frame": 0}
+        self.frames = {"turned": 0, "world": 0, "rung_swapped": 0, "template_instead": 0, "front_forced": 0, "haiku_frame": 0}
         self.frame_episodes = 0
         self.counted_refusals = 0
         self.rewritten = {"haiku_thoughts": 0, "haiku_changed": 0, "haiku_lines_changed": 0, "template_thoughts": 0, "template_changed": 0}
@@ -1181,26 +1179,34 @@ class ThinkData:
             parts = [part if usable is None or usable(part) else None for part in self.template_parts(ep)]
         return None if any(part is None for part in parts) else parts
 
-    def user_frame(self, ep, parts, rng, azimuth):
-        """(parts, user position, quarter turns): the user's place drawn round the camera; labels
-        whose direction words cannot be turned (UNMAPPABLE) are used only in the world's frame, so
-        another rung, then the template, then the position that makes the frame the world's."""
-        position = USER_NAMES[int(rng.integers(len(USER_NAMES)))] if rng is not None else "behind"
-        turns = user_turns(azimuth, position)
+    def camera_parts(self, ep, parts, rng, turns):
+        """The labelling to say in the frame of a camera at quarter turn `turns`: labels whose
+        direction words cannot be turned (UNMAPPABLE) are used only in the world's frame (turns 0),
+        so another rung, then the template; None when none of them turns (the camera must then look
+        from the world's front)."""
         if turns == 0 or turnable(parts):
             self.frames["turned" if turns else "world"] += 1
-            return parts, position, turns
+            return parts
         other = self.labelling(ep, rng, turnable_choice) if ep.labelled else None
         if other is not None:
             self.frames["rung_swapped"] += 1
-            return other, position, turns
+            return other
         template = self.template_parts(ep)
         if ep.labelled and turnable(template):
             self.frames["template_instead"] += 1
-            return template, position, turns
-        self.frames["world_frame_forced"] += 1
-        position = next(name for name in USER_NAMES if user_turns(azimuth, name) == 0)
-        return parts, position, 0
+            return template
+        return None
+
+    def front_views(self, obs, rng, views):
+        """(images, azimuth) of a camera at the world's front, for labels said only in the world's
+        frame; the views must take side=."""
+        if not takes_side(views):
+            raise ValueError("a label whose direction words cannot be turned needs views that take side= (a camera at the world's front)")
+        images, azimuth = views_and_pose(views(obs, rng, side="front"))
+        if quarter_turns(azimuth) != 0:
+            raise ValueError(f"views drew azimuth {azimuth:.0f} for side front")
+        self.frames["front_forced"] += 1
+        return images, azimuth
 
     def thought_of(self, ep, parts, ev):
         part = parts[ev.part]
@@ -1220,7 +1226,9 @@ class ThinkData:
 
     def example(self, ep, t, parts, rng=None, views=None):
         """The act example of episode ep at step t under labelling parts (one per instruction);
-        rng: the generator the views draw their randomization from."""
+        rng: the generator the views draw their randomization from. The observation, the action
+        codes and the words are in the frame of the camera the views report."""
+        views = views or self.views
         events = self.episode_events(ep)
         starts = [int(entry["t"]) for entry in self.instructions(ep)]
         j = part_at(starts, t)
@@ -1228,29 +1236,31 @@ class ThinkData:
         codes = self.data[ep.store]["actions"][ep.e, t].long()
         obs = self.observation(ep, t)
         side = parts[0].get("camera") if len(parts) == 1 else None
-        if side:  # a thought written for this camera side and user place: rendered so, said as written
-            images, azimuth = views_and_pose((views or self.views)(obs, rng, side=side))
-            position, user = parts[0]["place"], parts[0]["user"]
-            if ORDER[user_turns(azimuth, position)] != user:
-                raise ValueError(f"views drew azimuth {azimuth:.0f} for side {side}: the user would stand at the board's {ORDER[user_turns(azimuth, position)]}, not its {user}")
-            turns = user_turns(azimuth, position)
+        if side:  # a camera row: rendered from its camera's side, said as written
+            images, azimuth = views_and_pose(views(obs, rng, side=side))
+            if ORDER[quarter_turns(azimuth)] != side:
+                raise ValueError(f"views drew azimuth {azimuth:.0f} for side {side}")
             self.frames["haiku_frame"] += 1
         else:
-            images, azimuth = views_and_pose((views or self.views)(obs, rng))
-            parts, position, turns = self.user_frame(ep, parts, rng, azimuth)
+            images, azimuth = views_and_pose(views(obs, rng))
+            said = self.camera_parts(ep, parts, rng, quarter_turns(azimuth))
+            if said is None:
+                images, azimuth = self.front_views(obs, rng, views)
+            parts = said or parts
+        turns = quarter_turns(azimuth)
 
-        def in_users_words(text):  # board-frame labels turned into the user's frame; frame labels are the user's words already
+        def in_camera_words(text):  # board-frame labels turned into the camera's frame; camera rows are in its words already
             return text if side else in_user_frame(text, turns)
 
-        memory = [in_users_words(self.thought_of(ep, parts, ev)) for ev in memory_before(events, t)]
-        thought = in_users_words(self.thought_of(ep, parts, here)) if here is not None else ""
+        memory = [in_camera_words(self.thought_of(ep, parts, ev)) for ev in memory_before(events, t)]
+        thought = in_camera_words(self.thought_of(ep, parts, here)) if here is not None else ""
         return Example(
-            obs=obs,
+            obs=turn_grid(obs, turns),
             images=images,
-            context_text=context(in_users_words(parts[j]["instruction"]), memory, self.system, USER_POSITIONS[position][1]),
+            context_text=context(in_camera_words(parts[j]["instruction"]), memory, self.system),
             reply_text=act_reply(thought),
             act=True,
-            codes=codes,
+            codes=turn_codes(codes, turns),
             seed=ep.seed,
             index=ep.index,
             e=ep.e,
@@ -1258,34 +1268,33 @@ class ThinkData:
             rung=parts[j]["rung"],
             family=ep.family,
             kind=here.kind if here is not None else "plain",
-            instruction=in_users_words(parts[j]["instruction"]),
+            instruction=in_camera_words(parts[j]["instruction"]),
             store=self.stores[ep.store],
-            user=position,
             turns=turns,
             camera=azimuth,
         )
 
     def refusal(self, ep, pair, rng=None, views=None):
+        views = views or self.views
         obs = self.observation(ep, 0)
-        images, azimuth = views_and_pose((views or self.views)(obs, rng))
-        position = USER_NAMES[int(rng.integers(len(USER_NAMES)))] if rng is not None else "behind"
-        turns = user_turns(azimuth, position)
-        if turns and not turnable_choice(pair):
-            self.frames["world_frame_forced"] += 1
-            position, turns = next(name for name in USER_NAMES if user_turns(azimuth, name) == 0), 0
+        images, azimuth = views_and_pose(views(obs, rng))
+        if quarter_turns(azimuth) and not turnable_choice(pair):
+            images, azimuth = self.front_views(obs, rng, views)
         else:
-            self.frames["turned" if turns else "world"] += 1
+            self.frames["turned" if quarter_turns(azimuth) else "world"] += 1
+        turns = quarter_turns(azimuth)
         # a request the scene cannot satisfy (kind "refuse": an absent cheese, a tower taller than
         # the world) is met by doing nothing, an action like any other (every robot STAY), as the
         # stores' eat:absent episodes do; a clarification ("which zone?") stays a spoken question
         acts = pair.get("kind") == "refuse"
+        seen = turn_grid(obs, turns)
         return Example(
-            obs=obs,
+            obs=seen,
             images=images,
-            context_text=context(in_user_frame(pair["instruction"], turns), (), self.system, USER_POSITIONS[position][1]),
+            context_text=context(in_user_frame(pair["instruction"], turns), (), self.system),
             reply_text=act_reply(in_user_frame(pair["thought"], turns)) if acts else text_reply(in_user_frame(pair["thought"], turns), in_user_frame(pair["reply"], turns)),
             act=acts,
-            codes=torch.full(tuple(obs.shape[-3:]), STAY, dtype=torch.long) if acts else None,
+            codes=still(seen) if acts else None,
             seed=ep.seed,
             index=ep.index,
             e=ep.e,
@@ -1295,7 +1304,6 @@ class ThinkData:
             kind=REFUSAL,
             instruction=in_user_frame(pair["instruction"], turns),
             store=self.stores[ep.store],
-            user=position,
             turns=turns,
             camera=azimuth,
         )

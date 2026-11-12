@@ -14,6 +14,7 @@ import torch
 from beebot.vla.voxel import demos as D
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel import think_data as T
+from beebot.vla.voxel.camera_frame import turn_codes, turn_grid
 from beebot.vla.voxel.lm import world_at
 from beebot.vla.voxel.play_store import CompactWriter, load
 from beebot.vla.voxel.world import COLOUR_NAMES, STAY, failure_rates, observe
@@ -43,21 +44,22 @@ PATTERNS = [
 EPISODES = 40  # pattern e % 4; attempts hold a dropped row before every fifth kept one
 
 
-def synthetic_store(path, seed=SEED, episodes=EPISODES, options=OPTIONS):
-    """A compact demo store with hand-made instructions and sub-goals over random robots."""
+def synthetic_store(path, seed=SEED, episodes=EPISODES, options=OPTIONS, patterns=PATTERNS, move=None):
+    """A compact demo store with hand-made instructions and sub-goals over random robots (episode e
+    follows patterns[e % len(patterns)]); every robot's action is random, or `move` when given."""
     rng = np.random.default_rng(seed)
     writer = CompactWriter(path, (16, 16, 16))
     small = {"cheese_pos": [], "cheese_alive": [], "walls": [], "cheese_color": [], "gravity": []}
     instructions, subgoals, attempts = [], [], []
     for e in range(episodes):
-        family, kind, entries, goals = PATTERNS[e % len(PATTERNS)]
+        family, kind, entries, goals = patterns[e % len(patterns)]
         mass = np.zeros((STEPS + 1, 16, 16, 16), np.uint8)
         cells = rng.choice(16 * 16, size=8, replace=False)
         for t in range(STEPS + 1):
             mass[t, 0].reshape(-1)[cells] = 1
         actions = np.full((STEPS, 16, 16, 16), STAY, np.int8)
         for t in range(STEPS):
-            actions[t][mass[t] > 0] = rng.integers(0, 26, size=int(mass[t].sum()))
+            actions[t][mass[t] > 0] = rng.integers(0, 26, size=int(mass[t].sum())) if move is None else move
         writer.add(mass, actions)
         pos = torch.zeros(STEPS + 1, 3, 3, dtype=torch.long)
         pos[:, 0] = torch.tensor([0, 2, 2])
@@ -182,7 +184,7 @@ def test_examples_at_each_kind_of_step(data, store):
     assert parts[0]["rung"] == "template" and parts[0]["instruction"] == "eat red, then blue"
     first = data.example(ep, 0, parts)
     assert first.kind == "first" and first.act and first.rung == "template" and first.family == "logic"
-    assert first.context_text == "<|im_start|>user\n<IMAGES>\n(i'm standing behind the camera)\neat red, then blue<|im_end|>\n<|im_start|>assistant\n"
+    assert first.context_text == "<|im_start|>user\n<IMAGES>\neat red, then blue<|im_end|>\n<|im_start|>assistant\n"
     assert re.fullmatch(r"<think>\nyou asked: eat red, then blue\. i see .+\. that means: .+\. first: eat the red cheese\.\n</think>\n\n<tool_call>", first.reply_text)
     plain = data.example(ep, 2, parts)
     assert plain.kind == "plain" and plain.reply_text == "<think>\n\n</think>\n\n<tool_call>"
@@ -208,12 +210,12 @@ def test_an_instruction_change_puts_the_new_instruction_in_the_user_turn(data):
     before = data.example(ep, 5, parts)
     change = data.example(ep, 6, parts)
     later = data.example(ep, 8, parts)
-    assert "<IMAGES>\n(i'm standing behind the camera)\ngo to the front<|im_end|>" in before.context_text
-    assert change.kind == "change" and "<IMAGES>\n(i'm standing behind the camera)\nstay where you are<|im_end|>" in change.context_text
+    assert "<IMAGES>\ngo to the front<|im_end|>" in before.context_text
+    assert change.kind == "change" and "<IMAGES>\nstay where you are<|im_end|>" in change.context_text
     assert change.reply_text.startswith("<think>\nyou asked: stay where you are. i see") and "first: stay where you are." in change.reply_text
     assert "you asked: go to the front." in change.context_text  # memory: the old instruction's thought
     assert "you asked: stay where you are." in later.context_text and "you asked: go to the front." not in later.context_text
-    assert "<IMAGES>\n(i'm standing behind the camera)\nstay where you are<|im_end|>" in later.context_text and later.kind == "plain"
+    assert "<IMAGES>\nstay where you are<|im_end|>" in later.context_text and later.kind == "plain"
 
 
 def test_haiku_labels_replace_the_template_and_rungs_are_drawn(data):
@@ -225,7 +227,7 @@ def test_haiku_labels_replace_the_template_and_rungs_are_drawn(data):
         rungs.add(parts[0]["rung"])
         first = data.example(ep, 0, parts)
         assert first.reply_text == f"<think>\n{parts[0]['thought']}\n</think>\n\n<tool_call>"
-        assert f"<IMAGES>\n(i'm standing behind the camera)\n{parts[0]['instruction']}<|im_end|>" in first.context_text and first.rung == parts[0]["rung"]
+        assert f"<IMAGES>\n{parts[0]['instruction']}<|im_end|>" in first.context_text and first.rung == parts[0]["rung"]
         assert data.example(ep, 4, parts).reply_text == "<think>\nnow the blue one\n</think>\n\n<tool_call>"
         assert parts[0]["thought"] in data.example(ep, 7, parts).context_text
     assert rungs == {"close", "casual"}
@@ -237,7 +239,7 @@ def test_haiku_switch_parts_label_each_instruction(data):
     parts = data.labelling(ep, np.random.default_rng(0))
     assert [p["instruction"] for p in parts] == ["head to the front", "could you all freeze"]
     change = data.example(ep, 6, parts)
-    assert "<IMAGES>\n(i'm standing behind the camera)\ncould you all freeze<|im_end|>" in change.context_text and change.rung == "indirect"
+    assert "<IMAGES>\ncould you all freeze<|im_end|>" in change.context_text and change.rung == "indirect"
     assert change.reply_text.startswith("<think>\nyou asked: could you all freeze.")
     assert "you asked: head to the front." in change.context_text
     assert data.example(ep, 3, parts).rung == "close"
@@ -251,7 +253,7 @@ def test_refusals_that_refuse_act_with_every_robot_staying_and_clarifications_sp
     assert example.act and example.t == 0 and example.kind == "refusal" and example.rung == "refusal"
     assert example.reply_text == "<think>\nyou asked: make the blue cheese fly. gravity is on, so i will not act.\n</think>\n\n" + T.ACT
     assert example.codes.shape == example.obs.shape[-3:] and (example.codes == STAY).all()
-    assert "<IMAGES>\n(i'm standing behind the camera)\nmake the blue cheese fly<|im_end|>" in example.context_text
+    assert "<IMAGES>\nmake the blue cheese fly<|im_end|>" in example.context_text
     asking = data.refusal(ep, dict(ep.refusals[0], kind="clarify", reply="which cheese?"))
     assert not asking.act and asking.codes is None and asking.reply_text.endswith("which cheese?<|im_end|>") and T.ACT not in asking.reply_text
     assert torch.equal(example.obs, observe(world_at(load(store), [(2, 0)]))[0])
@@ -489,13 +491,14 @@ def test_forward_is_away_from_the_user_and_toward_me_is_the_near_side():
         assert user_text_words(said, table) == {"front"} and not (re.search(r"\bforward", said) and table["toward"] == "front")
 
 
-def test_frame_labels_are_said_as_written(store, labels, tmp_path):
-    """haiku_frame rows are the user's own words ("forward" = away from them): never turned."""
+def test_camera_rows_are_said_as_written(store, labels, tmp_path):
+    """haiku_frame camera rows are in the camera's words already ("forward" = away from it): never
+    turned, even with the camera off the world's front; obs and codes are still turned."""
     n2 = index_of(store, 2)
     frame = tmp_path / "frame"
     frame.mkdir()
-    thought = "you asked: take three steps forward. i see robots. the camera looks from the board's front and you stand behind the camera, so you face the board from its front. forward is the board's back. first: form a wall."
-    row = {"rung": "plain", "text": "take three steps forward", "thought": thought, "switches": [], "camera": "front", "place": "behind", "user": "front", "pair_id": f"run-test:s{SEED}-{n2}:plain", "id": f"run-test:s{SEED}-{n2}"}
+    thought = "you asked: take three steps forward. i see robots. first: form a wall."
+    row = {"rung": "plain", "text": "take three steps forward", "thought": thought, "switches": [], "camera": "right", "pair_id": f"run-test:s{SEED}-{n2}:plain", "id": f"run-test:s{SEED}-{n2}"}
     (frame / "verified.jsonl").write_text(json.dumps(row) + "\n")
 
     def side_views(obs, rng, side=None):
@@ -505,36 +508,63 @@ def test_frame_labels_are_said_as_written(store, labels, tmp_path):
     ep = ep_of(data, 2)
     rng = np.random.default_rng(0)
     example = data.example(ep, 0, data.labelling(ep, rng), rng)
-    assert example.turns == 0 and "\ntake three steps forward<|im_end|>" in example.context_text
-    assert "you asked: take three steps forward." in example.reply_text and "forward is the board's back" in example.reply_text
+    assert example.turns == 1 and example.context_text.endswith("<IMAGES>\ntake three steps forward<|im_end|>\n<|im_start|>assistant\n")
+    assert example.reply_text == f"<think>\n{thought}\n</think>\n\n<tool_call>"
+    assert torch.equal(example.obs, turn_grid(observe(world_at(load(store), [(2, 0)]))[0], 1))
 
 
-def test_the_users_place_is_the_camera_turned_by_the_stated_offset():
+def test_the_cameras_quarter_turn_and_the_stand_in_from_a_side():
     assert T.quarter_turns(0) == 0 and T.quarter_turns(90) == 1 and T.quarter_turns(180) == 2 and T.quarter_turns(-90) == 3
-    assert [T.user_turns(90, name) for name in ("behind", "left", "right", "opposite")] == [1, 0, 2, 3]  # a camera at the world's right
-    assert [T.user_turns(T.STAND_IN_AZIMUTH, name) for name in ("behind", "left", "right", "opposite")] == [1, 0, 2, 3]  # half way goes to the later quarter
+    assert T.quarter_turns(T.STAND_IN_AZIMUTH) == 1  # half way goes to the later quarter
+    obs = observe(world_at(load_synthetic(), [(0, 0)]))[0]
+    for k, side in enumerate(T.ORDER):  # the stand-in from a side: the turned grid drawn from its front right corner
+        images, pose = T.stand_in_views(obs, side=side)
+        assert T.quarter_turns(pose["azimuth"]) == k
+        assert np.array_equal(np.asarray(images[0]), np.asarray(T.stand_in_views(turn_grid(obs, (k - 1) % 4))[0][0]))
+    assert T.takes_side(T.stand_in_views)
 
 
-def turned_views(obs, rng):
-    """Fake views: one image, the camera at the world's right."""
-    return ["iso"], {"azimuth": 90.0}
+def load_synthetic():
+    import tempfile
+
+    return load(synthetic_store(Path(tempfile.mkdtemp()) / "store", episodes=4))
 
 
-def test_examples_state_where_the_user_stands_and_speak_in_that_frame(store, labels):
+def turned_views(obs, rng, side=None):
+    """Fake views: one image, the camera at the world's right (at the side asked for, if any)."""
+    return ["iso"], {"azimuth": 90.0 if side is None else 90.0 * T.ORDER.index(side)}
+
+
+def test_examples_are_in_the_cameras_frame(store, labels):
+    """A camera at the world's right (quarter turn 1): the observation and the expert's codes are
+    turned into its frame, the words too, and the user turn says nothing of where the user stands
+    (the user is at the camera)."""
     data = T.ThinkData([store], [labels], held_share=0.0, views=turned_views, refusal_share=0.0)
+    raw = load(store)
     ep = ep_of(data, 5)  # switch, template: "go to the front" then "stay where you are"
-    seen = set()
-    for seed in range(40):
-        rng = np.random.default_rng(seed)
-        example = data.example(ep, 7, data.labelling(ep, rng), rng)
-        seen.add(example.user)
-        assert example.camera == 90.0 and example.turns == T.user_turns(90.0, example.user)
-        assert T.USER_POSITIONS[example.user][1] + "\nstay where you are<|im_end|>" in example.context_text
-        assert f"you asked: stay where you are. i see the swarm on a flat floor, a red cheese {T.in_user_frame('at the back left', example.turns)}" in example.context_text
-        assert example.context_text.endswith("<|im_start|>assistant\n") and example.reply_text.startswith("<think>\n") and example.reply_text.endswith("<tool_call>")
-        before = data.example(ep, 2, data.labelling(ep, rng), rng)
-        assert f"\n{T.in_user_frame('go to the front', before.turns)}<|im_end|>" in before.context_text
-    assert seen == set(T.USER_POSITIONS)
+    rng = np.random.default_rng(0)
+    example = data.example(ep, 7, data.labelling(ep, rng), rng)
+    assert example.camera == 90.0 and example.turns == 1 and not hasattr(example, "user")
+    assert example.context_text.endswith("<IMAGES>\nstay where you are<|im_end|>\n<|im_start|>assistant\n")
+    assert f"you asked: stay where you are. i see the swarm on a flat floor, a red cheese {T.in_user_frame('at the back left', 1)}" in example.context_text
+    assert "at the back right" in example.context_text  # the world's back left, seen from its right
+    assert example.reply_text.startswith("<think>\n") and example.reply_text.endswith("<tool_call>")
+    assert torch.equal(example.obs, turn_grid(observe(world_at(raw, [(5, 7)]))[0], 1))
+    assert torch.equal(example.codes, turn_codes(raw["actions"][5, 7].long(), 1))
+    before = data.example(ep, 2, data.labelling(ep, rng), rng)
+    assert "<IMAGES>\ngo to the left<|im_end|>" in before.context_text  # the world's front is that camera's left
+
+
+def test_examples_carry_no_user_position_text(store, labels):
+    data = T.ThinkData([store], [labels], held_share=0.0, refusal_share=0.3, views=lambda obs, rng, side=None: T.stand_in_views(obs, side=side or T.ORDER[int(rng.integers(4))]))
+    rng = np.random.default_rng(0)
+    drawn = [data.sample(rng) for _ in range(300)]
+    assert {ex.turns for ex in drawn} == {0, 1, 2, 3} and any(ex.kind == "refusal" for ex in drawn)
+    for ex in drawn:
+        user_turn = ex.context_text.split("<|im_start|>user\n")[1]
+        assert user_turn == f"<IMAGES>\n{ex.instruction}<|im_end|>\n<|im_start|>assistant\n"
+        assert not re.search(r"standing|i'm (?:to the|behind|opposite)|of the camera", ex.context_text + ex.reply_text)
+        assert ex.obs.shape == (10, 16, 16, 16) and (ex.codes is None or (ex.codes[ex.obs[0] == 0] == STAY).all())
 
 
 def test_unturnable_labels_are_used_only_in_the_worlds_frame(store, tmp_path):
@@ -551,6 +581,56 @@ def test_unturnable_labels_are_used_only_in_the_worlds_frame(store, tmp_path):
             if example.turns:
                 assert example.instruction == fallback and "far side" not in example.context_text + example.reply_text
     assert both.frames["rung_swapped"] > 0 and alone.frames["template_instead"] > 0
+    refusing = T.ThinkData([store], [label_dir(tmp_path / "refusing", [pair(SEED, n2, "formation", "refuse", "refusal", "fly to the far side", "you asked: fly to the far side. gravity is on, so i will not act.", reply="no.")])], held_share=0.0, views=turned_views)
+    ep = ep_of(refusing, 2)
+    example = refusing.refusal(ep, ep.refusals[0], np.random.default_rng(0))
+    assert example.turns == 0 and example.camera == 0.0 and refusing.frames["front_forced"] == 1  # nothing else to say: the camera goes to the world's front
+    with pytest.raises(ValueError, match="side="):
+        T.ThinkData([store], [label_dir(tmp_path / "no-side", [pair(SEED, n2, "formation", "refuse", "refusal", "fly to the far side", "you asked: fly to the far side. no.", reply="no.")])], held_share=0.0, views=lambda obs, rng: (["iso"], {"azimuth": 90.0})).refusal(ep, ep.refusals[0])
+
+
+def moving_store(path, code, episodes=6):
+    """A store whose robots all make move `code` at every step, every episode one instruction:
+    "go to the front of the floor" (GOTO)."""
+    pattern = ("switch", "goto", [{"t": 0, "text": "go to the front of the floor", "record": GOTO}], [{"t": 0, "index": 0, "goal": {"kind": "goto"}}])
+    return synthetic_store(path, episodes=episodes, patterns=[pattern], move=code)
+
+
+def test_a_camera_row_rendered_from_its_side_agrees_with_its_turned_targets(tmp_path):
+    """A frame row (haiku_frame.py) of a user at the board's left, its expert going to the world's
+    front (+y): rewritten into the camera's frame (camera_row) and rendered with the camera at the
+    user's side, its instruction ("go to my right") and its first clause ("the right") name the side
+    its turned action codes go to (+x', the camera's right)."""
+    from beebot.vla.voxel.haiku_frame import camera_row
+    from beebot.vla.voxel.views import side_azimuth
+    from beebot.vla.voxel.world import DIRS
+
+    store = moving_store(tmp_path / "store", DIRS.index((0, 1, 0)))
+    n = index_of(store, 0)
+    board = {
+        "rung": "plain", "text": "go to my right", "switches": [], "id": f"run-test:s{SEED}-{n:07d}", "pair_id": f"run-test:s{SEED}-{n:07d}:plain", "camera": "front", "place": "left", "user": "left",
+        "thought": "you asked: go to my right. i see a red cheese at the board's back left. the camera looks from the board's front and you stand to the left of the camera, so you face the board from its left. your right is the board's front. first: go to the front of the floor.",
+    }
+    row = camera_row(board)
+    assert row["camera"] == "left" and row["thought"] == "you asked: go to my right. i see a red cheese at the front left. first: go to the right of the floor."  # the board's back is their left, its left nearest them
+    labels = label_dir(tmp_path / "run-test", [])  # the label directory the row's id names (run-test)
+    views = lambda obs, rng, side=None: (["iso"], {"azimuth": side_azimuth(side, rng)})  # noqa: E731
+    for name, written in (("old", board), ("frame-camera", row)):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "verified.jsonl").write_text(json.dumps(written) + "\n")
+    with pytest.raises(ValueError, match="board-frame row"):
+        T.ThinkData([store], [labels], frame_dirs=[tmp_path / "old"], held_share=0.0, views=views)
+    data = T.ThinkData([store], [labels], frame_dirs=[tmp_path / "frame-camera"], held_share=0.0, views=views)
+    ep = ep_of(data, 0)
+    assert data.frame_episodes == 1 and ep.choices[0]["rung"] == "frame-plain"
+    for seed in range(5):
+        rng = np.random.default_rng(seed)
+        example = data.example(ep, 0, data.labelling(ep, rng), rng)
+        assert example.turns == 3 and T.ORDER[example.turns] == "left"
+        assert example.instruction == "go to my right" and example.reply_text == f"<think>\n{row['thought']}\n</think>\n\n<tool_call>"
+        robots = example.obs[0] > 0.5
+        assert robots.any() and (example.codes[robots] == DIRS.index((0, 0, 1))).all()  # every robot to the camera's right
+
 
 
 # ---------------------------------------------------------------------------------------------

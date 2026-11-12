@@ -1,3 +1,5 @@
+import dataclasses
+
 import numpy as np
 import torch
 
@@ -119,7 +121,7 @@ class EastPolicy:
 
 
 def test_a_policy_acts_on_the_lattice_read_back_from_mujoco():
-    ep = episode([(0, 2, 2), (0, 9, 9)], steps=2, size=16)
+    ep = dataclasses.replace(episode([(0, 2, 2), (0, 9, 9)], steps=2, size=16), camera="front")  # the camera at the world's front: its frame is the world's
     policy = EastPolicy()
     played, executor = play_mujoco([ep], R.PolicyActor(policy, [ep]), swarm={"jitter": NOMINAL})
     assert len(policy.seen) == 2
