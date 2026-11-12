@@ -256,7 +256,7 @@ class Swarm:
             middle = xyz[members, :2].mean(0)
             scatter = jitter.offset if members.sum() == 1 else jitter.offset / 2
             place[members, :2] = middle + (xyz[members, :2] - middle) * (1 + jitter.offset) + rng.uniform(-scatter, scatter, size=(members.sum(), 2))
-        self.model = mujoco.MjModel.from_xml_string(swarm_xml(self.cube, (place + [0, 0, 0.5]) * self.cube.side, self.mass, self.friction))
+        self.model = mujoco.MjModel.from_xml_string(self.scene_xml((place + [0, 0, 0.5]) * self.cube.side))
         self.data = mujoco.MjData(self.model)
         self.magnets = SwarmMagnets(self.cube, n, strength)
         self.bodies = np.array([self.model.body(f"c{i}").id for i in range(n)])
@@ -267,6 +267,10 @@ class Swarm:
         self.steps = 0
         mujoco.mj_forward(self.model, self.data)
         self.run(settle)
+
+    def scene_xml(self, centres):
+        """The scene's MJCF for cubes centred at centres (N, 3) in metres (a subclass adds to it)."""
+        return swarm_xml(self.cube, centres, self.mass, self.friction)
 
     # -----------------------------------------------------------------------------------------
     # physics
