@@ -322,7 +322,9 @@ class BuildSegments:
                     options = rows[k].clone()
                     options[STAY] = False
                     if roll < JITTER and options.any():
+                        old = int(codes[i][tuple(cells[k])])
                         codes[i][tuple(cells[k])] = int(torch.multinomial(options.float(), 1, generator=gen))
+                        self.jitter_note(i, cells[k], old, int(codes[i][tuple(cells[k])]), codes.shape)
             if parkers:
                 heights = world.walls[i].numpy().sum(0)
                 size = occupancy.shape[-1]
@@ -384,7 +386,9 @@ class BuildPlanner(BuildSegments, FreeCubeExpert):
         if odds is not None:  # jams try, and parkers take, only moves about as safe as standing still (controller.risky)
             move_mask = move_mask & ~risky(odds, torch.zeros_like(move_mask))
         codes = self.crew(world, codes, segs, move_mask, generator, rank=lambda i: dist[i])
-        return refuse(world, codes, self.rule, priority=torch.rand(world.mass.shape, generator=generator))
+        codes = refuse(world, codes, self.rule, priority=torch.rand(world.mass.shape, generator=generator))
+        self.last_intended = self.intended(codes)
+        return codes
 
 
 class Mixed:
@@ -410,10 +414,14 @@ class Mixed:
 
     def __call__(self, world, t, generator=None):
         codes = torch.full(world.mass.shape, STAY, dtype=torch.int8)
+        meant = codes.clone()
         for indices, expert in ((self.rest, self.other), (self.mine, self.build)):
             if indices:
                 index = torch.tensor(indices)
                 codes[index] = expert(world.index(index), t).to(torch.int8)
+                last = getattr(expert, "last_intended", None)
+                meant[index] = codes[index] if last is None else last.to(torch.int8)
+        self.last_intended = meant
         return codes
 
 

@@ -12,7 +12,7 @@ from beebot.vla.voxel import demos
 from beebot.vla.voxel import objects as O
 from beebot.vla.voxel import suite as S
 from beebot.vla.voxel.play_store import load
-from beebot.vla.voxel.world import CUBE_MOVES, world_from_arrays
+from beebot.vla.voxel.world import CUBE_MOVES, STAY, world_from_arrays
 
 
 def floor(n, row=0):
@@ -39,7 +39,14 @@ def test_a_tower_the_swarm_cannot_fill_two_by_two_is_one_column():
     towers = [t for t in (make(world, meta, 0) for _, make in made) if t is not None and t.spec["kind"] == "tower"]
     assert towers and all(len(t.plan[0]["points"]) == t.spec["height"] and S.fits(t, world, 0) for t in towers)
     unscaled = [t for t in (make(world, meta, 0) for _, make in (S.make_construction(np.random.default_rng(s), "") for s in range(40))) if t is not None and t.spec["kind"] == "tower"]
-    assert all(len(t.plan[0]["points"]) == 4 * t.spec["height"] for t in unscaled)
+    assert all(len(t.plan[0]["points"]) == 4 * t.spec["height"] for t in unscaled)  # default: 2 x 2 only, as before THIN_TOWERS
+    S.THIN_TOWERS = True
+    try:
+        made = [S.make_construction(np.random.default_rng(s), "") for s in range(40)]
+        thin = [t for t in (make(world, meta, 0) for _, make in made) if t is not None and t.spec["kind"] == "tower"]
+    finally:
+        S.THIN_TOWERS = False
+    assert thin and all(len(t.plan[0]["points"]) == t.spec["height"] and S.fits(t, world, 0) for t in thin)
 
 
 def test_a_parallel_tower_job_is_bounded_by_its_planned_column():
@@ -112,7 +119,9 @@ def test_the_expert_builds_a_one_wide_tower_under_switch_cube():
 def test_object_towers_follow_the_swarm_when_scaled():
     world, meta = O.object_scenes(np.random.default_rng(0), robots=9, empty=True)
     assert len(O.tower_points(world, 0, 5, np.random.default_rng(0), scaled=True)) == 5
-    assert len(O.tower_points(world, 0, 5, np.random.default_rng(0))) == 20
+    assert len(O.tower_points(world, 0, 5, np.random.default_rng(0))) == 20  # default: 2 x 2 as before (THIN_TOWERS off)
+    big, _ = O.object_scenes(np.random.default_rng(0), robots=30, empty=True)
+    assert len(O.tower_points(big, 0, 5, np.random.default_rng(0))) == 20
     _, _, tasks = O.sample_objects(np.random.default_rng(2), 12, family="reasoning", kind="conditional", robots=(8, 12), keep=True, empty=True, scaled=True)
     assert tasks and {O.task_kind(t) for t in tasks} <= {"conditional:eat_tower@else", "conditional:surround_goto@else"}
     for t in tasks:
@@ -164,3 +173,38 @@ def test_the_demo_preset_writes_an_empty_floor_store(tmp_path, monkeypatch):
     assert options["empty"] and options["scaled"]
     items = haiku.drawn_items({**options, "chunk": 8}, None, rows)  # a Haiku export of the store joins to it
     assert len(items) == store["count"]
+
+
+def test_the_intended_action_is_the_choice_before_the_jitter():
+    world = floor(6)
+    meta = {"layout": "flat", "height": torch.zeros(16, 16, dtype=torch.long), "gap": None}
+    points = S.tower_targets(meta, 5, np.random.default_rng(1), side=1)
+    task = S.Task("construction", "", {"kind": "tower", "height": 5, "forbid": set()}, [{"kind": "targets", "points": points, "label": S.tower_label(5, points)}])
+    expert = S.Expert([task], moves=CUBE_MOVES, seed=0, rule="switch_cube")
+    differs = 0
+    for t in range(20):
+        codes = expert(world, t)
+        meant = expert.last_intended
+        assert meant.shape == codes.shape and meant.dtype == codes.dtype
+        assert ((codes == STAY) | (world.mass > 0.5)).all() and ((meant == STAY) | (world.mass > 0.5)).all()
+        differs += int((meant != codes).sum())
+    assert differs > 0  # the jitter (0.1 a robot) shows in some of 20 steps of 6 robots
+    _, arrays = S.run(world, [meta], [task], S.Expert([task], moves=CUBE_MOVES, seed=0, rule="switch_cube"), steps=20, seed=0, rule="switch_cube", record=True)
+    assert arrays["intended"].shape == arrays["actions"].shape and (arrays["intended"] != arrays["actions"]).any()
+
+
+def test_a_compact_store_keeps_intended_actions_beside_the_executed_ones(tmp_path):
+    from beebot.vla.voxel.play_store import CompactWriter
+
+    mass = np.zeros((3, 2, 2, 2), np.uint8)
+    mass[:, 0, 0, 0] = 1
+    actions = np.full((2, 2, 2, 2), STAY, np.int8)
+    meant = actions.copy()
+    actions[:, 0, 0, 0] = 3
+    meant[:, 0, 0, 0] = 5
+    writer = CompactWriter(tmp_path, (2, 2, 2))
+    writer.add(mass, actions, meant)
+    writer.close()
+    torch.save({"count": 1}, tmp_path / "small.pt")
+    store = load(tmp_path)
+    assert int(store["actions"][0, 1][0, 0, 0]) == 3 and int(store["intended_actions"][0, 1][0, 0, 0]) == 5

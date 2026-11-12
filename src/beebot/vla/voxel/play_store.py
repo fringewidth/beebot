@@ -15,8 +15,10 @@ in 4096 voxels), about 40 times smaller at 16^3:
                   in the two files below, so frame (e, t) is entries offsets[e, t] to offsets[e, t + 1]
     voxels.bin    the flat voxel index (z H + y) W + x of every robot of every frame, ascending
                   within a frame (raw uint16; uint32 for grids over 65536 voxels)
-    codes.bin     raw int8, parallel to voxels.bin: that robot's action code; the last frame of an
-                  episode has no action and holds STAY
+    codes.bin     raw int8, parallel to voxels.bin: that robot's action code (the move it made, a
+                  jittered one included); the last frame of an episode has no action and holds STAY
+    intended.bin  optional (stores drawn from 2026-11-12 on), the same layout: the action code the
+                  expert meant before any jitter; load() returns it as "intended_actions"
 
 It needs a mass of 0 or 1 and STAY wherever no robot is (CompactWriter.add checks both), so the
 dense grids come back exactly. load() detects it and returns "mass" and "actions" as CompactGrids,
@@ -54,7 +56,7 @@ class DenseWriter:
         self.actions = np.lib.format.open_memmap(out / "actions.npy", mode="w+", dtype=np.int8, shape=(cap, steps, *dims))
         self.row = 0
 
-    def add(self, mass, actions):
+    def add(self, mass, actions, intended=None):  # intended is kept by the compact format only
         self.mass[self.row] = np.asarray(mass)
         self.actions[self.row] = np.asarray(actions)
         self.row += 1
@@ -75,12 +77,14 @@ class CompactWriter:
         self.voxel_dtype = np.dtype(np.uint16 if int(np.prod(self.dims)) <= 1 << 16 else np.uint32)
         self.voxels = open(self.out / "voxels.bin", "wb")
         self.codes = open(self.out / "codes.bin", "wb")
+        self.meant = None
         self.offsets = []
         self.total = 0
 
-    def add(self, mass, actions):
+    def add(self, mass, actions, intended=None):
         """One episode: mass (steps + 1, D, H, W) of 0 and 1, actions (steps, D, H, W) with STAY
-        off the robots (numpy arrays or tensors)."""
+        off the robots (numpy arrays or tensors); intended: the same for the expert's intended
+        codes (all episodes of a store give it or none)."""
         mass, actions = np.asarray(mass), np.asarray(actions)
         frames = mass.reshape(len(mass), -1)
         moves = np.concatenate([actions.reshape(len(actions), -1), np.full((1, frames.shape[1]), STAY, actions.dtype)])
@@ -89,6 +93,12 @@ class CompactWriter:
         t, voxel = np.nonzero(frames)
         self.voxels.write(voxel.astype(self.voxel_dtype).tobytes())
         self.codes.write(moves[t, voxel].astype(np.int8).tobytes())
+        if intended is not None:
+            if self.meant is None:
+                self.meant = open(self.out / "intended.bin", "wb")
+            meant = np.asarray(intended)
+            meant = np.concatenate([meant.reshape(len(meant), -1), np.full((1, frames.shape[1]), STAY, meant.dtype)])
+            self.meant.write(meant[t, voxel].astype(np.int8).tobytes())
         bounds = self.total + np.concatenate([[0], np.cumsum(np.bincount(t, minlength=len(frames)))])
         self.offsets.append(bounds)
         self.total = int(bounds[-1])
@@ -96,6 +106,8 @@ class CompactWriter:
     def close(self):
         self.voxels.close()
         self.codes.close()
+        if self.meant is not None:
+            self.meant.close()
         steps = len(self.offsets[0]) - 2 if self.offsets else 0
         np.save(self.out / "offsets.npy", np.asarray(self.offsets, dtype=np.int64).reshape(len(self.offsets), steps + 2))
         (self.out / MARKER).write_text(json.dumps({"dims": list(self.dims), "voxel_dtype": self.voxel_dtype.name, "stay": STAY}))
@@ -114,11 +126,12 @@ class CompactGrids:
         self.dims = tuple(marker["dims"])
         self.offsets = np.load(out / "offsets.npy", mmap_mode="r")
         self.voxels = self.raw(out / "voxels.bin", marker["voxel_dtype"])
-        self.codes = self.raw(out / "codes.bin", np.int8) if field == "actions" else None
-        self.fill = marker["stay"] if field == "actions" else 0
-        self.dtype = torch.int8 if field == "actions" else torch.uint8
+        acts = field in ("actions", "intended_actions")
+        self.codes = self.raw(out / ("intended.bin" if field == "intended_actions" else "codes.bin"), np.int8) if acts else None
+        self.fill = marker["stay"] if acts else 0
+        self.dtype = torch.int8 if acts else torch.uint8
         frames = self.offsets.shape[1] - 1 if len(self.offsets) else 0
-        self.shape = (len(self.offsets), frames - 1 if field == "actions" and frames else frames, *self.dims)
+        self.shape = (len(self.offsets), frames - 1 if acts and frames else frames, *self.dims)
         self.index = (np.arange(self.shape[0]), np.arange(self.shape[1]))
 
     @staticmethod
@@ -180,6 +193,8 @@ def load(out_dir):
     is_compact = (out / MARKER).exists()
     for k in BIG_KEYS:
         store[k] = CompactGrids(out, k) if is_compact else torch.from_numpy(np.load(out / f"{k}.npy", mmap_mode="r"))
+    if is_compact and (out / "intended.bin").exists():
+        store["intended_actions"] = CompactGrids(out, "intended_actions")
     return store
 
 

@@ -314,12 +314,17 @@ def tower_targets(meta, n, rng, size=SIZE, side=CHEESE_SIDE):
     return None
 
 
+THIN_TOWERS = False  # demos.write(thin_towers=True) sets it: towers may be a single column whatever `scaled` says
+
+
 def column_side(robots, height, scaled):
-    """The side of a tower's column for a swarm of `robots`: 2 x 2 as always, or, with scaled, a
-    single column when the swarm cannot fill the 2 x 2 one (the checker counts the tallest run of
-    robots, so `height` robots in one column pass; a cube climbs it by hanging on its side and
-    pivoting onto its top, world.pivot_moves)."""
-    return 1 if scaled and robots < CHEESE_SIDE * CHEESE_SIDE * height else CHEESE_SIDE
+    """The side of a tower's column for a swarm of `robots`: 2 x 2 as always, or, with scaled or
+    THIN_TOWERS (demos --thin_towers), a single column when the swarm cannot fill the 2 x 2 one
+    (the checker counts the tallest run of robots, so `height` robots in one column pass; a cube
+    climbs it by hanging on its side and pivoting onto its top, world.pivot_moves). THIN_TOWERS
+    changes the draw (a tower that used to be refused as too big for the swarm now fits), so it
+    is off for the stores whose Haiku labels join by draw index."""
+    return 1 if (scaled or THIN_TOWERS) and robots < CHEESE_SIDE * CHEESE_SIDE * height else CHEESE_SIDE
 
 
 def level_robots(points, height):
@@ -950,6 +955,9 @@ class Expert:
     {"kind": "stay"} for a task with no plan, and len(plan) with {"kind": "done"} once the last
     eat or push segment is finished and the robots idle."""
 
+    last_intended = None  # the previous call's intended codes (Expert.intended); None where an expert does not jitter
+    before = after = None  # the call's jitter notes
+
     def __init__(self, tasks, moves=None, seed=None, rule=None):
         self.tasks = tasks
         self.rule = rule
@@ -1132,9 +1140,13 @@ class Expert:
             start = sum(counts[:i])
             rows = None if allowed is None else allowed[start : start + counts[i]]
             targets = torch.tensor(pts).long().unsqueeze(0)
-            other = act(world.index(i), targets, torch.ones(1, len(pts), dtype=torch.bool), generator=self.generator if generator is None else generator, allowed=rows, odds=None if odds is None else odds[start : start + counts[i]])[0]
+            note = {}
+            other = act(world.index(i), targets, torch.ones(1, len(pts), dtype=torch.bool), generator=self.generator if generator is None else generator, allowed=rows, odds=None if odds is None else odds[start : start + counts[i]], note=note)[0]
             mask = torch.from_numpy(mask)
             codes[i][mask] = other[mask]
+            if self.before is not None and "before" in note:
+                self.before[i][mask] = note["before"][0][mask]
+                self.after[i][mask] = other[mask]
 
     def adjust_build(self, world, codes, segs, allowed, generator=None):
         """A subclass's last say over the action codes before the rule's clean-up (build.BuildExpert)."""
@@ -1170,7 +1182,10 @@ class Expert:
         if self.rule is not None:
             allowed = rule_moves(world, self.rule) if allowed is None else rule_moves(world, self.rule) & allowed
         odds = self.odds(world)
-        codes = act(world, targets, valid, press_cheese, press_dir, generator=self.generator if generator is None else generator, allowed=allowed, odds=odds)
+        note = {}
+        codes = act(world, targets, valid, press_cheese, press_dir, generator=self.generator if generator is None else generator, allowed=allowed, odds=odds, note=note)
+        self.before = note["before"] if "before" in note else None
+        self.after = None if self.before is None else codes.clone()
         self.detours(world, codes, allowed, generator, odds)
         for i, (pts, cap) in enumerate(zip(lists, caps)):
             if cap is None or not pts:
@@ -1191,7 +1206,28 @@ class Expert:
         codes = self.adjust_build(world, codes, segs, allowed, generator)
         if self.rule is not None:  # of a cube and the cube it pivots on, one waits
             codes = refuse(world, codes, self.rule, priority=torch.rand(world.mass.shape, generator=self.generator if generator is None else generator))
+        self.last_intended = self.intended(codes)
         return codes
+
+    def jitter_note(self, i, cell, old, new, shape):
+        """Records a jitter outside controller.act (build.BuildSegments.crew): robot `cell` of
+        scene i was to take code `old` and takes `new`."""
+        if self.before is None:
+            self.before = torch.full(shape, -1, dtype=torch.int8)
+            self.after = torch.full(shape, -1, dtype=torch.int8)
+        self.before[i][tuple(cell)] = old
+        self.after[i][tuple(cell)] = new
+
+    def intended(self, codes):
+        """The codes the expert meant: the final codes with every jittered robot back on the move
+        it chose before the jitter, where the jittered move is what it ended with (a robot a later
+        rule held or sent elsewhere keeps that, it is not the jitter's). Resets the notes."""
+        out = codes.clone()
+        if self.before is not None:
+            revert = (self.before >= 0) & (self.before != self.after) & (codes == self.after)
+            out[revert] = self.before[revert]
+        self.before = self.after = None
+        return out
 
 
 def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, failure=None, rule=None, outcomes=None):
@@ -1213,7 +1249,7 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, f
     eaten = [[] for _ in tasks]
     since = [(snapshot(world, i), 0) for i in range(len(tasks))]  # a switch task is scored from the step its last instruction began: (snapshot, eaten so far)
     early = [False] * len(tasks)  # a switch task ate what an earlier instruction forbade
-    masses, actions, positions, alive = [world.mass.to(torch.uint8)], [], [world.cheese_pos.to(torch.int8)], [world.cheese_alive]
+    masses, actions, intended, positions, alive = [world.mass.to(torch.uint8)], [], [], [world.cheese_pos.to(torch.int8)], [world.cheese_alive]
     stuck = [torch.zeros(world.mass.shape, dtype=torch.bool) if world.stuck is None else world.stuck]
     for t in range(steps):
         for i, task in enumerate(tasks):
@@ -1222,6 +1258,7 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, f
                 early[i] = early[i] or any(c in part.spec["forbid"] for c in eaten[i][since[i][1] :])
                 since[i] = (snapshot(world, i), len(eaten[i]))
         codes = actor(world, t)
+        meant = getattr(actor, "last_intended", None)
         before = world.cheese_alive.clone()
         effective_codes = codes if failure is None else fail_moves(codes, failure, failures)
         if outcomes is None:
@@ -1235,6 +1272,7 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, f
             eaten[i].append(COLOUR_NAMES[int(world.cheese_color[i, k])])
         if record:
             actions.append(codes.to(torch.int8))
+            intended.append((codes if meant is None else meant).to(torch.int8))
             masses.append(world.mass.to(torch.uint8))
             positions.append(world.cheese_pos.to(torch.int8))
             alive.append(world.cheese_alive)
@@ -1250,7 +1288,7 @@ def run(world, metas, tasks, actor, steps=EPISODE_STEPS, seed=0, record=False, f
         results.append(score(task, static, snapshot(start, i), snapshot(world, i), eaten[i]))
     if not record:
         return results, None
-    arrays = {"mass": torch.stack(masses, 1), "actions": torch.stack(actions, 1), "cheese_pos": torch.stack(positions, 1), "cheese_alive": torch.stack(alive, 1)}
+    arrays = {"mass": torch.stack(masses, 1), "actions": torch.stack(actions, 1), "intended": torch.stack(intended, 1), "cheese_pos": torch.stack(positions, 1), "cheese_alive": torch.stack(alive, 1)}
     if outcomes is not None:
         arrays["stuck"] = torch.stack(stuck, 1)
     return results, arrays

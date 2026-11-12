@@ -294,7 +294,7 @@ def draws(n_scenes, seed=0, chunk=24, robots=None, counts="uniform", check=False
         yield c, world, metas, tasks, run_seed
 
 
-def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False, empty=False, scaled=False, preset=None, outcomes=None, risk=True):
+def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all", robots=None, failure=None, compact=False, counts="uniform", fit=False, rule=None, expert="attractor", spaced=False, coverage=0.0, objects=0.0, build=0.0, only=None, keep=False, empty=False, scaled=False, preset=None, outcomes=None, risk=True, thin_towers=False):
     """Write the store. moves: "all" or "cube" (MOVES). robots: (low, high) robot counts, with
     tasks fitted to the swarm (None: the world's density range). failure: (27,) per-action
     failure probabilities (world.failure_rates) or None. compact: write mass and actions in
@@ -335,6 +335,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
     row, tried, kept = 0, {}, {}
     t0 = time.time()
     weighed = weigher(model if risk else None)
+    S.THIN_TOWERS = bool(thin_towers)  # a tower may be a single column (suite.column_side); config["thin_towers"] when on
     for c, world, metas, tasks, run_seed in draws(n_scenes, seed, chunk, robots, counts, check, rule, spaced, coverage, objects, build, only, keep, empty, scaled):
         digests = [draw_digest(world, metas, tasks, i) for i in range(len(tasks))]  # before playing: the experts may write into tasks and metas
         if objects:
@@ -363,7 +364,7 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
             if not is_demo:
                 continue
             kept[task.family] = kept.get(task.family, 0) + 1
-            writer.add(arrays["mass"][i].numpy(), arrays["actions"][i].numpy())
+            writer.add(arrays["mass"][i].numpy(), arrays["actions"][i].numpy(), arrays["intended"][i].numpy())
             small["cheese_pos"].append(arrays["cheese_pos"][i])
             small["cheese_alive"].append(arrays["cheese_alive"][i])
             small["walls"].append(world.walls[i])
@@ -386,6 +387,8 @@ def write(out_dir, n_scenes, seed=0, chunk=24, steps=S.EPISODE_STEPS, moves="all
         print(f"{min(c + chunk, n_scenes)} scenes, {row} demos, {time.time() - t0:.0f} s; kept/tried {json.dumps({f: f'{kept.get(f, 0)}/{tried[f]}' for f in sorted(tried)})}", flush=True)
     writer.close()
     config = {"seed": seed, "chunk": chunk, "steps": steps, "moves": moves, "robots": None if robots is None else list(robots), "failure": None if failure is None else failure.tolist(), "counts": counts, "fit": check, "rule": rule, "expert": expert, "apart": spaced, "coverage": coverage, "objects": objects, "build": build, "only": only, "keep": keep, "empty": empty, "scaled": scaled, "preset": preset}
+    if thin_towers:
+        config["thin_towers"] = True
     if outcomes is not None:  # stores drawn before outcome models have no key: their moves failed by `failure`
         config["outcomes"] = outcomes
         config["risk"] = bool(risk)
@@ -450,6 +453,7 @@ def main():
     parser.add_argument("--only", choices=ONLY, default=None, help="draw only this family's tasks (with --build: the build tasks of the full draw, nothing else); attempts and labels then count those tasks only")
     parser.add_argument("--fit", action="store_true", help="draw only tasks the scene's swarm can do, also without --robots (with --robots or --cube this is always on)")
     parser.add_argument("--empty", action="store_true", help="every scene an empty flat floor (no terrain, cheese, object or zone; gravity on); a drawn task no such scene fits is given up, so the shares count tries (draws empty; needs --keep)")
+    parser.add_argument("--thin_towers", action="store_true", help="a tower the swarm cannot fill as a 2 x 2 column is a single column and fits (suite.THIN_TOWERS); off by default: it changes the draw, so stores whose Haiku labels join by draw index must not use it")
     parser.add_argument("--scaled", action="store_true", help="task sizes fitted to the swarm: a tower a single column, a letter or the wall at half size, when the swarm cannot do the full one (draws scaled)")
     parser.add_argument("--demo", action="store_true", help="the grant demo's case, about ten cubes on MuJoCo's empty floor: " + " ".join(f"--{k} {' '.join(map(str, v)) if isinstance(v, tuple) else '' if v is True else v}".rstrip() for k, v in PRESETS["demo"].items()) + ", each unless given")
     preset = "demo" if parser.parse_known_args()[0].demo else None
@@ -472,7 +476,7 @@ def main():
         parser.error("--empty needs --keep")
     if args.outcomes and rule is None:
         parser.error("--outcomes needs --rule")
-    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.objects, args.build, args.only, args.keep, args.empty, args.scaled, preset, args.outcomes, not args.blind)
+    write(args.out, args.scenes, args.seed, args.chunk, steps, moves, robots, failure, args.compact, args.counts, args.fit, rule, expert, args.apart, args.coverage, args.objects, args.build, args.only, args.keep, args.empty, args.scaled, preset, args.outcomes, not args.blind, args.thin_towers)
 
 
 if __name__ == "__main__":
