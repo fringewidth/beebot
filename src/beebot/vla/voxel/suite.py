@@ -121,9 +121,13 @@ def say(rng, key, held, **kw):
 # Masks
 
 
-def shape_mask(name, size=SIZE, floor=0):
+def shape_mask(name, size=SIZE, floor=0, half=False):
     """(D, H, W) bool target of a named shape, centred on the floor plan; shapes that rest on
-    the ground (wall, pyramid) start at z = floor, the others float a voxel above it."""
+    the ground (wall, pyramid) start at z = floor, the others float a voxel above it. half: the
+    wall at half its width and height, rounded up (4 x 3 instead of 8 x 5; make_formation's
+    scaled draws); the other shapes have no half size."""
+    if half and name != "wall":
+        raise ValueError(f"no half size of {name}")
     zz, yy, xx = np.mgrid[0:size, 0:size, 0:size]
     c = (size - 1) / 2
     lift = floor + 1
@@ -144,7 +148,8 @@ def shape_mask(name, size=SIZE, floor=0):
         bar = lambda a, b: (np.abs(a) < 0.6) & (np.abs(b) < 0.6)  # noqa: E731
         return ((bar(zz - cz, yy - c) & (np.abs(xx - c) <= 4)) | (bar(zz - cz, xx - c) & (np.abs(yy - c) <= 4)) | (bar(yy - c, xx - c) & (np.abs(zz - cz) <= 4))) & (zz >= lift)
     if name == "wall":
-        return (yy == int(c)) & (np.abs(xx - c) <= 4) & (zz >= floor) & (zz < floor + 5)
+        reach, tall = (2, 3) if half else (4, 5)
+        return (yy == int(c)) & (np.abs(xx - c) <= reach) & (zz >= floor) & (zz < floor + tall)
     if name == "pyramid":
         out = np.zeros((size, size, size), bool)
         for k, half in enumerate((3, 2, 1, 0)):
@@ -156,9 +161,10 @@ def shape_mask(name, size=SIZE, floor=0):
     raise ValueError(name)
 
 
-def letter_mask(text, standing, size=SIZE, floor=0):
-    """Letters (5 x 7 font) lying on the floor (rows along y) or standing in the x-z plane."""
-    scale = 2 if len(text) == 1 else 1
+def letter_mask(text, standing, size=SIZE, floor=0, scale=None):
+    """Letters (5 x 7 font) lying on the floor (rows along y) or standing in the x-z plane, each
+    font cell `scale` voxels a side (None: 2 for one letter, 1 for a word)."""
+    scale = (2 if len(text) == 1 else 1) if scale is None else scale
     flat = text_mask(text, size, scale=scale)
     out = np.zeros((size, size, size), bool)
     if not standing:
@@ -175,6 +181,11 @@ def letter_mask(text, standing, size=SIZE, floor=0):
     return out
 
 
+def mask_bound(n, m):
+    """The best F1 n robots can reach against a mask of m voxels: all on it, or all of it covered."""
+    return 2 * min(n, m) / (n + m)
+
+
 def f1(mass, mask):
     occupied = mass > 0.5
     hit = (occupied & mask).sum()
@@ -188,12 +199,47 @@ def f1(mass, mask):
 # Scenes
 
 
-def scenes(rng, n, layout=None, gravity=None, cheeses=(0, 3), colours=TRAIN_COLOURS, require=(), robots=None, groups=None, layers=1):
+def empty_scene(rng, robots=None, size=SIZE):
+    """(world, meta) of one empty flat floor (README "Demo"): no terrain, cheese or object, gravity
+    on, and `robots` robots (None: world.sample_scenes's density range) in random floor columns,
+    stacked when a column is drawn twice, at most 3 high, as world.sample_scenes sets them down."""
+    mass = torch.zeros(1, size, size, size)
+    n = int(size * size * rng.uniform(0.2, 0.45)) if robots is None else int(robots)
+    fill = np.zeros((size, size), int)
+    for y, x in zip(rng.integers(0, size, 3 * n).tolist(), rng.integers(0, size, 3 * n).tolist()):
+        if n == 0:
+            break
+        if fill[y, x] >= 3:
+            continue
+        mass[0, fill[y, x], y, x] = 1.0
+        fill[y, x] += 1
+        n -= 1
+    walls = torch.zeros(1, size, size, size, dtype=torch.bool)
+    world = VoxelWorld(mass, walls, torch.zeros(1, MAX_CHEESES, 3, dtype=torch.long), torch.zeros(1, MAX_CHEESES, dtype=torch.bool), torch.full((1, MAX_CHEESES), -1, dtype=torch.long), torch.ones(1, dtype=torch.bool))
+    return world, {"layout": "flat", "height": torch.zeros(size, size, dtype=torch.long), "gap": None}
+
+
+def scenes(rng, n, layout=None, gravity=None, cheeses=(0, 3), colours=TRAIN_COLOURS, require=(), robots=None, groups=None, layers=1, empty=False):
     """(world, meta) of n scenes drawn until they match: layout ("flat", "hills", "gap" or None),
     gravity (bool or None), a cheese count in [low, high] (extra cheeses removed), colours drawn
     from `colours` with `require` among them. robots: the robot count of every scene (None: the
     world's density range). groups: (low, high), the swarm set down again as that many separate
-    groups (place_groups) with `layers` layers at most; None leaves it as drawn."""
+    groups (place_groups) with `layers` layers at most; None leaves it as drawn. empty: every
+    scene an empty flat floor (empty_scene) whatever layout, gravity, cheeses and colours ask; a
+    maker that needs more then makes nothing there."""
+    if empty:
+        picked, metas = [], []
+        while len(picked) < n:
+            w, meta = empty_scene(rng, robots)
+            if groups is not None:
+                mass = place_groups(rng, w, int(rng.integers(groups[0], groups[1] + 1)), int(w.mass.sum()), layers)
+                if mass is None:
+                    continue
+                w = replace(w, mass=mass)
+            picked.append(w)
+            metas.append(meta)
+        fields = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
+        return VoxelWorld(*(torch.cat([getattr(w, f) for w in picked]) for f in fields)), metas
     picked, metas = [], []
     while len(picked) < n:
         world, meta = sample_scenes(rng, 32, SIZE, gravity_prob=0.5 if gravity is None else float(gravity), robots=robots)
@@ -255,15 +301,36 @@ def tower_label(n, points):
     return {"kind": "tower", "height": n, "at": list(points[0])}
 
 
-def tower_targets(meta, n, rng, size=SIZE):
+def tower_targets(meta, n, rng, size=SIZE, side=CHEESE_SIDE):
+    """A column n high and side x side (2 x 2, or a single column) on level ground, lowest layer
+    first; None when 200 draws find no spot."""
     height = meta["height"]
     for _ in range(200):
         y, x = int(rng.integers(1, size - 2)), int(rng.integers(1, size - 2))
-        foot = height[y : y + 2, x : x + 2]
+        foot = height[y : y + side, x : x + side]
         z0 = int(foot[0, 0])
         if (foot == z0).all() and z0 + n <= size:
-            return [(z, y + a, x + c) for z in range(z0, z0 + n) for a in range(2) for c in range(2)]
+            return [(z, y + a, x + c) for z in range(z0, z0 + n) for a in range(side) for c in range(side)]
     return None
+
+
+def column_side(robots, height, scaled):
+    """The side of a tower's column for a swarm of `robots`: 2 x 2 as always, or, with scaled, a
+    single column when the swarm cannot fill the 2 x 2 one (the checker counts the tallest run of
+    robots, so `height` robots in one column pass; a cube climbs it by hanging on its side and
+    pivoting onto its top, world.pivot_moves)."""
+    return 1 if scaled and robots < CHEESE_SIDE * CHEESE_SIDE * height else CHEESE_SIDE
+
+
+def level_robots(points, height):
+    """Robots one level of a planned tower column takes: len(points) / height (4 for the usual
+    2 x 2 column, 1 for a single one); 4 without a plan (held-out tasks)."""
+    return len(points) // height if points else CHEESE_SIDE * CHEESE_SIDE
+
+
+def mask_fits(mask, robots, family="formation"):
+    """Whether `robots` can reach the family's pass mark on a mask (mask_bound)."""
+    return mask_bound(robots, int(mask.sum())) >= SUCCESS.get(family, PASS_MARK)
 
 
 def trench(meta, size=SIZE):
@@ -353,8 +420,13 @@ def eat_plan(world, i, colours_in_order):
     return [{"kind": "eat", "cheese": slot[c]} for c in colours_in_order]
 
 
-def make_formation(rng, held):
+def make_formation(rng, held, scaled=False):
+    """scaled: a single letter or the wall at half size (letter_mask scale 1, shape_mask half)
+    when the scene's swarm cannot reach the pass mark on the full-size one (mask_fits); the full
+    size otherwise, so scaled draws differ only where the full size would not fit."""
+
     def make(world, meta, i):
+        robots = int(world.mass[i].sum())
         if held in ("letters",) or (held in ("", "wording") and rng.random() < 0.5):
             allowed = [ch for ch in FONT if ch not in HELD_OUT["letters"]]
             if held == "letters":
@@ -365,12 +437,16 @@ def make_formation(rng, held):
                 word = str(rng.choice(allowed))
             standing = not bool(world.gravity[i]) and len(word) == 1 and rng.random() < 0.5
             mask = letter_mask(word, standing)
+            if scaled and len(word) == 1 and not mask_fits(mask, robots):
+                mask = letter_mask(word, standing, scale=1)
             label = {"kind": "letters", "word": word, "standing": standing}
             text = say(rng, "letter_stand" if standing else "letter_floor", held, w=word)
         else:
             pool = HELD_OUT["shapes"] if held == "shapes" else [s for s in SHAPES if s not in HELD_OUT["shapes"] and (s == "wall" or not bool(world.gravity[i]))]  # floating shapes need gravity off
             name = str(rng.choice(pool))
             mask = shape_mask(name)
+            if scaled and name == "wall" and not mask_fits(mask, robots):
+                mask = shape_mask(name, half=True)
             label = {"kind": "shape", "shape": name}
             text = say(rng, "shape", held, s=SHAPE_WORDS[name])
         if (mask & world.walls[i].numpy()).any() or not mask.any():
@@ -381,14 +457,16 @@ def make_formation(rng, held):
     return {"layout": "flat", "cheeses": (0, 0)}, make
 
 
-def make_construction(rng, held):
+def make_construction(rng, held, scaled=False):
+    """scaled: a tower the swarm cannot fill as a 2 x 2 column is planned as a single column
+    (column_side)."""
     kind = "stairs" if held == "construction" else str(rng.choice(["tower", "tower", "bridge", "fill"]))
 
     def make(world, meta, i):
         forbid = set(c for _, c in present(world, i))
         if kind == "tower":
             n = int(rng.integers(3, 9))
-            pts = tower_targets(meta, n, rng)
+            pts = tower_targets(meta, n, rng, side=column_side(int(world.mass[i].sum()), n, scaled))
             if pts is None:
                 return None
             return Task("construction", say(rng, "tower", held, n=n), {"kind": "tower", "height": n, "forbid": forbid}, [{"kind": "targets", "points": pts, "label": tower_label(n, pts)}] if not held or held == "wording" else [], held)
@@ -411,7 +489,7 @@ def make_construction(rng, held):
     return needs, make
 
 
-def make_logic(rng, held):
+def make_logic(rng, held, scaled=False):
     forms = HELD_OUT["logic"] if held == "logic" else ["single", "except", "or", "and", "all", "none", "ordered", "absent"]
     form = "single" if held == "colour" else str(rng.choice(forms))
 
@@ -440,7 +518,9 @@ def make_logic(rng, held):
     return needs, make
 
 
-def make_parallel(rng, held):
+def make_parallel(rng, held, scaled=False):
+    """scaled: a tower job the swarm cannot fill as a 2 x 2 column is planned as a single column
+    (column_side)."""
     if held == "pairs":
         pair = tuple(HELD_OUT["pairs"][int(rng.integers(len(HELD_OUT["pairs"])))])
     else:
@@ -460,7 +540,7 @@ def make_parallel(rng, held):
                 plan_parts.append({"kind": "targets", "points": region_targets(meta, x), "label": {"kind": "region", "region": x}})
             elif kind == "tower":
                 n = int(rng.integers(3, 7))
-                pts = tower_targets(meta, n, rng)
+                pts = tower_targets(meta, n, rng, side=column_side(int(world.mass[i].sum()), n, scaled))
                 if pts is None:
                     return None
                 x = n
@@ -483,7 +563,7 @@ def make_parallel(rng, held):
     return {"gravity": True if "tower" in pair else None, "cheeses": (n_cheese, max(n_cheese, 2)), "layout": "flat" if "tower" in pair else None}, make
 
 
-def make_herd(rng, held):
+def make_herd(rng, held, scaled=False):
     kind = "two" if held == "herd_two" else str(rng.choice(["region", "region", "trench"]))
 
     def make(world, meta, i):
@@ -514,7 +594,7 @@ def make_herd(rng, held):
     return ({"layout": "gap", "gravity": True, "cheeses": (1, 2)} if kind == "trench" else {"layout": "flat", "cheeses": (2, 3) if kind == "two" else (1, 3)}), make
 
 
-def make_runner(rng, held):
+def make_runner(rng, held, scaled=False):
     def make(world, meta, i):
         cheeses = present(world, i)
         if not cheeses:
@@ -551,7 +631,7 @@ def draw_count(rng, low, high, counts="uniform"):
 KEEP_TRIES = 16  # keep=True: scenes drawn for one drawn task before that task is given up
 
 
-def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, counts="uniform", keep=False):
+def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, counts="uniform", keep=False, empty=False, scaled=False):
     """(world, metas, tasks) of n scenes with one task each. split: "train", "test" (in
     distribution) or a HELD_OUT key (forces that held-out item). robots: (low, high), each
     scene's robot count drawn from that range (counts: "uniform" or "log", draw_count); None:
@@ -564,22 +644,31 @@ def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, co
     count), up to KEEP_TRIES scenes, instead of drawing a new task. keep=False (the stores and
     Haiku labels of 2026-11-10 and before) redraws the task too, which favours the tasks that fit
     most scenes: logic's "absent" and "none" forms came out at about 60% of logic tasks instead
-    of 2 in 8. keep=False draws exactly as before."""
+    of 2 in 8. keep=False draws exactly as before.
+    empty: every scene is an empty flat floor (scenes empty) and, with keep, a drawn task that no
+    scene fits within KEEP_TRIES is given up instead of replaced, so its slot stays empty: the
+    tasks are then the draw's own mix cut to what an empty floor allows (fewer than n; None when
+    there are none). scaled: sizes fitted to the swarm (make_formation, make_construction,
+    make_parallel). Both off draw exactly as before."""
     held = split if split in HELD_OUT else ""
     check = robots is not None if check is None else check
     worlds, metas, out = [], [], []
     count = None
-    kept, tries = None, 0
-    while len(out) < n:
+    kept, tries, given_up = None, 0, 0
+    while len(out) + given_up < n:
         if robots is not None and count is None:
             count = draw_count(rng, robots[0], robots[1], counts)
+        if empty and keep and kept is not None and tries >= KEEP_TRIES:
+            given_up += 1
+            count, kept = None, None
+            continue
         if not keep or kept is None or tries >= KEEP_TRIES:
             fam = HELD_FAMILY.get(held) or family or str(rng.choice(FAMILIES))
-            kept, tries = (fam, *MAKERS[fam](rng, held)), 0
+            kept, tries = (fam, *MAKERS[fam](rng, held, scaled=scaled)), 0
         fam, needs, make = kept
         needs, tries = dict(needs), tries + 1
         colours = needs.pop("colours", TRAIN_COLOURS)
-        world, meta = scenes(rng, 1, colours=colours, robots=count, **needs)
+        world, meta = scenes(rng, 1, colours=colours, robots=count, empty=empty, **needs)
         task = make(world, meta[0], 0)
         if task is None or (check and not fits(task, world, 0)):
             continue
@@ -587,6 +676,8 @@ def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, co
         worlds.append(world)
         metas.append(meta[0])
         out.append(task)
+    if not out:
+        return None, [], []
     fields = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
     return VoxelWorld(*(torch.cat([getattr(w, f) for w in worlds]) for f in fields)), metas, out
 
@@ -729,12 +820,13 @@ def eat_need(world, i, k, runner=False):
     return least if runner else max(int(np.ceil(EAT_SHARE * open_)), least) if open_ >= least else float("inf")
 
 
-def job_bound(job, x, n, total, world, i, slot):
-    """The best score n of a swarm of `total` robots can give one job of a parallel task."""
+def job_bound(job, x, n, total, world, i, slot, level=CHEESE_SIDE * CHEESE_SIDE):
+    """The best score n of a swarm of `total` robots can give one job of a parallel task (level:
+    the robots a level of a tower job's planned column takes, level_robots)."""
     if job == "region":  # a group counts from BLOB_SHARE of the swarm
         bound = float(n >= max(1, int(np.ceil(BLOB_SHARE * total))))
     elif job == "tower":
-        bound = min(1.0, n / (CHEESE_SIDE * CHEESE_SIDE * x))
+        bound = min(1.0, n / (level * x))
     elif job == "eat":
         bound = float(n >= eat_need(world, i, slot[x]))
     else:  # surround: half the open shell is full marks
@@ -747,7 +839,8 @@ def score_bound(task, world, i, n=None):
     """An upper bound on the checker score a swarm of n robots (default: scene i's) can reach on
     the task, from the rules and from the plan's target sets:
       mask      F1 of n robots against the mask, all on it or all of it covered.
-      tower     the plan fills a 2 x 2 column, so a run of r takes 4 r robots; bridge: two lanes.
+      tower     the plan fills a 2 x 2 column, so a run of r takes 4 r robots, or a single column
+                (column_side), r robots (level_robots); bridge: two lanes.
       eat       each cheese needs eat_need robots (robots stay after a meal, so the largest need
                 decides); the score is the share of the asked cheeses the swarm can eat.
       herd      a cheese slides under a press of FRICTION robots.
@@ -767,10 +860,9 @@ def score_bound(task, world, i, n=None):
     kind = spec["kind"]
     bound = 1.0
     if kind == "mask":
-        m = int(spec["mask"].sum())
-        bound = 2 * min(n, m) / (n + m)
+        bound = mask_bound(n, int(spec["mask"].sum()))
     elif kind == "tower":
-        bound = min(1.0, n / (CHEESE_SIDE * CHEESE_SIDE * spec["height"]))
+        bound = min(1.0, n / (level_robots(task.plan[0]["points"] if task.plan else None, spec["height"]) * spec["height"]))
     elif kind == "bridge":
         bound = min(1.0, n / (2 * spec["width"]))
     elif kind == "eat":
@@ -785,7 +877,9 @@ def score_bound(task, world, i, n=None):
         bound = float(n >= FRICTION)
     elif kind == "parallel":
         (job_a, a), (job_b, b) = spec["jobs"]
-        bound = max((job_bound(job_a, a, part, n, world, i, slot) + job_bound(job_b, b, n - part, n, world, i, slot)) / 2 for part in range(n + 1))
+        parts = task.plan[0]["parts"] if task.plan else [{}, {}]
+        level_a, level_b = (level_robots(part.get("points"), x) if job == "tower" else None for part, (job, x) in zip(parts, spec["jobs"]))
+        bound = max((job_bound(job_a, a, part, n, world, i, slot, level_a) + job_bound(job_b, b, n - part, n, world, i, slot, level_b)) / 2 for part in range(n + 1))
     return bound
 
 
@@ -1420,6 +1514,34 @@ def job_score(task, static, start, end, eaten):
     return float(job_value(spec, static, start, end, eaten, movers, n, pick) * still), unasked
 
 
+def tower_shares(record, static, start, end):
+    """How far each tower job of an instruction rose, as its checker scores that job alone:
+    built height / asked height, capped at 1, one per tower job ([] when there is none). record is
+    the instruction's record spec (record_spec, canonical_record "spec"; one instruction, not a
+    switch): a tower (with a selector, the robots taking part: job_value), a parallel task's tower
+    job, counting's tower or a conditional's tower branch. start, end: snapshots (snapshot), start
+    where the instruction began. A task can pass its checker with a short tower (a parallel task
+    with its other job done, a selector task scaled by the robots left still), so makers judge
+    the tower by its own share."""
+    kind = record.get("kind")
+    end_mass = end["mass"] > 0.5
+    if kind == "tower" and "who" in record:
+        who = {"select": record["who"], "by": record.get("by"), "which": record.get("which"), "count": record.get("count"), "except": record.get("except", False)}
+        before = start["mass"] > 0.5
+        pick = chosen(who, before, cheese_centres(static["cheese_color"], start))
+        if pick is None and who["select"] not in ("count", "half"):
+            return [0.0]
+        movers = end_mass & ~before if pick is None else end_mass & ~(before & ~pick)
+        return [min(1.0, tallest_run(movers) / record["height"])]
+    if kind in ("tower", "count_tower"):
+        return [min(1.0, tallest_run(end_mass) / record["height"])]
+    if kind == "parallel":
+        return [min(1.0, tallest_run(end_mass) / x) for job, x in record["jobs"] if job == "tower"]
+    if kind == "conditional" and record["do"].get("kind") == "tower":
+        return [min(1.0, tallest_run(end_mass) / record["do"]["height"])]
+    return []
+
+
 def selected_count(task, world, i):
     """How many robots a coverage task's selector picks in scene i as it is now (None: none)."""
     occupied = world.mass[i].numpy() > 0.5
@@ -1433,8 +1555,10 @@ def selected_count(task, world, i):
 def coverage_bound(task, world, i, n=None):
     """An upper bound on a coverage task's score for the scene's swarm (n: a swarm of that size
     for an "everyone" task): 0 when the selector picks nobody or more robots than there are; a
-    tower takes 4 robots a level, eating eat_need robots, a line at most LINE_MAX robots, split
-    into m groups 2 m robots, spreading out the spaced floor cells there are (spread_cells)."""
+    tower takes a robot a level (a single column; JobSetup.tower_points stacks 2 x 2 when the
+    robots fill that, and unscaled draws only ask heights of a quarter of the robots, where both
+    bounds are 1), eating eat_need robots, a line at most LINE_MAX robots, split into m groups
+    2 m robots, spreading out the spaced floor cells there are (spread_cells)."""
     spec = task.spec
     if spec["kind"] == "stay":
         return 1.0
@@ -1445,7 +1569,7 @@ def coverage_bound(task, world, i, n=None):
     kind = spec["kind"]
     bound = 1.0
     if kind == "tower":
-        bound = min(1.0, count / (CHEESE_SIDE * CHEESE_SIDE * spec["height"]))
+        bound = min(1.0, count / spec["height"])
     elif kind == "eat":
         slot = {c: k for k, c in present(world, i)}
         bound = float(spec["colour"] in slot and count >= eat_need(world, i, slot[spec["colour"]]))
@@ -1933,14 +2057,16 @@ class JobSetup:
         return out
 
     def tower_points(self, height):
-        """A 2 x 2 column `height` high on level clear ground nearest the robots taking part."""
+        """A 2 x 2 column `height` high on level clear ground nearest the robots taking part, or a
+        single column when they are too few to fill the 2 x 2 one (column_side)."""
+        side = column_side(self.n, height, True)
         mine = self.centroid()
-        options = sorted(((y, x) for y in range(SIZE - 1) for x in range(SIZE - 1)), key=lambda p: (p[0] + 0.5 - mine[0]) ** 2 + (p[1] + 0.5 - mine[1]) ** 2)
+        options = sorted(((y, x) for y in range(SIZE - side + 1) for x in range(SIZE - side + 1)), key=lambda p: (p[0] + (side - 1) / 2 - mine[0]) ** 2 + (p[1] + (side - 1) / 2 - mine[1]) ** 2)
         for y, x in options:
-            foot = self.heights[y : y + 2, x : x + 2]
+            foot = self.heights[y : y + side, x : x + side]
             z0 = int(foot[0, 0])
-            if (foot == z0).all() and z0 + height <= SIZE and not self.avoid[z0 : z0 + height, y : y + 2, x : x + 2].any():
-                return [(z, y + a, x + b) for z in range(z0, z0 + height) for a in range(2) for b in range(2)]
+            if (foot == z0).all() and z0 + height <= SIZE and not self.avoid[z0 : z0 + height, y : y + side, x : x + side].any():
+                return [(z, y + a, x + b) for z in range(z0, z0 + height) for a in range(side) for b in range(side)]
         return []
 
 
@@ -1984,10 +2110,12 @@ def plateaus(meta):
     return {name: (box, top) for name, box in zip(names, boxes)}
 
 
-def job_spec(rng, job, world, meta, i, n):
+def job_spec(rng, job, world, meta, i, n, scaled=False):
     """(spec fields, wording key, wording arguments) of a job drawn for scene i, n robots taking
     part; None when the scene does not allow it. The key is the motion intent; subset tasks use
-    the "do." form of the same job."""
+    the "do." form of the same job. A tower is 3 to 8 high and at most a quarter of n (a 2 x 2
+    column), or with scaled at most n (a single column when the robots cannot fill the 2 x 2
+    one: JobSetup.tower_points)."""
     cheeses = present(world, i)
     colours = [c for _, c in cheeses]
     if job == "stay":
@@ -2019,9 +2147,10 @@ def job_spec(rng, job, world, meta, i, n):
         r = str(rng.choice(list(SIDE_AXES)))
         return {"toward": r, "steps": MOVE_STEPS}, "move", {"r": r}
     if job == "tower":
-        if n < 12:
+        most = n if scaled else n // 4
+        if most < 3:
             return None
-        h = int(rng.integers(3, min(8, n // 4) + 1))
+        h = int(rng.integers(3, min(8, most) + 1))
         return {"height": h}, "tower", {"n": h}
     raise ValueError(job)
 
@@ -2040,12 +2169,12 @@ MOTION_NEEDS = {
 }
 
 
-def make_motion(rng, held, job=None):
+def make_motion(rng, held, job=None, scaled=False):
     """Everyone does one job (MOTION_JOBS)."""
     job = job or str(rng.choice(MOTION_JOBS))
 
     def make(world, meta, i):
-        drawn = job_spec(rng, job, world, meta, i, int(world.mass[i].sum()))
+        drawn = job_spec(rng, job, world, meta, i, int(world.mass[i].sum()), scaled)
         if drawn is None:
             return None
         fields, key, kw = drawn
@@ -2111,7 +2240,7 @@ def draw_who(rng, kind, world, i, most=8):
     return who
 
 
-def make_subset(rng, held, job=None):
+def make_subset(rng, held, job=None, scaled=False):
     """A selector picks robots and they do a job (only this job when given); everyone else
     stays (SUBSET_JOBS)."""
     pairs = [(sel, name) for name, sels in SUBSET_JOBS.items() for sel in sels if job is None or name == job]
@@ -2129,7 +2258,7 @@ def make_subset(rng, held, job=None):
         n = selected_count(Task("subset", "", spec), world, i)
         if not n or n == int(world.mass[i].sum()):
             return None
-        drawn = job_spec(rng, job, world, meta, i, n)
+        drawn = job_spec(rng, job, world, meta, i, n, scaled)
         if drawn is None:
             return None
         fields, key, kw = drawn
@@ -2160,18 +2289,18 @@ def make_subset(rng, held, job=None):
     return needs, make
 
 
-def make_switch(rng, held, job=None):
+def make_switch(rng, held, job=None, scaled=False):
     """Task A from step 0, then task B from step k (SWITCH_AT): B is "stay" half the time, else a
     redirect (goto, gather, spread), or `job` when given. The episode is scored on B from step k."""
     first = str(rng.choice(SWITCH_FIRST))
     then = job or str(rng.choice(SWITCH_THEN))
     at = int(rng.integers(*SWITCH_AT))
     if first in MAKERS:
-        needs, make_first = MAKERS[first](rng, held if held in ("", "wording") else "")
+        needs, make_first = MAKERS[first](rng, held if held in ("", "wording") else "", scaled=scaled)
     else:
-        needs, make_first = make_motion(rng, held if held in ("", "wording") else "", first)
+        needs, make_first = make_motion(rng, held if held in ("", "wording") else "", first, scaled)
     needs.pop("robots", None)
-    _, make_then = make_motion(rng, held if held in ("", "wording") else "", then)
+    _, make_then = make_motion(rng, held if held in ("", "wording") else "", then, scaled)
 
     def make(world, meta, i):
         a = make_first(world, meta, i)
@@ -2204,22 +2333,34 @@ def instruction_at(task, t):
     return task.parts[instruction_index(task, t)] if task.parts else task
 
 
-def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uniform", check=True, job=None, keep=False):
+def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uniform", check=True, job=None, keep=False, empty=False, scaled=False):
     """(world, metas, tasks) of n scenes with one coverage task each (COVERAGE families), as
     sample_tasks draws the suite's: family None draws one of COVERAGE per scene; split "train",
     "test" or a HELD_OUT key of a coverage family; robots (low, high) draws each scene's robot
     count (counts: "uniform" or "log"), None the world's density range; check keeps only tasks
     whose score_bound reaches the pass mark. job: draw only that job (motion, subset) or that
     second instruction (switch), for measuring one at a time. keep: as sample_tasks' keep (the
-    task and its count are kept for up to KEEP_TRIES scenes); keep=False draws exactly as before."""
+    task and its count are kept for up to KEEP_TRIES scenes); keep=False draws exactly as before.
+    empty: as sample_tasks' (empty flat floors; with keep a task no scene fits is given up, so
+    fewer than n come back). scaled: sizes fitted to the swarm (job_spec), and a job's own robot
+    range (MOTION_NEEDS "robots", the line's) is cut to `robots` instead of replacing it; a job
+    whose range misses `robots` is not drawn."""
     held = split if split in HELD_OUT else ""
     worlds, metas, out = [], [], []
-    kept, tries = None, 0
-    while len(out) < n:
+    kept, tries, given_up = None, 0, 0
+    while len(out) + given_up < n:
+        if empty and keep and kept is not None and tries >= KEEP_TRIES:
+            given_up += 1
+            kept = None
+            continue
         if not keep or kept is None or tries >= KEEP_TRIES:
             fam = HELD_FAMILY.get(held) if held == "selector_job" else family or str(rng.choice(COVERAGE))
-            needs, make = COVERAGE_MAKERS[fam](rng, held, job)
-            span = needs.pop("robots", None) or robots
+            needs, make = COVERAGE_MAKERS[fam](rng, held, job, scaled)
+            own = needs.pop("robots", None)
+            span = (max(own[0], robots[0]), min(own[1], robots[1])) if scaled and own and robots else own or robots
+            if span is not None and span[0] > span[1]:  # the job's own range misses the draw's: as a scene that never fits
+                kept, tries = (fam, needs, make, None), KEEP_TRIES
+                continue
             count = None if span is None else draw_count(rng, span[0], span[1], counts)
             kept, tries = (fam, needs, make, count), 0
         fam, needs, make, count = kept
@@ -2233,7 +2374,7 @@ def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uni
                 needs["groups"] = (needs["groups"][0],) * 2
             if count is None or count > 60:
                 needs["layers"] = max(needs.get("layers", 1), 2)
-        world, meta = scenes(rng, 1, colours=colours, robots=count, **needs)
+        world, meta = scenes(rng, 1, colours=colours, robots=count, empty=empty, **needs)
         task = make(world, meta[0], 0)
         if task is None or (check and score_bound(task, world, 0) < SUCCESS.get(task.family, PASS_MARK)):
             continue
@@ -2241,6 +2382,8 @@ def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uni
         worlds.append(world)
         metas.append(meta[0])
         out.append(task)
+    if not out:
+        return None, [], []
     fields = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
     return VoxelWorld(*(torch.cat([getattr(w, f) for w in worlds]) for f in fields)), metas, out
 

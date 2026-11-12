@@ -114,7 +114,10 @@ of the instruction, the thoughts, the memory, the switch lines and the refusal's
 that user says it (in_user_frame): front/back/left/right and the corners (front/back first), -most
 and -ward forms, "in front of", "behind" and "to the left/right of" a thing, forward(s),
 backward(s), "back" after a motion verb, and "side by side" / "one behind the other" (swapped on a
-quarter turn); idioms ("right now", "nothing left", "come back") stay. A label whose wording cannot
+quarter turn); idioms ("right now", "nothing left", "come back") stay. The user's words follow the
+agreed convention (haiku_frame.py, basics.py): "forward" is away from the user, "toward me" toward
+them, "the front" the side nearest them; the labels' "forward" (toward the board's front) is said
+"toward me" by a user at the board's front, also when the frame is the world's. A label whose wording cannot
 be turned reliably (UNMAPPABLE: near/far side or end, north/south/east/west, toward me, top left,
 right-hand, clockwise, ...) is used only when turns is 0: otherwise another verified rung, then the
 template, then the user's place that makes turns 0 (counts()["frames"] counts each). The voxel
@@ -376,6 +379,9 @@ def bare(text):
     return text.strip().rstrip(".!?").strip()
 
 
+QUOTE = "you asked:"  # a first thought quotes its instruction after this (quote_length)
+
+
 def template_thought(instruction, record, summary):
     """The first thought of a template instruction, from its canonical record and the scene."""
     subgoals = record.get("subgoals") or []
@@ -405,51 +411,182 @@ COUNT_PATTERNS = (  # (pattern, replacement, numbers it keeps) for counts a view
 
 
 LARGE = 10  # robot counts from here up are never said: nobody reads dozens of robots off an image
-NUMBER_WORDS = ("ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred").split()
-COUNT_WORD = r"(\d+|(?:" + "|".join(NUMBER_WORDS) + r")(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?|dozens|a dozen)"
-ROBOT_COUNT = re.compile(r"\b" + COUNT_WORD + r"\s+((?:[a-z]+\s+){0,2}?(?:robots?|bots?|cubes?)\b(?! (?:tall|high|wide|long)))")
-COUNT_OF = re.compile(r"\b" + COUNT_WORD + r"\s+of\s+(you|us|them|the robots|the swarm|the bots)\b")
-COUNT_NEAR = re.compile(r"\b(?:half|third|quarter|groups? of|teams? of|squads? of|split|about|roughly|around|nearly|over|almost|all|whole|every one of|other|only|have|has)\s+(?:(?:of\s+them|is|are|each|into)\s+)?(?:about\s+|roughly\s+)?" + COUNT_WORD + r"\b(?! (?:tall|high|wide|long|voxels|cells|steps|blocks))")
+UNITS = {w: k + 1 for k, w in enumerate("one two three four five six seven eight nine".split())}
+TEENS = {w: k + 10 for k, w in enumerate("ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split())}
+TENS = {w: 10 * (k + 2) for k, w in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split())}
+NUMBER_WORDS = tuple(TEENS) + tuple(TENS) + ("hundred",)
+NUMBER = r"(?:\d+|a dozen|dozens|(?:a |one )?hundred|(?:" + "|".join(TENS) + r")(?:[- ](?:" + "|".join(UNITS) + r"))?|" + "|".join(TEENS) + r")(?!-(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)\b)"  # not "twenty" of "twenty-fourth"
+SMALL = r"(?:" + "|".join(UNITS) + r"|\d+)"
+LIST_ITEM = r"(?:" + NUMBER + "|" + SMALL + r")\b"
+NUMBER_LIST = NUMBER + r"(?:(?:,\s*" + LIST_ITEM + r")*,?\s+(?:and|or)\s+" + LIST_ITEM + r")?"  # "16, 11 and 7", not "twenty, one group"
+ROBOT_WORD = r"(?:robots?|bots?|cubes?)"
+ADVERB = r"(?:about|roughly|around|nearly|almost|over|some|exactly)"
+MEASURES = r"(?:tall|high|wide|long|deep|voxels?|cells?|blocks?|steps?|squares?|levels?|layers?|stor(?:e?y|ies|eys)|pieces?|units?|times|x|by|percent|degrees?)"
+THINGS = r"(?:legs?|posts?|pillars?|columns?|slabs?|walls?|sides?|parts?|planks?|letters?|cheeses?|objects?|things?|colou?rs?|zones?|corners?|seats?|rungs?|bars?|beams?|holes?|windows?|doors?|spikes?|points?|tiles?|bricks?|shapes?|towers?|bridges?|stairs|shelf|shelves|arms?|tables?|chairs?|boxes)"
+NOT_MEASURE = r"(?![- ](?:" + MEASURES + "|" + THINGS + r")\b|%)"  # "a tower 12 high", "27 cells", "ten legs": sizes and other things, not robot counts
+GROUP_NOUN = r"(?:swarms?|crowds?|bunch(?:es)?|groups?|teams?|packs?|squads?|crews?|gangs?|bands?|clusters?|clumps?|mob|horde|army|fleet|rows?|lines?)"
+NUMBER_RE = re.compile(r"\b" + NUMBER + r"\b", re.I)
+DETERMINERS = {"the", "these", "those", "a", "an", "its", "our", "your", "their", "my", "all", "both"}
 
 
-OTHER_COUNT = re.compile(r"\bthe other " + COUNT_WORD + r"\b(?! (?:means|is|are|tall|high))")
+def other_robots(m):
+    """"the other 12" -> "the others", "the other 12 robots" -> "the other robots", "the other 12 of
+    you" -> "the rest of you"."""
+    rest = (m.group("rest") or "").strip()
+    return "the others" if not rest else f"the rest {rest}" if rest.startswith("of ") else f"the other {rest}"
+
+
+def all_robots(m):
+    """"all 25 robots" -> "all the robots", "all 27 of us" -> "all of us", "all 25" -> "all of them"
+    (and "every one of", "each of")."""
+    lead, rest = m.group("all").lower(), (m.group("rest") or "").strip()
+    if rest and not rest.startswith("of "):
+        return f"{lead} the {rest}"
+    return f"{lead.removesuffix(' of')} {rest or 'of them'}"
+
+
+QUANTIFIERS = set(UNITS) | {"most", "some", "half", "many", "all", "each", "none", "any", "few", "both", "several"}
+
+
+def of_count(m):
+    """"a slab of sixteen" -> "a slab", "one of eleven" -> "one of them"."""
+    word = m.group("word")
+    return f"{word} of them" if word.lower() in QUANTIFIERS else word
+
+
+def robots_said(m):
+    """"i see 54 robots" -> "i see the robots", "these 12 robots" -> "these robots", "has ten
+    robots" -> "has many robots", "a 30 robot tower" -> "a robot tower"."""
+    words = m.group("words")
+    before = (m.string[: m.start()].split() or [""])[-1].lower()
+    article = "" if not words.endswith("s") or before in DETERMINERS else "many " if before in ("has", "have", "had", "with") else "the "
+    return article + words
+
+
+# The forms of a robot count of LARGE or more, in the order without_large_counts rewrites them:
+# (pattern with the count in group "n", what the match becomes). large_counts finds the same
+# forms, and after them ARITHMETIC and BARE.
+COUNT_FORMS = (
+    (re.compile(r"\b(?P<noun>" + GROUP_NOUN + r") of (?:" + ADVERB + r" |only )?(?P<n>" + NUMBER_LIST + r")(?: " + ROBOT_WORD + r")?\b" + NOT_MEASURE, re.I), lambda m: m.group("noun")),  # "a swarm of seventeen" -> "a swarm"
+    (re.compile(r"\bthe other (?:" + ADVERB + r" )?(?P<n>" + NUMBER + r")(?P<rest> " + ROBOT_WORD + r"| of (?:you|us|them))?\b(?![- ](?:tall|high)\b)", re.I), other_robots),
+    (re.compile(r"\b(?P<all>all|every one of|each of) (?:the )?(?P<n>" + NUMBER + r")(?P<rest> " + ROBOT_WORD + r"| of (?:you|us|them|the robots|the bots))?\b" + NOT_MEASURE, re.I), all_robots),
+    (re.compile(r"\bthe whole (?P<n>" + NUMBER + r")(?: " + ROBOT_WORD + r")?\b" + NOT_MEASURE, re.I), lambda m: "the whole swarm"),  # "the whole ten"
+    (re.compile(r"\b(?:the )?(?:" + ADVERB + r" )?(?P<n>" + NUMBER + r") of (?P<who>you|us|them|the robots|the swarm|the bots)\b", re.I), lambda m: f"many of {m.group('who')}"),  # "15 of you"
+    (re.compile(r"\b(?:" + ADVERB + r" )?(?P<n>" + NUMBER + r")\s+(?P<words>(?:[a-z]+\s+){0,2}?" + ROBOT_WORD + r")\b(?![- ](?:tall|high|wide|long)\b)", re.I), robots_said),
+    (re.compile(r"\b(?P<word>[a-z]+) of (?:" + ADVERB + r" )?(?P<n>" + NUMBER + r")\b" + NOT_MEASURE + r"(?! of\b)", re.I), of_count),
+    (re.compile(r"\bthe (?P<n>" + NUMBER + r")\b(?P<noun> (?:group|crowd|bunch|team|crew|squad|cluster|clump|pack|gang|band|blob)s?\b)?" + NOT_MEASURE + r"(?! (?:" + ROBOT_WORD + r"|of)\b)", re.I), lambda m: "the" + (m.group("noun") or " robots")),  # "the 13 go", "the 14 group"
+)
+ARITHMETIC = re.compile(r"\b(?:half|third|quarter|split|splits|about|roughly|around|nearly|over|almost|only|have|has)\s+(?:(?:of\s+them|is|are|each|into)\s+)?(?:about\s+|roughly\s+)?(?P<n>" + NUMBER + r")\b" + NOT_MEASURE, re.I)  # reasoning with a count: "half is about 15"
+BARE = re.compile(r"(?:\b" + ADVERB + r" )?(?<![\w-])(?P<n>" + NUMBER + r")\b" + NOT_MEASURE + r"(?![- ]" + ROBOT_WORD + r"\b)", re.I)  # any count left: "five go, forty-eight stay"
+COMPARES = re.compile(r"\b(?:enough|too few|too many|need|needs|needed|more than|fewer than|less than|short of|not as many|as many as|versus|vs|outnumber\w*|exceed\w*)\b", re.I)
+ONLY_COUNT = re.compile(r"\bonly (?:have |has |had |are |is )?(?:" + ADVERB + r" )?" + NUMBER + r"\b", re.I)
+
+
+def number_value(text):
+    """The value of a count as written ("17", "seventeen", "forty-five", "a dozen"), None if none."""
+    text = text.lower().strip()
+    if text.isdigit():
+        return int(text)
+    if text in ("a dozen", "dozens"):
+        return 12 if text == "a dozen" else 24
+    if text.endswith("hundred"):
+        return 100
+    head, _, unit = text.replace("-", " ").partition(" ")
+    if head in TEENS:
+        return TEENS[head]
+    if head in TENS:
+        return TENS[head] + UNITS.get(unit, 0)
+    return UNITS.get(head)
 
 
 def large(word):
-    word = word.lower()
-    if word.isdigit():
-        return int(word) >= LARGE
-    return any(word.startswith(w) for w in NUMBER_WORDS) or word in ("dozens", "a dozen")
+    """Whether a count (or any count of a list, "14 and 8") is LARGE or more."""
+    return any((number_value(n) or 0) >= LARGE for n in NUMBER_RE.findall(word))
+
+
+def quote_length(thought, instruction=""):
+    """How many characters of a thought quote the instruction: "you asked: <instruction>" through
+    the quote's closing marks; 0 when the thought quotes nothing. The quote is not always the
+    instruction byte for byte (another closing mark, a dropped word, a paraphrase), so it ends
+    where the instruction ends when the thought repeats it word for word, else at the first
+    sentence end before "i see", else at the first sentence end."""
+    low = thought.lower()
+    if not low.startswith(QUOTE):
+        return 0
+    words = bare(instruction).lower()
+    start = len(low) - len(low[len(QUOTE) :].lstrip())
+    if words and low.startswith(words, start):
+        closing = re.match(r"[.!?]+(?=\s|$)", low[start + len(words) :])
+        if closing:
+            return start + len(words) + closing.end()
+    sees = re.search(r"[.!?]+(?=\s+i (?:see|can see|notice|spot)\b)", low[len(QUOTE) :])
+    if sees:
+        return len(QUOTE) + sees.end()
+    end = re.search(r"[.!?]+(?=\s|$)", low[len(QUOTE) :])
+    return len(QUOTE) + end.end() if end else len(low)
+
+
+def count_spans(text):
+    """(start, end) of every robot count of LARGE or more in text: the COUNT_FORMS in order, then
+    reasoning with a count (ARITHMETIC) and bare counts (BARE), none overlapping an earlier one."""
+    spans = []
+    for pattern in [form for form, _ in COUNT_FORMS] + [ARITHMETIC, BARE]:
+        for m in pattern.finditer(text):
+            if large(m.group("n")) and not any(m.start() < b and a < m.end() for a, b in spans):
+                spans.append(m.span())
+    return sorted(spans)
 
 
 def large_counts(text, instruction=""):
-    """The robot counts of LARGE or more said in text, outside the quoted instruction."""
-    head = f"you asked: {bare(instruction).lower()}." if instruction else None
-    body = text[len(head) :] if head and text.startswith(head) else text
-    return [m.group(0) for pattern in (ROBOT_COUNT, COUNT_OF, COUNT_NEAR) for m in pattern.finditer(body.lower()) if large(m.group(1))]
+    """The robot counts of LARGE or more said in text outside its quote of the instruction
+    (quote_length): every form without_large_counts drops."""
+    body = text[quote_length(text, instruction) :].lower()
+    return [body[a:b] for a, b in count_spans(body)]
+
+
+def sentences_of(text):
+    return [part for part in re.split(r"(?<=[.!?])\s+", text.strip()) if part]
 
 
 def counted(pair):
-    """Whether a refusal pair's thought or reply rests on a robot count of LARGE or more."""
-    return large_counts(pair.get("thought", ""), pair.get("instruction", "")) + large_counts(pair.get("reply", ""))
+    """The robot counts of LARGE or more a refusal reasons from (empty: none): a sentence of its
+    thought (outside the quote) or reply that holds one and compares it ("enough", "too few",
+    "need", "more than", "versus", ...; "only 35 robots" outside the "i see" sentence) or names a
+    number the instruction asked for ("build a cross using forty robots": "forty robots are not
+    here"). A refusal that merely sees the robots ("i see 13 robots and no red cheese") keeps its
+    place: visible() drops the count."""
+    instruction = pair.get("instruction", "")
+    instruction_counts = {number_value(n) for n in NUMBER_RE.findall(instruction) if (number_value(n) or 0) >= LARGE}
+    thought = pair.get("thought", "")
+    hits = []
+    for sentence in sentences_of(thought[quote_length(thought, instruction) :]) + sentences_of(pair.get("reply", "")):
+        counts = large_counts(sentence)
+        values = {number_value(n) for count in counts for n in NUMBER_RE.findall(count)}
+        if counts and (COMPARES.search(sentence) or (ONLY_COUNT.search(sentence) and not sentence.lower().startswith("i see")) or values & instruction_counts):
+            hits += counts
+    return hits
 
 
 def without_large_counts(body):
-    """body with robot counts of LARGE or more dropped ("i see 39 robots" -> "i see the robots",
-    "15 of you" -> "many of you"); a middle sentence still holding one (e.g. "half is about 15")
-    goes, the first and last keep their place with "some" in it."""
-    body = OTHER_COUNT.sub(lambda m: "the others" if large(m.group(1)) else m.group(0), body)  # "the other 26 hold" -> "the others hold"
+    """body with robot counts of LARGE or more dropped, said without the number (COUNT_FORMS: "i see
+    39 robots" -> "i see the robots", "a swarm of seventeen" -> "a swarm", "the other 12 robots"
+    -> "the other robots", "all 25 go" -> "all of them go", "15 of you" -> "many of you"). A
+    middle sentence (not the first, not the last, not "i see ...") that reasons with one ("half is
+    about 15") or still holds one after that ("five go, forty-eight stay") goes; the first and last
+    keep their place with "some" for a count left."""
     sentences = [part for part in re.split(r"(?<=\.)\s+", body.strip()) if part]
     out = []
     for k, sentence in enumerate(sentences):
-        hits = [m for m in COUNT_NEAR.finditer(sentence) if large(m.group(1))]
-        if hits and 0 < k < len(sentences) - 1:
+        middle = 0 < k < len(sentences) - 1 and not sentence.lower().startswith("i see")
+        if middle and any(large(m.group("n")) for m in ARITHMETIC.finditer(sentence)):
             continue
-        for m in hits:
-            sentence = sentence.replace(m.group(1), "some", 1)
+        for pattern, rewrite in COUNT_FORMS:
+            sentence = pattern.sub(lambda m, rewrite=rewrite: rewrite(m) if large(m.group("n")) else m.group(0), sentence)
+        if middle and any(large(m.group("n")) for m in BARE.finditer(sentence)):
+            continue
+        sentence = BARE.sub(lambda m: "some" if large(m.group("n")) else m.group(0), sentence)
         out.append(sentence)
-    body = ROBOT_COUNT.sub(lambda m: "the " + m.group(2) if large(m.group(1)) else m.group(0), " ".join(out))
-    return COUNT_OF.sub(lambda m: f"many of {m.group(2)}" if large(m.group(1)) else m.group(0), body)
+    return " ".join(out)
 
 
 def label_problem(label_row, attempt, entries, item=None):
@@ -457,9 +594,12 @@ def label_problem(label_row, attempt, entries, item=None):
     the attempt's; but for a refusal (another instruction for the same scene) its kind and spec those
     of the store's record of the instruction it labels; and the exported item it was written from
     (items.jsonl) must have the attempt's family, kind and robot count, so a label that matches by
-    chance after a misaligned draw (another scene with the same task) is caught too."""
+    chance after a misaligned draw (another scene with the same task) is caught too; where both
+    the item and the attempt carry the draw's hash (demos.draw_digest) the hashes must be equal."""
     if label_row.get("family") != attempt["family"]:
         return f"family {label_row.get('family')} but the attempt is {attempt['family']}"
+    if item is not None and "draw" in item and "draw" in attempt and item["draw"] != attempt["draw"]:
+        return f"its item's draw {item['draw']} but the attempt's {attempt['draw']} (demos.draw_digest)"
     if item is not None:
         record, robots = item["record"], item.get("scene", {}).get("robots", {}).get("count")
         if (record["family"], record["kind"]) != (attempt["family"], attempt["kind"]) or (robots is not None and robots != attempt.get("robots", robots)):
@@ -495,10 +635,10 @@ def visible(thought, instruction, record=None):
     heights, depths and widths go (numbers the instruction or the task's record states stay, e.g. a
     tower's height or "3 of you"); colours, kinds, sizes and coarse places are kept. The quoted
     instruction ("you asked: ...") is left as it is. A sentence that still holds a number from
-    nowhere is dropped, or in the first or last sentence the number becomes "some"."""
-    head = f"you asked: {bare(instruction).lower()}."
-    quoted = thought.startswith(head)
-    body = thought[len(head) :] if quoted else thought
+    nowhere is dropped, or in the first or last sentence the number becomes "some". The quote is
+    found by quote_length, also when it is not the instruction byte for byte, and never changed."""
+    quote_end = quote_length(thought, instruction)
+    head, body = thought[:quote_end], thought[quote_end:]
     stated = numbers_in(instruction)
     keep = stated | numbers_in(record or {})
 
@@ -519,11 +659,23 @@ def visible(thought, instruction, record=None):
         if stray and 0 < k < len(sentences) - 1 and not sentence.startswith("i see"):
             continue
         for n in stray:
+            sentence = re.sub(rf"\b(\w+) of {n}(?: (?:cells|voxels|robots|bots|cubes|blocks|pieces))?\b(?! of)", lambda m: m.group(0) if NUMBER_RE.fullmatch(m.group(1)) or m.group(1) in UNITS else m.group(1), sentence)  # "a tower of 3" -> "a tower"
             sentence = re.sub(rf"\b{n}\b", "some", sentence)
         out.append(sentence)
     body = re.sub(r"\s+([,.;:])", r"\1", " ".join(out))
     body = re.sub(r",\s*,", ",", body).replace(" ,", ",")
-    return (head + " " + body).strip() if quoted else body
+    return (head + " " + body).strip() if quote_end else body
+
+
+def visible_choice(choice, record):
+    """A Haiku choice (or refusal pair) as training gives it: its thought and switch lines cut to
+    what images show (visible), its reply without robot counts of LARGE or more."""
+    out = dict(choice, thought=visible(choice["thought"], choice["instruction"], record))
+    if "switches" in choice:
+        out["switches"] = [visible(line, choice["instruction"], record) for line in choice["switches"]]
+    if choice.get("reply"):
+        out["reply"] = re.sub(r"\s+([,.;:])", r"\1", without_large_counts(choice["reply"]))
+    return out
 
 
 def template_line(record, index):
@@ -562,12 +714,19 @@ UNMAPPABLE = re.compile(  # direction words that cannot be turned reliably: used
     r"|\b(?:clockwise|counterclockwise|anticlockwise)\b"
 )
 MOTION_VERBS = r"(?:step|steps|move|moves|moving|head|heads|walk|walks|shift|shifts|slide|slides|push|pushes|roll|rolls|nudge|nudges|drift)"
+# The user's words (agreed convention, as haiku_frame.py and basics.py use them): from where the
+# user stands "forward" (ahead, away from me, north) is the far side and "toward me" (backward,
+# south) the near side; "the front" of the board is the near side and "the back" the far side.
+# The board-frame labels say forward(s) for a move toward the board's front (+y, the default
+# viewer's side) and backward(s) for one toward its back, so a move to the user's near side is
+# said "toward me" and one to the far side "forward"; "back" after a motion verb stays the far side.
 SAID = {  # how a turned word is said in each kind of place: plain, after "in front of"/"behind", after a motion verb or as forward/backward
     "plain": {d: d for d in ORDER},
     "preposition": {"front": "in front of", "back": "behind", "left": "to the left of", "right": "to the right of"},
-    "motion": {"front": "forward", "back": "back", "left": "left", "right": "right"},
-    "adverb": {"front": "forward", "back": "backward", "left": "to the left", "right": "to the right"},
+    "motion": {"front": "toward me", "back": "back", "left": "left", "right": "right"},
+    "adverb": {"front": "toward me", "back": "forward", "left": "to the left", "right": "to the right"},
 }
+FORWARD = re.compile(r"(?<!\blook )(?<!\blooks )(?<!\blooking )\b(forward|backward)s?\b")  # the board-frame labels' forward = the board's front, backward = its back
 
 
 def quarter_turns(degrees):
@@ -622,11 +781,15 @@ def in_user_frame(text, turns):
     """Text with every direction word turned from the world frame (front = +y, toward the default
     viewer; left = -x) into the frame of a user `turns` quarter turns round the arena (1: at the
     world's right, looking across it). Corners keep front/back first, "in front of" and "behind"
-    become the user's word for that side, forward(s) and backward(s) and "back" after a motion verb
-    turn too, and "side by side" and "one behind the other" swap on a quarter turn. Every turned
-    word is written through a marker, so nothing is turned twice. turns 0 returns the text as it is."""
+    become the user's word for that side, "back" after a motion verb turns too, and "side by side"
+    and "one behind the other" swap on a quarter turn. The labels' forward(s) and backward(s) (a
+    move toward the board's front or back) become the user's word for a move to that side (SAID
+    "adverb": "toward me" to the near side, "forward" to the far side, "to the left/right"), at
+    turns 0 too: the default user stands at the board's front, so the labels' "forward" is "toward
+    me" and their "backward" is "forward". Every turned word is written through a marker, so
+    nothing is turned twice. Otherwise turns 0 returns the text as it is."""
     if not turns:
-        return text
+        return FORWARD.sub(lambda m: SAID["adverb"]["front" if m.group(1) == "forward" else "back"], text)
     kept = []
 
     def put(value):
@@ -643,9 +806,8 @@ def in_user_frame(text, turns):
     text = re.sub(r"\bin front of\b", lambda m: mark("front", "preposition"), text)
     text = re.sub(r"\bto the (left|right) of\b(?! the (?:floor|arena|area|grid|ground|field|world|map|room|space|board)\b)", lambda m: mark(m.group(1), "preposition"), text)  # beside a thing; of the floor it is a region
     text = re.sub(r"\bbehind\b", lambda m: mark("back", "preposition"), text)
-    text = re.sub(r"\bforwards?\b", lambda m: mark("front", "adverb"), text)
-    text = re.sub(r"\bbackwards?\b", lambda m: mark("back", "adverb"), text)
-    text = re.sub(r"\b(" + MOTION_VERBS + r") back\b", lambda m: m.group(1) + " " + mark("back", "motion"), text)
+    text = FORWARD.sub(lambda m: mark("front" if m.group(1) == "forward" else "back", "adverb"), text)
+    text = re.sub(r"\b(" + MOTION_VERBS + r") back\b(?![ -](?:left|right)\b)", lambda m: m.group(1) + " " + mark("back", "motion"), text)  # "heads back right" is a corner
     text = re.sub(r"\brear\b", "back", text)
 
     def corner(m):
@@ -953,20 +1115,18 @@ class ThinkData:
             choices = [self.visibly(choice, record) for choice in choices]
             parts = [dict(part, choices=[self.visibly(choice, entries[part["part"]]["record"]) for choice in part["choices"]]) for part in parts[: len(entries)]]
             # a refusal that reasons from a robot count of LARGE or more ("only 35 robots, so no
-            # 40-robot tower") needs a count nobody reads off an image: dropped
-            self.counted_refusals += sum(bool(counted(pair)) for pair in refusals)
-            refusals = [self.visibly(pair, None) for pair in refusals if not counted(pair)]
+            # 40-robot tower") needs a count nobody reads off an image: dropped; one that only sees
+            # the robots ("i see 13 robots and no red cheese") stays, its count cut by visible
+            reasoning = [bool(counted(pair)) for pair in refusals]
+            self.counted_refusals += sum(reasoning)
+            refusals = [self.visibly(pair, None) for pair, from_count in zip(refusals, reasoning) if not from_count]
             out.append(Episode(k, int(row["e"]), seed, n, row["family"], held_out_scene(scene_key(store, int(row["e"])), self.held_share), choices, parts, refusals, row.get("kind", ""), self.mix.get(mix_group(config), {}).get(f"{row['family']}|{row.get('kind', '')}", 1.0)))
         return out
 
     def visibly(self, choice, record):
         """A Haiku choice (or refusal pair) with its thought and lines cut to what images show
-        (visible); counts the thoughts changed."""
-        out = dict(choice, thought=visible(choice["thought"], choice["instruction"], record))
-        if "switches" in choice:
-            out["switches"] = [visible(line, choice["instruction"], record) for line in choice["switches"]]
-        if choice.get("reply"):
-            out["reply"] = re.sub(r"\s+([,.;:])", r"\1", without_large_counts(choice["reply"]))
+        (visible_choice); counts the thoughts changed."""
+        out = visible_choice(choice, record)
         self.rewritten["haiku_thoughts"] += 1
         self.rewritten["haiku_changed"] += out["thought"] != choice["thought"]
         self.rewritten["haiku_lines_changed"] += out.get("switches") != choice.get("switches")
@@ -1073,18 +1233,21 @@ class ThinkData:
             position, user = parts[0]["place"], parts[0]["user"]
             if ORDER[user_turns(azimuth, position)] != user:
                 raise ValueError(f"views drew azimuth {azimuth:.0f} for side {side}: the user would stand at the board's {ORDER[user_turns(azimuth, position)]}, not its {user}")
-            text_turns, turns = 0, user_turns(azimuth, position)
+            turns = user_turns(azimuth, position)
             self.frames["haiku_frame"] += 1
         else:
             images, azimuth = views_and_pose((views or self.views)(obs, rng))
             parts, position, turns = self.user_frame(ep, parts, rng, azimuth)
-            text_turns = turns
-        memory = [in_user_frame(self.thought_of(ep, parts, ev), text_turns) for ev in memory_before(events, t)]
-        thought = in_user_frame(self.thought_of(ep, parts, here), text_turns) if here is not None else ""
+
+        def in_users_words(text):  # board-frame labels turned into the user's frame; frame labels are the user's words already
+            return text if side else in_user_frame(text, turns)
+
+        memory = [in_users_words(self.thought_of(ep, parts, ev)) for ev in memory_before(events, t)]
+        thought = in_users_words(self.thought_of(ep, parts, here)) if here is not None else ""
         return Example(
             obs=obs,
             images=images,
-            context_text=context(in_user_frame(parts[j]["instruction"], text_turns), memory, self.system, USER_POSITIONS[position][1]),
+            context_text=context(in_users_words(parts[j]["instruction"]), memory, self.system, USER_POSITIONS[position][1]),
             reply_text=act_reply(thought),
             act=True,
             codes=codes,
@@ -1095,7 +1258,7 @@ class ThinkData:
             rung=parts[j]["rung"],
             family=ep.family,
             kind=here.kind if here is not None else "plain",
-            instruction=in_user_frame(parts[j]["instruction"], text_turns),
+            instruction=in_users_words(parts[j]["instruction"]),
             store=self.stores[ep.store],
             user=position,
             turns=turns,

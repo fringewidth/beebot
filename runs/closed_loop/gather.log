@@ -1,0 +1,3 @@
+motion:gather (form one single group): score 0.80 passed True; first pass at step 41; 231 moves, 28 harmful; 29.9 s simulated in 18.1 s
+trajectory: runs/closed_loop/gather.npz
+video: runs/closed_loop/gather.mp4, 62.8 s

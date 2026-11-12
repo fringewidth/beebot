@@ -15,9 +15,10 @@ rollout's window and the goal's) applies unchanged:
 Tower and bridge are only stated for scenes with gravity on (without it any blob has tall runs
 and spans air).
 
-Directions combine up/down (z), forward/back (y) and left/right (x): each axis whose share of
+Directions combine up/down (z), front/back (y) and left/right (x): each axis whose share of
 the displacement is at least AXIS_SHARE of the largest component is named, vertical first, e.g.
-"up", "forward left", "down back right". Regions name each axis's third: low/high, back/front,
+"up", "front left", "down back right" (front is +y, the board's side nearest the default viewer,
+as in the regions; "forward" would be the far side). Regions name each axis's third: low/high, back/front,
 left/right ("center" when all three are middle), e.g. "low front left".
 """
 
@@ -52,7 +53,7 @@ def direction_name(dz, dy, dx):
     top = parts.max()
     if top == 0:
         return "nowhere"
-    names = (("down", "up"), ("back", "forward"), ("left", "right"))
+    names = (("down", "up"), ("back", "front"), ("left", "right"))  # +y is the front, toward the default viewer: never "forward" (the far side, think_data.SAID)
     words = [names[a][int(v > 0)] for a, v in enumerate((dz, dy, dx)) if abs(v) >= AXIS_SHARE * top]
     return " ".join(words)
 

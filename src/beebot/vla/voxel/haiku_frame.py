@@ -24,7 +24,9 @@ the side nearest the user and "the back" the far side; "up" and "down" are heigh
 
 check: rows that pass the mechanical checks go to verified.jsonl (frame phrases exact; the first
 sub-goal names the same board directions as the canonical one and no user-relative words; the
-user's English direction words, mapped onto the board, name the same directions as the task).
+user's direction words, English, Spanish or French (USER_WORDS, accents ignored), mapped onto the
+board, name the same directions as the task; each statement of what their words mean, "<their
+words> is the board's <side>" or the other way round, maps them right).
 """
 
 import argparse
@@ -34,6 +36,7 @@ import json
 import random
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 from beebot.vla.voxel import haiku as H
@@ -45,7 +48,9 @@ DIRECTION = re.compile(r"\b(front|back|left|right|forward|backward|behind|rear)\
 BOARD_WORD = re.compile(r"\b(front|back|left|right)\b")
 HIDDEN_WEIGHT = re.compile(r"\bheav|\blight(er|est)?\b")
 USER_RELATIVE = re.compile(r"\b(your|my|you|me|i|north|south|east|west|forward|forwards|ahead|toward|towards|away|near|far)\b")
-STATEMENT = re.compile(r"([a-z' -]{2,40}?) (?:is|are|means|points to|=) (?:the board's |board )?((?:front|back|left|right)(?:[ -](?:left|right))?)\b")  # "<their words> is the board's <side>"
+SIDES = r"((?:front|back|left|right)(?:(?:[ -]| and )(?:front|back|left|right)\b(?! (?:is|are|means|=)\b))?)"  # "back right", "right and back", not "front and right is ..."
+STATEMENT = re.compile(r"([a-z' -]{2,40}?) (?:is|are|means|points to|=) (?:the board's |board )?" + SIDES + r"\b")  # "<their words> is the board's <side>"
+REVERSED = re.compile(r"(?:the board's|board) " + SIDES + r"(?: side| corner| edge| end)? (?:is|are|means|=) ([a-z' -]{2,40}?)(?=[,.;:]|$| and | so | but )")  # "the board's <side> is <their words>"
 PLACES = {  # how the prompt says the user's place relative to the camera
     "behind": "behind the camera",
     "left": "to the left of the camera",
@@ -53,16 +58,43 @@ PLACES = {  # how the prompt says the user's place relative to the camera
     "opposite": "opposite the camera, facing it",
 }
 SIDE_NAMES = {"front": "front", "right": "right", "back": "back", "left": "left"}
-USER_WORDS = (  # (pattern in the user's text, which of the user's directions it names)
-    (r"\b(?:ahead|forwards?|away from (?:me|us)|far|farthest|furthest)\b|\bnorth", "away"),
-    (r"\b(?:backwards?|toward(?:s)? (?:me|us|you)|near|nearest|closest)\b|\btowards?\b(?!\s+(?:the|a|an|it|them|each)\b)|\bsouth", "toward"),
-    (r"east\b|eastern\b", "right"),
-    (r"west\b|western\b", "left"),
-    (r"\bfront\b", "toward"),
-    (r"\bback\b", "away"),
-    (r"\bleft\b", "left"),
-    (r"\bright\b", "right"),
+NOT_A_THING = r"(?!\s+(?:del|de la|de las|de los|du|des|de l')\b)"  # "cerca del queso", "près du fromage": near a thing, no direction
+SIDE_WORD = r"(?:droit|droite|gauche|derech[oa]|izquierd[oa]|du|de)"  # "l'avant droit", "l'avant du sol": the front, not forward
+COMPASS_END = r"(?=\s*(?:corners?|area|side|part|end|of|and|n|&|[,.;!]|$))"  # what follows an abbreviated compass point
+USER_WORDS = (  # (pattern in the user's text with accents taken off (plain), the user's directions it names), tried in order, each match taken out
+    # compass words, compounds first: English "northeast" leaves "east" once "north" is taken out
+    (r"\bnor(?:d-?)?(?:este|est)\b", ("away", "right")),  # noreste, nordeste, nord-est
+    (r"\bnoroeste\b|\bnord-?ouest\b", ("away", "left")),
+    (r"\bsu[rd]-?(?:este|est)\b", ("toward", "right")),  # sureste, sudeste, sud-est
+    (r"\bsu[rd]-?oeste\b|\bsud-?ouest\b", ("toward", "left")),
+    (r"\bne\b" + COMPASS_END, ("away", "right")),  # "the NE corner", "one goes sw, other goes se"; not French "ne" nor Spanish "se"
+    (r"\bnw\b", ("away", "left")),
+    (r"\bse\b" + COMPASS_END, ("toward", "right")),
+    (r"\bsw\b", ("toward", "left")),
+    (r"\b(?:my|our|your|ur) (?:side|way)\b|\b(?:to|by|at|near) (?:me|us|u)\b|\bclose (?:side|edge|end)\b|\bpa(?:ra)? aca\b|\bhacia aca\b|\b(?:hacia )?mi lado\b", ("toward",)),
+    (r"\balej\w*", ("away",)),  # "se aleja de mi", "alejate"
+    (r"\b(?:ahead|forwards?|away from (?:me|us|you|u)|far|farthest|furthest)\b|\bnorth|\bnorte\b|\bnord\b|\btout droit\b", ("away",)),
+    (r"\b(?:backwards?|toward(?:s)? (?:me|us|you|u|ya)|toward(?:s)? (?:my|our|your|ur) side|near|nearest|closest)\b|\btowards?\b(?!\s+(?:the|a|an|it|them|each|my|your|our|ur|his|her|their)\b)|\bsouth|\bsud\b|\b(?:al|el|del|hacia el|lado|zona|esquina|parte)\s+sur\b", ("toward",)),  # "toward my left" is left
+    (r"\beast(?:ern)?\b|\b(?:al|el|del|hacia el|lado|zona|esquina|parte)\s+este\b|\bl'est\b", ("right",)),  # not "least"; Spanish "este" is also "this", French "est" "is"
+    (r"\bwest(?:ern)?\b|\boeste\b|\bouest\b", ("left",)),
+    # Spanish and French: motion first ("hacia adelante" is forward, "de adelante" the front), then the sides
+    (r"\bhacia (?:adelante|delante)\b|\bpa(?:ra)? (?:a)?lante\b|\bpalante\b|\ben avant\b|\bvers l'avant\b(?!\s+" + SIDE_WORD + r"\b)", ("away",)),
+    (r"\bhacia atras\b(?!\s+(?:a\s+la\s+)?(?:derech|izquierd))|\ben arriere\b|\bvers l'arriere\b(?!\s+" + SIDE_WORD + r"\b)", ("toward",)),
+    (r"\bhacia (?:mi|ti|nosotros|ustedes)\b(?!\s+(?:derech|izquierd|izq|lado))|\bvers (?:moi|toi|nous|vous)\b|\b(?:cerca|pres) de (?:mi|ti|nosotros|moi|toi|nous|vous)\b|\bcerca\b" + NOT_A_THING + r"|\bcercan[oa]s?\b|\bpres\b" + NOT_A_THING + r"|\bproches?\b" + NOT_A_THING + r"|\bpremier plan\b|\bde adelante\b|\bdelante\b|\bdelanter[oa]s?\b|\bdevant\b|\bfrente\b|\bfrontal\b|\b(?:coin|bord|cote|partie|a l') ?avant\b|\bl'avant\b(?=\s+" + SIDE_WORD + r"\b)|\bavant\b(?=\s+(?:droit|gauche)\b)", ("toward",)),  # near, the front
+    (r"\blejos\b" + NOT_A_THING + r"|\blejan[oa]s?\b|\bloin\b" + NOT_A_THING + r"|\blointaine?s?\b|\beloignee?s?\b|\bl'autre cote\b|\bel otro lado\b|\bde enfrente\b|\bfondo\b|\bfond\b|\batras\b|\bdetras\b|\btraser[oa]s?\b|\barriere\b|\badelante\b", ("away",)),  # far, the back; "adelante" alone is forward
+    (r"\bavant\b", ()),  # alone, forward (away) or the front (toward): not read
+    (r"\bderech[oa]s?\b|\bdroite?s?\b", ("right",)),
+    (r"\bizquierd[oa]s?\b|\bizq\b|\bgauche\b", ("left",)),
+    (r"\bfront\b", ("toward",)),
+    (r"\bback\b", ("away",)),
+    (r"\bleft\b", ("left",)),
+    (r"\bright\b", ("right",)),
 )
+
+
+def plain(text):
+    """Lower case without accents ("atrás" -> "atras", "près" -> "pres")."""
+    return "".join(c for c in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(c))
 
 
 def mapping(user_side):
@@ -86,15 +118,15 @@ def board_words(text):
 
 
 def user_text_words(text, table):
-    """The set of board directions the user's English direction words name (empty when it has
-    none the patterns read: another language, a phrase not listed)."""
-    found = set()
-    rest = text.lower()
-    for pattern, direction in USER_WORDS:
+    """The set of board directions the user's direction words name, in English, Spanish or French
+    (USER_WORDS; empty when it has none the patterns read: another language, a phrase not listed)."""
+    directions = set()
+    rest = plain(text)
+    for pattern, named in USER_WORDS:
         if re.search(pattern, rest):
-            found.add(table[direction])
+            directions.update(table[d] for d in named)
         rest = re.sub(pattern, " ", rest)
-    return found
+    return directions
 
 
 def first_clause(thought):
@@ -203,7 +235,10 @@ def problems(entry, row):
         out.append("first_directions")
     elif set(USER_RELATIVE.findall(clause)) - set(USER_RELATIVE.findall(entry["sub_goals"][0].lower())):
         out.append("first_user_words")
-    for phrase, sides in STATEMENT.findall(thought.split("you face the board from its")[-1].split("first:")[0]):
+    meaning = plain(thought).split("you face the board from its")[-1].split("first:")[0]
+    statements = [(phrase, sides) for phrase, sides in STATEMENT.findall(meaning) if "board" not in phrase]  # "<their words> is the board's <side>"
+    statements += [(phrase, sides) for sides, phrase in REVERSED.findall(meaning)]  # "the board's <side> is <their words>"
+    for phrase, sides in statements:
         named = user_text_words(phrase, mapping(entry["user"]))
         if named and named != set(board_words(sides)):
             out.append("wrong_statement")

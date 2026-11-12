@@ -1,0 +1,59 @@
+11 episodes: formation:mask 1, construction:tower 1, motion:goto 1, motion:gather 1, motion:line 1, motion:move 1, subset:goto 1, switch:then gather 1, zones:goto_zone 1, zones:line_zone 1, build 1
+formation:mask           0 robots 11  grid True  ideal True  mujoco False (0.36)  moves 280 harmful 7  sim   58.6 s  wall   66.7 s
+construction:tower       0 robots 12  grid True  ideal True  mujoco False (0.67)  moves 604 harmful 14  sim   76.1 s  wall   97.7 s
+motion:goto              0 robots 11  grid True  ideal True  mujoco False (0.27)  moves 530 harmful 9  sim  105.7 s  wall  142.2 s
+motion:gather            0 robots 10  grid True  ideal True  mujoco False (0.40)  moves 378 harmful 10  sim   90.7 s  wall  108.4 s
+motion:line              0 robots 10  grid True  ideal True  mujoco False (0.20)  moves 281 harmful 6  sim   45.0 s  wall   63.9 s
+motion:move              0 robots 11  grid False ideal False mujoco False (0.30)  moves 353 harmful 7  sim   60.6 s  wall   97.0 s
+subset:goto              0 robots 11  grid True  ideal True  mujoco True  (0.80)  moves 291 harmful 4  sim   17.1 s  wall   31.4 s
+switch:then gather       0 robots 11  grid True  ideal True  mujoco False (0.64)  moves 524 harmful 9  sim  101.6 s  wall  140.6 s
+zones:goto_zone          0 robots 12  grid True  ideal True  mujoco True  (0.75)  moves 573 harmful 7  sim  147.2 s  wall  177.6 s
+zones:line_zone          0 robots 11  grid True  ideal True  mujoco False (0.38)  moves 350 harmful 7  sim   56.5 s  wall   79.7 s
+build                    0 robots 10  grid True  ideal True  mujoco False (0.33)  moves 998 harmful 7  sim  168.4 s  wall  133.7 s
+| kind | n | grid, failures | grid, no failures | MuJoCo | MuJoCo, stop at pass | MuJoCo score | damaged after passing (grid / MuJoCo) | off the lattice (episodes) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| formation:mask | 1 | 1.00 | 1.00 | 0.00 | 0.00 | 0.36 | 0 / 0 | 1 |
+| construction:tower | 1 | 1.00 | 1.00 | 0.00 | 0.00 | 0.67 | 0 / 0 | 1 |
+| motion:goto | 1 | 1.00 | 1.00 | 0.00 | 0.00 | 0.27 | 0 / 0 | 1 |
+| motion:gather | 1 | 1.00 | 1.00 | 0.00 | 0.00 | 0.40 | 0 / 0 | 1 |
+| motion:line | 1 | 1.00 | 1.00 | 0.00 | 0.00 | 0.20 | 0 / 0 | 1 |
+| motion:move | 1 | 0.00 | 0.00 | 0.00 | 0.00 | 0.30 | 0 / 0 | 1 |
+| subset:goto | 1 | 1.00 | 1.00 | 1.00 | 1.00 | 0.80 | 0 / 0 | 1 |
+| switch:then gather | 1 | 1.00 | 1.00 | 0.00 | 0.00 | 0.64 | 0 / 0 | 1 |
+| zones:goto_zone | 1 | 1.00 | 1.00 | 1.00 | 1.00 | 0.75 | 0 / 0 | 1 |
+| zones:line_zone | 1 | 1.00 | 1.00 | 0.00 | 0.00 | 0.38 | 0 / 0 | 1 |
+| build | 1 | 1.00 | 1.00 | 0.00 | 0.00 | 0.33 | 0 / 0 | 1 |
+| all | 11 | 0.91 | 0.91 | 0.18 | 0.18 | 0.46 | 0 / 0 | 11 |
+
+| primitive | hindrance | moves | reached | stayed | off | strayed | knock | refused | blocked | cube off | displaced | harmful per pivot |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| (not attempted) |  | 2973 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 2973 | 0 | - |
+| convex_down | free | 7 | 4 | 0 | 1 | 0 | 2 | 0 | 0 | 0 | 0 | 0.429 |
+| convex_down | hinged | 5 | 4 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.000 |
+| convex_down | rubs | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1.000 |
+| convex_up | bonded | 2 | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.000 |
+| convex_up | free | 24 | 6 | 0 | 6 | 4 | 8 | 0 | 0 | 0 | 0 | 0.750 |
+| convex_up | hinged | 15 | 5 | 5 | 3 | 0 | 2 | 0 | 0 | 0 | 0 | 0.333 |
+| floor_peel | bonded | 750 | 2 | 741 | 3 | 0 | 4 | 0 | 0 | 0 | 0 | 0.009 |
+| floor_roll | free | 477 | 466 | 2 | 9 | 0 | 0 | 0 | 0 | 0 | 0 | 0.019 |
+| floor_roll | hinged | 908 | 7 | 857 | 41 | 0 | 3 | 0 | 0 | 0 | 0 | 0.048 |
+| all |  | 5162 | 494 | 1608 | 64 | 4 | 19 | 0 | 0 | 2973 | 0 | 0.040 |
+
+first harmful pivot: 11 of 11 episodes have one; step of the first: median 2.0, quartiles 1.0 to 9.0
+
+| kind | moves | reached | stayed | harmful | not attempted | harmful per episode |
+| --- | --- | --- | --- | --- | --- | --- |
+| formation:mask | 280 | 61 | 77 | 7 | 135 | 7.00 |
+| construction:tower | 604 | 36 | 139 | 14 | 415 | 14.00 |
+| motion:goto | 530 | 49 | 204 | 9 | 268 | 9.00 |
+| motion:gather | 378 | 56 | 159 | 10 | 153 | 10.00 |
+| motion:line | 281 | 31 | 73 | 6 | 171 | 6.00 |
+| motion:move | 353 | 30 | 114 | 7 | 202 | 7.00 |
+| subset:goto | 291 | 37 | 1 | 4 | 249 | 4.00 |
+| switch:then gather | 524 | 51 | 194 | 9 | 270 | 9.00 |
+| zones:goto_zone | 573 | 58 | 301 | 7 | 207 | 7.00 |
+| zones:line_zone | 350 | 54 | 79 | 7 | 210 | 7.00 |
+| build | 998 | 31 | 267 | 7 | 693 | 7.00 |
+
+cpu: 1.13 s per step with movers, 0.44 s per pivot (2189 pivots), 88.5 s per episode
+time: 1.07 s simulated and 1.30 s wall per step with movers (864 steps, 2.72 waves each); per episode 84.3 s simulated (median 76.1), 102.3 s MuJoCo wall, 103.5 s wall with the expert
