@@ -146,6 +146,8 @@ DEFAULT_STRENGTH is the strongest setting at which the zero-shot Qwen3.5-4B prob
 (scripts/vla_view_probe.py) stays close to clean (README "Views and randomization").
 """
 
+import contextlib
+import contextvars
 import io
 import math
 from dataclasses import dataclass, field
@@ -410,12 +412,17 @@ class Faces:
     hi2: np.ndarray
     kind: np.ndarray
     cell: np.ndarray  # (F, 3) voxel (z, y, x), or (clutter index, 0, 0)
+    yaw: np.ndarray = None  # (F,) float radians: the face turned about the vertical through pivot (placement_faces); None: none is
+    pivot: np.ndarray = None  # (F, 2) float (x, y) of that vertical
 
     def __len__(self):
         return len(self.axis)
 
     def take(self, index):
-        return Faces(*(getattr(self, f)[index] for f in ("axis", "sign", "c", "lo1", "hi1", "lo2", "hi2", "kind", "cell")))
+        out = Faces(*(getattr(self, f)[index] for f in ("axis", "sign", "c", "lo1", "hi1", "lo2", "hi2", "kind", "cell")))
+        if self.yaw is not None:
+            out.yaw, out.pivot = self.yaw[index], self.pivot[index]
+        return out
 
 
 def voxel_faces(kind):
@@ -482,7 +489,11 @@ def _concat(parts):
     names = ("axis", "sign", "c", "lo1", "hi1", "lo2", "hi2", "kind", "cell")
     if not parts:
         return Faces(*(np.zeros((0, 3) if n == "cell" else 0, np.float32 if n in ("c", "lo1", "hi1", "lo2", "hi2") else np.int64) for n in names))
-    return Faces(*(np.concatenate([getattr(p, n) for p in parts]) for n in names))
+    out = Faces(*(np.concatenate([getattr(p, n) for p in parts]) for n in names))
+    if any(p.yaw is not None for p in parts):
+        out.yaw = np.concatenate([np.zeros(len(p)) if p.yaw is None else p.yaw for p in parts])
+        out.pivot = np.concatenate([np.zeros((len(p), 2)) if p.pivot is None else p.pivot for p in parts])
+    return out
 
 
 # ---------------------------------------------------------------------------------------------
@@ -618,6 +629,11 @@ def splat(cam, faces, origin, direction):
         corners[rows, k, ax] = fs.c
         corners[rows, k, a1] = fs.hi1 if p else fs.lo1
         corners[rows, k, a2] = fs.hi2 if q else fs.lo2
+    if fs.yaw is not None:  # faces turned about their vertical (placement_faces)
+        cos, sin = np.cos(fs.yaw)[:, None], np.sin(fs.yaw)[:, None]
+        dx, dy = corners[:, :, 0] - fs.pivot[:, :1], corners[:, :, 1] - fs.pivot[:, 1:]
+        corners[:, :, 0] = fs.pivot[:, :1] + cos * dx - sin * dy
+        corners[:, :, 1] = fs.pivot[:, 1:] + sin * dx + cos * dy
     px, py, z = cam.project(corners.reshape(-1, 3))
     px, py, z = px.reshape(-1, 4), py.reshape(-1, 4), z.reshape(-1, 4)
     front = (z > 1e-3).all(1)
@@ -636,10 +652,25 @@ def splat(cam, faces, origin, direction):
     w_rep = bw[f_rep]
     pix = (y0[f_rep] + off // w_rep) * cam.width + x0[f_rep] + off % w_rep
     ax_rep, b1, b2 = ax[f_rep], a1[f_rep], a2[f_rep]
+    if fs.yaw is None:
+        o_ax, d_ax = _component(origin, ax_rep, pix, n), _component(direction, ax_rep, pix, n)
+        o_1, d_1 = _component(origin, b1, pix, n), _component(direction, b1, pix, n)
+        o_2, d_2 = _component(origin, b2, pix, n), _component(direction, b2, pix, n)
+    else:  # the ray in each face's own frame: turned about the face's vertical by minus its yaw (t is the same)
+        o3 = np.stack([np.broadcast_to(_component(origin, k, pix, n), pix.shape) for k in range(3)]).astype(np.float64)
+        d3 = np.stack([np.broadcast_to(_component(direction, k, pix, n), pix.shape) for k in range(3)]).astype(np.float64)
+        yaw = fs.yaw[f_rep]
+        cos, sin = np.cos(yaw), np.sin(yaw)
+        px0, py0 = fs.pivot[f_rep, 0], fs.pivot[f_rep, 1]
+        ox, oy = o3[0] - px0, o3[1] - py0
+        o3[0], o3[1] = px0 + cos * ox + sin * oy, py0 - sin * ox + cos * oy
+        d3[0], d3[1] = cos * d3[0] + sin * d3[1], -sin * d3[0] + cos * d3[1]
+        at = np.arange(len(f_rep))
+        o_ax, d_ax, o_1, d_1, o_2, d_2 = o3[ax_rep, at], d3[ax_rep, at], o3[b1, at], d3[b1, at], o3[b2, at], d3[b2, at]
     with np.errstate(divide="ignore", invalid="ignore"):
-        t = (fs.c[f_rep] - _component(origin, ax_rep, pix, n)) / _component(direction, ax_rep, pix, n)
-        h1 = _component(origin, b1, pix, n) + t * _component(direction, b1, pix, n)
-        h2 = _component(origin, b2, pix, n) + t * _component(direction, b2, pix, n)
+        t = (fs.c[f_rep] - o_ax) / d_ax
+        h1 = o_1 + t * d_1
+        h2 = o_2 + t * d_2
     eps = 1e-4
     lo1, hi1, lo2, hi2 = fs.lo1[f_rep], fs.hi1[f_rep], fs.lo2[f_rep], fs.hi2[f_rep]
     keep = np.nonzero((t > 1e-4) & (h1 >= lo1 - eps) & (h1 <= hi1 + eps) & (h2 >= lo2 - eps) & (h2 <= hi2 + eps))[0]
@@ -1703,7 +1734,67 @@ def _clean_look(spec):
     return _CLEAN_LOOKS[slot]
 
 
-def scene_views(obs, rng, spec=None, look=None):
+_PLACEMENT = contextvars.ContextVar("placement", default=None)
+
+
+@contextlib.contextmanager
+def placement(jitter):
+    """Within the block scene_views draws robots with `jitter` (a Placement or None: perfect cells)
+    unless it is given one itself, so a caller that only has views(obs, rng) can ask for it."""
+    token = _PLACEMENT.set(jitter)
+    try:
+        yield
+    finally:
+        _PLACEMENT.reset(token)
+
+
+@dataclass
+class Placement:
+    """Imperfect robot placement for rendering only (the state stays on the grid): each robot is
+    moved by up to `offset` cells in x and y and turned about the vertical by up to `yaw` degrees,
+    a fixed draw per (seed, cell) plus a slow drift in `t` (step), so frames of one episode agree
+    and a cell's robot wanders a little. Roll and pitch are not drawn (the renderer's faces are
+    axis aligned; only yaw is a rotation it can take)."""
+
+    seed: int = 0
+    offset: float = 0.1
+    yaw: float = 5.0
+    drift: float = 0.3  # share of the offset and yaw that moves with t
+    t: float = 0.0
+
+
+def placement_faces(faces, jitter):
+    """faces with the robots' (KIND_ROBOT) moved and turned as `jitter` says."""
+    r = np.nonzero(faces.kind == KIND_ROBOT)[0]
+    if len(r) == 0 or (jitter.offset <= 0 and jitter.yaw <= 0):
+        return faces
+    z, y, x = faces.cell[r, 0], faces.cell[r, 1], faces.cell[r, 2]
+    seed = int(jitter.seed) & 0x7FFFFFFF
+
+    def wander(salt, amount):
+        base = 2 * _hash01(z, y, x, seed + salt) - 1
+        phase = 2 * math.pi * _hash01(z, y, x, seed + salt + 99)
+        slow = np.sin(0.15 * jitter.t + phase)
+        return amount * ((1 - jitter.drift) * base + jitter.drift * slow)
+
+    shift = np.zeros((len(r), 3))
+    shift[:, 0], shift[:, 1] = wander(1, jitter.offset), wander(2, jitter.offset)
+    yaw = np.radians(wander(3, jitter.yaw))
+    out = Faces(*(getattr(faces, name).copy() for name in ("axis", "sign", "c", "lo1", "hi1", "lo2", "hi2", "kind", "cell")))
+    axis = faces.axis[r].astype(np.int64)
+    a1, a2 = np.array(OTHER_AXES)[axis, 0], np.array(OTHER_AXES)[axis, 1]
+    rows = np.arange(len(r))
+    out.c[r] += shift[rows, axis]
+    for name, a in (("lo1", a1), ("hi1", a1), ("lo2", a2), ("hi2", a2)):
+        getattr(out, name)[r] += shift[rows, a]
+    out.yaw = np.zeros(len(faces))
+    out.pivot = np.zeros((len(faces), 2))
+    out.yaw[r] = yaw
+    out.pivot[r, 0], out.pivot[r, 1] = x + 0.5 + shift[:, 0], y + 0.5 + shift[:, 1]
+    return out
+
+
+def scene_views(obs, rng, spec=None, look=None, jitter=None):
     """(images, pose): one PIL image (spec.size square) per camera of spec.cameras and the pose
     of the cameras (module docstring). look: the episode-level draw (sample_look) to reuse; None
     draws a new one."""
@@ -1712,6 +1803,9 @@ def scene_views(obs, rng, spec=None, look=None):
         look = _clean_look(spec) if all(spec.level(group) == 0 for group in GROUPS) else sample_look(rng, spec)
     scene = scene_of(obs)
     faces = voxel_faces(scene.kind)
+    jitter = _PLACEMENT.get() if jitter is None else jitter
+    if jitter is not None:
+        faces = placement_faces(faces, jitter)
     if look.clutter:
         faces = _concat([faces, box_faces(look.clutter)])
     images, cameras = [], []
