@@ -99,14 +99,16 @@ def check(per, batch, seed, out, families=R.ALL_FAMILIES, calibrate=8):
     for family in families:
         passed, natural, steps, ends, robots, movers, touched, distance, kinds, calib = [], [], [], {}, [], [], [], [], {}, []
         proposed = verified = accepted = backtracks = scaffolds = calls = found = 0
-        walk_s = replay_s = goal_s = 0.0
+        walk_s = replay_s = goal_s = cpu_s = 0.0
         for start in range(0, per, batch):
             n = min(batch, per - start)
+            c0 = time.process_time()
             t0 = time.time()
             goals = [R.make_goal(family, rng) for _ in range(n)]
             t1 = time.time()
             episodes, stats = R.take_apart(goals, rng)
             t2 = time.time()
+            cpu_s += time.process_time() - c0
             result = R.replay(episodes)
             t3 = time.time()
             goal_s, walk_s, replay_s = goal_s + t1 - t0, walk_s + t2 - t1, replay_s + t3 - t2
@@ -164,6 +166,8 @@ def check(per, batch, seed, out, families=R.ALL_FAMILIES, calibrate=8):
             "steps_per_s": sum(steps) / generate,
             "natural_steps_per_s": nat_steps / generate,
             "steps_per_s_with_replay": sum(steps) / (generate + replay_s),
+            "steps_per_cpu_s": sum(steps) / cpu_s,  # CPU time of goals and walk (one thread): per core, whatever else the machine runs
+            "episodes_per_cpu_s": per / cpu_s,
             "seconds": {"goals": goal_s, "walk": walk_s, "replay": replay_s},
         }
         report[family] = row

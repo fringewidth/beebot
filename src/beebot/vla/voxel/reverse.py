@@ -649,11 +649,11 @@ def retarget_goal(rng):
         goal[:k, ty, tx] = True
         world = replace(base.world, mass=goal.float().unsqueeze(0).clone())
         word = _NUMBERS[k]
-        shape = {"letter": base.info.get("shape", "shape"), "table": "table", "cantilever": "post", "chair": "chair"}[base.family]
+        shape = {"letter": base.info.get("shape", "the shape"), "table": "the table", "cantilever": "the post", "chair": "the chair"}[base.family]
         text = str(rng.choice([
             f"now make a tower of {word} out of it",
-            f"take {word} of you off the {shape} and stack them into a tower beside it",
-            f"use {word} robots from the {shape} to build a {word}-high tower next to it",
+            f"take {word} of you off {shape} and stack them into a tower beside it",
+            f"use {word} robots from {shape} to build a {word}-high tower next to it",
         ]))
         target = goal & ~a
         return Goal("retarget", text, world, target, start=a, info={"from": base.family, "tower": k})
@@ -1245,15 +1245,24 @@ def _pipeline(one, paths):
     return [(states[t + 1 : t + 2].float(), codes[t : t + 1]) for t in range(n)]
 
 
-def _drop_cells(one, target, dist=None, alone=True):
-    """(D, H, W) bool: where a robot taken out of a structure may stop: on the floor or terrain, at
-    least `dist` from the goal's cells, touching no robot by a face, edge or corner when alone."""
+def _drop_cells(one, target, dist=None, tier=0):
+    """(D, H, W) bool: where a robot taken out of a structure may stop, by tier: 0 on the floor or
+    terrain at least DROP_DIST from the goal's cells touching no robot (face, edge or corner); 1 on
+    top of a robot standing alone on the ground that far out (natural scenes stack); 2 anywhere on
+    the ground off the goal and its faces."""
     occ = one.mass[0] > 0.5
     dist = distance_field(target) if dist is None else dist
-    out = on_ground(one)[0] & ~(W.cheese_id_map(one)[0] >= 0) & ~occ
-    if alone:
-        return out & (dist >= DROP_DIST) & ~_dilate(occ)
-    return out & (dist >= 1.5)
+    free = ~(W.cheese_id_map(one)[0] >= 0) & ~occ & ~one.walls[0]
+    ground_cells = on_ground(one)[0]
+    if tier == 0:
+        return free & ground_cells & (dist >= DROP_DIST) & ~_dilate(occ)
+    if tier == 1:
+        beside = W._grow_faces(occ.unsqueeze(0), torch.zeros(1, *occ.shape, dtype=torch.bool))[0]  # cells with a robot on a face
+        lone = occ & ground_cells & ~beside
+        on_lone = torch.zeros_like(occ)
+        on_lone[1:] = lone[:-1]
+        return free & on_lone & (dist >= DROP_DIST)
+    return free & ground_cells & (dist >= 1.5)
 
 
 def _scaffold(one, movers, rng):
@@ -1494,9 +1503,10 @@ def take_apart(goals, rng, max_steps=None, candidates=CANDIDATES, scaffold=True)
                 if goals[i].start is not None:
                     path = _extract(state, movers, starts[i] & ~occ_s, rng)
                 else:  # far and alone first, then anywhere on the ground off the goal
-                    path = _extract(state, movers, _drop_cells(state, targets[i], dists[i]), rng)
-                    if path is None:
-                        path = _extract(state, movers, _drop_cells(state, targets[i], dists[i], alone=False), rng)
+                    for tier in range(3):
+                        path = _extract(state, movers, _drop_cells(state, targets[i], dists[i], tier), rng)
+                        if path is not None:
+                            break
                 if path is None:
                     break
                 paths.append(path)
