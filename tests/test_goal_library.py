@@ -103,7 +103,8 @@ def test_variants_parameters_cap_and_targets():
     assert counts and counts[-1] > 115 and counts[-1] <= 800
     capped, tally = G.variants(vox, np.random.default_rng(0), keep=(100, 800), max_cells=300, rotations=1)
     assert all(int(v.sum()) <= 300 for _, _, v in capped) and tally["big"] > 0
-    assert G.MAX_CELLS == 800 and G.KEEP_TARGETS == (100, 250, 500, 800)
+    assert G.MAX_CELLS == 256 and G.KEEP_TARGETS == (64, 128, 256)
+    assert max(G.KEEP_TARGETS) <= G.MAX_CELLS
 
 
 def test_variants_reject_floating_structure(monkeypatch):
@@ -189,3 +190,23 @@ def test_repair_adds_only_cells_with_source_voxels_and_leaves_interior_hollow():
 def test_variants_search_flag():
     found, _ = G.variants(_table(), np.random.default_rng(0), search=False, rotations=1)
     assert found
+
+
+def test_load_drops_goals_above_cap(tmp_path):
+    small = np.argwhere(np.ones((2, 2, 2), dtype=bool)).astype(np.uint8)
+    big = np.argwhere(np.ones((6, 6, 8), dtype=bool)).astype(np.uint8)
+    assert len(big) > G.MAX_CELLS
+    G.save("t", [{"id": "a"}, {"id": "b"}], [small, big], root=tmp_path)
+    lines, cells = G.load("t", tmp_path)
+    assert [line["id"] for line in lines] == ["a"] and len(cells) == 1
+    lines, cells = G.load("t", tmp_path, max_cells=None)
+    assert len(lines) == 2 and len(cells[1]) == len(big)
+
+
+def test_variants_tolerance_skips_far_targets():
+    vox = np.ones((4, 4, 4), dtype=bool)
+    near, _ = G.variants(vox, np.random.default_rng(0), keep=(8, 64), rotations=1, tolerance=2)
+    counts = sorted(int(v.sum()) for _, _, v in near)
+    assert counts and all(4 <= c <= 128 for c in counts)
+    far, _ = G.variants(vox, np.random.default_rng(0), keep=(1000,), rotations=1, tolerance=2)
+    assert far == []

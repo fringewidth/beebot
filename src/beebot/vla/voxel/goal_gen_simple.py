@@ -61,6 +61,12 @@ def _pick(rng, options):
     return options[int(rng.integers(len(options)))]
 
 
+def _size(rng, lo, hi):
+    """Integer in [lo, hi], log-uniform so small and large sizes are both common (sizes stay below ten, as
+    texts state counts only below ten)."""
+    return int(round(float(np.exp(rng.uniform(np.log(lo - 0.5), np.log(hi + 0.5))))))
+
+
 def _axis(rng):
     return _pick(rng, ("x", "y"))
 
@@ -137,8 +143,8 @@ def check(cells, text):
 
 
 def wall(rng):
-    length = int(rng.integers(3, 10))
-    height = int(rng.integers(2, 7))
+    length = _size(rng, 3, 9)
+    height = _size(rng, 2, 9)
     axis = _axis(rng)
     cells = [_cell(axis, i, 0, z) for i in range(length) for z in range(height)]
     run = RUN[axis]
@@ -151,9 +157,9 @@ def wall(rng):
 
 
 def staircase(rng):
-    steps = int(rng.integers(2, 5))
-    run = int(rng.integers(1, 3))
-    width = int(rng.integers(1, 5))
+    steps = _size(rng, 2, 9)
+    run = _size(rng, 1, 3)
+    width = _size(rng, 1, 8)
     axis = _axis(rng)
     sign = _sign(rng)
     cells = []
@@ -172,9 +178,9 @@ def staircase(rng):
 
 
 def pyramid(rng):
-    a = int(rng.integers(3, 8))
-    b = int(rng.integers(3, 8))
-    asked = int(rng.integers(2, 5))
+    a = _size(rng, 3, 9)
+    b = _size(rng, 3, 9)
+    asked = _size(rng, 2, 6)
     cells = []
     levels = 0
     for k in range(asked):
@@ -200,9 +206,9 @@ def pyramid(rng):
 
 
 def hollow_box(rng):
-    sx = int(rng.integers(3, 6))
-    sy = int(rng.integers(3, 6))
-    height = int(rng.integers(2, 6))
+    sx = _size(rng, 3, 9)
+    sy = _size(rng, 3, 9)
+    height = _size(rng, 2, 9)
     cells = [(0, y, x) for y in range(sy) for x in range(sx)]
     for z in range(1, height):
         cells += [(z, y, x) for y in range(sy) for x in range(sx) if y in (0, sy - 1) or x in (0, sx - 1)]
@@ -215,7 +221,7 @@ def hollow_box(rng):
 
 
 def solid_block(rng):
-    a, b, c = (int(rng.integers(2, 5)) for _ in range(3))
+    a, b, c = (_size(rng, 2, 9) for _ in range(3))
     cells = [(z, y, x) for z in range(c) for y in range(b) for x in range(a)]
     if a == b == c:
         text = _pick(rng, (
@@ -231,8 +237,8 @@ def solid_block(rng):
 
 
 def floor_ring(rng):
-    a = int(rng.integers(3, 8))
-    b = int(rng.integers(3, 8))
+    a = _size(rng, 3, 9)
+    b = _size(rng, 3, 9)
     cells = [(0, 0, x) for x in range(a)] + [(0, b - 1, x) for x in range(a)]
     cells += [(0, y, 0) for y in range(b)] + [(0, y, a - 1) for y in range(b)]
     if a == b:
@@ -249,8 +255,8 @@ def floor_ring(rng):
 
 
 def floor_slab(rng):
-    a = int(rng.integers(2, 7))
-    b = int(rng.integers(2, 7))
+    a = _size(rng, 2, 9)
+    b = _size(rng, 2, 9)
     cells = [(0, y, x) for y in range(b) for x in range(a)]
     if a == b:
         text = _pick(rng, (
@@ -576,6 +582,7 @@ def main():
     parser.add_argument("--n", type=int, default=20000)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out-name", default="gen_simple")
+    parser.add_argument("--out-root", default=str(G.LIBRARY))
     parser.add_argument("--render-dir", default=None)
     parser.add_argument("--measure-draws", type=int, default=2000)
     args = parser.parse_args()
@@ -602,8 +609,8 @@ def main():
             "overhang": goal["overhang"],
         })
         cell_lists.append(goal["cells"].astype(np.uint8))
-    G.save(args.out_name, lines, cell_lists)
-    print(f"wrote {len(lines)} goals to {G.LIBRARY / (args.out_name + '.jsonl')}")
+    G.save(args.out_name, lines, cell_lists, root=args.out_root)
+    print(f"wrote {len(lines)} goals to {Path(args.out_root) / (args.out_name + '.jsonl')}")
 
     if args.render_dir:
         render = Path(args.render_dir)

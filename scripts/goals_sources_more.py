@@ -315,7 +315,7 @@ NO_COLOUR = {"objaverse_cap3d"}
 
 
 def work(args):
-    name, task, keep, max_cells = args
+    name, task, keep, max_cells, tolerance = args
     try:
         pairs = TABLE[name][1](task)
     except Exception as error:  # a malformed raw file is counted, not fatal
@@ -323,14 +323,14 @@ def work(args):
     results = []
     for item, rgb in pairs:
         rng = np.random.default_rng(G.seed_of(item.key))
-        found, tally = GS.coloured_variants(rgb, item.vox, rng, keep=keep, max_cells=max_cells)
+        found, tally = GS.coloured_variants(rgb, item.vox, rng, keep=keep, max_cells=max_cells, tolerance=tolerance)
         goals = [{"scale": s, "rot": k, "vox": v, "paint": p} for s, k, v, p in found]
         item.vox = None
         results.append({"item": item, "goals": goals, "tally": tally})
     return {"results": results}
 
 
-def run(name, procs, limit, keep, max_cells):
+def run(name, procs, limit, keep, max_cells, tolerance=None, out_root=OUT):
     LIMIT[0] = limit
     started = time.time()
     lines, cell_lists, rgb_lists = [], [], []
@@ -342,7 +342,7 @@ def run(name, procs, limit, keep, max_cells):
         for i, task in enumerate(TABLE[name][0]()):
             if limit and i >= limit:
                 break
-            yield (name, task, keep, max_cells)
+            yield (name, task, keep, max_cells, tolerance)
 
     with Pool(procs) as pool:
         for n, out in enumerate(pool.imap(work, tasks(), chunksize=4), 1):
@@ -370,9 +370,9 @@ def run(name, procs, limit, keep, max_cells):
                     licences[",".join(lic) if isinstance(lic, list) else str(lic)] += 1
             if n % 500 == 0:
                 log({"source": name, "tasks": stats["tasks"], "items": stats["items"], "accepted": len(lines), "goal_library_v2_added": len(lines)})
-    GS.save_coloured(name, lines, cell_lists, None if name in NO_COLOUR else rgb_lists, OUT if not limit else Path("/private/tmp/goal_sources_test"))
+    GS.save_coloured(name, lines, cell_lists, None if name in NO_COLOUR else rgb_lists, out_root if not limit else Path("/private/tmp/goal_sources_test"))
     counts = [line["cells"] for line in lines]
-    root = OUT if not limit else Path("/private/tmp/goal_sources_test")
+    root = out_root if not limit else Path("/private/tmp/goal_sources_test")
     summary = {
         "source": name,
         "tasks": stats["tasks"],
@@ -398,9 +398,11 @@ def main():
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--procs", type=int, default=3)
     parser.add_argument("--max-cells", type=int, default=G.MAX_CELLS)
+    parser.add_argument("--out", default=str(OUT))
+    parser.add_argument("--tolerance", type=float, default=None, help="skip a keep target when no scale has a count within this factor of it")
     parser.add_argument("--keep-targets", type=int, nargs="+", default=list(G.KEEP_TARGETS))
     args = parser.parse_args()
-    run(args.source, args.procs, args.limit, tuple(args.keep_targets), args.max_cells)
+    run(args.source, args.procs, args.limit, tuple(args.keep_targets), args.max_cells, args.tolerance, Path(args.out))
 
 
 if __name__ == "__main__":

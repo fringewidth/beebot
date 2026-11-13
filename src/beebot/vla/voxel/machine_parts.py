@@ -4,7 +4,7 @@ Sources (see runs/handoff/machine-parts.md): the Fusion 360 Gallery Assembly dat
 assembly tree, joints with types) and the Mechanical Components Benchmark (MCB; parts in expert-labelled
 classes). A part is a triangle mesh plus what the source states about it. Each part is oriented (resting on
 its largest flat face, or in the file's own frame with z up), voxelised on a fine grid, and handed to
-goal_library.variants, which re-voxelises at several scales and keeps those that fit 16 per axis, hold 4-800
+goal_library.variants, which re-voxelises at several scales and keeps those that fit 16 per axis, hold 4-256
 cells and are face-connected to the floor. Storage is goal_library's (`save`, `load`), per source.
 
 Units: meshes are taken in the source's unit; `unit_mm` converts to millimetres (Fusion 360 files are cm).
@@ -18,8 +18,8 @@ import numpy as np
 
 from beebot.vla.voxel import goal_library
 
-PART_MAX_CELLS = 800  # parts may be bigger than goals: recognisable shapes need cells
-PART_TARGETS = (100, 250, 600)  # per part, the accepted scale nearest each of these cell counts is kept
+PART_MAX_CELLS = goal_library.MAX_CELLS  # parts follow the goal cap (user, 2026-11-13)
+PART_TARGETS = (64, 128, 256)  # per part, the accepted scale nearest each of these cell counts is kept
 PART_SCALES = tuple(sc for sc in goal_library.SCALES if sc <= 1.0)  # the fine grid is the finest; never upsample
 FINE = 64  # cells along the longest axis of the fine grid every part is first voxelised to
 FLAT_SHARE = 0.05  # a hull facet group counts as a flat face to rest on when it has this share of the hull area
@@ -390,9 +390,9 @@ def downscale_ids(ids, factor, threshold=goal_library.THRESHOLD):
     return out
 
 
-def assembly_variant(ids, target=250, max_cells=PART_MAX_CELLS):
+def assembly_variant(ids, target=256, max_cells=PART_MAX_CELLS):
     """The scale (of goal_library.SCALES) at which the id grid fits 16 per axis, is grounded and has a cell
-    count nearest `target` within 4-800; returns (id grid cropped, scale) or (None, None)."""
+    count nearest `target` within 4-256; returns (id grid cropped, scale) or (None, None)."""
     best = None
     for scale in goal_library.SCALES:
         scaled = downscale_ids(ids, scale)

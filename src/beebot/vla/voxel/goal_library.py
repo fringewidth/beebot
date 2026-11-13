@@ -28,9 +28,9 @@ import numpy as np
 
 SIZE = 16
 MIN_CELLS = 4
-MAX_CELLS = 800
+MAX_CELLS = 256  # goals (end states and starts) hold at most this many robots, one per floor cell (user, 2026-11-13)
 SCALES = tuple(2.0 ** (-k / 2) for k in range(-3, 13))  # 2.83 ... 0.0156 in steps of sqrt(2)
-KEEP_TARGETS = (100, 250, 500, 800)  # per item, the accepted scale whose cell count is closest to each of these
+KEEP_TARGETS = (64, 128, 256)  # per item, the accepted scale whose cell count is closest to each of these
 THRESHOLD = 0.3  # a coarse voxel is filled if this share of the source voxels under it are
 CROPS_PER_STRUCTURE = 2
 LIBRARY = Path("data/goal_library")
@@ -339,7 +339,7 @@ def best_variant(base, scale, max_cells, search=True):
     return reasons[0] if reasons else "oversize"
 
 
-def variants(vox, rng, keep=None, rotations=2, max_cells=None, search=True, detail=False):
+def variants(vox, rng, keep=None, rotations=2, max_cells=None, search=True, detail=False, tolerance=None):
     """Accepted re-voxelisations of one occupancy: (scale, rot, vox) tuples, plus a reject tally.
 
     Every scale of SCALES is tried; at each, the fill threshold and sampling-grid phase are searched for the
@@ -348,7 +348,9 @@ def variants(vox, rng, keep=None, rotations=2, max_cells=None, search=True, deta
     the floor are distinct shapes; per target in `keep` the one with the closest cell count is kept, in the
     original orientation and in one further random quarter turn (when that differs from the first). With
     search False the original rule (threshold 0.3, no phase, no repair) is used. With detail the tuples are
-    (scale, rot, vox, candidate dict) for measurement."""
+    (scale, rot, vox, candidate dict) for measurement. With `tolerance` (a factor, e.g. 2) a target is skipped
+    when no accepted scale has a count within target / tolerance to target * tolerance, so the targets span
+    the range instead of repeating one variant."""
     keep = KEEP_TARGETS if keep is None else keep
     max_cells = MAX_CELLS if max_cells is None else max_cells
     base = crop_bbox(vox)
@@ -369,6 +371,8 @@ def variants(vox, rng, keep=None, rotations=2, max_cells=None, search=True, deta
         if not pool:
             break
         best = min(pool, key=lambda it: abs(int(it[1].sum()) - target))
+        if tolerance is not None and not target / tolerance <= int(best[1].sum()) <= target * tolerance:
+            continue
         chosen.setdefault(round(best[0], 4), best)
     out = []
     for scale, scaled, found in chosen.values():
@@ -410,10 +414,10 @@ def seed_of(text):
     return int.from_bytes(hashlib.sha256(text.encode()).digest()[:8], "little")
 
 
-def process(item, keep=None, max_cells=None):
+def process(item, keep=None, max_cells=None, tolerance=None):
     """All accepted goals of one item: (list of dicts with 'vox', 'scale', 'rot'), reject tally."""
     rng = np.random.default_rng(seed_of(item.key))
-    found, tally = variants(item.vox, rng, keep=keep, max_cells=max_cells)
+    found, tally = variants(item.vox, rng, keep=keep, max_cells=max_cells, tolerance=tolerance)
     return [{"scale": s, "rot": k, "vox": v} for s, k, v in found], tally
 
 
@@ -505,14 +509,19 @@ def save(name, lines, cell_lists, root=LIBRARY):
             handle.write(json.dumps(line) + "\n")
 
 
-def load(name, root=LIBRARY):
-    """(list of meta dicts, list of (n, 3) uint8 cell arrays (z, y, x))."""
+def load(name, root=LIBRARY, max_cells=MAX_CELLS):
+    """(list of meta dicts, list of (n, 3) uint8 cell arrays (z, y, x)). Goals with more than `max_cells`
+    cells are dropped (None keeps all), so data written under an older, larger cap needs no regeneration."""
     root = Path(root)
     with open(root / f"{name}.jsonl") as handle:
         lines = [json.loads(text) for text in handle]
     data = np.load(root / f"{name}.npz")
     starts, cells = data["starts"], data["cells"]
-    return lines, [cells[starts[i] : starts[i + 1]] for i in range(len(lines))]
+    arrays = [cells[starts[i] : starts[i + 1]] for i in range(len(lines))]
+    if max_cells is None:
+        return lines, arrays
+    keep = [i for i, array in enumerate(arrays) if len(array) <= max_cells]
+    return [lines[i] for i in keep], [arrays[i] for i in keep]
 
 
 def cells_to_vox(cells):
