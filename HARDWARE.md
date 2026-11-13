@@ -1361,3 +1361,33 @@ four times the table's); the rule removes them and a third of the stuck robots, 
 `closed_loop.make_swarm`) to run the episode on `cube_hinge.HingeSwarm`; several movers at once go
 through `HingeSwarm.moves`. Smoke: the expert on motion:goto (index 0, seed 0, 24 steps) passed at
 step 13, 155 moves, none harmful, 153 s simulated in 159 s (`runs/closed_loop/goto-hinge-smoke.mp4`).
+
+## Joint strength: what a cube structure can hold (2026-11-13)
+
+The grid world lets a cube stand if it is face-connected to the floor, terrain or an object.
+`hardware/joint_strength.py` checks whether the hinge cube's joints can actually hold a shape:
+rigid-block limit analysis (a batched interior-point LP in torch). A closed face is clamped by its
+8 edge magnet pairs and its centre pair at full pull (53 N), so it holds 1.34 N m (18.15 m g L)
+about an edge. An edge-only contact is a pin, and the steel floor holds a cube at 0.3 of a face.
+The check returns the load factor (stands when >= 1), the cubes that move in the collapse and
+the joints that open. Validated against MuJoCo (`hardware/joint_sim.py`: cube_swarm's cubes and
+magnets, load ramped until a face opens 1 mm; `scripts/joint_validate.py`) on cantilevers, Ls,
+towers with a side load, gusseted brackets, spans, arches and tables, nominal and jittered:
+
+1. 196 runs: 43 fails and 147 holds predicted correctly, 5 false fails and 1 false hold, all within
+   0.08 of factor 1. Failure factor median error 4.7 %, slightly conservative. The failure lengths
+   match MuJoCo or are one cube off. The same joints open and the same cubes fall.
+1. As built, a cantilever from a wall holds 6 cubes (30 cm; 36.3 / n^2 exactly) and a free L (column
+   of 3) 3. A tower takes a 1-weight side load at the top up to 11 high (MuJoCo: 12). A beam on two
+   free pillars spans 18 (20 fails in both). Tables, arches and braced frames are not limited by the joints at these sizes.
+1. It is wrong for a flat beam wedged between immovable supports: rigid blocks arch, so the check
+   says it never fails, while MuJoCo fails at span 20 (1.4 g) and 30 (0.31 g), about 290 / w^2. Treat
+   spans between terrain with that formula until the check bounds contact stresses.
+1. The floor is the weakest joint of every free-standing part. Latching floor cubes statically (the
+   features the hinge cube's floor moves already need) is the cheapest gain: a side-loaded column
+   goes from 6 to 18 cubes. Mechanical face latches of about 270 N double cantilevers (4 -> 10 at a
+   1.5 margin). Stronger EPMs (x1.7) add a little. A bolted lattice (1 kN a face) reaches 1 m
+   cantilevers. Shear keys help only sliding-limited parts.
+
+Handoff with the validation table, the parts study (beams, columns, slabs, brackets, frames,
+arches) and the holding force each part needs: `runs/handoff/joint-strength.md`.
