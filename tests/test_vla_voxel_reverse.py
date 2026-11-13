@@ -326,3 +326,80 @@ def test_guided_fill_closes_a_slab_from_a_row():
     episodes, _ = R.take_apart([goal], rng)
     ep = episodes[0]
     assert R.replay(episodes)["passed"].all() and ep.end == "reached"
+
+
+# ---------------------------------------------------------------------------------------------
+# v4: the forward swarm, rebuilds of big guided goals, the local dig, levelling dense starts
+# (runs/handoff/reverse-v4.md)
+
+
+def _forward_chain(world, steps):
+    """The state after playing forward steps [(earlier mass, codes)] from world, checking each: the
+    recorded earlier state is the current one, the rule refuses nothing, world.step gives the next."""
+    for mass, codes in steps:
+        assert torch.equal(mass > 0.5, world.mass > 0.5)
+        assert (W.refuse(world, codes, R.RULE) == codes).all()
+        world, _ = W.step(world, codes, rule=R.RULE)
+    return world
+
+
+def test_forward_swarm_takes_a_block_apart_top_down():
+    cells = [(z, 6 + i, 6 + j) for z in range(2) for i in range(3) for j in range(3)]
+    world, target = R._shape_world(cells)
+    dist = R.distance_field(target)
+    steps, state, stranded = R._swarm(world, target, lambda s, reserved: R._drop_rank(s, target, dist, 3), np.random.default_rng(0), 300, forward=True)
+    assert not ((state.mass[0] > 0.5) & target).any() and not stranded
+    end = _forward_chain(world, steps)
+    assert torch.equal(end.mass > 0.5, state.mass > 0.5) and bool(R.fixed_point(end).all())
+    first = (steps[0][1][0] != W.STAY).nonzero()
+    assert (first[:, 0] == 1).all()  # forward, the top layer leaves first
+    assert max(int((c != W.STAY).sum()) for _, c in steps) >= 2  # robots walk out together
+
+
+def test_unkeep_digs_only_round_the_stuck_robot():
+    wall = R._mask([(z, 8, x) for z in range(3) for x in range(2, 14)])
+    keep = R._unkeep(R.blank(), wall, R._mask([(1, 8, 8)]), 1)
+    removed = (wall & ~keep).nonzero()
+    assert len(removed) == 6 and set(removed[:, 2].tolist()) == {7, 8, 9} and (removed[:, 0] >= 1).all()  # its level up, three columns
+    left = R._kept(R.blank(), keep)
+    assert torch.equal(left, keep)  # what stays holds itself up
+
+
+def test_rebuild_turns_a_wall(monkeypatch):
+    monkeypatch.setattr(R, "REBUILD_ROBOTS", 0)  # small enough for a test; the measure runs 116-800 robots
+    a = R._mask([(z, 8, 4 + j) for z in range(3) for j in range(6)])  # A: a wall along x
+    b = R._mask([(z, 3 + j, 4) for z in range(3) for j in range(6)])  # B: turned about its corner column
+    world = R.blank()
+    world.mass[0] = b.float()
+    goal = R.Goal("edit", "turn the wall", world, b & ~a, start=a)
+    episodes, stats = R.take_apart([goal], np.random.default_rng(0))
+    ep = episodes[0]
+    assert R.replay(episodes)["passed"].all()
+    assert ep.end == "reached" and ep.distance == 0 and torch.equal(ep.mass[0].bool(), a)
+    assert stats["rebuilds"] == [1] and "dismantle" in ep.kinds and "extract" in ep.kinds
+    assert ep.kinds.index("dismantle") < ep.kinds.index("extract")  # forward: A's part comes apart, then B's goes up
+    corner = ep.mass[:, :3, 8, 4].bool()
+    assert corner.all()  # the column the two walls share never moves
+
+
+def test_levelling_makes_a_dense_start_natural():
+    rng = np.random.default_rng(10)
+    world = R.blank()
+    n = 540
+    target = R._mask([(z, 6 + i, 6 + j) for z in range(3) for i in range(4) for j in range(4)])
+    hole = R._near_columns(target, 1)
+    scenes = R.natural_scenes(world.walls[0], n, rng, 1, avoid=hole.unsqueeze(0).expand(R.SIZE, -1, -1))  # the goal just taken out: its columns empty
+    world.mass[0] = scenes[0].float()
+    assert int(scenes[0].sum()) == n
+    cap = R.heap_cap(n, world.walls[0])
+    band = R.natural_bands(world, target, rng)
+    assert not R.in_band(R.start_stats(world, target.unsqueeze(0))[0], band)
+    profile = R._level_plan(world, target, cap, band, rng)
+    assert profile is not None and int(profile.sum()) == n
+    until = lambda s: R.in_band(R.start_stats(s, target.unsqueeze(0))[0], band)  # noqa: E731
+    steps, state, _ = R._swarm(world, R._level_movers(world, profile, cap), R._level_rank(profile, cap), rng, 2000, extra=R.DROP_EXTRA, until=until, once=True)
+    assert until(state)
+    # reverse time: played forward from the levelled state, the steps lead back to the scene
+    start = R.replace(world, mass=steps[-1][0])
+    end = _forward_chain(start, [(m, c) for m, c in reversed(steps)])
+    assert torch.equal(end.mass > 0.5, world.mass > 0.5)
