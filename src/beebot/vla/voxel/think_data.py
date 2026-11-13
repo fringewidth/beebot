@@ -46,6 +46,10 @@ ThinkData(stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1/3, haiku_s
                 validation seed's rng, so validation examples are the same on every call and run
   mismatch      "raise": a label that does not belong to its episode raises ValueError; "drop":
                 that episode's labels are dropped (it keeps its template) and counted
+  ground        None (default): no grounding examples. A dict of think_ground.Grounding's keyword
+                arguments ({"dirs": [ground stores], "shares": {"goal_image": 0.05, "point": 0.05,
+                "views": 0.05, "predict": 0.05}}): that share of sample() and validation() examples
+                are grounding kinds (think_ground.py, runs/handoff/grounding-formats.md)
 
 .sample(rng: numpy.random.Generator) -> Example        (training episodes only)
 .validation(n, seed=0) -> list[Example]                (fixed: held-out episodes, same sampler)
@@ -980,7 +984,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=(), overfit=0, intended=False):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=(), overfit=0, intended=False, ground=None):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -1057,6 +1061,14 @@ class ThinkData:
         # overfit: a fixed set of that many acting examples in which some robot moves (from the
         # frame-labelled episodes when there are any) is all that sample() and validation() give:
         # a model that cannot fit them has a broken path, not too little training
+        # ground: think_ground.Grounding's keyword arguments (dirs, shares, ...): the grounding kinds
+        # (goal as a picture, pointing, several cameras, predicting the next picture) as that share
+        # of the examples; None (the default) leaves every example as it was
+        self.ground = None
+        if ground:
+            from beebot.vla.voxel.think_ground import Grounding
+
+            self.ground = Grounding(self, **ground)
         self.overfit_set = []
         if overfit:
             framed = [ep for ep in self.train if ep.choices and "camera" in ep.choices[0]]
@@ -1311,6 +1323,10 @@ class ThinkData:
 
     def draw(self, pool, rng, views=None):
         """One example from a pool of episodes (Pool: the sampler of sample and validation)."""
+        if self.ground is not None:  # opt-in grounding kinds (think_ground.py); none by default
+            example = self.ground.maybe(rng, held=pool is self.held_pool)
+            if example is not None:
+                return example
         if pool.refusing and self.refusal_share and rng.random() < self.refusal_share:
             ep = pool.pick(pool.refusing, rng)
             return self.refusal(ep, ep.refusals[int(rng.integers(len(ep.refusals)))], rng, views)
@@ -1370,6 +1386,8 @@ class ThinkData:
         out["frames"] = dict(self.frames)  # examples drawn so far: in a turned frame, in the world's, and how unturnable labels were handled  # thoughts visible() changed (templates: those built so far)
         out["per_store"] = {path: sum(ep.store == k for ep in self.episodes) for k, path in enumerate(self.stores)}
         out["per_store_haiku"] = {path: sum(ep.store == k and ep.labelled for ep in self.episodes) for k, path in enumerate(self.stores)}
+        if self.ground is not None:
+            out["ground"] = {"episodes": len(self.ground.episodes), "drawn": dict(self.ground.counts)}
         return out
 
 
