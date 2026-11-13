@@ -220,3 +220,109 @@ def test_parked_robots_stand_in_a_row_on_an_edge():
     assert (cells[:, 0] == 0).all()
     on_edge = (cells[:, 1] == 0).all() | (cells[:, 1] == W.SIZE - 1).all() | (cells[:, 2] == 0).all() | (cells[:, 2] == W.SIZE - 1).all()
     assert bool(on_edge) and "edge" in g.text
+
+
+# ---------------------------------------------------------------------------------------------
+# v3: the swarm, the fill order, digs, holds, the rule check (runs/handoff/reverse-v3.md)
+
+
+def test_rule_ok_matches_refuse():
+    rng = np.random.default_rng(7)
+    world, _ = W.sample_object_scenes(rng, 8, gravity_prob=1.0)
+    shapes = [R.make_goal(family, rng).world for family in ("cantilever", "table", "chair", "big", "arch", "span")]
+    world = W.concat([world] + shapes)
+    occ = world.mass > 0.5
+    outcomes = []
+    for _ in range(4):
+        table = W.pivot_moves(occ, world.walls, W.cheese_id_map(world) >= 0, release=True)
+        codes = torch.full(world.mass.shape, W.STAY, dtype=torch.long)
+        for b in range(len(occ)):
+            cells = occ[b].nonzero()
+            for c in cells[rng.permutation(len(cells))[: int(rng.integers(1, 6))]].tolist():
+                legal = table[b, : W.STAY, c[0], c[1], c[2]].nonzero().squeeze(1).tolist()
+                codes[b, c[0], c[1], c[2]] = int(rng.choice(legal)) if legal and rng.random() < 0.9 else int(rng.integers(0, W.STAY))
+        want = (W.refuse(world, codes, R.RULE) == codes).flatten(1).all(dim=1)
+        assert torch.equal(R.rule_ok(world, codes), want)
+        outcomes += want.tolist()
+    assert any(outcomes) and not all(outcomes)
+
+
+def test_thick_block_is_taken_apart_by_a_swarm():
+    cells = [(z, 6 + i, 6 + j) for z in range(3) for i in range(3) for j in range(3)]  # one cell of a scale-3 part
+    world, target = R._shape_world(cells)
+    goal = R.Goal("big", "pack together into one solid block", world, target)
+    episodes, _ = R.take_apart([goal], np.random.default_rng(0))
+    assert R.replay(episodes)["passed"].all()
+    ep = episodes[0]
+    assert ep.natural and ep.end == "natural"
+    moving = (ep.actions != W.STAY).flatten(1).sum(dim=1)
+    assert int(moving.max()) >= 3  # robots walk out together, not one after another
+
+
+def _door(height, door):
+    """A wall seven long along x with a doorway in its middle `door` high, spares parked at the back:
+    (A: the doorway open, B: the doorway filled)."""
+    y0, x0 = 8, 4
+    wall = [(z, y0, x0 + j) for z in range(height) for j in range(7) if not (j == 3 and z < door)]
+    a = R._mask(wall + [(0, 2, 2 + k) for k in range(door)])
+    b = R._mask(wall + [(z, y0, x0 + 3) for z in range(door)])
+    return a, b
+
+
+@pytest.mark.parametrize("height,door", [(3, 1), (4, 2)])
+def test_enclosed_fill_is_reached_by_the_guided_walk(height, door):
+    a, b = _door(height, door)
+    world = R.blank()
+    world.mass[0] = b.float()
+    assert R.fixed_point(world).all()
+    goal = R.Goal("edit", "fill in the doorway", world, b & ~a, start=a)
+    episodes, stats = R.take_apart([goal], np.random.default_rng(0))
+    ep = episodes[0]
+    assert R.replay(episodes)["passed"].all()
+    assert ep.end == "reached" and ep.distance == 0 and torch.equal(ep.mass[0].bool(), a)
+    assert "dig" in ep.kinds  # the robots round the doorway stepped aside and came back
+
+
+def test_nothing_to_do_is_a_hold():
+    rng = np.random.default_rng(8)
+    base = R.make_goal("table", rng)
+    a = base.world.mass[0] > 0.5
+    goal = R.Goal("edit", "make a table", base.world, a, start=a.clone())
+    episodes, _ = R.take_apart([goal], rng)
+    ep = episodes[0]
+    assert ep.end == "hold" and ep.natural and ep.steps == R.HOLD_STEPS and ep.kinds == ["hold"] * R.HOLD_STEPS
+    assert (ep.actions == W.STAY).all() and (ep.mass == ep.mass[0]).all()
+    assert R.replay(episodes)["passed"].all()
+    store, labels = R.to_store(episodes)
+    assert labels[0]["w1"] == R.HOLD_STEPS
+
+
+def test_fill_order_lowest_layer_then_most_enclosed():
+    slab = [(z, 6 + i, 6 + j) for z in range(2) for i in range(3) for j in range(3)]  # A: a 3 x 3 slab two high
+    a = R._mask(slab)
+    state = R.blank()
+    rank = R._fill_rank(a, R._enclosure(a, state.walls[0]))(state)
+    assert torch.isinf(rank[1]).all()  # nothing on the second layer before the first is full
+    centre, edge, corner = float(rank[0, 7, 7]), float(rank[0, 6, 7]), float(rank[0, 6, 6])
+    assert centre < edge < corner  # forward: a slab comes apart from its corners inward
+    # a lintel between two posts: once a walker is heading for it, the cell beside it waits
+    posts = [(0, 8, 6), (0, 8, 8), (1, 8, 6)]
+    a = R._mask(posts + [(1, 8, 7), (1, 8, 8)])
+    state = R.blank()
+    state.mass[0] = R._mask(posts).float()
+    rank_of = R._fill_rank(a, R._enclosure(a, state.walls[0]))
+    reserved = R._mask([(1, 8, 7)])
+    assert torch.isfinite(rank_of(state)[1, 8, 8])
+    assert torch.isinf(rank_of(state, reserved)[1, 8, 8])
+
+
+def test_guided_fill_closes_a_slab_from_a_row():
+    rng = np.random.default_rng(9)
+    a = R._mask([(0, 6 + i, 6 + j) for i in range(3) for j in range(3)])  # A: a solid 3 x 3 patch
+    b = R._mask([(0, 12, 2 + k) for k in range(9)])  # B: the same robots in a row
+    world = R.blank()
+    world.mass[0] = b.float()
+    goal = R.Goal("retarget", "line up in a row", world, b, start=a)
+    episodes, _ = R.take_apart([goal], rng)
+    ep = episodes[0]
+    assert R.replay(episodes)["passed"].all() and ep.end == "reached"
