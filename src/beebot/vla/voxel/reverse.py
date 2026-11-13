@@ -1,5 +1,5 @@
 """Demonstrations generated backwards from goal states (runs/handoff/reverse-demos.md, reverse-v2.md,
-reverse-v3.md).
+reverse-v3.md, reverse-v4.md).
 
 A goal generator scripts an ordered end state (a tower, a crossing, a letter, an object on a patch,
 a span over open air, an arch, a table, a chair, an L, big shapes; or any library goal of 4-800
@@ -27,12 +27,20 @@ Two modes, chosen per goal:
    penalties per pair of robots face to face and per pair within two columns. It stops when every
    statistic of start_stats lies inside the band that sample_scenes-style scenes with the same
    terrain, robot count and goal give (natural_bands: 2.5-97.5 % quantiles of 32 drawn scenes).
+   Dense goals (heap_cap above HEAP: 500-800 robots on 16 x 16) plan the start first: a natural
+   scene's robots per column (_level_plan); the goal's robots already where it has robots stay,
+   the others walk to its cells, the lowest layer first, closing in no cell still to fill
+   (_plan_rank, _profile_rank); once the goal is clear the rest walk there too (_level_rank).
 1. guided (Goal.start = A, a (D, H, W) bool occupancy at rest with as many robots): the robots off
    A's cells walk, as a swarm, to A's empty cells, lowest layer first and in it the most enclosed
    first, a cell that would close in a neighbour still to fill last (_fill_rank). When nothing can
    move, robots on A's cells round the stuck spot are taken out top down and put back bottom up
    (_dig_region, a local take apart and rebuild). It stops when the state is exactly A
    ("reached"). A = B needs no walk: a hold episode of robots staying still (HOLD_STEPS).
+   Above REBUILD_ROBOTS robots, _rebuild first: the robots A and B share that hold themselves up
+   stay; B's others walk out to a heap (reverse time), A's others walk out of A forward in time to
+   the same heap cells in the same order (_swarm forward), and a short guided walk joins the two;
+   forward the changed part comes apart onto the heap and the new one goes up from it.
 
 Moves are proposed from a 7^3 crop round each robot (sources: which cells could have pivoted a
 cube into it). Walks are breadth first over those moves with the rest of the scene still
@@ -1362,8 +1370,28 @@ def _joint(state, moves):
     return mass, codes
 
 
-def _verify_sets(state, sets):
-    """(len(sets),) bool: each set of walker moves [(here, src)] verified as one joint step from state."""
+def _ahead(state, moves):
+    """The later state (1, D, H, W) mass of robots at `cell` moved on to `nxt`, [(cell, nxt)], and the codes
+    on the earlier state (forward time)."""
+    mass = state.mass.clone()
+    codes = torch.full(mass.shape, STAY, dtype=torch.long)
+    for cell, nxt in moves:
+        mass[(0, *cell)] = 0.0
+        codes[(0, *cell)] = code_of(np.subtract(nxt, cell))
+    for cell, nxt in moves:
+        mass[(0, *nxt)] = 1.0
+    return mass, codes
+
+
+def _verify_sets(state, sets, forward=False):
+    """(len(sets),) bool: each set of walker moves verified as one joint step: reverse time, [(here, src)]
+    the robots at `here` came from `src` (state is the later state); forward, [(cell, nxt)] the robots at
+    `cell` move on to `nxt` (state is the earlier state)."""
+    if forward:
+        built = [_ahead(state, moves) for moves in sets]
+        earlier = state.index([0] * len(sets))
+        later = replace(earlier, mass=torch.cat([m for m, _ in built]))
+        return verify(earlier, torch.cat([c for _, c in built]), later)
     built = [_joint(state, moves) for moves in sets]
     later = state.index([0] * len(sets))
     earlier = replace(later, mass=torch.cat([m for m, _ in built]))
@@ -1380,15 +1408,19 @@ def _open_rank(rank_of, state, reserved):
     return rank
 
 
-def _swarm(one, movers, rank_of, rng, budget, stranded=None, extra=RANK_EXTRA, until=None, once=False):
+def _swarm(one, movers, rank_of, rng, budget, stranded=None, extra=RANK_EXTRA, until=None, once=False, forward=False, first=False, patient=False):
     """Robots that must move (movers (D, H, W) bool: the cells they stand on) walk out together in
     reverse time, each to a destination of lowest rank_of(state, reserved) ((D, H, W) float, inf:
     none; reserved: (D, H, W) bool, the cells walkers are heading for).
     Played forward, the swarm walks in from where the robots stand and builds bottom up.
 
     Each round: robots that must move and have a legal move are recruited highest first (at most
-    RECRUIT_TRIES breadth-first walks a round), WALKER_SPACING from every walker; each walker's
-    destination is reserved. Every walker then takes the next move of its walk; the joint step is
+    RECRUIT_TRIES breadth-first walks a round), WALKER_SPACING from every walker (with `first`: those
+    whose first move verifies on its own come first, one that does not only in a round that recruits
+    no other; dense take-aparts leave pieces hanging from robots above them, whose walkers would
+    otherwise hold the round); each walker's destination is reserved. patient: a round in which
+    nobody walks and nobody could be recruited (the robots tried were blocked for RETRY rounds)
+    does not end the swarm while robots are left; only IDLE_ROUNDS idle rounds do. Every walker then takes the next move of its walk; the joint step is
     verified, and when it fails, the walkers that verify alone join in order, a group at a time,
     while the joint step still verifies (a group that breaks it is split in halves). A walker that waits WAIT_REPLAN
     rounds plans again from where it stands; after WAIT_DROP it gives up (a robot left on the way
@@ -1397,7 +1429,11 @@ def _swarm(one, movers, rank_of, rng, budget, stranded=None, extra=RANK_EXTRA, u
     when until(state) holds (checked every UNTIL_EVERY rounds). once: a robot that has walked is
     not recruited again (movers is a set of cells: without it, a robot that stops on a cell another
     mover left would walk again).
-    Returns (steps [(earlier mass, codes)], the state reached, stranded cells (set))."""
+    forward: the same swarm in forward time (the robots walk out of `one` to their destinations, every
+    joint step verified from the earlier state; a single pivot runs both ways through the same cells,
+    so the walks of _reverse_path serve both directions). Played forward: a take-apart, top down.
+    Returns (steps [(earlier mass, codes)] in the order made (reverse time: from `one` backwards;
+    forward: from `one` on), the state reached, stranded cells (set))."""
     state = one
     steps, walkers = [], []
     stranded = set() if stranded is None else set(stranded)
@@ -1422,6 +1458,7 @@ def _swarm(one, movers, rank_of, rng, budget, stranded=None, extra=RANK_EXTRA, u
                 pool = [c for c, ok in zip(pool, legal.any(dim=1).tolist()) if ok]
             rank = None
             tries = 0
+            later = []  # walks whose first move does not verify on its own (the robot holds up one hanging below it): taken only in a round that finds no other
             for c in pool:
                 if tries >= RECRUIT_TRIES or len(walkers) >= WALKERS:
                     break
@@ -1434,12 +1471,23 @@ def _swarm(one, movers, rank_of, rng, budget, stranded=None, extra=RANK_EXTRA, u
                 if path is None or len(path) < 2:
                     blocked[c] = t + RETRY
                     continue
+                if first and not bool(_verify_sets(state, [[(c, path[1])]], forward)[0]):
+                    later.append((c, path))
+                    continue
                 walkers.append(_Walker(c, path))
                 reserved.add(path[-1])
                 rank = None
                 near += [c, path[1]]
                 stranded.discard(c)
                 recruited += 1
+            for c, path in later:
+                if recruited or path[-1] in reserved or len(walkers) >= WALKERS or not _far(c, near):  # a walk that verifies came first this round: this one waits
+                    blocked[c] = t + RETRY
+                    continue
+                walkers.append(_Walker(c, path))
+                reserved.add(path[-1])
+                near += [c, path[1]]
+                stranded.discard(c)
         props, nexts = [], set()
         for w in walkers:
             nx = w.path[1]
@@ -1450,17 +1498,17 @@ def _swarm(one, movers, rank_of, rng, budget, stranded=None, extra=RANK_EXTRA, u
         accepted = []
         if props:
             moves = [(w.cell, w.path[1]) for w in props]
-            if bool(_verify_sets(state, [moves])[0]):
+            if bool(_verify_sets(state, [moves], forward)[0]):
                 accepted = props
             else:
-                alone = _verify_sets(state, [[m] for m in moves]).tolist()
+                alone = _verify_sets(state, [[m] for m in moves], forward).tolist()
                 good = [w for w, ok in zip(props, alone) if ok]
                 accepted = good[:1]
 
                 def add(group):  # greedy bisection: a group joins when the joint step still verifies, else its halves try
                     if not group:
                         return
-                    if bool(_verify_sets(state, [[(w.cell, w.path[1]) for w in accepted + group]])[0]):
+                    if bool(_verify_sets(state, [[(w.cell, w.path[1]) for w in accepted + group]], forward)[0]):
                         accepted.extend(group)
                     elif len(group) > 1:
                         add(group[: len(group) // 2])
@@ -1468,8 +1516,12 @@ def _swarm(one, movers, rank_of, rng, budget, stranded=None, extra=RANK_EXTRA, u
 
                 add(good[1:])
         if accepted:
-            mass, codes = _joint(state, [(w.cell, w.path[1]) for w in accepted])
-            steps.append((mass, codes))
+            if forward:
+                mass, codes = _ahead(state, [(w.cell, w.path[1]) for w in accepted])
+                steps.append((state.mass.clone(), codes))
+            else:
+                mass, codes = _joint(state, [(w.cell, w.path[1]) for w in accepted])
+                steps.append((mass, codes))
             state = replace(state, mass=mass)
             for w in accepted:
                 w.cell, w.path, w.wait = w.path[1], w.path[1:], -1
@@ -1497,8 +1549,11 @@ def _swarm(one, movers, rank_of, rng, budget, stranded=None, extra=RANK_EXTRA, u
                 reserved.add(w.path[-1])
             kept.append(w)
         walkers = kept
-        if not walkers and not recruited and not accepted:
-            break
+        if not walkers and not recruited and not accepted:  # nothing walking: stop (patient: only when no robot is left to try)
+            occ = state.mass[0] > 0.5
+            left = [tuple(c) for c in (occ & movers).nonzero().tolist()] + [c for c in stranded if bool(occ[c])]
+            if not patient or not [c for c in left if c not in arrived]:
+                break
         if idle > IDLE_ROUNDS:
             break
     return steps, state, stranded
@@ -1599,6 +1654,118 @@ def _spread_rank(target, cap, band):
         touch[:, :, :-1] += solid[:, :, 1:]
         rank = (touch > 0).float() + 2.0 * (lift > 0).float()  # alone on the ground, then touching, then lifted
         return torch.where(ok, rank, torch.full_like(rank, float("inf")))
+
+    return rank_of
+
+
+LEVEL_DRAWS = 64  # natural scenes drawn to pick the column profile the levelling swarm walks toward
+
+
+def _level_plan(state, target, cap, band, rng, draws=LEVEL_DRAWS, unbiased=False):
+    """(H, W) long: robots per column of a natural scene (natural_scenes: as many robots, the same
+    terrain) whose statistics lie in the band, the one of `draws` that leaves the fewest robots to
+    move from the current state (robots above the scene's count in their column). Walking the
+    surplus to the columns short of it makes the start that natural scene, column by column: at
+    500-800 robots on 16 x 16 a carpet two to four high with a few empty columns, the goal's cells
+    covered as often as any others. unbiased (planning from the goal itself): only scenes that fill
+    no more of the goal's cells than the median drawn scene, so the choice does not lean the start
+    toward the goal. None when no drawn scene lies in the band."""
+    occ = state.mass[0] > 0.5
+    n = int(occ.sum())
+    scenes = natural_scenes(state.walls[0], n, rng, draws, avoid=W.cheese_id_map(state)[0] >= 0)
+    ref = replace(state.index([0] * draws), mass=scenes.float())
+    stats = start_stats(ref, target.unsqueeze(0).expand(draws, -1, -1, -1))
+    ok = ((stats >= band[0]) & (stats <= band[1])).all(dim=1)
+    if not ok.any():
+        return None
+    if unbiased:
+        fill = stats[:, STATS.index("fill")]
+        ok &= fill <= fill[ok].median()
+    counts = scenes.sum(dim=1)
+    surplus = (occ.sum(dim=0).unsqueeze(0) - counts).clamp(min=0).flatten(1).sum(dim=1).float()
+    surplus[~ok] = float("inf")
+    return counts[int(surplus.argmin())]
+
+
+def _plan_movers(target, walls, profile, cap):
+    """(D, H, W) bool, natural mode with a planned profile: the goal's cells, and anything at
+    heap_cap or higher. A goal robot below its column's count in the profile on a column of goal
+    robots (or terrain) down to the ground stays where it is: it is already where the natural start
+    has a robot. One over a gap moves (the cells under it would be a gap a cube cannot enter)."""
+    lift = torch.arange(SIZE).view(SIZE, 1, 1) - ground(walls).unsqueeze(0)
+    column = (target | walls).long().cumprod(dim=0).bool()  # goal or terrain all the way down
+    stay = target & column & (lift < profile.unsqueeze(0)) & (lift >= 0)
+    return (target & ~stay) | (lift >= cap)
+
+
+def _plan_rank(profile, movers, target, dist, cap):
+    """rank_of for a natural take-apart with a planned profile: _profile_rank's cells (the lowest
+    layer first: the carpet grows a layer at a time, so robots still walk over a level surface),
+    never under a robot still to come out nor touching one (face, edge or corner: the carpet would
+    close in the goal's lower layers before they leave), never on the cells robots come out of
+    (the levelling swarm fills those once the goal is clear); any other drop cell (_drop_rank) after
+    all of them."""
+
+    def rank_of(state, reserved):
+        occ = state.mass[0] > 0.5
+        left = occ & movers
+        under = (left.flip(0).cumsum(0).flip(0) > 0) | _dilate(left) | movers  # the goal's own cells wait for the levelling swarm (a robot put there would have to come out again)
+        rank = _profile_rank(state, reserved, profile, cap, under)
+        return torch.where(torch.isinf(rank), _drop_rank(state, target, dist, cap) + 100.0, rank)
+
+    return rank_of
+
+
+def _level_movers(state, profile, cap):
+    """(D, H, W) bool: robots at or above their column's count in the profile, or at heap_cap or
+    higher above the terrain."""
+    occ = state.mass[0] > 0.5
+    lift = torch.arange(SIZE).view(SIZE, 1, 1) - ground(state.walls[0]).unsqueeze(0)
+    return occ & ((lift >= profile.unsqueeze(0)) | (lift >= cap))
+
+
+def _side_free(free):
+    """(D, H, W) long: horizontal face neighbours of each cell that are in `free` (off the grid: not)."""
+    out = torch.zeros(free.shape, dtype=torch.long)
+    out[:, 1:] += free[:, :-1].long()
+    out[:, :-1] += free[:, 1:].long()
+    out[:, :, 1:] += free[:, :, :-1].long()
+    out[:, :, :-1] += free[:, :, 1:].long()
+    return out
+
+
+def _profile_rank(state, reserved, profile, cap, under=None):
+    """(D, H, W) float: resting cells below their column's count in the profile and below heap_cap
+    (not under `under`), ranked by layer, the lowest first, and in a layer: a cell whose filling
+    would close in a neighbour still short of the profile half a layer later, then the most
+    enclosed first. A cube enters a cell only from a free cell beside it on the same layer (a
+    straight pivot leans on the two cells below, a diagonal one sweeps the cell beyond), so a cell
+    with all four sides filled can no longer be filled; filling round it first would leave pits
+    natural scenes have and the walk cannot make. inf: not a destination."""
+    occ = state.mass[0] > 0.5
+    walls = state.walls[0]
+    rests = on_ground(state)[0].clone()
+    rests[1:] |= occ[:-1] | walls[:-1]
+    lift = torch.arange(SIZE).view(SIZE, 1, 1) - ground(walls).unsqueeze(0)
+    free = ~occ & ~reserved & ~walls & ~(W.cheese_id_map(state)[0] >= 0)
+    short = free & (lift < profile.unsqueeze(0)) & (lift < cap)
+    room = _side_free(free)
+    dying = short & (room == 1)  # one free side left: the cell that fills it closes it in
+    kills = _side_free(dying)
+    ok = short & rests
+    if under is not None:
+        ok &= ~under
+    rank = lift.float() + 0.5 * (kills > 0).float() + 0.05 * room.float()
+    return torch.where(ok, rank, torch.full(occ.shape, float("inf")))
+
+
+def _level_rank(profile, cap):
+    """rank_of for the levelling swarm: resting cells below the profile's count of their column and
+    below heap_cap, the lowest layer first, closing in no cell still short (_profile_rank); nearest
+    first within a rank (_reverse_path)."""
+
+    def rank_of(state, reserved):
+        return _profile_rank(state, reserved, profile, cap)
 
     return rank_of
 
@@ -1832,6 +1999,133 @@ def _try_scaffold(one, movers, c, code, src, helpers, rng):
 
 
 # ---------------------------------------------------------------------------------------------
+# Guided walks by taking apart and building again (reverse-v4.md)
+
+REBUILD_ROBOTS = 115  # guided goals with more robots than this walk through _rebuild first
+REBUILD_DIGS = 10  # times the kept part may shrink round robots that cannot get out
+REBUILD_HEAP = 2  # the meeting heap may pile this much higher than a natural heap (it is never a start)
+REBUILD_TRIES = 4  # swarms per side while robots are left on the way (stranded)
+
+
+def _kept(one, cells):
+    """(D, H, W) bool: the robots of `cells` that hold themselves up (connected through each other
+    to the floor, the terrain or an object)."""
+    return W.supported(one, cells.unsqueeze(0))[0] & cells
+
+
+def _unkeep(one, keep, stuck, r):
+    """The kept part less the robots in the columns within r (Chebyshev) of the stuck cells, from
+    their lowest level up, and less what then no longer holds itself up: a local dig round robots
+    that cannot get out (forward: that part comes down and goes up again with the rest)."""
+    region = keep & _near_columns(stuck, r).unsqueeze(0)
+    region[: int(stuck.nonzero()[:, 0].min())] = False
+    return _kept(one, keep & ~region)
+
+
+def _arrivals(one, steps, heap):
+    """(D, H, W) float: for each heap cell, the step of the reverse walk `steps` [(earlier mass, ...)]
+    from `one` after which a robot stood there to the end (inf off the heap)."""
+    since = torch.full(heap.shape, float("inf"))
+    held = heap.clone()  # cells still occupied in every later state
+    for k in range(len(steps) - 1, -1, -1):
+        prev = (steps[k - 1][0][0] > 0.5) if k > 0 else (one.mass[0] > 0.5)
+        came = held & ~prev
+        since[came] = float(k)
+        held &= prev
+    return since
+
+
+def _meet_rank(order, ab, dist, cap):
+    """rank_of for A's robots walking out of A (forward): the meeting heap's cells (where B's robots
+    went) in the order B's robots arrived there (`order`, _arrivals: an order that walking in is
+    known to manage, no cell closed in before it is filled); any other drop cell (_drop_rank) after
+    all of them."""
+    heap = torch.isfinite(order)
+    scale = float(order[heap].max()) + 1.0 if heap.any() else 1.0
+
+    def rank_of(state, reserved):
+        occ = state.mass[0] > 0.5
+        walls = state.walls[0]
+        rests = on_ground(state)[0].clone()
+        rests[1:] |= occ[:-1] | walls[:-1]
+        rank = _drop_rank(state, ab, dist, cap) + 100.0
+        ok = heap & rests & ~occ
+        rank[ok] = order[ok] / scale
+        return rank
+
+    return rank_of
+
+
+def _walk_out(one, movers, rank_of, rng, budget, forward):
+    """The swarm (_swarm) run again while robots are left on movers' cells or on the way (stranded),
+    at most REBUILD_TRIES times. Returns (steps, state, robots still on movers' cells (D, H, W) bool);
+    a robot stranded elsewhere stays where it is (the join walk of _rebuild takes care of it)."""
+    state, steps, stranded = one, [], set()
+    for _ in range(REBUILD_TRIES):
+        got, state, stranded = _swarm(state, movers, rank_of, rng, budget - len(steps), stranded, DROP_EXTRA, forward=forward, patient=True)
+        steps += got
+        left = (state.mass[0] > 0.5) & movers
+        if not got or not (left.any() or stranded) or len(steps) >= budget:
+            break
+    return steps, state, left
+
+
+def _rebuild(one, start, rng, budget, cap):
+    """Guided walk from the goal B (the state `one`) back to the start A by taking apart and building
+    again, both sides by the swarm. K, the robots of A and B in common that hold themselves up, stays
+    where it is. B's other robots walk out to a heap (reverse time, as the natural take-apart: forward,
+    the part of B that changes is built from the heap, bottom up); A's other robots walk out of A forward
+    in time (_swarm forward) to the same heap cells (forward: the part of A that changes comes apart,
+    top down, onto the heap). Where the two heaps differ, a guided walk (take_apart without rebuild)
+    joins them. Robots that cannot get out shrink K round them (_unkeep, a local dig: radius 1, then
+    growing slowly) and both sides walk again. Returns (steps [(earlier mass, codes, kind)] in reverse
+    time from B, reached: the last earlier state is exactly A)."""
+    b_occ = one.mass[0] > 0.5
+    ab = start | b_occ
+    dist = distance_field(ab)
+    drop = lambda state, reserved: _drop_rank(state, ab, dist, cap)  # noqa: E731
+    keep = _kept(one, start & b_occ)
+    a_one = replace(one, mass=start.float().unsqueeze(0))
+    state, steps = one, []
+    for dig in range(REBUILD_DIGS + 1):
+        r = 1 + dig // 3
+        got, state, left = _walk_out(state, b_occ & ~keep, drop, rng, budget - len(steps), forward=False)
+        steps += [(m, c, "extract") for m, c in got]
+        if len(steps) >= budget:
+            return steps, False
+        if left.any():  # B's robots that cannot get out: dig round them
+            keep = _unkeep(one, keep, left, r)
+            continue
+        heap = (state.mass[0] > 0.5) & ~keep
+        order = _arrivals(one, steps, heap)
+        fwd, x_state, a_left = _walk_out(a_one, start & ~keep, _meet_rank(order, ab, dist, cap), rng, budget - len(steps), forward=True)
+        if a_left.any():
+            keep = _unkeep(one, keep, a_left, r)
+            continue
+        x = x_state.mass[0] > 0.5
+        h1 = state.mass[0] > 0.5
+        if not bool((x == h1).all()):  # A's robots that ended off the heap walk on (forward) to its cells still empty
+            more, x_state, _ = _walk_out(x_state, x & ~h1, _meet_rank(torch.where(h1 & ~x, order, torch.full_like(order, float("inf"))), ab, dist, 0), rng, budget - len(steps) - len(fwd), forward=True)
+            fwd += more
+            x = x_state.mass[0] > 0.5
+        join = []
+        if not bool((x == (state.mass[0] > 0.5)).all()):
+            room = budget - len(steps) - len(fwd)
+            if room <= 0:
+                return steps, False
+            sub = Goal("edit", "", replace(state, mass=state.mass.clone()), (state.mass[0] > 0.5) & ~x, start=x)
+            eps, _ = take_apart([sub], rng, max_steps=room, rebuild=False, patient=True)
+            ep = eps[0]
+            if ep.end not in ("reached", "hold"):
+                return steps, False
+            if ep.end == "reached":
+                join = [(ep.mass[t].float().unsqueeze(0), ep.actions[t].long().unsqueeze(0), "join") for t in range(ep.steps - 1, -1, -1)]
+        out = steps + join + [(m, c, "dismantle") for m, c in reversed(fwd)]
+        return out, len(out) <= budget
+    return steps, False
+
+
+# ---------------------------------------------------------------------------------------------
 # The walk backwards
 
 
@@ -1873,11 +2167,14 @@ def _ids_back(later_ids, earlier, codes):
     return ids, set(later_ids[t[moves, 0], t[moves, 1], t[moves, 2]].tolist())
 
 
-def take_apart(goals, rng, max_steps=None, candidates=CANDIDATES, scaffold=True):
+def take_apart(goals, rng, max_steps=None, candidates=CANDIDATES, scaffold=True, rebuild=True, patient=False):
     """Walk every goal backwards (module docstring) in one batch. Returns (episodes, stats): stats
     "proposed", "verified" and "accepted" are per-iteration counts of the joint greedy walk (lists);
     "backtracks" and "scaffolds" (attempts) per episode; "extract_calls" and "extract_ok" the
-    extractions tried and found."""
+    extractions tried and found; "rebuilds" per episode, 1 when _rebuild reached A. rebuild: guided
+    goals of more than REBUILD_ROBOTS robots walk through _rebuild (an episode it cannot finish ends
+    "stalled", with no steps); rebuild=False: the fill and digs of v3 for every guided goal.
+    patient: the guided fill's swarms are patient (_swarm; _rebuild's join walk sets it)."""
     world = W.concat([g.world for g in goals])
     b = len(goals)
     guided = torch.tensor([g.start is not None for g in goals])
@@ -1913,11 +2210,18 @@ def take_apart(goals, rng, max_steps=None, candidates=CANDIDATES, scaffold=True)
     dists_ab = [distance_field(starts[i] | targets[i] | (goals[i].world.mass[0] > 0.5)) if goals[i].start is not None else None for i in range(b)]
     digs = [0] * b
     spreads = [0] * b
+    levelled = [False] * b  # natural: the levelling swarm (_level_plan) has run
+    plans = [None] * b  # natural, dense (heap_cap above HEAP): the start's planned robots per column
+    for i, g in enumerate(goals):
+        if bands[i] is not None and caps[i] > HEAP:
+            plans[i] = _level_plan(world.index(i), targets[i], caps[i], bands[i], rng, unbiased=True)
+    plan_movers = [None if plans[i] is None else _plan_movers(targets[i], world.walls[i], plans[i], caps[i]) for i in range(b)]
     too_high = [(torch.arange(SIZE).view(SIZE, 1, 1) - ground(world.walls[i]).unsqueeze(0)) >= caps[i] for i in range(b)]  # cells above heap_cap
     deferred_new = [False] * b  # a dig just opened cells: the next fill keeps them for last
     closest = [int((starts[i] & ~(world.mass[i] > 0.5)).sum()) for i in range(b)]  # guided: fewest empty cells of A so far
     rising = [0] * b  # digs since the walk last came nearer A (the radius grows with it)
-    stats = {"proposed": [], "verified": [], "accepted": [], "backtracks": backtracks, "scaffolds": scaffolds, "digs": digs, "extract_calls": 0, "extract_ok": 0}
+    rebuilds = [0] * b
+    stats = {"proposed": [], "verified": [], "accepted": [], "backtracks": backtracks, "scaffolds": scaffolds, "digs": digs, "rebuilds": rebuilds, "extract_calls": 0, "extract_ok": 0}
 
     def commit(i, earlier_one, codes, kind):
         levels[i].append(level[i])
@@ -1941,6 +2245,19 @@ def take_apart(goals, rng, max_steps=None, candidates=CANDIDATES, scaffold=True)
                 ids[i].append(ids[i][-1])
             done[i], end[i] = True, "hold"
 
+    for i, g in enumerate(goals):  # big guided goals: take apart and build again (_rebuild)
+        if not rebuild or done[i] or g.start is None or robots[i] <= REBUILD_ROBOTS:
+            continue
+        planned, reached = _rebuild(world.index(i), starts[i], rng, limit[i], caps[i] + REBUILD_HEAP)
+        if not reached:  # no fallback: v3's fill and digs reached none of 8 such goals and spent up to 15 CPU minutes
+            done[i], end[i] = True, "stalled"
+            continue
+        for mass, codes_k, kind in planned:
+            commit(i, replace(world.index(i), mass=mass), codes_k, kind)
+        rebuilds[i] = 1
+        done[i] = True
+        end[i] = "reached" if bool(((world.mass[i] > 0.5) == starts[i]).all()) else "stalled"
+
     def finished(i):
         if goals[i].start is not None:
             return bool(((world.mass[i] > 0.5) == starts[i]).all())
@@ -1962,6 +2279,8 @@ def take_apart(goals, rng, max_steps=None, candidates=CANDIDATES, scaffold=True)
             occ_i = one.mass[0] > 0.5
             guided_i = goals[i].start is not None
             movers = ~starts[i] if guided_i else targets[i] | too_high[i]  # natural: the goal, and anything above a natural heap (helpers left where they held a part)
+            if plan_movers[i] is not None:  # dense: the goal's robots below the planned profile stay
+                movers = plan_movers[i]
             stranded[i] = {c for c in stranded[i] if bool(occ_i[c])}
             if not (occ_i & movers).any() and not stranded[i]:
                 phase[i] = "spread" if bands[i] is not None else "scatter"
@@ -1970,11 +2289,13 @@ def take_apart(goals, rng, max_steps=None, candidates=CANDIDATES, scaffold=True)
             budget = limit[i] - len(codes_of[i])
             if guided_i:
                 ranks = [_fill_rank(starts[i], enclosure[i], deferred[i]), _fill_rank(starts[i], enclosure[i], deferred[i], strict=False)]
+            elif plans[i] is not None:
+                ranks = [_plan_rank(plans[i], movers, targets[i], dists[i], caps[i])]
             else:
                 ranks = [lambda state, reserved, i=i: _drop_rank(state, targets[i], dists[i], caps[i])]
             steps = []
             for rank_of in ranks:  # guided: lowest layer of A first; when nothing moves, any empty cell of A
-                steps, _, stranded[i] = _swarm(one, movers, rank_of, rng, budget, stranded[i], RANK_EXTRA if guided_i else DROP_EXTRA)
+                steps, _, stranded[i] = _swarm(one, movers, rank_of, rng, budget, stranded[i], RANK_EXTRA if guided_i else DROP_EXTRA, first=plans[i] is not None, patient=plans[i] is not None or (patient and guided_i))
                 stats["extract_calls"] += 1
                 stats["extract_ok"] += bool(steps)
                 if steps:
@@ -1999,7 +2320,7 @@ def take_apart(goals, rng, max_steps=None, candidates=CANDIDATES, scaffold=True)
                 rising[i] += 1
                 if region.any():
                     ab = starts[i] | (goals[i].world.mass[0] > 0.5)
-                    steps, _, stranded[i] = _swarm(one, region, lambda state, reserved, ab=ab, i=i: _drop_rank(state, ab, dists_ab[i], caps[i]), rng, budget, stranded[i])
+                    steps, _, stranded[i] = _swarm(one, region, lambda state, reserved, ab=ab, i=i: _drop_rank(state, ab, dists_ab[i], caps[i]), rng, budget, stranded[i], patient=patient)
                     kind = "dig"
                     deferred[i] |= region
                     deferred_new[i] = True
@@ -2017,12 +2338,21 @@ def take_apart(goals, rng, max_steps=None, candidates=CANDIDATES, scaffold=True)
                 continue
             one = world.index(i)
             steps = []
-            if spreads[i] < MAX_SPREADS and not in_band(start_stats(one, targets[i : i + 1])[0], bands[i]):
-                spreads[i] += 1
-                movers = _spread_movers(one, targets[i], bands[i])
-                if movers.any():
-                    done_spreading = lambda state, i=i: in_band(start_stats(state, targets[i : i + 1])[0], bands[i])  # noqa: E731
-                    steps, _, _ = _swarm(one, movers, _spread_rank(targets[i], caps[i], bands[i]), rng, limit[i] - len(codes_of[i]), until=done_spreading, once=True)
+            done_spreading = lambda state, i=i: in_band(start_stats(state, targets[i : i + 1])[0], bands[i])  # noqa: E731
+            if not done_spreading(one):
+                if not levelled[i] and caps[i] > HEAP:  # dense (500+ robots on 16 x 16): walk toward the planned profile
+                    levelled[i] = True
+                    profile = plans[i] if plans[i] is not None else _level_plan(one, targets[i], caps[i], bands[i], rng)
+                    if profile is not None:
+                        movers = _level_movers(one, profile, caps[i])
+                        steps, _, _ = _swarm(one, movers, _level_rank(profile, caps[i]), rng, limit[i] - len(codes_of[i]), extra=DROP_EXTRA, until=done_spreading, once=True, first=True, patient=True)
+                    if not steps:
+                        continue
+                elif spreads[i] < MAX_SPREADS:
+                    spreads[i] += 1
+                    movers = _spread_movers(one, targets[i], bands[i])
+                    if movers.any():
+                        steps, _, _ = _swarm(one, movers, _spread_rank(targets[i], caps[i], bands[i]), rng, limit[i] - len(codes_of[i]), until=done_spreading, once=True)
             for mass, codes_k in steps:
                 commit(i, replace(world.index(i), mass=mass), codes_k, "spread")
             if not steps:

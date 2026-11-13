@@ -51,6 +51,7 @@ def main():
     parser.add_argument("--out", required=True)
     parser.add_argument("--per", type=int, default=2)
     parser.add_argument("--prefix", default="reverse3")
+    parser.add_argument("--min-robots", type=int, default=0, help="only the bins above this many robots (reverse-v4: 115)")
     args = parser.parse_args()
     font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", 13)
     by_id = {}
@@ -60,7 +61,7 @@ def main():
     saved = list(by_id.values())
     out = Path(args.out)
     cards = []
-    for lo, hi in BINS:
+    for lo, hi in [(lo, hi) for lo, hi in BINS if lo > args.min_robots]:
         pool = [s for s in saved if lo <= s["row"]["robots"] <= hi and s["row"]["ok"] and s["row"]["steps"] > R.HOLD_STEPS]
         pool.sort(key=lambda s: (not s["row"]["guided"], s["row"]["id"]))  # one guided (A to B) first when there is one
         picked = pool[:1] + [s for s in pool[1:] if s["row"]["guided"] != pool[0]["row"]["guided"]][:1] if pool else []

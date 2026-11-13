@@ -49,8 +49,9 @@ def load_impl(path):
     return module
 
 
-def draw(source, lo, hi, n, seed):
-    """[(id, kind, text, B cells, A cells or None, meta)] drawn from a source by robot count."""
+def draw(source, lo, hi, n, seed, libraries=V2_SOURCES):
+    """[(id, kind, text, B cells, A cells or None, meta)] drawn from a source by robot count (v2: the
+    libraries named, pooled)."""
     rng = np.random.default_rng(seed)
     if source == "gen_complex":  # kinds in turn (scene, edit, retarget, trick, in a drawn order), a random goal of each
         lines, cells, starts = C.load()
@@ -73,7 +74,7 @@ def draw(source, lo, hi, n, seed):
         pick = rng.choice(pool, size=min(n, len(pool)), replace=False).tolist()
         return [(lines[i]["id"], lines[i]["generator"], lines[i]["text"], cells[i], None, lines[i]) for i in pick]
     rows = []
-    for name in V2_SOURCES:
+    for name in libraries:
         lines, cells = G.load(name, root=V2_ROOT)
         rows += [(lines[i]["id"], name, lines[i]["text"], cells[i], None, lines[i]) for i in range(len(lines)) if lo <= len(cells[i]) <= hi]
     rows.sort(key=lambda r: r[0])
@@ -104,14 +105,16 @@ def main():
     parser.add_argument("--impl", default=None)
     parser.add_argument("--pick", type=int, nargs="*", default=None, help="only these positions of the draw")
     parser.add_argument("--save", default=None, help="directory: save each episode (torch) for pictures")
+    parser.add_argument("--libraries", default="v3", help="v2 source: v3 (V2_SOURCES, the six of reverse-v3.md) or all (every library in V2_ROOT, reverse-v4.md)")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
+    libraries = V2_SOURCES if args.libraries == "v3" else tuple(sorted(p.stem for p in V2_ROOT.glob("*.jsonl")))
     torch.set_num_threads(1)
     reverse = load_impl(args.impl)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     signal.signal(signal.SIGVTALRM, _alarm)
     with open(args.out, "w") as handle:
-        drawn = draw(args.source, args.lo, args.hi, args.n, args.seed)
+        drawn = draw(args.source, args.lo, args.hi, args.n, args.seed, libraries)
         for gid, kind, text, cells, start, meta in [drawn[k] for k in args.pick] if args.pick is not None else drawn:
             row = {"id": gid, "kind": kind, "source": args.source, "bin": f"{args.lo}-{args.hi}", "robots": int(len(cells)), "guided": start is not None, "text": text}
             goal = to_goal(reverse, args.source, cells, start, meta, text)
