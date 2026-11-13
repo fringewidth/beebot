@@ -10,7 +10,8 @@
 # or a resume.pt; empty for the LM as downloaded). Logs: logs/<name>.out (training, appended),
 # logs/basics-<name>.out and logs/basics-<name>.jsonl (per-episode rows, appended).
 #
-# NAME: the run; INIT, FRAME_DIRS, STEPS, SEGMENT_MINUTES: environment overrides.
+# NAME: the run; INIT, FRAME_DIRS, STEPS, SEGMENT_MINUTES: environment overrides. After each basics eval the
+# chain runs runs/<name>/extra_eval.sh <checkpoint> if that file exists and is executable (logs/extra-eval-<name>.out).
 
 set -u
 NAME=${1:?usage: scripts/mac_chain.sh <run name>}
@@ -55,6 +56,10 @@ while true; do
     say "basics on $checkpoint"
     $PY -m beebot.vla.voxel.basics --checkpoint $checkpoint --arms policy --device mps \
       --out logs/basics-$NAME.jsonl >> logs/basics-$NAME.out 2>&1
+  fi
+  if [[ -n $checkpoint && -x $RUN/extra_eval.sh ]]; then
+    say "extra eval on $checkpoint ($RUN/extra_eval.sh)"
+    $RUN/extra_eval.sh $checkpoint >> logs/extra-eval-$NAME.out 2>&1
   fi
   step=$(last_step)
   say "step $step"
