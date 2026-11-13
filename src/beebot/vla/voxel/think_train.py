@@ -50,6 +50,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
+from beebot.control import Control
 from beebot.train import parse_config
 from beebot.vla import tpu
 from beebot.vla.lm_train import distill_loss, general_text, setup_distributed
@@ -100,6 +101,8 @@ class ThinkConfig:
     val_every_minutes: float = 30.0
     save_every_minutes: float = 60.0
     save_resume: bool = True
+    control_url: str = ""  # a ntfy.sh topic URL (or $BEEBOT_CONTROL_URL): "stop" saves and exits, "save" saves and goes on (beebot.control); "" is off
+    control_every_minutes: float = 5.0
     prefetch: int = 4  # steps of examples made ahead by a background thread; 0: in the training loop
     device: str = "cuda"  # cuda, mps, cpu, or xla (a TPU through torch_xla)
     chips: int = 1  # xla: processes, one per TPU chip, data-parallel (torch_xla.launch)
@@ -217,7 +220,7 @@ def run(cfg=None, index=0):
 
     if lead:
         run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "config.json").write_text(json.dumps({**asdict(cfg), "world": world, "precision_used": precision}, indent=1))
+        (run_dir / "config.json").write_text(json.dumps({**asdict(cfg), "control_url": "set" if cfg.control_url else "", "world": world, "precision_used": precision}, indent=1))
     lm, tokenizer, image_processor = load_lm(cfg.model, {"fp32": torch.float32, "bf16": torch.bfloat16}[cfg.weights_dtype])
     teacher = None  # LoRA: the student with its adapters off is the original model
     if cfg.distill_weight > 0 and not cfg.lora_rank:
@@ -336,9 +339,11 @@ def run(cfg=None, index=0):
     window = {"loss": [], "text": [], "action": [], "distill_kl": []}
     counts = {"tokens": 0, "examples": 0, "wait": 0.0}
     t_window = time.time()
+    control = Control(cfg.control_url, cfg.control_every_minutes, log=stage) if lead else Control("")
     while True:
         elapsed = time.time() - t0 - paused
-        flags = [step >= cfg.steps or bool(cfg.minutes and elapsed >= cfg.minutes * 60) or bool(cfg.wall_minutes and time.time() - t_start >= cfg.wall_minutes * 60), elapsed >= next_val, elapsed >= next_save]
+        command = control.poll() if control.due() and (world == 1 or step % cfg.log_every == 0) else None  # several processes: at the steps they agree on
+        flags = [step >= cfg.steps or bool(cfg.minutes and elapsed >= cfg.minutes * 60) or bool(cfg.wall_minutes and time.time() - t_start >= cfg.wall_minutes * 60) or command == "stop", elapsed >= next_val, elapsed >= next_save or command == "save"]
         if world > 1 and xla:  # the processes agree at log steps only (a host sync); in between only the step count stops
             flags = tpu.xla_agree(flags, device) if step % cfg.log_every == 0 else [step >= cfg.steps, False, False]
         elif world > 1:  # process 0's clock for everyone
@@ -347,6 +352,8 @@ def run(cfg=None, index=0):
             flags = [bool(f) for f in clock.tolist()]
         stop, do_val, do_save = flags
         if stop:
+            if command == "stop":
+                stage("stopped by the control channel: final validation and checkpoint follow")
             break
         if do_val or do_save:
             t_pause = time.time()

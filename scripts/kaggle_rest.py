@@ -5,9 +5,11 @@ The token comes from $KAGGLE_CONFIG_DIR/access_token (default ~/.kaggle) and is 
     python scripts/kaggle_rest.py dataset-version OWNER SLUG FILE...     # replaces its files (old versions deleted:
                                                                          # never while a kernel that mounts it is queued)
     python scripts/kaggle_rest.py tpu-push OWNER SLUG KERNEL.py DATASET... # a private TPU v5e-8 script kernel, internet on
+    python scripts/kaggle_rest.py cpu-push OWNER SLUG KERNEL.py        # a private CPU-only script kernel (tests; no GPU quota)
     python scripts/kaggle_rest.py status OWNER SLUG
     python scripts/kaggle_rest.py logs OWNER SLUG [LINES]                # the session's log so far
     python scripts/kaggle_rest.py delete OWNER SLUG                      # also drops a queued session (no cancel by slug)
+    BEEBOT_CONTROL_RUN=NAME python scripts/kaggle_rest.py tpu-push ...   # also fills the kernel's __CONTROL_URL__ (see run_control.py)
     python scripts/kaggle_rest.py get PATH                               # GET https://www.kaggle.com/api/v1/PATH
     python scripts/kaggle_rest.py handoff SOURCE SLUG TARGET [RUN]       # the TPU run's second session (handoff below)
 
@@ -82,7 +84,25 @@ def dataset_version(owner, slug, files):
 
 
 def tpu_push(owner, slug, path, datasets):
-    body = {"slug": f"{owner}/{slug}", "newTitle": slug, "text": Path(path).read_text(), "language": "python", "kernelType": "script", "isPrivate": True, "enableGpu": False, "enableTpu": True, "enableInternet": True, "machineShape": "TpuV5E8", "datasetDataSources": [d if "/" in d else f"{owner}/{d}" for d in datasets], "kernelDataSources": [], "competitionDataSources": [], "modelDataSources": [], "categoryIds": []}
+    text = Path(path).read_text()
+    if os.environ.get("BEEBOT_CONTROL_RUN"):  # a control topic for the run (scripts/run_control.py), put in the pushed copy only
+        sys.path.insert(0, str(Path(__file__).parent))
+        import run_control
+
+        text = run_control.inject(text, os.environ["BEEBOT_CONTROL_RUN"])
+    body = {"slug": f"{owner}/{slug}", "newTitle": slug, "text": text, "language": "python", "kernelType": "script", "isPrivate": True, "enableGpu": False, "enableTpu": True, "enableInternet": True, "machineShape": "TpuV5E8", "datasetDataSources": [d if "/" in d else f"{owner}/{d}" for d in datasets], "kernelDataSources": [], "competitionDataSources": [], "modelDataSources": [], "categoryIds": []}
+    return call(f"{RPC}/SaveKernel", body)
+
+
+def cpu_push(owner, slug, path):
+    """A private CPU-only script kernel, internet on (no GPU or TPU quota): for testing the kill switch."""
+    text = Path(path).read_text()
+    if os.environ.get("BEEBOT_CONTROL_RUN"):
+        sys.path.insert(0, str(Path(__file__).parent))
+        import run_control
+
+        text = run_control.inject(text, os.environ["BEEBOT_CONTROL_RUN"])
+    body = {"slug": f"{owner}/{slug}", "newTitle": slug, "text": text, "language": "python", "kernelType": "script", "isPrivate": True, "enableGpu": False, "enableTpu": False, "enableInternet": True, "datasetDataSources": [], "kernelDataSources": [], "competitionDataSources": [], "modelDataSources": [], "categoryIds": []}
     return call(f"{RPC}/SaveKernel", body)
 
 
@@ -196,6 +216,7 @@ def main():
     out = {
         "dataset-create": lambda: dataset_create(args[0], args[1], args[2:]),
         "dataset-version": lambda: dataset_version(args[0], args[1], args[2:]),
+        "cpu-push": lambda: cpu_push(args[0], args[1], args[2]),
         "tpu-push": lambda: tpu_push(args[0], args[1], args[2], args[3:]),
         "status": lambda: call(f"{RPC}/GetKernelSessionStatus", {"userName": args[0], "kernelSlug": args[1]}),
         "delete": lambda: call(f"{RPC}/DeleteKernel", {"userName": args[0], "kernelSlug": args[1]}),

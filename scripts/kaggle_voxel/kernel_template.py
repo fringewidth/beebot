@@ -18,6 +18,8 @@ RUNS = __RUNS__  # [[arg, ...], ...], one list of voxel.lm arguments per GPU
 EPISODES = __EPISODES__  # scripted play episodes to generate (runs may train on a prefix: --episodes N)
 DEMO_SCENES = __DEMO_SCENES__  # scenes of expert demonstrations of the suite (voxel/demos.py); 0 for none
 
+CONTROL_URL = "__CONTROL_URL__"  # filled in at push time (scripts/run_control.py): the run's private ntfy topic; never printed
+os.environ["BEEBOT_CONTROL_URL"] = CONTROL_URL  # think_train reads it (beebot.control); an unfilled placeholder means off
 T_KERNEL = time.time()
 KERNEL_MINUTES = 705  # Kaggle stops a session at 12 h; leave a margin
 FINAL_MINUTES = 30  # the last scorecard and checkpoint after training stops

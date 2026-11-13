@@ -32,6 +32,8 @@ import tarfile
 import threading
 import time
 
+CONTROL_URL = "__CONTROL_URL__"  # filled in at push time (scripts/run_control.py): the run's private ntfy topic; never printed
+os.environ["BEEBOT_CONTROL_URL"] = CONTROL_URL  # think_train reads it (beebot.control); an unfilled placeholder means off
 T0 = float(os.environ.get("BEEBOT_T0", time.time()))  # the session's start, kept across the re-exec below
 # "first": timing gate, then the real run from the pretrained LM, its cosine schedule sized for two
 # sessions. "second" (another account, pushed by scripts/kaggle_rest.py handoff): no timing, the
