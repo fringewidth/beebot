@@ -1,6 +1,7 @@
 """Convert a downloaded source into the goal library (data/goal_library/<source>.{npz,jsonl}).
 
     nice -n 10 .venv/bin/python scripts/goals_convert.py stabletext2brick [--limit N] [--procs 3]
+        [--max-cells 800] [--keep-targets 100 250 500 800] [--out data/goal_library]
 
 Sources: stabletext2brick, hack337, craftassist_houses, craftassist_parts, iglu_multiturn, iglu_single.
 Raw files are read from data/goal_sources/ (never committed). One JSON progress line per ~2000 items and a
@@ -185,14 +186,14 @@ SOURCE_TABLE = {
 
 
 def work(args):
-    name, task = args
+    name, task, keep, max_cells = args
     try:
         items = SOURCE_TABLE[name][1](task)
     except Exception as error:  # a malformed raw file is counted, not fatal
         return {"error": f"{type(error).__name__}: {error}"[:120]}
     results = []
     for item in items:
-        goals, tally = G.process(item)
+        goals, tally = G.process(item, keep=keep, max_cells=max_cells)
         meta = {"item": item, "goals": goals, "tally": tally}
         item.vox = None  # the raw voxels stay in the worker
         results.append(meta)
@@ -204,7 +205,12 @@ def main():
     parser.add_argument("source", choices=sorted(SOURCE_TABLE))
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--procs", type=int, default=3)
+    parser.add_argument("--max-cells", type=int, default=G.MAX_CELLS)
+    parser.add_argument("--keep-targets", type=int, nargs="+", default=list(G.KEEP_TARGETS))
+    parser.add_argument("--out", default=str(G.LIBRARY))
     args = parser.parse_args()
+    keep = tuple(args.keep_targets)
+    out_root = Path(args.out)
     name = args.source
     ARGS_LIMIT[0] = args.limit
     started = time.time()
@@ -221,7 +227,7 @@ def main():
         for i, task in enumerate(SOURCE_TABLE[name][0]()):
             if args.limit and i >= args.limit:
                 break
-            yield (name, task)
+            yield (name, task, keep, args.max_cells)
 
     with Pool(args.procs) as pool:
         for n, out in enumerate(pool.imap(work, tasks(), chunksize=8), 1):
@@ -248,9 +254,9 @@ def main():
                     accepted_kind[item.kind] += 1
             if n % 2000 == 0:
                 log({"source": name, "structures": stats["structures"], "candidates": stats["candidates"], "accepted": len(lines)})
-    G.save(name, lines, cell_lists)
+    G.save(name, lines, cell_lists, root=out_root)
     counts = [line["cells"] for line in lines]
-    size = sum(os.path.getsize(f"data/goal_library/{name}.{ext}") for ext in ("npz", "jsonl"))
+    size = sum(os.path.getsize(out_root / f"{name}.{ext}") for ext in ("npz", "jsonl"))
     summary = {
         "source": name,
         "structures": stats["structures"],
