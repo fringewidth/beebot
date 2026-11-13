@@ -186,14 +186,14 @@ SOURCE_TABLE = {
 
 
 def work(args):
-    name, task, keep, max_cells = args
+    name, task, keep, max_cells, tolerance = args
     try:
         items = SOURCE_TABLE[name][1](task)
     except Exception as error:  # a malformed raw file is counted, not fatal
         return {"error": f"{type(error).__name__}: {error}"[:120]}
     results = []
     for item in items:
-        goals, tally = G.process(item, keep=keep, max_cells=max_cells)
+        goals, tally = G.process(item, keep=keep, max_cells=max_cells, tolerance=tolerance)
         meta = {"item": item, "goals": goals, "tally": tally}
         item.vox = None  # the raw voxels stay in the worker
         results.append(meta)
@@ -208,6 +208,7 @@ def main():
     parser.add_argument("--max-cells", type=int, default=G.MAX_CELLS)
     parser.add_argument("--keep-targets", type=int, nargs="+", default=list(G.KEEP_TARGETS))
     parser.add_argument("--out", default=str(G.LIBRARY))
+    parser.add_argument("--tolerance", type=float, default=None, help="skip a keep target when no scale has a count within this factor of it")
     args = parser.parse_args()
     keep = tuple(args.keep_targets)
     out_root = Path(args.out)
@@ -227,7 +228,7 @@ def main():
         for i, task in enumerate(SOURCE_TABLE[name][0]()):
             if args.limit and i >= args.limit:
                 break
-            yield (name, task, keep, args.max_cells)
+            yield (name, task, keep, args.max_cells, args.tolerance)
 
     with Pool(args.procs) as pool:
         for n, out in enumerate(pool.imap(work, tasks(), chunksize=8), 1):

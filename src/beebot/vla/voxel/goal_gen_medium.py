@@ -40,6 +40,11 @@ def chance(rng, p=0.5):
     return bool(rng.random() < p)
 
 
+def wide(rng, lo, hi):
+    """Integer in [lo, hi], log-uniform: sizes up to nine (texts state counts only below ten) with small ones common."""
+    return int(round(float(np.exp(rng.uniform(np.log(lo - 0.5), np.log(hi + 0.5))))))
+
+
 def between(rng, lo, hi):
     """Integer in [lo, hi] inclusive."""
     return int(rng.integers(lo, hi + 1))
@@ -183,7 +188,7 @@ def overhang_stats(cells):
 
 def house(rng):
     T = Turn(rng)
-    w, d, h = between(rng, 4, 6), between(rng, 4, 6), between(rng, 2, 3)
+    w, d, h = wide(rng, 4, 9), wide(rng, 4, 9), wide(rng, 2, 5)
     cells = set()
     ring(cells, 0, h, 0, d, 0, w)
     side = pick(rng, [FRONT, BACK, LEFT, RIGHT])
@@ -198,7 +203,7 @@ def house(rng):
     for c in door:
         cells.discard(c)
     window = None
-    if h == 3 and chance(rng, 0.6):
+    if h >= 3 and chance(rng, 0.6):
         wside = pick(rng, [s for s in (FRONT, BACK, LEFT, RIGHT) if s != side])
         if wside in (FRONT, BACK):
             cells.discard((1, d - 1 if wside == FRONT else 0, between(rng, 1, w - 2)))
@@ -242,7 +247,7 @@ def house(rng):
 
 def window_wall(rng):
     T = Turn(rng)
-    length, height = between(rng, 5, 9), between(rng, 4, 6)
+    length, height = wide(rng, 5, 9), wide(rng, 4, 9)
     ww, wh = between(rng, 1, 2), between(rng, 1, 2)
     n = between(rng, 1, min(3, (length - 1) // (ww + 1)))
     z0 = between(rng, 1, height - 1 - wh)
@@ -304,7 +309,7 @@ def gateway(rng):
 
 def bench(rng):
     T = Turn(rng)
-    length, depth, legs = between(rng, 4, 7), between(rng, 1, 2), between(rng, 1, 2)
+    length, depth, legs = wide(rng, 4, 9), wide(rng, 1, 4), between(rng, 1, 3)
     back = chance(rng, 0.6)
     arms = chance(rng, 0.3)
     cells = set()
@@ -332,7 +337,7 @@ def bench(rng):
 
 def sofa(rng):
     T = Turn(rng)
-    w, d = between(rng, 4, 6), between(rng, 2, 3)
+    w, d = wide(rng, 4, 9), wide(rng, 2, 5)
     arm_h = between(rng, 2, 3)
     back_h = between(rng, 3, 4)
     cells = set()
@@ -354,7 +359,7 @@ def sofa(rng):
 
 def bed(rng):
     T = Turn(rng)
-    length, width = between(rng, 6, 8), between(rng, 3, 4)
+    length, width = wide(rng, 6, 9), wide(rng, 3, 6)
     foot = chance(rng, 0.6)
     pillow = chance(rng, 0.7)
     cells = set()
@@ -382,7 +387,7 @@ def bed(rng):
 
 def bookcase(rng):
     T = Turn(rng)
-    w, h, d = between(rng, 4, 6), between(rng, 4, 7), between(rng, 2, 3)
+    w, h, d = wide(rng, 4, 9), wide(rng, 4, 9), wide(rng, 2, 6)
     back = chance(rng, 0.3)
     cells = set()
     box(cells, 0, h, 0, d, 0, 1)
@@ -1179,6 +1184,7 @@ def main():
     parser.add_argument("--n", type=int, default=20000)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out-name", default="gen_medium")
+    parser.add_argument("--out-root", default=str(G.LIBRARY))
     parser.add_argument("--render-dir", default=None)
     parser.add_argument("--measure", type=int, default=0, help="draws per generator to measure instead of writing")
     args = parser.parse_args()
@@ -1203,7 +1209,7 @@ def main():
             }
         )
         cell_lists.append(cells.astype(np.uint8))
-    G.save(args.out_name, lines, cell_lists)
+    G.save(args.out_name, lines, cell_lists, root=args.out_root)
     counts = {}
     for item in items:
         counts[item["generator"]] = counts.get(item["generator"], 0) + 1

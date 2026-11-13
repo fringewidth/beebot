@@ -29,7 +29,7 @@ Categories:
    says so), already satisfied requests (no change), negation ("anything except a tower"), false premises ("take
    the roof off" a house without one), conditionals. Each records the right end state and the reply to say.
 
-Every state passes: 4-800 robots inside the 16^3 world, every robot face-connected to the floor
+Every state passes: 4-256 robots inside the 16^3 world, every robot face-connected to the floor
 (goal_library.grounded) and at rest (reverse.fixed_point). Parts may be scaled (each cell of the shape an s x s x s
 block of robots, s = 2 or 3) because big builds read better; a scaled part is worded without counts. Overhang and
 unsupported span are recorded (not filtered beyond MAX_OVERHANG / MAX_SPAN times the scale) for the joint-strength
@@ -66,7 +66,7 @@ SIZE = 16
 SOURCE = "gen_complex"
 MAX_OVERHANG = 4  # per unit of scale
 MAX_SPAN = 4
-MAX_ROBOTS = 800  # end states up to 800 robots where a bigger build reads better (manager, 2026-11-13)
+MAX_ROBOTS = G.MAX_CELLS  # end states and starts up to the goal library cap (256 robots, user, 2026-11-13)
 ROW = 14  # parked robots per row along an edge (positions 1-14)
 MAX_ROWS = 3
 FACING = ("front", "left", "back", "right")  # where a part's front points after k quarter turns
@@ -2408,13 +2408,17 @@ def save(goals, name=SOURCE, root=G.LIBRARY):
     return lines
 
 
-def load(name=SOURCE, root=G.LIBRARY):
-    """(meta lines, B cell arrays, A cell arrays or None)."""
-    lines, cells = G.load(name, root)
+def load(name=SOURCE, root=G.LIBRARY, max_cells=G.MAX_CELLS):
+    """(meta lines, B cell arrays, A cell arrays or None). Goals whose B or A holds more than `max_cells`
+    cells are dropped (None keeps all)."""
+    lines, cells = G.load(name, root, max_cells=None)
     data = np.load(Path(root) / f"{name}_start.npz")
     offsets, flat = data["starts"], data["cells"]
     starts = [flat[offsets[i] : offsets[i + 1]] if line["has_start"] else None for i, line in enumerate(lines)]
-    return lines, cells, starts
+    if max_cells is None:
+        return lines, cells, starts
+    keep = [i for i in range(len(lines)) if len(cells[i]) <= max_cells and (starts[i] is None or len(starts[i]) <= max_cells)]
+    return [lines[i] for i in keep], [cells[i] for i in keep], [starts[i] for i in keep]
 
 
 GREY, FILL, EMPTY, PARK = (70, 80, 95), (230, 120, 40), (90, 160, 230), (150, 150, 150)

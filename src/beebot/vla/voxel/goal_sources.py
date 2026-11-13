@@ -72,7 +72,7 @@ def colour_cells(rgb, occupied, found, scale):
     return np.rint(colour).astype(np.uint8)
 
 
-def coloured_variants(rgb, occupied, rng, keep=None, rotations=2, max_cells=None):
+def coloured_variants(rgb, occupied, rng, keep=None, rotations=2, max_cells=None, tolerance=None):
     """Like goal_library.variants(search=True) but each result also has per-cell colours.
 
     rgb: (z, y, x, 3) uint8, occupied: (z, y, x) bool, same shape. Returns ([(scale, rot, vox, colours)], tally)
@@ -100,6 +100,8 @@ def coloured_variants(rgb, occupied, rng, keep=None, rotations=2, max_cells=None
         if not pool:
             break
         best = min(pool, key=lambda it: abs(int(it[1].sum()) - target))
+        if tolerance is not None and not target / tolerance <= int(best[1].sum()) <= target * tolerance:
+            continue
         chosen.setdefault(round(best[0], 4), best)
     out = []
     for scale, scaled, found in chosen.values():
@@ -146,13 +148,14 @@ def save_coloured(name, lines, cell_lists, rgb_lists, root):
             handle.write(json.dumps(line) + "\n")
 
 
-def load_rgb(name, root):
-    """List of (n, 3) uint8 colours per goal, or None when the source has no colours."""
+def load_rgb(name, root, max_cells=G.MAX_CELLS):
+    """List of (n, 3) uint8 colours per goal, or None when the source has no colours. Goals with more than
+    `max_cells` cells are dropped (None keeps all), matching goal_library.load."""
     data = np.load(Path(root) / f"{name}.npz")
     if "rgb" not in data.files:
         return None
     starts, rgb = data["starts"], data["rgb"]
-    return [rgb[starts[i] : starts[i + 1]] for i in range(len(starts) - 1)]
+    return [rgb[starts[i] : starts[i + 1]] for i in range(len(starts) - 1) if max_cells is None or starts[i + 1] - starts[i] <= max_cells]
 
 
 def cell_colours(vox, paint):
