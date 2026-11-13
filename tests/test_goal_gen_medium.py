@@ -20,7 +20,7 @@ def test_generator_valid(name):
     assert len(got) >= 20
     for cells, text, params in got:
         assert cells.shape[1] == 3
-        assert 4 <= len(cells) <= 115
+        assert G.MIN_CELLS <= len(cells) <= G.MAX_CELLS
         assert cells.min() == 0 or cells[:, 0].min() == 0
         assert (cells.max(axis=0) < 16).all()
         assert G.grounded(G.cells_to_vox(cells))
