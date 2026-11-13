@@ -65,6 +65,7 @@ it, so the trainer never waits after the first episode. workers=0 generates in t
 measurements): a new episode on a draw with probability 1 / reuse.
 """
 
+import functools
 import hashlib
 import json
 import os
@@ -877,7 +878,10 @@ class LiveEpisode:
 
     def world(self, t):
         mass = torch.from_numpy(self.occupancy(t)).float().unsqueeze(0)
-        return replace(self.row["world"], mass=mass, cheese_pos=self.row["cheese_pos"][t].unsqueeze(0), cheese_alive=self.row["cheese_alive"][t].unsqueeze(0))
+        stuck = None
+        if self.row.get("stuck") is not None:  # randomize.py: robots that never act again
+            stuck = torch.from_numpy(np.unpackbits(self.row["stuck"][t])[: SIZE**3].reshape(1, SIZE, SIZE, SIZE).astype(bool))
+        return replace(self.row["world"], mass=mass, cheese_pos=self.row["cheese_pos"][t].unsqueeze(0), cheese_alive=self.row["cheese_alive"][t].unsqueeze(0), stuck=stuck)
 
     def observation(self, t, channels=N_CHANNELS):
         return W.observe(self.world(t), channels)[0]
@@ -890,17 +894,20 @@ class LiveEpisode:
         return R.Episode(family=self.meta["family"], text="", world=self.world(0), mass=frames, cheese_pos=self.row["cheese_pos"], cheese_alive=self.row["cheese_alive"], actions=actions, natural=True, end=self.meta["end"], goal=goal)
 
 
-def generate(seed, families=FAMILIES, weights=None, tries=TRIES, replay=False, max_steps=None, robots=None):
+def generate(seed, families=FAMILIES, weights=None, tries=TRIES, replay=False, max_steps=None, robots=None, physics=None):
     """One live episode (pack's dict) of a family drawn from `families` (by `weights`), or None
     when `tries` draws give none that reaches its start and passes its check. Every step is
     verified by take_apart; replay=True also plays it forward with world.step (slower; the tests
-    and measurements do); robots (low, high) narrows the robot count's draw. Also returns
+    and measurements do); robots (low, high) narrows the robot count's draw; physics: a
+    randomize.Randomization (or its keyword dict): the episode is then executed under a physics draw
+    and re-planned after failures (randomize.py), and a draw whose episode does not reach its goal
+    is dropped (fails["physics: ..."]) and drawn again. Also returns
     {"family", "tries", "fails": {reason: count}, "cpu"}."""
     if robots is not None:
         saved = list(_RANGE)
         _RANGE[:] = robots
         try:
-            return generate(seed, families, weights, tries, replay, max_steps)
+            return generate(seed, families, weights, tries, replay, max_steps, physics=physics)
         finally:
             _RANGE[:] = saved
     rng = np.random.default_rng(seed)
@@ -929,7 +936,18 @@ def generate(seed, families=FAMILIES, weights=None, tries=TRIES, replay=False, m
         if replay and not bool(R.replay([ep])["passed"][0]):
             fails["replay"] = fails.get("replay", 0) + 1
             continue
-        return pack(ep, draw, seed, k + 1, cpu), {"family": family, "tries": k + 1, "fails": fails, "cpu": cpu}
+        row = pack(ep, draw, seed, k + 1, cpu)
+        if physics is not None:
+            from beebot.vla.voxel import randomize as DR
+
+            rand = DR.Randomization(**physics) if isinstance(physics, dict) else physics
+            why = {}
+            row = DR.randomize_row(row, rand, int(seed) * 31 + k, stats=why)
+            if row is None:
+                reason = "physics: " + why.get("dropped", "dropped")
+                fails[reason] = fails.get(reason, 0) + 1
+                continue
+        return row, {"family": family, "tries": k + 1, "fails": fails, "cpu": time.process_time() - t0}
     return None, {"family": family, "tries": tries, "fails": fails, "cpu": time.process_time() - t0}
 
 
@@ -1106,6 +1124,20 @@ class Texts:
 # Examples for ThinkData
 
 
+def _placed(views, jitter):
+    """views drawing robots with `jitter` (views.Placement; None: views as it is)."""
+    if jitter is None:
+        return views
+    from beebot.vla.voxel.views import placement
+
+    @functools.wraps(views)  # keeps the signature takes_side reads
+    def wrapped(obs, rng, *args, **kw):
+        with placement(jitter):
+            return views(obs, rng, *args, **kw)
+
+    return wrapped
+
+
 @dataclass
 class LiveExample(T.Example):
     live: str = ""  # the live family
@@ -1125,8 +1157,8 @@ def _worker_init(nice):
 def _generate_job(args):
     """generate in a worker; the episode comes back as pickled bytes (tensors by value, not through
     torch's shared-memory file handles, which a long run would pile up)."""
-    seed, families, weights, max_steps, robots = args
-    row, info = generate(seed, families, weights, max_steps=max_steps, robots=robots)
+    seed, families, weights, max_steps, robots, physics = args
+    row, info = generate(seed, families, weights, max_steps=max_steps, robots=robots, physics=physics)
     return (pickle.dumps(row) if row is not None else None), info
 
 
@@ -1140,9 +1172,13 @@ class Live:
               episode with probability 1 / reuse (else it reuses one of the cache)
     held      episodes of the fixed validation set (generated from held_seed on first use)
     robots    (low, high): the robot counts drawn (default the stores' 6-115, log-uniform)
+    physics   None (default): nominal episodes. A dict of randomize.Randomization's fields (strength,
+              failure, weak, broken, drop, late, placement): each episode gets its own physics draw,
+              is executed and re-planned under it, and renders its robots off the grid (placement);
+              episodes that do not reach their goal are dropped and drawn again
     """
 
-    def __init__(self, data=None, share=0.1, families=FAMILIES, weights=None, workers=0, cache=64, reuse=8, held=16, held_seed=10**6, thought_share=1 / 3, haiku_dirs=HAIKU_DIRS, root=None, template_share=TEMPLATE_SHARE, channels=None, system=None, nice=10, max_steps=None, robots=None):
+    def __init__(self, data=None, share=0.1, families=FAMILIES, weights=None, workers=0, cache=64, reuse=8, held=16, held_seed=10**6, thought_share=1 / 3, haiku_dirs=HAIKU_DIRS, root=None, template_share=TEMPLATE_SHARE, channels=None, system=None, nice=10, max_steps=None, robots=None, physics=None):
         unknown = set(families) - set(FAMILIES)
         if unknown:
             raise ValueError(f"unknown live families {sorted(unknown)}; families are {FAMILIES}")
@@ -1164,6 +1200,7 @@ class Live:
         self.nice = nice
         self.max_steps = max_steps
         self.robots = tuple(robots) if robots else None
+        self.physics = physics  # randomize.Randomization keyword dict, None: nominal episodes (the default)
         self.counts = {}
         self.generated, self.drawn = 0, 0
         self.failed = {}
@@ -1197,7 +1234,7 @@ class Live:
                 with self.lock:
                     self.outstanding += 1
                 seed = int(self.seeds.integers(2**62))
-                self.pool.apply_async(_generate_job, ((seed, self.families, self.weights, self.max_steps, self.robots),), callback=self._add, error_callback=lambda e: self._add((None, {"family": f"error: {e!r}"[:80]})))
+                self.pool.apply_async(_generate_job, ((seed, self.families, self.weights, self.max_steps, self.robots, self.physics),), callback=self._add, error_callback=lambda e: self._add((None, {"family": f"error: {e!r}"[:80]})))
             else:
                 time.sleep(0.05)
 
@@ -1220,7 +1257,7 @@ class Live:
 
     def _make(self, rng):
         for _ in range(4):
-            row, info = generate(int(rng.integers(2**62)), self.families, self.weights, max_steps=self.max_steps, robots=self.robots)
+            row, info = generate(int(rng.integers(2**62)), self.families, self.weights, max_steps=self.max_steps, robots=self.robots, physics=self.physics)
             if row is not None:
                 self.generated += 1
                 return LiveEpisode(row)
@@ -1244,7 +1281,7 @@ class Live:
         """The fixed validation episodes (held_count of them, from held_seed)."""
         if self.held is None:
             rng = np.random.default_rng(self.held_seed)
-            jobs = [(int(rng.integers(2**62)), self.families, self.weights, self.max_steps, self.robots) for _ in range(self.held_count * 2)]
+            jobs = [(int(rng.integers(2**62)), self.families, self.weights, self.max_steps, self.robots, self.physics) for _ in range(self.held_count * 2)]
             if self.workers > 0:  # the same episodes as in the caller, made by the workers
                 self.start(self.held_seed)
                 results = self.pool.imap(_generate_job, jobs)
@@ -1285,6 +1322,12 @@ class Live:
         t = 0 if ep.steps == 0 or rng.random() < self.thought_share else int(rng.integers(1, ep.steps + 1))
         instruction, thought, rung = self.texts.words(ep.meta, rng)
         obs = ep.observation(t, self.channels)
+        jitter = None
+        if ep.meta.get("placement"):
+            from beebot.vla.voxel.randomize import placement_of
+
+            jitter = placement_of(ep.meta, t)
+        views = _placed(views, jitter)
         sayable = T.mappable(instruction) and T.mappable(thought)
         if sayable:
             images, azimuth = T.views_and_pose(views(obs, rng))
