@@ -50,6 +50,10 @@ ThinkData(stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1/3, haiku_s
                 arguments ({"dirs": [ground stores], "shares": {"goal_image": 0.05, "point": 0.05,
                 "views": 0.05, "predict": 0.05}}): that share of sample() and validation() examples
                 are grounding kinds (think_ground.py, runs/handoff/grounding-formats.md)
+  live          None (default): no live examples. A dict of reverse_live.Live's keyword arguments
+                ({"share": 0.2, "workers": 4, "families": [...]}): that share of sample() and
+                validation() examples are basic tasks generated live by reversal (reverse_live.py,
+                runs/handoff/reverse-loader.md), a new random world and walk per episode
 
 .sample(rng: numpy.random.Generator) -> Example        (training episodes only)
 .validation(n, seed=0) -> list[Example]                (fixed: held-out episodes, same sampler)
@@ -984,7 +988,7 @@ def label_options(directory):
 
 
 class ThinkData:
-    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=(), overfit=0, intended=False, ground=None):
+    def __init__(self, stores, haiku_dirs, tokenizer=None, seed=0, thought_share=1 / 3, haiku_share=None, refusal_share=0.05, held_share=0.05, channels=N_CHANNELS, system=None, views=stand_in_views, validation_views=None, mismatch="raise", mix=None, quarantine=None, frame_dirs=(), overfit=0, intended=False, ground=None, live=None):
         if tokenizer is not None:
             check_tokens(tokenizer)
         self.seed = seed
@@ -1069,6 +1073,13 @@ class ThinkData:
             from beebot.vla.voxel.think_ground import Grounding
 
             self.ground = Grounding(self, **ground)
+        # live: reverse_live.Live's keyword arguments: basic tasks made by reversal as they are
+        # drawn (a new world per episode); None (the default) leaves every example as it was
+        self.live = None
+        if live:
+            from beebot.vla.voxel.reverse_live import Live
+
+            self.live = Live(self, **live)
         self.overfit_set = []
         if overfit:
             framed = [ep for ep in self.train if ep.choices and "camera" in ep.choices[0]]
@@ -1327,6 +1338,10 @@ class ThinkData:
             example = self.ground.maybe(rng, held=pool is self.held_pool)
             if example is not None:
                 return example
+        if self.live is not None:  # opt-in live reverse examples (reverse_live.py); none by default
+            example = self.live.maybe(rng, held=pool is self.held_pool, views=views)
+            if example is not None:
+                return example
         if pool.refusing and self.refusal_share and rng.random() < self.refusal_share:
             ep = pool.pick(pool.refusing, rng)
             return self.refusal(ep, ep.refusals[int(rng.integers(len(ep.refusals)))], rng, views)
@@ -1388,6 +1403,8 @@ class ThinkData:
         out["per_store_haiku"] = {path: sum(ep.store == k and ep.labelled for ep in self.episodes) for k, path in enumerate(self.stores)}
         if self.ground is not None:
             out["ground"] = {"episodes": len(self.ground.episodes), "drawn": dict(self.ground.counts)}
+        if self.live is not None:
+            out["live"] = self.live.summary()
         return out
 
 
