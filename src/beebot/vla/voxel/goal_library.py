@@ -28,9 +28,9 @@ import numpy as np
 
 SIZE = 16
 MIN_CELLS = 4
-MAX_CELLS = 115
+MAX_CELLS = 800
 SCALES = tuple(2.0 ** (-k / 2) for k in range(-3, 13))  # 2.83 ... 0.0156 in steps of sqrt(2)
-KEEP_TARGETS = (100, 45, 15)  # per item, the accepted scale whose cell count is closest to each of these
+KEEP_TARGETS = (100, 250, 500, 800)  # per item, the accepted scale whose cell count is closest to each of these
 THRESHOLD = 0.3  # a coarse voxel is filled if this share of the source voxels under it are
 CROPS_PER_STRUCTURE = 2
 LIBRARY = Path("data/goal_library")
@@ -108,7 +108,7 @@ def connected(vox):
     return bool((flood(first, vox) == vox).all())
 
 
-def histogram(counts, edges=(4, 8, 16, 24, 32, 48, 64, 80, 100, 116)):
+def histogram(counts, edges=(4, 8, 16, 24, 32, 48, 64, 80, 100, 116, 251, 501, 801)):
     """{"lo-hi": n} cell-count histogram over [edges[i], edges[i + 1])."""
     out = {}
     for lo, hi in zip(edges[:-1], edges[1:]):
@@ -137,36 +137,232 @@ class Item:
         return f"{self.source}/{self.source_id}/{self.kind}/{self.label}"
 
 
-def variants(vox, rng, keep=KEEP_TARGETS, rotations=2):
+THRESHOLDS = (0.15, 0.3, 0.5)  # fill thresholds tried per scale by the search
+PHASES = (0.0, 1 / 3, 2 / 3)  # sub-cell shifts (share of a coarse cell, in y and x) tried per scale
+WEIGHT_SOFT = 0.5  # weight of the soft 3D agreement next to the projection IoU in the search objective
+
+
+def _grid(shape, out, pads):
+    """Bin edges per axis for cutting a (shape) source into about `out` coarse cells, with `pads` empty source
+    voxels prepended per axis (the sampling grid's phase)."""
+    edges = []
+    for s, n, p in zip(shape, out, pads):
+        c = s / n
+        length = s + p
+        m = int(np.ceil(length / c - 1e-9))
+        e = np.minimum(np.floor(np.arange(m + 1) * c).astype(int), length)
+        e[-1] = length
+        edges.append(np.unique(e))
+    return edges
+
+
+def _sum(arr, pads, edges):
+    """Sum of `arr` (padded low side by `pads`) inside each bin, and the bin volumes."""
+    total = np.pad(arr.astype(np.float32), [(p, 0) for p in pads])
+    volume = np.ones([len(e) - 1 for e in edges], dtype=np.float32)
+    for axis in range(3):
+        total = np.add.reduceat(total, edges[axis][:-1], axis=axis)
+        size = np.diff(edges[axis]).astype(np.float32)
+        volume = volume * size.reshape([-1 if a == axis else 1 for a in range(3)])
+    return total, volume
+
+
+def repair(mask, fill):
+    """Connect floating parts of `mask` to the floor through coarse cells that hold some source voxels (the
+    cheapest path in 1 - fill): a leg, a post or a rail that the threshold dropped. Only cells with fill > 0 are
+    added, so hollow interiors stay hollow. Returns the mask (still floating where no path exists)."""
+    import heapq
+
+    shape = mask.shape
+    allowed = (fill > 0) | mask
+    seed = np.zeros_like(mask)
+    seed[0] = mask[0]
+    ground = flood(seed, mask)
+    if bool((ground == mask).all()):
+        return mask
+    flat_allowed = allowed.ravel()
+    flat_fill = fill.ravel()
+    flat_mask = mask.ravel()
+    flat_ground = ground.ravel()
+    size = flat_allowed.size
+    dist = np.full(size, np.inf)
+    parent = np.full(size, -1, dtype=np.int64)
+    heap = []
+    plane = shape[1] * shape[2]
+    for i in np.nonzero(flat_ground)[0].tolist():
+        dist[i] = 0.0
+        heap.append((0.0, i))
+    for i in range(plane):
+        if flat_allowed[i] and not flat_mask[i]:
+            cost = 1.05 - float(flat_fill[i])
+            dist[i] = cost
+            heap.append((cost, i))
+    heapq.heapify(heap)
+    h, w = shape[1], shape[2]
+    while heap:
+        d, i = heapq.heappop(heap)
+        if d > dist[i]:
+            continue
+        z, r = divmod(i, plane)
+        y, x = divmod(r, w)
+        for dz, dy, dx in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)):
+            nz, ny, nx = z + dz, y + dy, x + dx
+            if nz < 0 or ny < 0 or nx < 0 or nz >= shape[0] or ny >= h or nx >= w:
+                continue
+            j = (nz * h + ny) * w + nx
+            if not flat_allowed[j]:
+                continue
+            nd = d + (0.0 if flat_mask[j] else 1.05 - float(flat_fill[j]))
+            if nd < dist[j]:
+                dist[j] = nd
+                parent[j] = i
+                heapq.heappush(heap, (nd, j))
+    out = mask.copy()
+    for _ in range(12):
+        seed = np.zeros_like(out)
+        seed[0] = out[0]
+        ground = flood(seed, out)
+        loose = out & ~ground
+        if not loose.any():
+            break
+        flat_loose = np.where(loose.ravel(), dist, np.inf)
+        best = int(np.argmin(flat_loose))
+        if not np.isfinite(flat_loose[best]):
+            break
+        flat_ground = ground.ravel()
+        flat_out = out.ravel()
+        i = best
+        while i != -1 and not flat_ground[i]:
+            flat_out[i] = True
+            i = int(parent[i])
+        out = flat_out.reshape(shape)
+    return out
+
+
+def _projection_iou(mask, present):
+    """Mean IoU of the top, front and side silhouettes of `mask` against those of `present`."""
+    total = 0.0
+    for axis in range(3):
+        a, b = mask.any(axis=axis), present.any(axis=axis)
+        union = int((a | b).sum())
+        total += int((a & b).sum()) / union if union else 1.0
+    return total / 3
+
+
+def _soft_iou(mask, fill):
+    """Soft 3D IoU of the mask against the source fill fractions (penalises solid blobs and holes alike)."""
+    m = mask.astype(np.float32)
+    top = float(np.maximum(m, fill).sum())
+    return float(np.minimum(m, fill).sum()) / top if top else 1.0
+
+
+def voxelise(base, scale, search=True, thresholds=None, phases=None):
+    """Re-voxelise `base` by `scale`: a list of candidate dicts (mask, iou, soft, objective, grid) for the
+    sampling-grid phases and fill thresholds tried (one candidate, the original rule, when search is False).
+    Up (scale >= 1) is the nearest source voxel and has a single candidate."""
+    thresholds = (THRESHOLD,) if not search else (THRESHOLDS if thresholds is None else thresholds)
+    phases = (0.0,) if not search else (PHASES if phases is None else phases)
+    shape = np.array(base.shape)
+    out = np.maximum(1, np.rint(shape * scale).astype(int))
+    if scale >= 1:
+        index = [np.minimum(((np.arange(n) + 0.5) / scale).astype(int), s - 1) for n, s in zip(out, shape)]
+        scaled = base[np.ix_(*index)]
+        return [{"mask": scaled, "iou": 1.0, "soft": 1.0, "objective": 1.0 + WEIGHT_SOFT, "grid": None, "fill": None}]
+    if int(out.max()) > SIZE + 1:
+        return []
+    pad_sets = set()
+    for py in phases:
+        for px in phases:
+            pad_sets.add((0, int(round(py * shape[1] / out[1])), int(round(px * shape[2] / out[2]))))
+    candidates = []
+    for pads in sorted(pad_sets):
+        edges = _grid(base.shape, out, pads)
+        total, volume = _sum(base, pads, edges)
+        fill = total / volume
+        present = total > 0
+        seen = set()
+        for threshold in thresholds:
+            mask = fill >= threshold
+            if mask.tobytes() in seen or not mask.any():
+                continue
+            seen.add(mask.tobytes())
+            iou = _projection_iou(mask, present)
+            soft = _soft_iou(mask, fill)
+            candidates.append({"mask": mask, "iou": iou, "soft": soft, "objective": iou + WEIGHT_SOFT * soft, "grid": (pads, edges), "fill": fill})
+    return candidates
+
+
+def best_variant(base, scale, max_cells, search=True):
+    """The best accepted re-voxelisation of `base` at `scale`: (candidate dict with the cropped 'vox'), or a
+    reason string ('oversize', 'small', 'big', 'ungrounded'). Floating candidates are repaired first."""
+    candidates = voxelise(base, scale, search=search)
+    if not candidates:
+        return "oversize"
+    reasons = []
+    ranked = sorted(candidates, key=lambda c: -c["objective"])
+    repaired = 0
+    for cand in ranked:
+        mask = cand["mask"]
+        if search and cand["fill"] is not None and repaired < 2:
+            seed = np.zeros_like(mask)
+            seed[0] = mask[0]
+            if not (flood(seed, mask) == mask).all():
+                repaired += 1
+                mask = repair(mask, cand["fill"])
+                cand = dict(cand)
+                present = cand["fill"] > 0
+                cand["mask"] = mask
+                cand["iou"] = _projection_iou(mask, present)
+                cand["soft"] = _soft_iou(mask, cand["fill"])
+                cand["objective"] = cand["iou"] + WEIGHT_SOFT * cand["soft"]
+                cand["repaired"] = True
+        scaled = crop_bbox(mask)
+        if scaled is None:
+            reasons.append("small")
+            continue
+        if max(scaled.shape) > SIZE:
+            reasons.append("oversize")
+            continue
+        cells = int(scaled.sum())
+        if cells < MIN_CELLS:
+            reasons.append("small")
+            continue
+        if cells > max_cells:
+            reasons.append("big")
+            continue
+        if not grounded(mask if search else scaled):  # the old rule judged the cropped shape, so dropped legs went unseen
+            reasons.append("ungrounded")
+            continue
+        found = dict(cand)
+        found["vox"] = scaled
+        return found
+    return reasons[0] if reasons else "oversize"
+
+
+def variants(vox, rng, keep=None, rotations=2, max_cells=None, search=True, detail=False):
     """Accepted re-voxelisations of one occupancy: (scale, rot, vox) tuples, plus a reject tally.
 
-    Every scale of SCALES is tried; those that fit the world, hold MIN_CELLS to MAX_CELLS cells and stand on
+    Every scale of SCALES is tried; at each, the fill threshold and sampling-grid phase are searched for the
+    best silhouette and volume agreement with the source (floating legs and posts are reconnected through
+    cells that hold source voxels); those that fit the world, hold MIN_CELLS to MAX_CELLS cells and stand on
     the floor are distinct shapes; per target in `keep` the one with the closest cell count is kept, in the
-    original orientation and in one further random quarter turn (when that differs from the first)."""
+    original orientation and in one further random quarter turn (when that differs from the first). With
+    search False the original rule (threshold 0.3, no phase, no repair) is used. With detail the tuples are
+    (scale, rot, vox, candidate dict) for measurement."""
+    keep = KEEP_TARGETS if keep is None else keep
+    max_cells = MAX_CELLS if max_cells is None else max_cells
     base = crop_bbox(vox)
     tally = {"oversize": 0, "small": 0, "big": 0, "ungrounded": 0}
     if base is None:
         return [], tally
     seen = {}
     for scale in SCALES:
-        scaled = crop_bbox(rescale(base, scale))
-        if scaled is None:
-            tally["small"] += 1
+        found = best_variant(base, scale, max_cells, search=search)
+        if isinstance(found, str):
+            tally[found] += 1
             continue
-        if max(scaled.shape) > SIZE:
-            tally["oversize"] += 1
-            continue
-        cells = int(scaled.sum())
-        if cells < MIN_CELLS:
-            tally["small"] += 1
-            continue
-        if cells > MAX_CELLS:
-            tally["big"] += 1
-            continue
-        if not grounded(scaled):
-            tally["ungrounded"] += 1
-            continue
-        seen.setdefault((scaled.shape, scaled.tobytes()), (scale, scaled))
+        scaled = found["vox"]
+        seen.setdefault((scaled.shape, scaled.tobytes()), (scale, scaled, found))
     pool = sorted(seen.values(), key=lambda it: int(it[1].sum()))
     chosen = {}
     for target in keep:
@@ -175,13 +371,13 @@ def variants(vox, rng, keep=KEEP_TARGETS, rotations=2):
         best = min(pool, key=lambda it: abs(int(it[1].sum()) - target))
         chosen.setdefault(round(best[0], 4), best)
     out = []
-    for scale, scaled in chosen.values():
-        out.append((scale, 0, np.ascontiguousarray(scaled)))
+    for scale, scaled, found in chosen.values():
+        out.append((scale, 0, np.ascontiguousarray(scaled)) + ((found,) if detail else ()))
         if rotations > 1:
             k = int(rng.integers(1, 4))
             turned = np.ascontiguousarray(rotate(scaled, k))
             if not (turned.shape == scaled.shape and (turned == scaled).all()):
-                out.append((scale, k, turned))
+                out.append((scale, k, turned) + ((found,) if detail else ()))
     return out, tally
 
 
@@ -214,10 +410,10 @@ def seed_of(text):
     return int.from_bytes(hashlib.sha256(text.encode()).digest()[:8], "little")
 
 
-def process(item):
+def process(item, keep=None, max_cells=None):
     """All accepted goals of one item: (list of dicts with 'vox', 'scale', 'rot'), reject tally."""
     rng = np.random.default_rng(seed_of(item.key))
-    found, tally = variants(item.vox, rng)
+    found, tally = variants(item.vox, rng, keep=keep, max_cells=max_cells)
     return [{"scale": s, "rot": k, "vox": v} for s, k, v in found], tally
 
 

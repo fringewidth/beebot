@@ -96,6 +96,16 @@ def test_variants_fit_world_and_budget():
     assert sum(tally.values()) > 0
 
 
+def test_variants_parameters_cap_and_targets():
+    vox = np.ones((16, 16, 16), dtype=bool)
+    found, _ = G.variants(vox, np.random.default_rng(0), keep=(100, 800), max_cells=800, rotations=1)
+    counts = sorted(int(v.sum()) for _, _, v in found)
+    assert counts and counts[-1] > 115 and counts[-1] <= 800
+    capped, tally = G.variants(vox, np.random.default_rng(0), keep=(100, 800), max_cells=300, rotations=1)
+    assert all(int(v.sum()) <= 300 for _, _, v in capped) and tally["big"] > 0
+    assert G.MAX_CELLS == 800 and G.KEEP_TARGETS == (100, 250, 500, 800)
+
+
 def test_variants_reject_floating_structure(monkeypatch):
     monkeypatch.setattr(G, "SCALES", (1.0,))
     vox = np.zeros((6, 3, 3), dtype=bool)
@@ -142,3 +152,40 @@ def test_to_goal_is_centred_and_reversible_shape():
 def test_histogram_bins():
     assert G.histogram([4, 7, 8, 115, 116])["4-7"] == 2
     assert G.histogram([4, 7, 8, 115, 116])["100-115"] == 1
+    assert G.histogram([116, 250, 251, 500, 501, 800])["116-250"] == 2
+
+
+def _table():
+    vox = np.zeros((10, 20, 20), dtype=bool)
+    vox[9] = True
+    for y in (0, 19):
+        for x in (0, 19):
+            vox[:9, y, x] = True
+    return vox
+
+
+def test_search_keeps_legs_old_rule_loses_them():
+    base = G.crop_bbox(_table())
+    old = G.best_variant(base, 0.5, 800, search=False)
+    new = G.best_variant(base, 0.5, 800, search=True)
+    assert not isinstance(new, str)
+    assert new["vox"].shape[0] > 1 and new["vox"][0].sum() >= 4  # legs reach the floor
+    assert isinstance(old, str) or old["vox"].shape[0] == 1  # old: a legless slab, cropped down to z = 0
+    assert new["iou"] >= 0.9
+
+
+def test_repair_adds_only_cells_with_source_voxels_and_leaves_interior_hollow():
+    fill = np.zeros((6, 5, 5), dtype=np.float32)
+    mask = np.zeros((6, 5, 5), dtype=bool)
+    mask[5] = True
+    fill[5] = 1.0
+    fill[:5, 2, 2] = 0.1  # a thin post
+    out = G.repair(mask, fill)
+    assert G.grounded(out)
+    assert not (out & ~mask & (fill == 0)).any()
+    assert int(out.sum()) == int(mask.sum()) + 5
+
+
+def test_variants_search_flag():
+    found, _ = G.variants(_table(), np.random.default_rng(0), search=False, rotations=1)
+    assert found

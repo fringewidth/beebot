@@ -114,3 +114,47 @@ Reversal today (sample size, ok share, ok by cell bin 4-15 / 16-31 / 32-63 / 64-
 1. Use the library: sample by text-bearing sources for language data, by cell count for a curriculum; goals with
    `kind` part or crop carry weaker text (labels, "part of a house").
 1. Dependency note: no new packages (scipy was avoided; flood fill is numpy). pyarrow and pandas come with datasets.
+
+## v2: bigger shapes
+
+The 115-cell cap was a convention, not a limit. `MAX_CELLS` is now 800 and `KEEP_TARGETS` (100, 250, 500, 800), both
+parameters (`goal_library.variants(..., keep=, max_cells=)`, `scripts/goals_convert.py --max-cells --keep-targets
+--out`). Every other acceptance rule is unchanged. v2 lives in `data/goal_library_v2/` (the old library is untouched);
+`scripts/goals_v2_chain.sh` rebuilt it from `data/goal_sources/` (about 5 minutes, 4 procs, CPU).
+
+Voxeliser (`goal_library.voxelise`, `best_variant`, `repair`): per item and scale it searches fill thresholds
+(0.15, 0.3, 0.5) and sampling-grid phases (0, 1/3, 2/3 of a coarse cell in y and x), scores each by the mean IoU of
+the three axis silhouettes against the source's silhouettes at the same grid plus half the soft 3D IoU against the
+source fill, and keeps the best that passes acceptance. A floating candidate is reconnected to the floor through the
+cheapest chain of coarse cells that hold some source voxels (legs, posts, rails; hollow interiors are never filled).
+Grounding is now judged on the uncropped result: the old rule judged the cropped shape, so a table whose legs had
+dropped was cropped to a legless slab at z = 0 and passed. `variants(..., search=False)` is the old rule.
+`scripts/voxeliser_eval.py` measures old against new and renders the comparison.
+
+Old vs new, pairs of (item, scale < 1) accepted by both (StableText2Brick 200 items, 892 pairs; CraftAssist houses
+50 items, 159 pairs). The IoU is the search objective, so its gain is partly by construction; component survival and
+floor-contact survival are not optimised directly.
+
+| | silhouette IoU old / new | soft 3D IoU old / new | components kept | floor contacts kept |
+| --- | --- | --- | --- | --- |
+| StableText2Brick | 0.920 / 0.990 | 0.627 / 0.627 | 1.00 / 1.00 | 0.861 / 0.964 |
+| CraftAssist houses | 0.840 / 0.950 | 0.476 / 0.478 | 0.803 / 0.899 | 0.744 / 0.919 |
+
+Most StableText2Brick sources are already about 18 voxels across, so the change is small for them; the gain is in
+legs and thin parts, and in houses.
+
+Counts (accepted goals; cell bins 4-115, 116-250, 251-500, 501-800):
+
+| source | goals | 4-115 | 116-250 | 251-500 | 501-800 |
+| --- | --- | --- | --- | --- | --- |
+| stabletext2brick | 141,290 | 56,803 | 57,772 | 22,846 | 3,869 |
+| craftassist_parts | 55,944 | 30,864 | 17,710 | 6,660 | 710 |
+| craftassist_houses | 25,946 | 11,998 | 7,644 | 4,641 | 1,663 |
+| iglu_single | 13,504 | 8,068 | 3,731 | 1,636 | 69 |
+| hack337 | 8,001 | 3,005 | 2,466 | 1,762 | 768 |
+| iglu_multiturn | 282 | 178 | 59 | 45 | 0 |
+
+Reversal at the new sizes (`scripts/goals_reverse_big.py`, StableText2Brick, 3 goals per bin, step cap 2000, 15
+minute limit, one thread): 0 of 9 ok. Eight stalled (replay passes, the start is not natural) after 72-1735 steps
+and 28-737 CPU s; one 457-cell goal hit the 15 minute timeout. Take-apart does not reach a natural start at these
+sizes and costs 5-12 CPU minutes per goal above 200 cells; it needs work (reverse.py was not touched).
