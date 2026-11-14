@@ -277,7 +277,7 @@ def window_wall(rng):
         [
             f"build a wall {num(length)} blocks long and {num(height)} high, one block thick, with {a_or_n(n, 'window hole')} cut through it",
             f"a flat standing wall, {num(length)} long and {num(height)} tall, with {a_or_n(n, shape + ' opening')} through it at the same height",
-            f"make a thin wall facing the {facing}, {num(length)} wide and {num(height)} tall, with {a_or_n(n, 'window')} ({shape}) and a solid top and bottom",
+            f"make a thin wall facing the {facing}, {num(length)} wide and {num(height)} tall, with {a_or_n(n, shape + ' window')} and a solid top and bottom",
         ],
     )
     return finish(cells, T), text, {"length": length, "height": height, "windows": n, "ww": ww, "wh": wh, "z0": z0}
@@ -472,7 +472,7 @@ def balcony_tower(rng):
         [
             f"build a tall hollow tower, {num(s)} blocks across and {num(h)} high with a flat top, and a balcony ledge sticking out {blocks(o)} on the {T.name(side)} side at height {num(bz)}{door_text}",
             f"make a tower with a balcony: a square tube {num(s)} by {num(s)}, {num(h)} tall, closed on top, with a flat platform jutting out to the {T.name(side)} partway up{door_text}",
-            f"a slim tower and a small balcony on its {T.name(side)} side, {num(o)} out, {num(bz)} up from the ground{door_text}",
+            f"a slim tower and a small balcony on its {T.name(side)} side, sticking out {blocks(o)}, {blocks(bz)} up from the ground{door_text}",
         ],
     )
     return finish(cells, T), text, {"s": s, "h": h, "balcony_z": bz, "out": o, "side": T.name(side), "door": door}
@@ -807,7 +807,7 @@ def person(rng):
         rng,
         [
             f"build a simple blocky person standing flat facing the {facing}: two legs apart, a wide body, {pose_text} and a head on top",
-            f"make a stick-figure person seen face on from the {facing}, {num(lg)} blocks of leg, {pose_text}, a head",
+            f"make a stick-figure person standing flat, facing the {facing}, {num(lg)} blocks of leg, {pose_text}, a head",
         ],
     )
     return finish(cells, T), text, {"legs": lg, "torso": tl, "arm": al, "pose": pose}
@@ -864,7 +864,7 @@ def letters(rng):
             rng,
             [
                 f"build the letters {spelled} standing upright in a row, {num(5)} blocks tall, readable from the {facing}",
-                f"make the {num(len(word))} capital letters {spelled}, side by side, standing up, facing the {facing}",
+                f"make the {num(len(word))} capital letters {spelled}, side by side, standing up, readable from the {facing}",
             ],
         )
     if thick == 2:

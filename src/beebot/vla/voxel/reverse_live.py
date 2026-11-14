@@ -1056,12 +1056,18 @@ def splice(choice, rec, summary):
     return " ".join([head, f"i see {sight}.", *meaning, first_line]).lower()
 
 
-def haiku_index(dirs=HAIKU_DIRS, root=None):
+# Spec kinds whose Haiku rewordings are not used: the 2026-11-13 label audit found them to keep the meaning in about
+# 0.12 of the cases and to name the simulator's own nouns in most (runs/label_audit/report.md); they use the template
+# wording instead. Pass drop_kinds=() to haiku_index or Texts to bring them back.
+DROP_REWORDING_KINDS = ("goto_zone", "line_zone")
+
+
+def haiku_index(dirs=HAIKU_DIRS, root=None, drop_kinds=DROP_REWORDING_KINDS):
     """{canonical spec: [Haiku choice]} of verified rewordings (close, indirect, casual) of the
     specs the live families draw, the switch episodes' parts included; rows with a subset ("who")
-    are left out. Missing directories are skipped."""
+    are left out, as are the kinds in drop_kinds (zone and zone_line). Missing directories are skipped."""
     root = Path(root) if root else Path(__file__).resolve().parents[4]
-    kinds = {"goto", "gather", "groups", "spread", "line", "move", "stay", "climb", "parallel", "tower", "bridge", "goto_zone", "line_zone"}
+    kinds = {"goto", "gather", "groups", "spread", "line", "move", "stay", "climb", "parallel", "tower", "bridge", "goto_zone", "line_zone"} - set(drop_kinds)
     out = {}
     for d in dirs:
         path = Path(d) if Path(d).is_absolute() else root / d
@@ -1082,8 +1088,8 @@ class Texts:
     """Words for live episodes: Haiku rewordings of the same spec that pass text_ok, else the
     template. counts: per family, Haiku texts available, kept and dropped (and why)."""
 
-    def __init__(self, dirs=HAIKU_DIRS, root=None, template_share=TEMPLATE_SHARE):
-        self.index = haiku_index(dirs, root)
+    def __init__(self, dirs=HAIKU_DIRS, root=None, template_share=TEMPLATE_SHARE, drop_kinds=DROP_REWORDING_KINDS):
+        self.index = haiku_index(dirs, root, drop_kinds)
         self.template_share = template_share
         self.kept = {}
         self.stats = {}

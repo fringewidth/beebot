@@ -371,10 +371,10 @@ def source_shape(rng):
 
 
 GAP_TEXT = {
-    0: ["finish it", "complete the picture", "complete it", "make it whole", "fix it", "finish what is here", "can you finish this?", "complete this", "finish the picture"],
-    1: ["one block is missing, put it back", "fill in the missing piece", "there is a gap, fill it in", "a block is missing, can you put it back?", "one piece is missing, finish it", "put the missing block back", "there is one block missing, fix it"],
-    2: ["{n} blocks are missing, put them back", "there are {n} gaps, fix them", "fill in the {n} missing pieces", "{n} pieces are missing, finish it", "put the {n} missing blocks back"],
-    3: ["some blocks are missing, put them back", "fill in the gaps", "there are gaps, fix them", "a few pieces are missing, finish it"],
+    0: ["finish the structure", "complete the picture", "complete the structure on the floor", "make the structure whole", "fix the structure", "finish the structure that is here", "can you finish this structure?", "complete this structure", "finish the picture"],
+    1: ["one block is missing, put it back", "fill in the missing piece", "there is a gap, fill it in", "a block is missing, can you put it back?", "one piece is missing, finish the structure", "put the missing block back", "there is one block missing, fix it"],
+    2: ["{n} blocks are missing, put them back", "there are {n} gaps, fix them", "fill in the {n} missing pieces", "{n} pieces are missing, finish the structure", "put the {n} missing blocks back"],
+    3: ["some blocks are missing, put them back", "fill in the gaps", "there are gaps, fix them", "a few pieces are missing, finish the structure"],
 }
 
 
@@ -647,9 +647,9 @@ def gen_refer_lone_to_tower(rng):
     (ty, tx) = next((c[1], c[2]) for c in tower)
     who = {"nearest": "nearest me", "farthest": "farthest from me", "left": "on the left", "right": "on the right"}[which]
     text = pick(rng, [
-        f"put the lone cube {who} on top of the tower",
-        f"take the single cube {who} and stack it on the tower",
-        f"the loose cube {who}: put it on top of the tower",
+        f"put the lone cube {who} on top of the only tower",
+        f"take the single cube {who} and stack it on the only tower",
+        f"the loose cube {who}: put it on top of the only tower",
     ])
     return refer_record(rng, a, (a - {src[0]}) | {(height, ty, tx)}, text, [{"type": "lone", "which": which}], pattern="lone_to_tower")
 

@@ -64,3 +64,16 @@ def test_sample_is_reproducible_and_returns_n_goals():
     assert len(first) == 30
     assert [g["text"] for g in first] == [g["text"] for g in second]
     assert all(g["generator"] in S.GENERATORS for g in first)
+
+
+def test_label_audit_wordings_are_gone():
+    rng = np.random.default_rng(3)
+    for name in ("tower_row", "floor_cross", "wall", "frame_standing"):
+        for _ in range(60):
+            goal, _ = S.draw(name, rng)
+            if goal is None:
+                continue
+            text = goal["text"]
+            assert "one one" not in text and "one way" not in text, text
+            assert "across, " not in text, text
+            assert not re.search(r"(?<!wide )(?:left to right|front to back) and \w+ high", text), text

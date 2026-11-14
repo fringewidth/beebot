@@ -108,7 +108,7 @@ def main():
     parser.add_argument("--libraries", default="v3", help="v2 source: v3 (V2_SOURCES, the six of reverse-v3.md) or all (every library in V2_ROOT, reverse-v4.md)")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
-    libraries = V2_SOURCES if args.libraries == "v3" else tuple(sorted(p.stem for p in V2_ROOT.glob("*.jsonl")))
+    libraries = V2_SOURCES if args.libraries == "v3" else tuple(sorted(p.stem for p in V2_ROOT.glob("*.jsonl") if p.stem not in G.DROPPED_SOURCES))
     torch.set_num_threads(1)
     reverse = load_impl(args.impl)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

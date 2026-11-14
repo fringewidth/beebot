@@ -148,9 +148,11 @@ def save_coloured(name, lines, cell_lists, rgb_lists, root):
             handle.write(json.dumps(line) + "\n")
 
 
-def load_rgb(name, root, max_cells=G.MAX_CELLS):
+def load_rgb(name, root, max_cells=G.MAX_CELLS, include_dropped=False):
     """List of (n, 3) uint8 colours per goal, or None when the source has no colours. Goals with more than
     `max_cells` cells are dropped (None keeps all), matching goal_library.load."""
+    if name in G.DROPPED_SOURCES and not include_dropped:
+        return []
     data = np.load(Path(root) / f"{name}.npz")
     if "rgb" not in data.files:
         return None
