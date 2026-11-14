@@ -179,3 +179,9 @@ def test_background_workers_fill_the_cache():
         assert ex.live == "stay" and live.generated >= 1
     finally:
         live.close()
+
+
+def test_zone_rewordings_are_dropped_by_default():
+    index = L.haiku_index()
+    assert not any('"goto_zone"' in key or '"line_zone"' in key for key in index)
+    assert L.Texts().index == index

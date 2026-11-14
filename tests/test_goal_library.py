@@ -210,3 +210,13 @@ def test_variants_tolerance_skips_far_targets():
     assert counts and all(4 <= c <= 128 for c in counts)
     far, _ = G.variants(vox, np.random.default_rng(0), keep=(1000,), rotations=1, tolerance=2)
     assert far == []
+
+
+def test_dropped_sources_load_empty_unless_asked(tmp_path):
+    small = np.argwhere(np.ones((2, 2, 2), dtype=bool)).astype(np.uint8)
+    for name in G.DROPPED_SOURCES:
+        G.save(name, [{"id": "a"}], [small], root=tmp_path)
+        assert G.load(name, tmp_path) == ([], [])
+        lines, cells = G.load(name, tmp_path, include_dropped=True)
+        assert len(lines) == 1 and len(cells) == 1
+    assert set(G.DROPPED_SOURCES) == {"oga_vox", "itch_vox", "fusion360"}

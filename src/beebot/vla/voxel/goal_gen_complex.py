@@ -540,7 +540,7 @@ def describe(part, rng):
         h, t = p["h"], p.get("t", 1)
         if t == 2:
             return pick(rng, [f"a thick tower {N(h)} high", f"a two by two tower {N(h)} high", f"a fat tower {N(h)} tall"])
-        opts = [f"a tower {N(h)} high", f"a {N(h)}-high tower", f"a column {N(h)} tall", f"a stack of {N(h)}"]
+        opts = [f"a tower {N(h)} high", f"a {N(h)}-high tower", f"a tower {N(h)} tall", f"a tower of {N(h)} blocks"]  # one noun: the later turns say "the tower"
         if h >= 6:
             opts.append("a tall tower")
         return pick(rng, opts)
@@ -1144,7 +1144,7 @@ def gen_scene_corners(rng):
     if mode == "two corners":
         text = pick(rng, [f"{a} in the {ca} corner and {b} in the {cb} corner", f"put {b} in the {cb} corner of the floor and {a} in the {ca} corner", f"{a} over in the {ca} corner, {b} in the {cb} one"])
     else:
-        text = pick(rng, [f"{b} in the middle of the floor and {a} in the {ca} corner", f"put {a} in the {ca} corner, and {b} right in the centre"])
+        text = pick(rng, [f"{b} in the middle of the floor and {a} in the {ca} corner", f"put {a} in the {ca} corner, and {b} exactly in the centre"])
     text += pick(rng, ["", " (front is the side nearest me)"]) if "front" in text else ""
     return record("scene", pa.cells | pb.cells, [polish(text, rng)], parts=[pa, pb], mode=mode)
 
@@ -1333,6 +1333,12 @@ def gen_edit_house(rng):
         new = house.changed(upper=2, upper_roof=top)
         second = pick(rng, ["add a second floor on top", "build another storey on top of it"]) + (pick(rng, [" with its own roof", ", roofed too"]) if top else pick(rng, [", open at the top", " without a roof"]))
     first = pick(rng, ["build ", "make ", ""]) + describe(house, rng)
+    if edit in ("door_move", "door_close"):  # the edit names the door, so the first turn must have mentioned it
+        for _ in range(8):
+            if "door" in first:
+                break
+            first = pick(rng, ["build ", "make ", ""]) + describe(house, rng)
+        need("door" in first, "door unmentioned")
     return edit_record(rng, [Placed(house, 0, 0)], [Placed(new, 0, 0)], first, second, edit=edit)
 
 
@@ -1378,7 +1384,7 @@ def gen_edit_towers(rng):
         k = between(rng, 1, 3)
         need(heights[i] + k <= 9)
         new[i] += k
-        second = pick(rng, [f"make {ti} {N(k)} taller", f"add {N(k)} more on top of {ti}", f"stack {N(k)} more onto {ti}"])
+        second = pick(rng, [f"make {ti} {N(k)} taller", f"add {N(k)} more on top of {ti}", f"put {N(k)} more on top of {ti}"])
     elif edit == "shorter":
         k = between(rng, 1, 3)
         need(heights[i] - k >= 1)
@@ -1612,7 +1618,7 @@ def gen_edit_scene_move(rng):
     elif edit == "farther":
         k = between(rng, 2, 3)
         b = [next_to(yp, xp.part, rel, gap + k), yp]
-        second = pick(rng, [f"move {x} {N(k)} farther away from {y}", f"push {x} {N(k)} further from {y}"])
+        second = pick(rng, [f"move {x} {N(k)} spaces farther away from {y}", f"push {x} {N(k)} spaces further from {y}"])
     else:
         new_rel = pick(rng, [r for r in REL_AXIS if r not in (rel, OPPOSITE[rel])])
         b = [next_to(yp, xp.part, new_rel, between(rng, 1, 3), rng), yp]
@@ -1823,7 +1829,7 @@ def gen_retarget_compose(rng):
         posts = b_arch(g, p) - {(p, 0, j) for j in range(g + 2)}
         pa = Placed(Part("custom", {"cells": tuple(sorted(posts))}), 0, 0)
         pb = Placed(Part("arch", {"gap": g, "p": p}), 0, 0)
-        first = pick(rng, [f"two towers {N(p)} high with a gap of {N(g)} between them, side by side", f"build two columns {N(p)} tall, {N(g)} apart, left and right"])
+        first = pick(rng, [f"two towers {N(p)} high with a gap of {N(g)} between them, side by side", f"build two towers {N(p)} tall, {N(g)} apart, left and right"])
         second = pick(rng, ["turn the two towers into an arch by joining their tops", "make an arch out of them: a beam across the top"])
     elif mode == "pyramid_to_stairs":
         pa = Placed(Part("pyramid", {"base": int(pick(rng, [3, 5]))}), 0, 0)

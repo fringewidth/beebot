@@ -34,6 +34,9 @@ KEEP_TARGETS = (64, 128, 256)  # per item, the accepted scale whose cell count i
 THRESHOLD = 0.3  # a coarse voxel is filled if this share of the source voxels under it are
 CROPS_PER_STRUCTURE = 2
 LIBRARY = Path("data/goal_library")
+# Sources whose labels the 2026-11-13 label audit judged DROP (file names with variant codes, empty or non-English names;
+# runs/label_audit/report.md). The data stays on disk; load() returns nothing for them unless include_dropped=True.
+DROPPED_SOURCES = ("oga_vox", "itch_vox", "fusion360")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -509,9 +512,12 @@ def save(name, lines, cell_lists, root=LIBRARY):
             handle.write(json.dumps(line) + "\n")
 
 
-def load(name, root=LIBRARY, max_cells=MAX_CELLS):
+def load(name, root=LIBRARY, max_cells=MAX_CELLS, include_dropped=False):
     """(list of meta dicts, list of (n, 3) uint8 cell arrays (z, y, x)). Goals with more than `max_cells`
-    cells are dropped (None keeps all), so data written under an older, larger cap needs no regeneration."""
+    cells are dropped (None keeps all), so data written under an older, larger cap needs no regeneration.
+    A source in DROPPED_SOURCES loads as ([], []) unless `include_dropped` (browsing the raw data)."""
+    if name in DROPPED_SOURCES and not include_dropped:
+        return [], []
     root = Path(root)
     with open(root / f"{name}.jsonl") as handle:
         lines = [json.loads(text) for text in handle]

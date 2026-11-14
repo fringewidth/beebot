@@ -102,7 +102,7 @@ def main():
     for source, count in shares.items():
         if not (OUT_ROOT / f"{source}.jsonl").exists():
             continue
-        lines, cells = G.load(source, root=OUT_ROOT)
+        lines, cells = G.load(source, root=OUT_ROOT, include_dropped=True)
         for i in pick_parts(lines, count, rng):
             line = lines[i]
             extra = line["extra"]

@@ -57,8 +57,8 @@ def main():
     for name in SOURCES:
         if not (Path(args.root) / f"{name}.jsonl").exists():
             continue
-        lines, cells = G.load(name, root=args.root)
-        colours = GS.load_rgb(name, args.root)
+        lines, cells = G.load(name, root=args.root, include_dropped=True)
+        colours = GS.load_rgb(name, args.root, include_dropped=True)
         for k, i in enumerate(pick(lines, args.per_source, rng)):
             picture = GS.render_coloured(cells[i], colours[i]) if colours is not None else G.render_views(cells[i])
             line = lines[i]

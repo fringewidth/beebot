@@ -150,7 +150,7 @@ def wall(rng):
     run = RUN[axis]
     text = _pick(rng, (
         f"build a wall {WORDS[length]} long and {WORDS[height]} high, running {run}",
-        f"make a straight wall {WORDS[height]} high that stretches {WORDS[length]} across, {run}",
+        f"make a straight wall {WORDS[height]} high and {WORDS[length]} long that stretches {run}",
         f"can you put up a plain wall, {WORDS[height]} high and {WORDS[length]} long, going {run}",
     ))
     return _finish(cells), text, {"length": length, "height": height, "axis": axis}
@@ -286,7 +286,7 @@ def floor_cross(rng):
         ))
     else:
         text = _pick(rng, (
-            f"build a cross lying flat on the floor, {WORDS[wx]} wide one way and {WORDS[wy]} the other",
+            f"build a cross lying flat on the floor, {WORDS[wx]} wide left to right and {WORDS[wy]} wide front to back",
             f"make a flat cross on the ground, arms {thick} thick, the long bar running left to right",
         ))
     return _finish(cells), text, {"arm_x": ax, "arm_y": ay, "thickness": t}
@@ -397,7 +397,7 @@ def tower_row(rng):
     side = _side(axis, grow)
     text = _pick(rng, (
         f"build {WORDS[n]} towers getting taller toward the {side}",
-        f"a row of {WORDS[n]} separate towers, each one {_cubes(step)} taller than the last, rising to the {side}",
+        f"a row of {WORDS[n]} separate towers, each {_cubes(step)} taller than the one before, rising to the {side}",
         f"line up {WORDS[n]} columns with gaps between, growing taller to the {side}",
     ))
     return _finish(cells), text, {"towers": n, "heights": heights, "step": step, "axis": axis, "grows_toward": side}
@@ -440,7 +440,7 @@ def frame_standing(rng):
     text = _pick(rng, (
         f"build a {shape} frame standing up like a window, {WORDS[width]} across and {WORDS[height]} high, sitting on the floor",
         f"make an upright {shape} outline with its bottom edge on the ground, {WORDS[width]} wide, {WORDS[height]} tall",
-        f"can you stand a hollow {shape} frame on the floor, {WORDS[width]} {RUN[axis]} and {WORDS[height]} high",
+        f"can you stand a hollow {shape} frame on the floor, {WORDS[width]} wide {RUN[axis]} and {WORDS[height]} high",
     ))
     return _finish(cells), text, {"width": width, "height": height, "axis": axis}
 
