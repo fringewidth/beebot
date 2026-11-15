@@ -37,7 +37,8 @@ from beebot.hardware.geared_joint import G, BondModel, CubeSpec, GearedRig, Join
 from beebot.hardware.mmsim.opt import wilson_interval
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "runs" / "module_phys" / "joint"
+OUT = Path(os.environ["SJ_OUT"]) if "SJ_OUT" in os.environ else ROOT / "runs" / "module_phys" / "joint"  # SJ_OUT: results directory (added for the gear 14 mm run)
+MASS_FIT = ROOT / "runs" / "module_phys" / "joint" / "mass_fit.json"
 MEDIA = ROOT / "runs" / "handoff" / "media"
 ROUTE = os.environ.get("JOINT_ROUTE", "sma")  # 'sma' (chosen) or 'gear'
 TIME = 1.5 if ROUTE == "sma" else 2.5  # slow-down against layout B's move durations
@@ -51,13 +52,14 @@ def joint_speed(joint):
         return joint.step / joint.step_period
     return joint.omega_max / joint.ratio
 REF = 0.050  # m, layout B cube side
+GEAR_FINGER_K = float(os.environ.get("SJ_GEAR_FINGER_K", "0"))  # 0: off (default, as the original gear model)
 FINGER_K = 50.0  # N/m at the finger tip: a flexure finger (A), so a ratchet step squeezes the block instead of stalling on it
 
 
 def cube_mass(L: float) -> float:
     """Whole-cube mass (kg) from the envelope layout of scripts/module_phys/small_joint.py, fitted
     as m = a L^3 + b L^2 (E). Overridden by the layout's own number when that has been run."""
-    path = OUT / "mass_fit.json"
+    path = MASS_FIT
     if path.exists():
         fit = json.loads(path.read_text())
         return fit["a"] * L**3 + fit["b"] * L**2
@@ -143,6 +145,8 @@ def arm(L, over=None, cam=None, counterweight=False):
     rig = GearedRig(lattice(cells, spec.pitch), spec, joint, bonds, scene=scene, bond_scale=bscale, timestep=DT)
     if joint.kind == "stepper":
         rig.set_compliance("5p", FINGER_K * (1.5 * spec.pitch) ** 2)  # tip about 1.5 pitches from the wrist axis
+    elif GEAR_FINGER_K:  # gear route only, opt-in (SJ_GEAR_FINGER_K, N/m at the tip): the same flexure finger, so closing on the block does not dump the reflected rotor inertia into the tooth
+        rig.set_compliance("5p", GEAR_FINGER_K * (1.5 * spec.pitch) ** 2)
     watch = cam.bind(rig) if cam else None
     mgl = spec.mass * G * L
     lift, open_, yaw = math.radians(24), math.radians(20), math.pi / 2
@@ -220,6 +224,8 @@ def walker(L, over=None, cam=None, period=None, cycles=4, duty=None):
     ]
     legs = {"0p": 0.25, "0n": 0.75, "3p": 0.0, "3n": 0.5}
     rig = GearedRig(lattice(cells, spec.pitch), spec, joint, bonds, bond_scale=bscale, timestep=DT_WALKER)
+    if period is None and os.environ.get("SJ_WALKER_PERIOD"):  # opt-in override (s), added for the gear 14 mm run: slower than the joint's top speed implies
+        period = float(os.environ["SJ_WALKER_PERIOD"])
     if period is None:  # the swing (about 320 deg in the swing fraction of a cycle) at 85 % of the joint's top speed
         period = (2 * math.pi - 2 * math.radians(20)) / ((1 - duty) * 0.85 * joint_speed(joint)) * 1.15
     watch = cam.bind(rig) if cam else None

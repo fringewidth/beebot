@@ -1,0 +1,122 @@
+{
+ "arm": {
+  "n": 100,
+  "success": 0,
+  "rate": 0.0,
+  "wilson95": [
+   0.0,
+   0.037
+  ],
+  "success_1.5x": 0,
+  "rate_1.5x": 0.0,
+  "wilson95_1.5x": [
+   0.0,
+   0.037
+  ],
+  "bond_opening_at_1.5x_p95": 2.0,
+  "joint_peak_over_capacity_median": 1.929,
+  "joint_peak_over_capacity_p95": 2.331,
+  "joint_peak_over_capacity_max": 2.451,
+  "bond_utilisation_median": 2.74,
+  "bond_utilisation_p95": 3.739,
+  "bond_utilisation_max": 4.34,
+  "failures_by_cause": {
+   "criterion": 0,
+   "joint_broken": 100,
+   "bond_opened": 100,
+   "bond_opened_at_1.5x": 100,
+   "joint_over_1/1.5": 100,
+   "error": 0
+  }
+ },
+ "walker": {
+  "n": 100,
+  "success": 0,
+  "rate": 0.0,
+  "wilson95": [
+   0.0,
+   0.037
+  ],
+  "success_1.5x": 0,
+  "rate_1.5x": 0.0,
+  "wilson95_1.5x": [
+   0.0,
+   0.037
+  ],
+  "bond_opening_at_1.5x_p95": 2.0,
+  "joint_peak_over_capacity_median": 0.93,
+  "joint_peak_over_capacity_p95": 0.978,
+  "joint_peak_over_capacity_max": 1.111,
+  "bond_utilisation_median": 1.425,
+  "bond_utilisation_p95": 1.684,
+  "bond_utilisation_max": 2.049,
+  "failures_by_cause": {
+   "criterion": 0,
+   "joint_broken": 2,
+   "bond_opened": 100,
+   "bond_opened_at_1.5x": 100,
+   "joint_over_1/1.5": 100,
+   "error": 0
+  }
+ },
+ "crane": {
+  "n": 100,
+  "success": 100,
+  "rate": 1.0,
+  "wilson95": [
+   0.963,
+   1.0
+  ],
+  "success_1.5x": 100,
+  "rate_1.5x": 1.0,
+  "wilson95_1.5x": [
+   0.963,
+   1.0
+  ],
+  "bond_opening_at_1.5x_p95": 0.0,
+  "joint_peak_over_capacity_median": 0.178,
+  "joint_peak_over_capacity_p95": 0.181,
+  "joint_peak_over_capacity_max": 0.453,
+  "bond_utilisation_median": 0.269,
+  "bond_utilisation_p95": 0.322,
+  "bond_utilisation_max": 0.334,
+  "failures_by_cause": {
+   "criterion": 0,
+   "joint_broken": 0,
+   "bond_opened": 0,
+   "bond_opened_at_1.5x": 0,
+   "joint_over_1/1.5": 0,
+   "error": 0
+  }
+ },
+ "crank": {
+  "n": 100,
+  "success": 100,
+  "rate": 1.0,
+  "wilson95": [
+   0.963,
+   1.0
+  ],
+  "success_1.5x": 100,
+  "rate_1.5x": 1.0,
+  "wilson95_1.5x": [
+   0.963,
+   1.0
+  ],
+  "bond_opening_at_1.5x_p95": 0.01,
+  "joint_peak_over_capacity_median": 0.303,
+  "joint_peak_over_capacity_p95": 0.379,
+  "joint_peak_over_capacity_max": 0.388,
+  "bond_utilisation_median": 0.228,
+  "bond_utilisation_p95": 0.28,
+  "bond_utilisation_max": 0.323,
+  "failures_by_cause": {
+   "criterion": 0,
+   "joint_broken": 0,
+   "bond_opened": 0,
+   "bond_opened_at_1.5x": 0,
+   "joint_over_1/1.5": 0,
+   "error": 0
+  }
+ }
+}
