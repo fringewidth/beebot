@@ -312,3 +312,133 @@ def total_momentum(model, data):
         I = data.ximat[b].reshape(3, 3) @ np.diag(model.body_inertia[b]) @ data.ximat[b].reshape(3, 3).T
         L += mass[b] * np.cross(data.xipos[b] - com, vel[3:]) + I @ vel[:3]
     return p, L
+
+
+# ---------------------------------------------------------------- point dipoles (uniform spheres, far-field magnets)
+
+KM = 1e-7  # mu0 / (4 pi)
+
+
+def dipole_pairs(P, M, group=None):
+    """Forces, torques and fields between point dipoles, all pairs at once.
+
+    P (n, 3) positions, M (n, 3) moments (A m^2). group (n,) ints: pairs within one group are skipped
+    (dipoles fixed in one rigid body exert no net wrench on it). Returns F (n, 3) force on each dipole,
+    T (n, 3) torque on each dipole about its own centre, B (n, 3) field at each dipole from the others.
+    Exact for uniformly magnetised spheres (their outside field is exactly a dipole and the force on a
+    uniform sphere in a source-free field equals the point-dipole force); a far-field model otherwise.
+    F_ij = -F_ji and tau_i + tau_j + r_i x F_i + r_j x F_j = 0, so momentum is conserved pair by pair.
+    """
+    P = np.asarray(P, float)
+    M = np.asarray(M, float)
+    n = len(P)
+    r = P[None, :, :] - P[:, None, :]  # r[i, j] = P_j - P_i
+    d2 = np.einsum("ijk,ijk->ij", r, r)
+    mask = ~np.eye(n, dtype=bool)
+    if group is not None:
+        g = np.asarray(group)
+        mask &= g[:, None] != g[None, :]
+    d2 = np.where(mask, d2, 1.0)
+    d = np.sqrt(d2)
+    u = r / d[..., None]
+    mi = M[:, None, :]  # source i
+    mj = M[None, :, :]  # target j
+    mi_u = np.einsum("ijk,ijk->ij", np.broadcast_to(mi, r.shape), u)
+    mj_u = np.einsum("ijk,ijk->ij", np.broadcast_to(mj, r.shape), u)
+    mi_mj = M @ M.T
+    w = np.where(mask, 1.0, 0.0)
+    Bij = KM * (3 * u * mi_u[..., None] - mi) / (d2 * d)[..., None] * w[..., None]  # field of i at j
+    Fij = (3 * KM / (d2 * d2))[..., None] * (
+        mi_u[..., None] * mj + mj_u[..., None] * mi + mi_mj[..., None] * u - 5 * (mi_u * mj_u)[..., None] * u
+    ) * w[..., None]  # force on j from i
+    B = Bij.sum(0)
+    F = Fij.sum(0)
+    T = np.cross(M, B)
+    return F, T, B
+
+
+def pair_index(group):
+    """Index arrays (i, j), i < j, of dipole pairs on different bodies."""
+    g = np.asarray(group)
+    ii, jj = np.triu_indices(len(g), 1)
+    keep = g[ii] != g[jj]
+    return ii[keep], jj[keep]
+
+
+def dipole_pairs_flat(P, M, ii, jj, scatter=None):
+    """dipole_pairs over a fixed list of pairs (i < j); same outputs, faster for tens of dipoles.
+    scatter: optional (Ai, Aj) dense (n, npairs) one-hot matrices from pair_scatter (faster accumulation)."""
+    r = P[jj] - P[ii]
+    d2 = np.einsum("ij,ij->i", r, r)
+    d = np.sqrt(d2)
+    u = r / d[:, None]
+    mi, mj = M[ii], M[jj]
+    mi_u = np.einsum("ij,ij->i", mi, u)
+    mj_u = np.einsum("ij,ij->i", mj, u)
+    mi_mj = np.einsum("ij,ij->i", mi, mj)
+    inv3 = KM / (d2 * d)
+    Bj = (3 * u * mi_u[:, None] - mi) * inv3[:, None]  # field of i at j
+    Bi = (3 * u * mj_u[:, None] - mj) * inv3[:, None]  # field of j at i (r reversed: same expression)
+    Fj = (3 * KM / (d2 * d2))[:, None] * (mi_u[:, None] * mj + mj_u[:, None] * mi + mi_mj[:, None] * u
+                                           - 5 * (mi_u * mj_u)[:, None] * u)
+    if scatter is not None:
+        Ai, Aj = scatter
+        F = Aj @ Fj - Ai @ Fj
+        B = Aj @ Bj + Ai @ Bi
+    else:
+        n = len(P)
+        F = np.zeros((n, 3))
+        B = np.zeros((n, 3))
+        np.add.at(F, jj, Fj)
+        np.add.at(F, ii, -Fj)
+        np.add.at(B, jj, Bj)
+        np.add.at(B, ii, Bi)
+    T = np.cross(M, B)
+    return F, T, B
+
+
+def pair_scatter(n, ii, jj):
+    Ai = np.zeros((n, len(ii)))
+    Aj = np.zeros((n, len(jj)))
+    Ai[ii, np.arange(len(ii))] = 1.0
+    Aj[jj, np.arange(len(jj))] = 1.0
+    return Ai, Aj
+
+
+class DipoleCoupling:
+    """Point dipoles attached to MuJoCo bodies (local position and moment in the body frame).
+
+    Same conventions as MagneticCoupling: the wrench on every body is accumulated into an (nbody, 6)
+    array at the body's centre of mass (data.xipos), pairs inside one body are skipped, and the pairwise
+    construction conserves linear and angular momentum. Use for spheres (exact) and for small magnets
+    seen from several diameters away (far field; check the error with magpylib for the geometry at hand).
+    """
+
+    def __init__(self, model, data, bodies, local_pos, local_axis, moment):
+        self.model, self.data = model, data
+        self.bodies = np.asarray(bodies, int)
+        self.local_pos = np.asarray(local_pos, float).reshape(-1, 3)
+        self.local_axis = np.asarray(local_axis, float).reshape(-1, 3)
+        self.moment = np.asarray(moment, float).reshape(-1)
+        self.F = self.T = self.B = self.P = self.M = None
+        self.ii, self.jj = pair_index(self.bodies)
+        self.scatter = pair_scatter(len(self.bodies), self.ii, self.jj)
+
+    def world(self):
+        d = self.data
+        Rb = d.xmat[self.bodies].reshape(-1, 3, 3)
+        P = d.xpos[self.bodies] + np.einsum("nij,nj->ni", Rb, self.local_pos)
+        M = np.einsum("nij,nj->ni", Rb, self.local_axis) * self.moment[:, None]
+        return P, M
+
+    def compute(self):
+        self.P, self.M = self.world()
+        self.F, self.T, self.B = dipole_pairs_flat(self.P, self.M, self.ii, self.jj, self.scatter)
+        return self.F, self.T
+
+    def accumulate(self, xfrc):
+        """Add the last computed wrenches into xfrc (nbody, 6) about each body's centre of mass."""
+        com = self.data.xipos[self.bodies]
+        tq = self.T + np.cross(self.P - com, self.F)
+        np.add.at(xfrc, (self.bodies, slice(0, 3)), self.F)
+        np.add.at(xfrc, (self.bodies, slice(3, 6)), tq)
