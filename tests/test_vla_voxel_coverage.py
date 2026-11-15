@@ -77,7 +77,12 @@ def test_stay_scores_the_share_still_and_the_expert_stays_under_every_rule():
     moved["mass"][0, 7, 1] = 0
     moved["mass"][0, 2, 2] = 1
     assert S.score(task, static, start, start, [])[0] == 1.0
-    assert abs(S.score(task, static, start, moved, [])[0] - 8 / 9) < 1e-6
+    assert S.score(task, static, start, moved, [])[0] == S.UNDONE  # 8 of 9 still is not staying: partial credit capped under the pass mark (strict judges)
+    dropped = {**start, "mass": start["mass"].copy()}
+    z, y, x = np.argwhere(start["mass"] > 0.5)[0]
+    dropped["mass"][z, y, x] = 0
+    dropped["mass"][z + 1, y, x] = 1  # the same column: as a robot that fell when gravity came on (here: moved within it)
+    assert S.score(task, static, start, dropped, [])[0] == 1.0
     for rule in (None, "switch_cube", "free_cube"):
         results, arrays = S.run(world, [None], [task], S.Expert([task], moves=CUBE_MOVES, seed=0, rule=rule), steps=12, seed=0, record=True, failure=failure_rates(), rule=rule)
         assert results[0] == (1.0, False)
@@ -100,7 +105,7 @@ def test_robots_left_out_stay_and_moving_them_costs():
     end = {**start, "mass": arrays["mass"][0, -1].numpy().astype(np.float32)}
     end["mass"][0, 8, 12] = 0  # one of the six moved away
     end["mass"][2, 2, 2] = 1
-    assert abs(S.score(task, static, start, end, [])[0] - results[0][0] * 5 / 6) < 1e-6
+    assert S.score(task, static, start, end, [])[0] == min(results[0][0] * 5 / 6, S.UNDONE)  # a robot left out moved: not done, capped under the pass mark
 
 
 def test_count_selectors_judge_the_robots_that_moved():
@@ -217,7 +222,8 @@ def test_the_expert_passes_most_coverage_tasks(family):
     world = replace(world, gravity=torch.ones_like(world.gravity))
     results, _ = S.run(world, metas, tasks, S.Expert(tasks, moves=CUBE_MOVES, seed=0, rule="switch_cube"), steps=S.CUBE_STEPS, seed=0, rule="switch_cube")
     passed = [not u and s >= S.PASS_MARK for s, u in results]
-    assert np.mean(passed) >= 0.6, [(S.task_kind(t), round(s, 2)) for t, (s, _) in zip(tasks, results)]
+    least = {"motion": 0.4, "subset": 0.4}.get(family, 0.6)  # strict judges (2026-11-14): robots that fall when gravity comes on have not stayed, a row has every robot, spread means no two touch
+    assert np.mean(passed) >= least, [(S.task_kind(t), round(s, 2)) for t, (s, _) in zip(tasks, results)]
 
 
 def test_held_out_coverage_splits_force_their_item():

@@ -44,7 +44,7 @@ from beebot.vla.voxel.free_cube import FreeCubeExpert, distances
 from beebot.vla.voxel.world import CUBE_MOVES, STAY, VoxelWorld, cheese_id_map, failure_rates, flat_index, pivot_moves, refuse, rule_moves
 
 FAMILY = "build"
-OBJECT_PASS = 0.75  # IoU a demonstration of a named object needs
+OBJECT_PASS = 1.0  # IoU a demonstration of a named object needs: every voxel filled and no other robot in or around its box (was 0.75 before 2026-11-14: an arch missing a leg passed)
 FUNCTION_PASS = H.FUNCTION_PASS
 USE_SHARE = 0.2  # share of build draws that name a use instead of an object
 SPLITS = ("train", "test", "objects", "wording")  # objects: held-out object names (shapes.HELD_NAMES)
@@ -173,7 +173,9 @@ def sample_build(rng, n, split="train", robots=None, counts="uniform", check=Tru
     split_held = split if split in ("objects", "wording") else ""
     worlds, metas, out = [], [], []
     kept, tries, given_up = None, 0, 0
+    loops = 0
     while len(out) + given_up < n:
+        loops = S.draw_guard(loops, n)
         if empty and keep and kept is not None and tries >= S.KEEP_TRIES:
             given_up += 1
             kept = None

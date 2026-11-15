@@ -72,7 +72,7 @@ SEGMENT_STEPS = 24
 CUBE_STEPS = 72  # episode length of pivoting-cube demonstrations (world.CUBE_MOVES)
 ROBOTS = (6, int(0.45 * SIZE * SIZE))  # the range of swarm sizes when scenes draw a robot count: a handful up to the densest sampled scene
 COUNTS = ("uniform", "log")  # how a robot count is drawn from a range (draw_count)
-SUCCESS = {"formation": 0.5}  # checker score an episode needs to count as done (a demonstration), per family
+SUCCESS = {"formation": 0.5, "build": 1.0}  # checker score an episode needs to count as done (a demonstration), per family; build: every voxel of the object and nothing else around it (build.OBJECT_PASS)
 PASS_MARK = 0.75  # and for the families not named there
 WORDINGS = {
     "letter_floor": ["write the letter {w} on the floor", "lie down in the shape of {w}", "spell {w} flat on the ground", "draw a big {w} on the floor", "form a letter {w} lying flat"],
@@ -94,6 +94,37 @@ WORDINGS = {
 }
 SUBTASK = {"region": "go to the {x}", "tower": "build a tower {x} high", "surround": "surround the {x} cheese", "eat": "eat the {x} cheese"}
 LOGIC_KEYS = {"single": "logic.single", "except": "logic.except", "or": "logic.or", "and": "logic.and", "all": "logic.all", "none": "logic.none", "ordered": "logic.ordered", "absent": "logic.single", "neither": "logic.neither", "all_but_two": "logic.all_but_two"}
+
+
+# Plain words (demos --plain, on in the demo preset): instruction text as a stranger would follow
+# it, without the simulator's own nouns. A cheese is a block the robots can eat ("food block",
+# "food" where English wants a mass noun); a stripe or a zone is a coloured line or patch on the
+# floor. Applied to the stored instruction text only (demos.instruction_entries), never to the
+# draw: Task.text, the draw digests and the Haiku joins stay as they are.
+PLAIN_RULES = (
+    (r"\b(all|any|every last piece|pieces|piece|board|bits) of (the )?cheese\b", lambda m: f"{m.group(1)} of {m.group(2) or ''}food"),
+    (r"\ball (the )?cheese\b", lambda m: f"all {m.group(1) or ''}food"),
+    (r"\b(any|no) cheese\b", lambda m: f"{m.group(1)} food"),
+    (r"\bthe cheese\b(?! (?:that|which|next|nearest|furthest|closest))", "the food"),
+    (r"^cheese\b|\bcheese-", lambda m: "food" + m.group(0)[6:]),
+    (r"\bcheeses\b", "food blocks"),
+    (r"\bcheese\b", "food block"),
+    (r"\bstripes\b", "lines on the floor"),
+    (r"\bstripe\b", "line on the floor"),
+    (r"\bzones\b", "patches of floor"),
+    (r"\bzone\b", "patch of floor"),
+)
+
+
+def plain_words(text):
+    """An instruction in plain words (PLAIN_RULES): "eat the red cheese" -> "eat the red food
+    block", "leave the cheese alone" -> "leave the food alone", "line up along the blue stripe" ->
+    "line up along the blue line on the floor"."""
+    import re
+
+    for pattern, repl in PLAIN_RULES:
+        text = re.sub(pattern, repl, text)
+    return text
 
 
 @dataclass
@@ -229,7 +260,9 @@ def scenes(rng, n, layout=None, gravity=None, cheeses=(0, 3), colours=TRAIN_COLO
     maker that needs more then makes nothing there."""
     if empty:
         picked, metas = [], []
+        loops = 0
         while len(picked) < n:
+            loops = draw_guard(loops, n)
             w, meta = empty_scene(rng, robots)
             if groups is not None:
                 mass = place_groups(rng, w, int(rng.integers(groups[0], groups[1] + 1)), int(w.mass.sum()), layers)
@@ -241,7 +274,9 @@ def scenes(rng, n, layout=None, gravity=None, cheeses=(0, 3), colours=TRAIN_COLO
         fields = ("mass", "walls", "cheese_pos", "cheese_alive", "cheese_color", "gravity")
         return VoxelWorld(*(torch.cat([getattr(w, f) for w in picked]) for f in fields)), metas
     picked, metas = [], []
+    loops = 0
     while len(picked) < n:
+        loops = draw_guard(loops, n)
         world, meta = sample_scenes(rng, 32, SIZE, gravity_prob=0.5 if gravity is None else float(gravity), robots=robots)
         for i in range(32):
             if len(picked) == n:
@@ -634,6 +669,16 @@ def draw_count(rng, low, high, counts="uniform"):
 
 
 KEEP_TRIES = 16  # keep=True: scenes drawn for one drawn task before that task is given up
+DRAW_LIMIT = 20_000  # scene draws a sampler may make per task asked for before it stops (draw_guard)
+
+
+def draw_guard(loops, n):
+    """loops + 1, or a RuntimeError once a sampler has drawn DRAW_LIMIT scenes per task asked for
+    without finishing: a draw where nothing fits stops with a message instead of spinning. Normal
+    draws never come near it (a few scenes per task), so they are unchanged."""
+    if loops >= DRAW_LIMIT * max(n, 1):
+        raise RuntimeError(f"sampler drew {loops} scenes for {n} tasks without finishing: nothing drawn fits (check robots, empty, scaled)")
+    return loops + 1
 
 
 def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, counts="uniform", keep=False, empty=False, scaled=False):
@@ -660,7 +705,9 @@ def sample_tasks(rng, n, split="train", family=None, robots=None, check=None, co
     worlds, metas, out = [], [], []
     count = None
     kept, tries, given_up = None, 0, 0
+    loops = 0
     while len(out) + given_up < n:
+        loops = draw_guard(loops, n)
         if robots is not None and count is None:
             count = draw_count(rng, robots[0], robots[1], counts)
         if empty and keep and kept is not None and tries >= KEEP_TRIES:
@@ -699,6 +746,194 @@ def cheese_centre(snap, k):
     return snap["cheese_pos"][k].astype(float) + CHEESE_SIDE / 2
 
 
+# Strict judges (2026-11-14, runs/handoff/judges-v2.md). A checker passes a job only when a
+# stranger watching the grey video would agree that it was done as worded: a tower is a column,
+# not a pile; a fill is full; groups are visibly apart; two jobs are done by two groups. A job not
+# done keeps its partial credit for evaluations, capped at UNDONE, under every pass mark.
+UNDONE = 0.45
+
+
+def strict(value, done):
+    """A checker's score: 1 when the job is done, else its partial credit capped at UNDONE."""
+    return 1.0 if done else float(min(value, UNDONE))
+
+
+def near_any(mask):
+    """(D, H, W) bool: the voxels within one step (26 neighbours, and the voxel itself) of mask."""
+    padded = np.pad(mask, 1)
+    out = np.zeros_like(padded)
+    for dz, dy, dx in itertools.product((-1, 0, 1), repeat=3):
+        out |= np.roll(padded, (dz, dy, dx), axis=(0, 1, 2))
+    return out[1:-1, 1:-1, 1:-1]
+
+
+def apart(occupied):
+    """(D, H, W) bool: robots with no other robot on any of their 26 neighbours (not even at an
+    edge or a corner), so no two of them touch on the video."""
+    count = np.zeros(occupied.shape, int)
+    padded = np.pad(occupied, 1).astype(int)
+    for dz, dy, dx in itertools.product((-1, 0, 1), repeat=3):
+        if (dz, dy, dx) != (0, 0, 0):
+            count += np.roll(padded, (dz, dy, dx), axis=(0, 1, 2))[1:-1, 1:-1, 1:-1]
+    return occupied & (count == 0)
+
+
+def towers(occupied, walls, height):
+    """[(n, 2) floor cells] of every free-standing tower exactly `height` robots tall: one to four
+    columns side by side within a 2 x 2 footprint, each a stack of `height` robots resting on the
+    ground with nothing above it, and no robot above the ground layer in the cells around the
+    footprint (robots on the floor next to it are fine). A pile, a staircase, a column with robots
+    hanging on its side and a column taller or shorter than asked are not towers."""
+    ground = walls.sum(0)
+    depth = occupied.shape[0]
+    stack = np.zeros(ground.shape, int)
+    going = np.ones(ground.shape, bool)
+    for z in range(depth):
+        on = z >= ground
+        going &= ~on | occupied[z]
+        stack += on & occupied[z] & going
+    zz = np.arange(depth)[:, None, None]
+    count = (occupied & (zz >= ground[None])).sum(0)
+    base = np.take_along_axis(np.pad(occupied, ((0, 1), (0, 0), (0, 0))), np.minimum(ground, depth)[None], axis=0)[0]
+    raised = count > base  # a robot above the ground layer
+    tall = (stack == height) & (count == height)
+    found, seen = [], np.zeros_like(tall)
+    for y, x in np.argwhere(tall).tolist():
+        if seen[y, x]:
+            continue
+        cells, todo = [], [(y, x)]
+        seen[y, x] = True
+        while todo:
+            a, b = todo.pop()
+            cells.append((a, b))
+            for c, d in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                if 0 <= c < tall.shape[0] and 0 <= d < tall.shape[1] and tall[c, d] and not seen[c, d]:
+                    seen[c, d] = True
+                    todo.append((c, d))
+        cells = np.array(cells)
+        if np.ptp(cells[:, 0]) > 1 or np.ptp(cells[:, 1]) > 1:
+            continue
+        foot = np.zeros_like(tall)
+        foot[cells[:, 0], cells[:, 1]] = True
+        ring = near_any(foot[None])[0] & ~foot
+        if not raised[ring].any():
+            found.append(cells)
+    return found
+
+
+def visible_groups(occupied):
+    """Groups of robots as a viewer sees them: robots at most GROUP_GAP - 1 empty cells apart
+    (Chebyshev distance up to GROUP_GAP) are one group, so separate groups have at least GROUP_GAP
+    empty cells between them. [(n, 3) cells], largest first."""
+    cells = np.argwhere(occupied)
+    if not len(cells):
+        return []
+    close = np.abs(cells[:, None, :] - cells[None, :, :]).max(axis=2) <= GROUP_GAP
+    label = -np.ones(len(cells), int)
+    for j in range(len(cells)):
+        if label[j] >= 0:
+            continue
+        label[j] = j
+        todo = [j]
+        while todo:
+            a = todo.pop()
+            for b in np.nonzero(close[a] & (label < 0))[0].tolist():
+                label[b] = j
+                todo.append(b)
+    found = [cells[label == j] for j in np.unique(label)]
+    return sorted(found, key=lambda g: (-len(g), tuple(g[0])))
+
+
+def in_box(cells, box, margin=0):
+    """Whether every floor point of cells ((n, 3) z, y, x) lies in a floor box (y0, y1, x0, x1)
+    grown by margin."""
+    y0, y1, x0, x1 = box
+    return bool(len(cells)) and bool(((cells[:, 1] >= y0 - margin) & (cells[:, 1] < y1 + margin) & (cells[:, 2] >= x0 - margin) & (cells[:, 2] < x1 + margin)).all())
+
+
+def at_region(cells, name):
+    """Whether robots (n, 3) are at a floor region as a viewer would say: all of them in its box
+    grown by a cell, and their centre in the box itself."""
+    box = region_box(name)
+    y, x = cells[:, 1:].mean(axis=0) + 0.5
+    return in_box(cells, box, margin=1) and box[0] <= y < box[1] and box[2] <= x < box[3]
+
+
+def sides_held(occupied, cubes, walls):
+    """Whether robots touch an object (its voxels, (n, 3)) on all four sides: on each horizontal
+    side, a robot face to face with it (a side against a wall or the grid's edge has nothing to
+    hold and counts as held)."""
+    own = {tuple(c) for c in np.asarray(cubes).tolist()}
+    shape = np.array(occupied.shape)
+    for axis in (1, 2):
+        for sign in (-1, 1):
+            step = np.zeros(3, int)
+            step[axis] = sign
+            cells = [c for c in (np.asarray(cubes) + step).tolist() if tuple(c) not in own and all(0 <= v < n for v, n in zip(c, shape)) and not walls[tuple(c)]]
+            if cells and not any(occupied[tuple(c)] for c in cells):
+                return False
+    return True
+
+
+def cheese_cubes(pos):
+    """(8, 3) voxels of a 2 x 2 x 2 cheese at pos."""
+    return np.asarray(pos, int) + np.argwhere(np.ones((CHEESE_SIDE,) * 3, bool))
+
+
+def surrounded(occupied, cubes, shell_cells, walls):
+    """Whether robots surround an object (its voxels cubes, (n, 3)): on half of its open shell
+    (shell_cells, (n, 3)) or more, and on all four of its sides (sides_held)."""
+    share = occupied[tuple(np.asarray(shell_cells).T)].sum() / max(len(shell_cells), 1)
+    return bool(share >= 0.5) and sides_held(occupied, cubes, walls)
+
+
+def cheese_shell(pos, walls):
+    """(n, 3) open shell voxels of a 2 x 2 x 2 cheese at pos: in the grid and not walls."""
+    coords = np.asarray(pos, int) + SHELL_OFFSETS.numpy()
+    coords = coords[np.all((coords >= 0) & (coords < np.array(walls.shape)), axis=1)]
+    return coords[~walls[tuple(coords.T)]]
+
+
+def outside(foot, box):
+    """Whether no floor cell of foot ((n, 2) y, x) lies in a floor box (y0, y1, x0, x1)."""
+    y0, y1, x0, x1 = box
+    return not ((foot[:, 0] >= y0) & (foot[:, 0] < y1) & (foot[:, 1] >= x0) & (foot[:, 1] < x1)).any()
+
+
+def parallel_done(spec, static, end, eaten):
+    """Whether a parallel task's two jobs were done by two separate groups (visible_groups): each
+    region, tower and surround job by a group of its own (a region group all at the region, a
+    tower group holding a tower of the height outside every region asked, a surround group around
+    its cheese), eat jobs by eating, and no group left over beyond one per job."""
+    occupied = end["mass"] > 0.5
+    found = visible_groups(occupied)
+    if len(found) > len(spec["jobs"]):
+        return False
+    slot = {COLOUR_NAMES[int(c)]: k for k, c in enumerate(static["cheese_color"]) if c >= 0}
+    regions = [region_box(x) for job, x in spec["jobs"] if job == "region"]
+
+    def does(job, x, cells):
+        mine = np.zeros_like(occupied)
+        mine[tuple(cells.T)] = True
+        if job == "region":
+            return at_region(cells, x)
+        if job == "tower":
+            return any(all(outside(foot, box) for box in regions) for foot in towers(mine, static["walls"], x))
+        k = slot[x]  # surround
+        if not end["cheese_alive"][k]:
+            return False
+        pos = end["cheese_pos"][k]
+        return surrounded(mine, cheese_cubes(pos), cheese_shell(pos, static["walls"]), static["walls"])
+
+    group_jobs = [(job, x) for job, x in spec["jobs"] if job != "eat"]
+    if any(x not in eaten for job, x in spec["jobs"] if job == "eat"):
+        return False
+    for picked in itertools.permutations(range(len(found)), len(group_jobs)):
+        if all(does(job, x, found[g]) for (job, x), g in zip(group_jobs, picked)):
+            return True
+    return False
+
+
 def score(task, static, start, end, eaten):
     """(score in [0, 1], unasked) of an episode: static (walls, cheese_color, gravity, meta),
     start and end snapshots, eaten the colour names in the order eaten."""
@@ -717,16 +952,24 @@ def score(task, static, start, end, eaten):
     mass = end["mass"]
     slot = {COLOUR_NAMES[int(c)]: k for k, c in enumerate(static["cheese_color"]) if c >= 0}
     kind = spec["kind"]
-    if kind == "mask":
-        return f1(mass, spec["mask"]), unasked
+    occupied = mass > 0.5
+    if kind == "mask":  # done: every voxel of the shape taken and no other robot touching it
+        mask = spec["mask"]
+        done = bool((occupied & mask).sum() == mask.sum()) and not (occupied & ~mask & near_any(mask)).any()
+        return strict(f1(mass, mask), done), unasked
     if kind == "tower":
-        return min(1.0, tallest_run(mass) / spec["height"]), unasked
-    if kind == "bridge":
+        return strict(min(1.0, tallest_run(mass) / spec["height"]), bool(towers(occupied, static["walls"], spec["height"]))), unasked
+    if kind == "bridge":  # done: a straight run of robots in the plateaus' top layer from one plateau to the other over open air
         solid = solid_grid(static["walls"], end["cheese_pos"], end["cheese_alive"])
-        return min(1.0, bridges(mass, solid) / spec["width"]), unasked
-    if kind == "fill":
-        inside = ((mass > 0.5) & spec["mask"]).sum() / max((mass > 0.5).sum(), 1)
-        return float(min(1.0, inside / 0.6)), unasked
+        top = trench(static["meta"])[3]
+        layer = np.zeros_like(occupied)
+        layer[top - 1] = occupied[top - 1]
+        below = occupied.copy()
+        below[top - 1 :] = False
+        return strict(min(1.0, bridges(mass, solid) / spec["width"]), bridges(layer, solid | below) >= spec["width"]), unasked
+    if kind == "fill":  # done: the trench full of robots up to the plateaus' top
+        inside = (occupied & spec["mask"]).sum() / max(occupied.sum(), 1)
+        return strict(float(min(1.0, inside / 0.6)), bool((occupied & spec["mask"]).sum() == spec["mask"].sum())), unasked
     if kind == "stairs":
         occupied = mass > 0.5
         return float(max(((occupied & m).sum() / m.sum()) for m in spec["masks"])), unasked
@@ -739,11 +982,11 @@ def score(task, static, start, end, eaten):
                 if want != have:
                     break
                 prefix += 1
-            return prefix / len(spec["order"]), unasked
+            return strict(prefix / len(spec["order"]), prefix == len(spec["order"])), unasked
         if spec["any_of"]:
             return float(bool(got & spec["any_of"])), unasked
         if spec["eat"]:
-            return len(got & spec["eat"]) / len(spec["eat"]), unasked
+            return strict(len(got & spec["eat"]) / len(spec["eat"]), spec["eat"] <= got), unasked
         return float(not eaten), unasked
     if kind == "herd_region":
         parts = []
@@ -762,7 +1005,7 @@ def score(task, static, start, end, eaten):
             d0 = np.linalg.norm(cheese_centre(start, k)[1:] - target)
             d1 = np.linalg.norm(np.array([cy, cx]) - target)
             parts.append(float(0.8 * np.clip((d0 - d1) / max(d0, 1e-6), 0, 1)))
-        return float(np.mean(parts)), unasked
+        return strict(float(np.mean(parts)), all(p == 1.0 for p in parts)), unasked
     if kind == "herd_trench":
         k = slot[spec["cheese"]]
         if not end["cheese_alive"][k]:
@@ -786,7 +1029,7 @@ def score(task, static, start, end, eaten):
                 k = slot[x]
                 share = shell_share(mass, end["cheese_pos"][k], static["walls"]) if end["cheese_alive"][k] else 0.0
                 scores.append(float(min(1.0, share / 0.5)))
-        return float(np.mean(scores)), unasked
+        return strict(float(np.mean(scores)), parallel_done(spec, static, end, eaten)), unasked
     raise ValueError(kind)
 
 
@@ -1044,8 +1287,8 @@ class Expert:
         eating the cheese."""
         coords, open_ = shells
         kind = seg["kind"]
-        if kind == "targets":
-            return seg["points"], None, None
+        if kind == "targets":  # a tower takes as many robots as it has voxels; the rest stay out of the way, so it ends a column, not a pile (towers)
+            return seg["points"], None, len(seg["points"]) if seg.get("label", {}).get("kind") == "tower" else None
         if kind == "job":
             setup = self.jobs[i][1]
             self.frozen[i] = setup.frozen
@@ -1476,8 +1719,14 @@ def face_alone(occupied):
 
 
 def job_value(spec, static, start, end, eaten, movers, n, pick):
-    """How far the robots taking part (movers, at the end) did the job, in [0, 1]; n is how many
-    take part."""
+    """(value, done) of the robots taking part (movers, at the end) at the job: how far they did
+    it, in [0, 1], and whether they did it as worded (the strict judges, strict()); n is how many
+    take part. Done: approach, follow, perch, climb and eat in full; goto all of them at the region
+    (at_region); gather one touching group; spread no robot touching any other robot, not even at an
+    edge (apart); groups exactly that many visibly separate groups (visible_groups), none under
+    half an even share; a line one straight unbroken row of all of them; move their centre shifted
+    the steps asked (to half a cell) and less than a cell sideways; a tower a free-standing column
+    of exactly the height (towers)."""
     kind = spec["kind"]
     n = max(n, 1)
     cells = np.argwhere(movers)
@@ -1485,57 +1734,70 @@ def job_value(spec, static, start, end, eaten, movers, n, pick):
     if kind in ("approach", "follow", "perch"):
         k = slot[spec["colour"]]
         if not end["cheese_alive"][k]:
-            return 0.0
+            return 0.0, False
         pos = end["cheese_pos"][k]
         if kind == "perch":
             top = movers[pos[0] + CHEESE_SIDE, pos[1] : pos[1] + CHEESE_SIDE, pos[2] : pos[2] + CHEESE_SIDE] if pos[0] + CHEESE_SIDE < movers.shape[0] else np.zeros(1, bool)
-            return min(1.0, float(top.sum()) / min(n, CHEESE_SIDE * CHEESE_SIDE))
+            value = min(1.0, float(top.sum()) / min(n, CHEESE_SIDE * CHEESE_SIDE))
+            return value, value >= 1.0
         reach = NEAR if kind == "approach" else RUNNER_RADIUS
-        return min(1.0, float((floor_distance(cells[:, 1:], pos) <= reach).sum()) / n) if len(cells) else 0.0
+        value = min(1.0, float((floor_distance(cells[:, 1:], pos) <= reach).sum()) / n) if len(cells) else 0.0
+        return value, value >= 1.0
     if kind == "goto":
         y0, y1, x0, x1 = region_box(spec["region"])
         inside = (cells[:, 1] >= y0 - 1) & (cells[:, 1] < y1 + 1) & (cells[:, 2] >= x0 - 1) & (cells[:, 2] < x1 + 1)
-        return min(1.0, float(inside.sum()) / n)
+        value = min(1.0, float(inside.sum()) / n)
+        return value, value >= 1.0 and at_region(cells, spec["region"])
     if kind == "gather":
         groups = components(movers)
-        return min(1.0, len(groups[0]) / n) if groups else 0.0
+        value = min(1.0, len(groups[0]) / n) if groups else 0.0
+        return value, value >= 1.0 and len(groups) == 1
     if kind == "spread":
-        return min(1.0, float((face_alone(end["mass"] > 0.5) & movers).sum()) / n)
+        value = min(1.0, float((face_alone(end["mass"] > 0.5) & movers).sum()) / n)
+        alone = int((apart(end["mass"] > 0.5) & movers).sum())
+        return value, alone >= n and alone == len(cells)
     if kind == "groups":
         m = spec["count"]
         shares = [len(g) / n for g in components(movers)] + [0.0] * m
-        return float(min(1.0, sum(shares[:m]) / 0.8) * min(1.0, shares[m - 1] / (0.5 / m)))
+        value = float(min(1.0, sum(shares[:m]) / 0.8) * min(1.0, shares[m - 1] / (0.5 / m)))
+        seen = visible_groups(movers)
+        return value, len(seen) == m and len(cells) >= n and min(len(g) for g in seen) >= 0.5 * n / m
     if kind == "line":
-        return min(1.0, longest_line(movers, 2 if spec["axis"] == "x" else 1) / n)
+        value = min(1.0, longest_line(movers, 2 if spec["axis"] == "x" else 1) / n)
+        return value, value >= 1.0 and longest_line(movers, 2 if spec["axis"] == "x" else 1) == len(cells)
     if kind == "climb":
         y0, y1, x0, x1 = spec["plateau"]
         on = (cells[:, 0] >= spec["top"]) & (cells[:, 1] >= y0) & (cells[:, 1] < y1) & (cells[:, 2] >= x0) & (cells[:, 2] < x1)
-        return min(1.0, float(on.sum()) / n)
+        value = min(1.0, float(on.sum()) / n)
+        return value, value >= 1.0
     if kind == "move":
         axis, sign = SIDE_AXES[spec["toward"]]
         before = np.argwhere(pick if pick is not None else start["mass"] > 0.5)
         if not len(before) or not len(cells):
-            return 0.0
-        shift = sign * (cells[:, axis].mean() - before[:, axis].mean())
-        return float(np.clip(shift / spec["steps"], 0.0, 1.0))
+            return 0.0, False
+        shift = cells[:, 1:].mean(axis=0) - before[:, 1:].mean(axis=0)
+        along, across = sign * shift[axis - 1], abs(shift[2 - axis])
+        return float(np.clip(along / spec["steps"], 0.0, 1.0)), abs(along - spec["steps"]) <= 0.5 and across < 1.0
     if kind == "tower":
-        return min(1.0, tallest_run(movers) / spec["height"])
+        return min(1.0, tallest_run(movers) / spec["height"]), bool(towers(movers, static["walls"], spec["height"]))
     if kind == "eat":
-        return float(spec["colour"] in eaten)
+        return float(spec["colour"] in eaten), spec["colour"] in eaten
     raise ValueError(kind)
 
 
 def job_score(task, static, start, end, eaten):
     """(score, unasked) of a coverage task: how far the robots taking part did the job, times the
-    share of the robots left out that are still where they were. "stay" is the share of robots
-    still on their start voxels. A count selector ("N of you", "half of you") picks no robots in
-    advance: the robots off their start voxels are the ones that moved, the job is judged on them,
-    and moving more than N costs N / moved."""
+    share of the robots left out that are still where they were; done (strict) only when the job
+    is done (job_value) and every robot left out is still where it was. "stay" is the share of
+    robots still on their start voxels, done when that is all of them. A count selector ("N of
+    you", "half of you") picks no robots in advance: the robots off their start voxels are the
+    ones that moved, the job is judged on them, and moving more than N costs N / moved."""
     spec = task.spec
     unasked = any(c in spec["forbid"] for c in eaten)
     before, after = start["mass"] > 0.5, end["mass"] > 0.5
-    if spec["kind"] == "stay":
-        return float((before & after).sum() / max(before.sum(), 1)), unasked
+    if spec["kind"] == "stay":  # done: nobody moved, apart from robots that dropped straight down when gravity came on (every floor column holds the robots it held)
+        share = float((before & after).sum() / max(before.sum(), 1))
+        return strict(share, share >= 1.0 or bool((before.sum(axis=0) == after.sum(axis=0)).all())), unasked
     who = spec["who"]
     pick = chosen(who, before, cheese_centres(static["cheese_color"], start))
     if pick is None and who["select"] not in ("count", "half"):
@@ -1549,7 +1811,8 @@ def job_score(task, static, start, end, eaten):
         frozen = before & ~pick
         movers = after & ~frozen
         still = float((after & frozen).sum() / frozen.sum()) if frozen.any() else 1.0
-    return float(job_value(spec, static, start, end, eaten, movers, n, pick) * still), unasked
+    value, done = job_value(spec, static, start, end, eaten, movers, n, pick)
+    return strict(float(value * still), done and still >= 1.0), unasked
 
 
 def tower_shares(record, static, start, end):
@@ -2003,21 +2266,19 @@ class JobSetup:
         raise ValueError(kind)
 
     def spread_points(self, world, i):
-        """Recomputed every step: the robots taking part that touch no robot face to face hold
-        where they are; for each of the others, a free ground voxel with no staying robot on its
-        faces, no two of them face to face, nearest the robots that still touch first."""
+        """Recomputed every step: the robots taking part that touch no robot (not even at an edge
+        or a corner: apart, as the checker judges) hold where they are; for each of the others, a
+        free ground voxel with no staying robot on any of its 26 neighbours, no two of them
+        neighbours, nearest the robots that still touch first."""
         occupied = world.mass[i].numpy() > 0.5
         mine = occupied & ~self.frozen
-        alone = face_alone(occupied) & mine
+        alone = apart(occupied) & mine
         out = [tuple(p) for p in np.argwhere(alone).tolist()]
         crowded = np.argwhere(mine & ~alone)
         if not len(crowded):
             return out
         settled = occupied & ~(mine & ~alone)  # robots that stay: alone ones and frozen ones; the crowded ones will move
-        near = occupied.copy()
-        for axis in range(3):
-            for sign in (-1, 1):
-                near |= np.roll(settled, sign, axis=axis)
+        near = occupied | near_any(settled)
         avoid = self.solid | shells_of(world, i) | near
         yy, xx = np.mgrid[0:SIZE, 0:SIZE]
         ok = self.heights < SIZE
@@ -2028,7 +2289,7 @@ class JobSetup:
         taken = np.zeros((SIZE, SIZE), bool)
         for j in order:
             y, x = int(ys[j]), int(xs[j])
-            if taken[max(y - 1, 0) : y + 2, x].any() or taken[y, max(x - 1, 0) : x + 2].any():
+            if taken[max(y - 1, 0) : y + 2, max(x - 1, 0) : x + 2].any():
                 continue
             taken[y, x] = True
             out.append((int(self.heights[y, x]), y, x))
@@ -2386,7 +2647,9 @@ def sample_coverage(rng, n, family=None, split="train", robots=None, counts="uni
     held = split if split in HELD_OUT else ""
     worlds, metas, out = [], [], []
     kept, tries, given_up = None, 0, 0
+    loops = 0
     while len(out) + given_up < n:
+        loops = draw_guard(loops, n)
         if empty and keep and kept is not None and tries >= KEEP_TRIES:
             given_up += 1
             kept = None

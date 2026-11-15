@@ -1119,7 +1119,9 @@ A named object scores the best IoU of the final robots with its target voxels ov
 on the grid and the four quarter turns (`shapes.object_iou`): hits / (target + robots inside the
 target's box grown by one cell across the floor and one up - hits). The instruction says neither
 where nor which way round, and robots away from the object (the ones not needed) cost nothing.
-Pass: IoU at least 0.75 (`build.OBJECT_PASS`). A use scores its check (pass at 1.0). The checker is
+Pass: IoU 1.0 (`build.OBJECT_PASS`, `suite.SUCCESS["build"]`; 0.75 before 2026-11-14, when an
+arch missing a leg passed): every voxel filled and no other robot in or around the object's box. A
+use scores its check (pass at 1.0). The checker is
 also offered under `suite.score` (spec kind `build`).
 
 ### The expert (`build.make_expert`)
@@ -1426,6 +1428,38 @@ All drawn kinds: 556 of 576 passed (0.97) in the first probe. Refusals of things
 not have come from `eat:absent` and the conditionals' other branch here, and from Haiku's refuse
 instructions at labelling time (`haiku.py --refusals`); a push, surround or approach of a missing
 cheese is not a drawn kind.
+
+### Strict judges (2026-11-14, `runs/handoff/judges-v2.md`)
+
+A pass is what a stranger watching the grey video would call done as worded. A checker returns 1
+when the job is done and otherwise its old partial credit capped at `suite.UNDONE` (0.45), under
+every pass mark (`suite.strict`), so evaluations keep a graded score and only a done job passes.
+
+| Job | Done when |
+|---|---|
+| tower (construction, a parallel or selector tower, conditional, count) | `suite.towers`: one to four columns in a 2 x 2 footprint, each exactly the height asked, standing on the ground with nothing on top, and no robot above the ground layer in the cells around it (a pile, a staircase, a column with robots hanging on it, a taller column: not a tower) |
+| formation (shape, letter) | every voxel of the mask taken and no other robot touching it |
+| fill | every trench voxel below the plateaus' top taken (no swarm of 115 robots can: fill drops out) |
+| bridge | a straight run of robots in the plateaus' top layer from one plateau to the other over open air |
+| parallel | two jobs, two groups: the swarm in at most one visible group per job (`suite.visible_groups`: groups at least two empty cells apart), a region group all at its region (`suite.at_region`: in the box grown by a cell, its centre in the box), a tower group holding a tower outside every region asked, a surround group around its cheese; eat jobs by eating |
+| surround (parallel, things, conditionals) | robots on half the open shell or more and on all four sides (`suite.surrounded`) |
+| goto, conditional goto | every robot at the region (`at_region`) |
+| gather / groups | one touching group / exactly that many visible groups, none under half an even share |
+| spread | no robot touches another, not even at an edge or a corner (`suite.apart`; the expert's targets keep a cell between robots) |
+| line, stay, move, approach, follow, climb | the whole row / every robot still (a robot dropping straight down when gravity comes on counts as still) / the centre moved the steps asked (to half a cell) and under a cell sideways / all of them |
+| selectors | the job done by the robots taking part and every robot left out still in place |
+| eat (and, all, ordered), herd, push, line_blocks, zones | every cheese asked eaten in order / the object in place (partial pushes no longer pass at 0.8 of the way) / every block on the row / every robot at the zone |
+
+The tower expert sends only as many robots as the column has voxels (`Expert.targets_of`, the
+objects' tower `cap`); the others stay out of its way. The draw is unchanged: `fits`, the bounds,
+`objects.already_done` (raw `job_value`) and the coverage `drawn_*` functions are as before, so
+Haiku labels joined by draw index still line up; some drawn tasks can now never pass (a letter
+larger than the swarm, a fill).
+
+Plain words (`demos --plain`, on in the demo preset): the stored instruction text names things
+as they look (`suite.plain_words`): a cheese is a "food block" ("food" where English wants a mass
+noun), a stripe a "line on the floor", a zone a "patch of floor". The draw, `Task.text` and the
+records are unchanged.
 
 ### A trial store
 

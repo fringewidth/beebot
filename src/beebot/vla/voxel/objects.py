@@ -452,65 +452,77 @@ def branch(spec):
 
 
 def job_value(spec, static, start, end):
-    """How far the job of an object task was done, in [0, 1]."""
+    """(value, done) of the job of an object task: how far it was done, in [0, 1], and whether it
+    was done as worded (suite's strict judges, suite.strict). Done: eat and catch the object eaten;
+    surround robots on half its open shell and on all four of its sides (suite.surrounded); push
+    the object where asked (in_place); line_blocks every block on the row; goto_zone every robot
+    at the zone; line_zone the stripe taken by as many robots as it or the swarm holds; a tower a
+    free-standing column of exactly the height (suite.towers); goto every robot at the region
+    (suite.at_region); count's groups exactly that many visibly separate groups."""
     meta = static["meta"]
     kind = spec["kind"]
     meals = eaten_slots(start, end)
     mass = end["mass"] > 0.5
     if kind in ("eat_thing", "catch_thing"):
-        return float(spec["target"] in meals)
+        return float(spec["target"] in meals), spec["target"] in meals
     if kind == "surround_thing":
         thing = by_slot(things_at(static, end)).get(spec["target"])
         if thing is None:
-            return 0.0
+            return 0.0, False
         cells, _ = shell_cells(thing, static["walls"])
         share = mass[cells[:, 0], cells[:, 1], cells[:, 2]].sum() / max(len(cells), 1)
-        return float(min(1.0, share / 0.5))
+        return float(min(1.0, share / 0.5)), S.surrounded(mass, thing["cubes"], cells, static["walls"])
     if kind == "push_thing":
-        return push_value(by_slot(things_at(static, start))[spec["target"]], by_slot(things_at(static, end)).get(spec["target"]), spec["to"], meta)
+        end_thing = by_slot(things_at(static, end)).get(spec["target"])
+        value = push_value(by_slot(things_at(static, start))[spec["target"]], end_thing, spec["to"], meta)
+        return value, end_thing is not None and in_place(end_thing, spec["to"], meta)
     if kind == "line_blocks":
         blocks = [t for t in things_at(static, end) if t["noun"] == "block"]
         axis = 1 if spec["axis"] == "x" else 2  # a row from left to right shares a y row
         aligned = max(sum(bool((t["cells"][:, axis - 1] == c).any()) for t in blocks) for c in range(SIZE))
-        return (aligned - 1) / max(len(blocks) - 1, 1)  # one block is always on some row
+        return (aligned - 1) / max(len(blocks) - 1, 1), aligned == len(blocks)  # one block is always on some row
     if kind == "goto_zone":
         y0, y1, x0, x1 = zone_of(meta["props"]["zones"], spec["zone"])["box"]
         cells = np.argwhere(mass)
         inside = (cells[:, 1] >= y0 - 1) & (cells[:, 1] < y1 + 1) & (cells[:, 2] >= x0 - 1) & (cells[:, 2] < x1 + 1)
         room = 2 * (y1 - y0 + 2) * (x1 - x0 + 2)
-        return float(min(1.0, inside.sum() / max(min(len(cells), room), 1)))
+        value = float(min(1.0, inside.sum() / max(min(len(cells), room), 1)))
+        return value, bool(len(cells)) and bool(inside.all())
     if kind == "line_zone":
         zones = meta["props"]["zones"]
         colour = COLOUR_NAMES.index(spec["zone"])
         ground = static["walls"].sum(axis=0)
         ys, xs = np.nonzero(zones == colour)
         on = sum(bool(mass[min(int(ground[y, x]), SIZE - 1), y, x]) for y, x in zip(ys, xs))
-        return float(min(1.0, on / max(min(int(mass.sum()), len(ys)), 1)))
+        value = float(min(1.0, on / max(min(int(mass.sum()), len(ys)), 1)))
+        return value, value >= 1.0
     if kind == "conditional":
         return job_value(branch(spec), static, start, end)
     if kind == "tower":
-        return min(1.0, tallest_run(end["mass"]) / spec["height"])
+        return min(1.0, tallest_run(end["mass"]) / spec["height"]), bool(S.towers(mass, static["walls"], spec["height"]))
     if kind == "goto":
         y0, y1, x0, x1 = S.region_box(spec["region"])
         cells = np.argwhere(mass)
         inside = (cells[:, 1] >= y0 - 1) & (cells[:, 1] < y1 + 1) & (cells[:, 2] >= x0 - 1) & (cells[:, 2] < x1 + 1)
-        return float(min(1.0, inside.sum() / max(len(cells), 1)))
+        return float(min(1.0, inside.sum() / max(len(cells), 1))), bool(len(cells)) and S.at_region(cells, spec["region"])
     if kind == "count":
         if spec["job"] == "tower":
-            return min(1.0, tallest_run(end["mass"]) / spec["count"])
+            return min(1.0, tallest_run(end["mass"]) / spec["count"]), bool(S.towers(mass, static["walls"], spec["count"]))
         m = spec["count"]
         n = max(int(mass.sum()), 1)
         shares = [len(g) / n for g in S.components(mass)] + [0.0] * m
-        return float(min(1.0, sum(shares[:m]) / 0.8) * min(1.0, shares[m - 1] / (0.5 / m)))
+        seen = S.visible_groups(mass)
+        return float(min(1.0, sum(shares[:m]) / 0.8) * min(1.0, shares[m - 1] / (0.5 / m))), len(seen) == m and min(len(g) for g in seen) >= 0.5 * n / m
     raise ValueError(kind)
 
 
 def score(task, static, start, end, eaten):
-    """(score in [0, 1], unasked) of an object task: unasked when it ate any object it does not
-    ask to eat (read off the snapshots; `eaten`, the colours, is not needed)."""
+    """(score in [0, 1], unasked) of an object task (suite.strict of job_value): unasked when it
+    ate any object it does not ask to eat (read off the snapshots; `eaten`, the colours, is not
+    needed)."""
     spec = task.spec
     unasked = bool(eaten_slots(start, end) - allowed_eats(spec))
-    return job_value(spec, static, start, end), unasked
+    return S.strict(*job_value(spec, static, start, end)), unasked
 
 
 def bound(task, world, i, n=None):
@@ -895,9 +907,10 @@ def job_task(rng, family, holdout, world, meta, i, job, ref, target, things, fin
 
 
 def already_done(task, world, meta, i):
-    """Whether the scene as it starts already scores half marks."""
+    """Whether the scene as it starts already has half the job's value (job_value, before the
+    strict judges cap it: part of the draw, which stays as it was)."""
     snap = S.snapshot(world, i)
-    return score(task, S.static_of(world, meta, i), snap, snap, [])[0] >= 0.5
+    return job_value(task.spec, S.static_of(world, meta, i), snap, snap)[0] >= 0.5
 
 
 def heavy_candidates(world, i, things, noun):
@@ -1197,7 +1210,7 @@ def conditional_task(rng, holdout, world, meta, i, things, form, scaled=False):
         pts = tower_points(world, i, else_spec["height"], rng, scaled)
         if pts is None:
             return None
-        plan = [{"kind": "fixed", "points": pts, "cap": len(pts) + 6, "label": {"kind": "tower", "height": else_spec["height"], "at": list(pts[0])}}]
+        plan = [{"kind": "fixed", "points": pts, "cap": len(pts), "label": {"kind": "tower", "height": else_spec["height"], "at": list(pts[0])}}]
     else:
         y0, y1, x0, x1 = S.region_box(else_spec["region"])
         cells = np.zeros((SIZE, SIZE), bool)
@@ -1222,7 +1235,7 @@ def count_task(rng, holdout, world, meta, i, things, job, scaled=False):
         pts = tower_points(world, i, count, rng, scaled)
         if pts is None:
             return None
-        plan = [{"kind": "fixed", "points": pts, "cap": len(pts) + 6, "label": {"kind": "tower", "height": count, "at": list(pts[0])}}]
+        plan = [{"kind": "fixed", "points": pts, "cap": len(pts), "label": {"kind": "tower", "height": count, "at": list(pts[0])}}]
     task = object_task("reasoning", say(rng, "count." + job, holdout, k=PLURAL[noun]), spec, plan, holdout, meta)
     return None if already_done(task, world, meta, i) else task
 
@@ -1265,7 +1278,9 @@ def sample_objects(rng, n, family=None, split="train", robots=None, counts="unif
     holdout = split if split in HELD_OUT or split == "wording" else ""
     worlds, metas, out = [], [], []
     kept, tries, given_up = None, 0, 0
+    loops = 0
     while len(out) + given_up < n:
+        loops = S.draw_guard(loops, n)
         if empty and keep and kept is not None and tries >= S.KEEP_TRIES:
             given_up += 1
             kept = None
