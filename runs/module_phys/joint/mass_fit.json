@@ -1,0 +1,1 @@
+{"a": 978.9957909924643, "b": 10.918360804960212, "note": "SMA joint cube mass (kg) = a L^3 + b L^2, L in m, fitted to scripts/module_phys/small_joint.py cube() at 7-12 mm"}
