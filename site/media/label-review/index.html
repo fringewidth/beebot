@@ -1,0 +1,537 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caption review</title><style>
+:root { --bg: #f6f6f3; --card: #ffffff; --ink: #1d1d1d; --muted: #6b6b6b; --keep: #1f7a4d; --drop: #b3261e; --line: #dddddd; }
+@media (prefers-color-scheme: dark) { :root { --bg: #151515; --card: #1f1f1f; --ink: #ececec; --muted: #a0a0a0; --keep: #5fcf95; --drop: #ff8a80; --line: #333333; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, system-ui, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 22px; margin: 8px 0; }
+p.lead, .muted { color: var(--muted); }
+table.sum { border-collapse: collapse; margin: 12px 0; width: 100%; font-size: 14px; }
+table.sum td, table.sum th { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.filters button { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 16px; padding: 4px 12px; font-size: 14px; }
+.filters button.on { border-color: var(--ink); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin: 12px 0; overflow: hidden; }
+.card img { width: 100%; display: block; background: #f6f6f3; }
+.body { padding: 10px 12px; }
+.head { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+.tag { font-weight: 700; }
+.tag.keep { color: var(--keep); }
+.tag.drop { color: var(--drop); }
+.k { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .03em; margin-top: 8px; }
+.opt.own { font-weight: 600; }
+</style></head><body><main>
+<h1>Re-caption pilot: 100 shapes</h1>
+<p class="lead">Haiku rewrote each shape's caption as one sentence about its shape in our grey cube world, or UNCLEAR when it would not read as its caption. Then Haiku looked at the render and picked its own new caption (KEEP), another category's caption, or neither (DROP). Check the verdicts by number.</p>
+<table class="sum"><tr><th>source</th><th>shapes</th><th>UNCLEAR</th><th>kept</th><th>neither</th><th>wrong pick</th></tr><tr><td>text2shape</td><td>50</td><td>0</td><td>41</td><td>9</td><td>0</td></tr><tr><td>objaverse_cap3d</td><td>50</td><td>25</td><td>14</td><td>8</td><td>3</td></tr></table>
+<p class="muted">Known weakness: the control is another category, so a caption naming parts the render lacks can still win (#3, a solid box kept as a table with a shelf).</p>
+<div class="filters"><button class="on" data-f="all">all</button><button data-f="keep">keep</button><button data-f="drop">drop</button><button data-f="unclear">unclear</button><button data-f="text2shape">text2shape</button><button data-f="objaverse_cap3d">objaverse</button></div>
+<div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/001.png" alt="render of shape 1">
+<div class="body"><div class="head"><span>#1 text2shape / chair</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>A maroon color normal wooden color chair with four legs and back rest | A Mahogany wooden chair in victorian style with slatted seat.</div>
+<div class="k">new caption</div><div>A chair with four legs, a back rest, and armrests on each side.</div>
+<div class="k">vision check options</div><div class="opt">A: A round table with a flat top standing on one wide round base. (control)</div><div class="opt own">B: A chair with four legs, a back rest, and armrests on each side. (own)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/002.png" alt="render of shape 2">
+<div class="body"><div class="head"><span>#2 objaverse_cap3d / mushroom</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a purple and green mushroom.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/003.png" alt="render of shape 3">
+<div class="body"><div class="head"><span>#3 text2shape / table</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a cream-colored coffee table, blocky and rectangular in shape, with an additional surface near the ground | Tan coffee table of minimalist design, all sharp right angeled corners and edges</div>
+<div class="k">new caption</div><div>A low, flat rectangular table with a shelf underneath the top.</div>
+<div class="k">vision check options</div><div class="opt">A: A head with big eyes on its front. (control)</div><div class="opt own">B: A low, flat rectangular table with a shelf underneath the top. (own)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/004.png" alt="render of shape 4">
+<div class="body"><div class="head"><span>#4 objaverse_cap3d / gravy_boat</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a wooden boat with a paddle and various accessories.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/005.png" alt="render of shape 5">
+<div class="body"><div class="head"><span>#5 text2shape / chair</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>The sofa is in grey color. The leg of the sofa is very short. | The silver color sponge chair with all sides covered by sponge.</div>
+<div class="k">new caption</div><div>A short, cube-shaped chair with a low backrest, armrests on each side, and short legs.</div>
+<div class="k">vision check options</div><div class="opt">A: A tall bottle with a cap on top. (control)</div><div class="opt own">B: A short, cube-shaped chair with a low backrest, armrests on each side, and short legs. (own)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/006.png" alt="render of shape 6">
+<div class="body"><div class="head"><span>#6 objaverse_cap3d / costume</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a cat wearing a pirate hat and boots.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/007.png" alt="render of shape 7">
+<div class="body"><div class="head"><span>#7 text2shape / table</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a brown coloured rectangular wooden gray legged table | A light brown rectangular table with four silver metal legs.</div>
+<div class="k">new caption</div><div>A flat rectangular table standing on four long legs.</div>
+<div class="k">vision check options</div><div class="opt">A: A chair with a curved back, a rounded seat, and four legs. (control)</div><div class="opt own">B: A flat rectangular table standing on four long legs. (own)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/008.png" alt="render of shape 8">
+<div class="body"><div class="head"><span>#8 objaverse_cap3d / monkey</span><span class="tag drop">DROP (picked A)</span></div>
+<div class="k">original caption</div><div>A low poly monkey head with big eyes, accompanied by low poly models of a red sphere, fish, and pig.</div>
+<div class="k">new caption</div><div>A head with big eyes on its front.</div>
+<div class="k">vision check options</div><div class="opt">A: A chair with a seat and a tall backrest. (control)</div><div class="opt own">B: A head with big eyes on its front. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/009.png" alt="render of shape 9">
+<div class="body"><div class="head"><span>#9 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A brown wooden table with a diamond shaped decoration at the center and a storage draw on either side. Matching frame and legs. | the table is brwon is made from wood and have four legs</div>
+<div class="k">new caption</div><div>A rectangular table with four legs and a drawer under its top.</div>
+<div class="k">vision check options</div><div class="opt own">A: A rectangular table with four legs and a drawer under its top. (own)</div><div class="opt">B: A chair with four legs, a curved back, armrests and a padded seat. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/010.png" alt="render of shape 10">
+<div class="body"><div class="head"><span>#10 objaverse_cap3d / crossbar</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>&#x27;Soccer Goal and Net Royalty-Free</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/011.png" alt="render of shape 11">
+<div class="body"><div class="head"><span>#11 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A wood color chair in arch shaped, seat just curved shape. | A small rectangular wooden table has V-shaped design at the back with four long wooden legs separated by s spindle above the bottom</div>
+<div class="k">new caption</div><div>A tall seat with four legs and a back that has an open cut-out in its middle.</div>
+<div class="k">vision check options</div><div class="opt own">A: A tall seat with four legs and a back that has an open cut-out in its middle. (own)</div><div class="opt">B: A tall bottle with a cap on top. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/012.png" alt="render of shape 12">
+<div class="body"><div class="head"><span>#12 objaverse_cap3d / skateboard</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>White wooden skateboard</div>
+<div class="k">new caption</div><div>A long, flat, narrow board.</div>
+<div class="k">vision check options</div><div class="opt own">A: A long, flat, narrow board. (own)</div><div class="opt">B: A low chair with a curved back and curved legs. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/013.png" alt="render of shape 13">
+<div class="body"><div class="head"><span>#13 text2shape / chair</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>The color of the chair is like green and rose and light green and yellow  and red and blue and the shape is like pentagon and material is like wooden and the physical appearance is like short size chair which is used for childrens playing | Chair is made of wood and decol , it is in multi color, it is has four legs having low height and back rest is in curved shape and no arm rests and all edges are sharp</div>
+<div class="k">new caption</div><div>A small, low chair with four legs, a curved back and no arms.</div>
+<div class="k">vision check options</div><div class="opt">A: A container with one handle. (control)</div><div class="opt own">B: A small, low chair with four legs, a curved back and no arms. (own)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/014.png" alt="render of shape 14">
+<div class="body"><div class="head"><span>#14 objaverse_cap3d / apple</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a whiten apple.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/015.png" alt="render of shape 15">
+<div class="body"><div class="head"><span>#15 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A table with a rectangle transparent top and a body frame of four connected grey colored square legs | black color in rectangle shape with glass and steel material dinning table</div>
+<div class="k">new caption</div><div>A flat rectangular top held up by four legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A flat rectangular top held up by four legs. (own)</div><div class="opt">B: A small boat with a tall mast and a sail. (control)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/016.png" alt="render of shape 16">
+<div class="body"><div class="head"><span>#16 objaverse_cap3d / wine_bucket</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>a pink bucket with a handle and a red apple with a handle.</div>
+<div class="k">new caption</div><div>A container with one handle.</div>
+<div class="k">vision check options</div><div class="opt own">A: A container with one handle. (own)</div><div class="opt">B: A chair with a flat seat, a back, and four legs. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/017.png" alt="render of shape 17">
+<div class="body"><div class="head"><span>#17 text2shape / chair</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>It is a round chair that is made of white fabric. | A ROUND AND GREY COLOR ROUND SHAPED CHAIR. IT&#x27;S SEAT IS IN HALF CIRCLE SHAPE AND OF WHITE COLOR.</div>
+<div class="k">new caption</div><div>A low, rounded chair with a half-circle seat and a curved back that also forms the arms.</div>
+<div class="k">vision check options</div><div class="opt">A: A long, flat, narrow board. (control)</div><div class="opt own">B: A low, rounded chair with a half-circle seat and a curved back that also forms the arms. (own)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/018.png" alt="render of shape 18">
+<div class="body"><div class="head"><span>#18 objaverse_cap3d / short_pants</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>a pair of denim jeans shorts.</div>
+<div class="k">new caption</div><div>Two short legs joined at the top.</div>
+<div class="k">vision check options</div><div class="opt own">A: Two short legs joined at the top. (own)</div><div class="opt">B: A jet with a pointed nose, a long body, wide swept-back wings and tail fins at the rear. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/019.png" alt="render of shape 19">
+<div class="body"><div class="head"><span>#19 text2shape / chair</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a simple looking black plastic chair is good for outdoor | Black chair with holes on the seat as a pattern. Probably made of plastic.</div>
+<div class="k">new caption</div><div>A chair with four legs and a back with an opening on each side.</div>
+<div class="k">vision check options</div><div class="opt">A: A wide cap on top of a stem. (control)</div><div class="opt own">B: A chair with four legs and a back with an opening on each side. (own)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/020.png" alt="render of shape 20">
+<div class="body"><div class="head"><span>#20 objaverse_cap3d / bracelet</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A white bangle with stars on it.</div>
+<div class="k">new caption</div><div>A round ring with a hole in its middle.</div>
+<div class="k">vision check options</div><div class="opt own">A: A round ring with a hole in its middle. (own)</div><div class="opt">B: A chair with a back, two arm rests, and a seat on wheeled legs. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/021.png" alt="render of shape 21">
+<div class="body"><div class="head"><span>#21 text2shape / chair</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>A brown wooden magazine rack with two wooden feet | maroon color folded chair with wooden base no arms and rounded rectangular back rest.</div>
+<div class="k">new caption</div><div>A chair with a straight back, no arms and two legs.</div>
+<div class="k">vision check options</div><div class="opt">A: A long rectangular desk-like table with drawers along one side. (control)</div><div class="opt own">B: A chair with a straight back, no arms and two legs. (own)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/022.png" alt="render of shape 22">
+<div class="body"><div class="head"><span>#22 objaverse_cap3d / fork</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>a fork</div>
+<div class="k">new caption</div><div>A long thin handle with a head of prongs at one end.</div>
+<div class="k">vision check options</div><div class="opt">A: A bird with its wings spread wide out to each side and a small body in the middle. (control)</div><div class="opt own">B: A long thin handle with a head of prongs at one end. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/023.png" alt="render of shape 23">
+<div class="body"><div class="head"><span>#23 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>gray mix brown color, rectangle shape,wood  material, and physical appearance table | &quot;Plywood table with ash color mica lamination,square shape and without covering opposite side water proof table. Best for keeping books.&quot;</div>
+<div class="k">new caption</div><div>A rectangular table with open space underneath.</div>
+<div class="k">vision check options</div><div class="opt own">A: A rectangular table with open space underneath. (own)</div><div class="opt">B: A tall seat with four legs and a back that has an open cut-out in its middle. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/024.png" alt="render of shape 24">
+<div class="body"><div class="head"><span>#24 objaverse_cap3d / runner_(carpet)</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>A flat square surface textured to resemble marble or a similar stone material with a monochromatic color scheme, featuring shades of gray and white.</div>
+<div class="k">new caption</div><div>A thin, flat sheet.</div>
+<div class="k">vision check options</div><div class="opt">A: A low, rounded chair with a half-circle seat and a curved back that also forms the arms. (control)</div><div class="opt own">B: A thin, flat sheet. (own)</div></div></div><div class="card" data-v="drop" data-s="text2shape">
+<img loading="lazy" src="img/025.png" alt="render of shape 25">
+<div class="body"><div class="head"><span>#25 text2shape / chair</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>an armless haphazard shaped chair with curved supports and back | an armless chair thin in the middle and hook type supports</div>
+<div class="k">new caption</div><div>An armless chair with curved supports and a back.</div>
+<div class="k">vision check options</div><div class="opt own">A: An armless chair with curved supports and a back. (own)</div><div class="opt">B: A lamp with a wide shade on a thin stem standing on a flat base. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/026.png" alt="render of shape 26">
+<div class="body"><div class="head"><span>#26 objaverse_cap3d / pennant</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a black and yellow flag on a wooden stick with a scythe-like handle.</div>
+<div class="k">new caption</div><div>A flag hanging from a long stick with a curved top.</div>
+<div class="k">vision check options</div><div class="opt">A: A square armchair with a cushioned seat and a backrest. (control)</div><div class="opt own">B: A flag hanging from a long stick with a curved top. (own)</div></div></div><div class="card" data-v="drop" data-s="text2shape">
+<img loading="lazy" src="img/027.png" alt="render of shape 27">
+<div class="body"><div class="head"><span>#27 text2shape / table</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>GRAY COLOR AND RECTANGLE SHAPE OF THE OBJECT | colour is grey and white,material is made up of wood,bed cot.</div>
+<div class="k">new caption</div><div>A low rectangular table with curved openings cut into each side.</div>
+<div class="k">vision check options</div><div class="opt">A: A flag hanging from a long stick with a curved top. (control)</div><div class="opt own">B: A low rectangular table with curved openings cut into each side. (own)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/028.png" alt="render of shape 28">
+<div class="body"><div class="head"><span>#28 objaverse_cap3d / cube</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>a blue Minecraft cube.</div>
+<div class="k">new caption</div><div>A solid cube with equal sides.</div>
+<div class="k">vision check options</div><div class="opt own">A: A solid cube with equal sides. (own)</div><div class="opt">B: A small, low chair with four legs, a curved back and no arms. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/029.png" alt="render of shape 29">
+<div class="body"><div class="head"><span>#29 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>The table is brown in color in the upper part and legs of black in color. It is made of wood in the upper part and metal in the legs. It is round in shape. It looks good and neat. | black high iron one leg with brown round wooden top</div>
+<div class="k">new caption</div><div>A round flat top on one tall central leg.</div>
+<div class="k">vision check options</div><div class="opt own">A: A round flat top on one tall central leg. (own)</div><div class="opt">B: A tall bottle with a cap on top. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/030.png" alt="render of shape 30">
+<div class="body"><div class="head"><span>#30 objaverse_cap3d / hardback_book</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a green book.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/031.png" alt="render of shape 31">
+<div class="body"><div class="head"><span>#31 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>a brown, rectangular, wooden table | A brown wood rectangular coffee table with dark brown legs.</div>
+<div class="k">new caption</div><div>A rectangular table with four legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A rectangular table with four legs. (own)</div><div class="opt">B: A flag hanging from a long stick with a curved top. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/032.png" alt="render of shape 32">
+<div class="body"><div class="head"><span>#32 objaverse_cap3d / tomato</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a pink tomato</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/033.png" alt="render of shape 33">
+<div class="body"><div class="head"><span>#33 text2shape / table</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>A white colour glass table made with glass on table top surface and legs were made with iron. | A table with rectangular glass surface and wooden four legged support</div>
+<div class="k">new caption</div><div>A rectangular table top held up by four legs.</div>
+<div class="k">vision check options</div><div class="opt">A: A padded armchair with arms on both sides. (control)</div><div class="opt own">B: A rectangular table top held up by four legs. (own)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/034.png" alt="render of shape 34">
+<div class="body"><div class="head"><span>#34 objaverse_cap3d / mammoth</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>Low poly elephant with tusks,</div>
+<div class="k">new caption</div><div>A four-legged animal with two tusks.</div>
+<div class="k">vision check options</div><div class="opt own">A: A four-legged animal with two tusks. (own)</div><div class="opt">B: A low, rounded chair with a half-circle seat and a curved back that also forms the arms. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/035.png" alt="render of shape 35">
+<div class="body"><div class="head"><span>#35 text2shape / chair</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a yellow coloured wooden four leeged desighner chair | a wooden chair in golden color, with curved arm rest and legs</div>
+<div class="k">new caption</div><div>A chair with four legs and armrests.</div>
+<div class="k">vision check options</div><div class="opt">A: A four-legged animal with a head and a body. (control)</div><div class="opt own">B: A chair with four legs and armrests. (own)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/036.png" alt="render of shape 36">
+<div class="body"><div class="head"><span>#36 objaverse_cap3d / joystick</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a small, pink and blue tie-dyed arcade game machine with the word &#x27;play&#x27; on it.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/037.png" alt="render of shape 37">
+<div class="body"><div class="head"><span>#37 text2shape / table</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>A brown rectangle wooden table with four legs | a square wood color table with four supported legs for household and office use.</div>
+<div class="k">new caption</div><div>A rectangular table with four legs.</div>
+<div class="k">vision check options</div><div class="opt">A: A container with one handle. (control)</div><div class="opt own">B: A rectangular table with four legs. (own)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/038.png" alt="render of shape 38">
+<div class="body"><div class="head"><span>#38 objaverse_cap3d / cow</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>A low poly a cow with a blue and white checkered pattern.</div>
+<div class="k">new caption</div><div>A four-legged animal with a head and a body.</div>
+<div class="k">vision check options</div><div class="opt">A: A reclining chair with armrests, a high back and a leg rest that extends at the front. (control)</div><div class="opt own">B: A four-legged animal with a head and a body. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/039.png" alt="render of shape 39">
+<div class="body"><div class="head"><span>#39 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>This is a white rectangular desk. One long side of the desk has a low wall. | a white table with a rectangle top with a small short back and skinny legs</div>
+<div class="k">new caption</div><div>A low rectangular table top with four legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A low rectangular table top with four legs. (own)</div><div class="opt">B: A chair with a seat and a tall backrest. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/040.png" alt="render of shape 40">
+<div class="body"><div class="head"><span>#40 objaverse_cap3d / mushroom</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a cartoon mushroom with legs.</div>
+<div class="k">new caption</div><div>A wide cap on top of a stem.</div>
+<div class="k">vision check options</div><div class="opt">A: A reclining chair with armrests, a high back and a leg rest that extends at the front. (control)</div><div class="opt own">B: A wide cap on top of a stem. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/041.png" alt="render of shape 41">
+<div class="body"><div class="head"><span>#41 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>light blue color chair | a pale blue chair with slim legs and grey and black checkers on the back, with no hand rests</div>
+<div class="k">new caption</div><div>A chair with four thin legs, a back, and no arm rests.</div>
+<div class="k">vision check options</div><div class="opt own">A: A chair with four thin legs, a back, and no arm rests. (own)</div><div class="opt">B: Long and tapering to a point, with a small leafy top at the wide end. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/042.png" alt="render of shape 42">
+<div class="body"><div class="head"><span>#42 objaverse_cap3d / street_sign</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>A red circular sign with a yellow border and a black silhouette of an adult and child holding hands, with the word STOP across the center. The pole is black with yellow bands.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="drop" data-s="text2shape">
+<img loading="lazy" src="img/043.png" alt="render of shape 43">
+<div class="body"><div class="head"><span>#43 text2shape / chair</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>brown, chair with 8 poles on the back and rocking feet. | an old style brown wooden chair with curved back and curved legs</div>
+<div class="k">new caption</div><div>A chair with a tall back of upright bars and two curved rockers under the seat, with no arm rests.</div>
+<div class="k">vision check options</div><div class="opt">A: A jet with a pointed nose, a long body, wide swept-back wings and tail fins at the rear. (control)</div><div class="opt own">B: A chair with a tall back of upright bars and two curved rockers under the seat, with no arm rests. (own)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/044.png" alt="render of shape 44">
+<div class="body"><div class="head"><span>#44 objaverse_cap3d / tomato</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a persimmon with seeds, accompanied by two oranges, a ripe tomato, and a peach.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/045.png" alt="render of shape 45">
+<div class="body"><div class="head"><span>#45 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A small sofa with 4 legs and 2 cushion arm rests | A brown-green sofa with large rounded armrests and a rounded backing on the sofa.</div>
+<div class="k">new caption</div><div>A low seat with a rounded back, two raised arm rests at the sides, and four short legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A low seat with a rounded back, two raised arm rests at the sides, and four short legs. (own)</div><div class="opt">B: A round bowl with a wide open top. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/046.png" alt="render of shape 46">
+<div class="body"><div class="head"><span>#46 objaverse_cap3d / mushroom</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>red and white mushroom.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/047.png" alt="render of shape 47">
+<div class="body"><div class="head"><span>#47 text2shape / table</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a wooden brown rounded table and four short legs and four feet | a round and brown colour of wooden made table with 4 stand support</div>
+<div class="k">new caption</div><div>A round table with a flat top and four legs standing on the floor.</div>
+<div class="k">vision check options</div><div class="opt">A: Long and tapering to a point, with a small leafy top at the wide end. (control)</div><div class="opt own">B: A round table with a flat top and four legs standing on the floor. (own)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/048.png" alt="render of shape 48">
+<div class="body"><div class="head"><span>#48 objaverse_cap3d / shovel</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a white classic floor lamp with a simple, rounded base, slender pole, and a tapered lampshade.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/049.png" alt="render of shape 49">
+<div class="body"><div class="head"><span>#49 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A round alabaster top table with cylindrical base. | Marbled top round wood framed with large base coffee table</div>
+<div class="k">new caption</div><div>A round table with a flat top standing on one wide round base.</div>
+<div class="k">vision check options</div><div class="opt own">A: A round table with a flat top standing on one wide round base. (own)</div><div class="opt">B: A wide cap on top of a stem. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/050.png" alt="render of shape 50">
+<div class="body"><div class="head"><span>#50 objaverse_cap3d / army_tank</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a tank and a white building on green grass.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/051.png" alt="render of shape 51">
+<div class="body"><div class="head"><span>#51 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>This is a metal chair.  It is low to the ground and has a curved back and curvy legs. | Outdoor white modern style reclining chair</div>
+<div class="k">new caption</div><div>A low chair with a curved back and curved legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A low chair with a curved back and curved legs. (own)</div><div class="opt">B: A four-legged animal with two tusks. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/052.png" alt="render of shape 52">
+<div class="body"><div class="head"><span>#52 objaverse_cap3d / helicopter</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a small black helicopter.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/053.png" alt="render of shape 53">
+<div class="body"><div class="head"><span>#53 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>Simple gray office chair with rounded seat and rounded backrest and black legs. | steel framed curvrd back piece with aditional  steel bared chair</div>
+<div class="k">new caption</div><div>A chair with a curved back, a rounded seat, and four legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A chair with a curved back, a rounded seat, and four legs. (own)</div><div class="opt">B: A flag hanging from a long stick with a curved top. (control)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/054.png" alt="render of shape 54">
+<div class="body"><div class="head"><span>#54 objaverse_cap3d / cube</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>model of a colorful cube.</div>
+<div class="k">new caption</div><div>A solid square block with six equal flat sides.</div>
+<div class="k">vision check options</div><div class="opt">A: A head with big eyes on its front. (control)</div><div class="opt own">B: A solid square block with six equal flat sides. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/055.png" alt="render of shape 55">
+<div class="body"><div class="head"><span>#55 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>This is a brown wooden chair with a red cushioned seat.  This is a basic dining chair. | Ordinary looking brown wooden chair with red seat and back.</div>
+<div class="k">new caption</div><div>A chair with a flat seat, a back, and four legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A chair with a flat seat, a back, and four legs. (own)</div><div class="opt">B: Two cups joined by a curved band that goes over the top. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/056.png" alt="render of shape 56">
+<div class="body"><div class="head"><span>#56 objaverse_cap3d / pepper</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>Red chili pepper.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="drop" data-s="text2shape">
+<img loading="lazy" src="img/057.png" alt="render of shape 57">
+<div class="body"><div class="head"><span>#57 text2shape / chair</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>it is dark grey in color, square in shape with five legs with wheels, two arms and back support, material used is strong plastic for body frame and fabric for seating and overall appearance looks like office chair. | Black chair for big boss, oval legs and materials from wood, plastic, that will make you happy when you it</div>
+<div class="k">new caption</div><div>A chair with a back, two arm rests, and a seat on wheeled legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A chair with a back, two arm rests, and a seat on wheeled legs. (own)</div><div class="opt">B: A flat rectangular top held up by four legs. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/058.png" alt="render of shape 58">
+<div class="body"><div class="head"><span>#58 objaverse_cap3d / cornice</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>Matte white baseboard with a simple, streamlined profile and minimalistic design.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="drop" data-s="text2shape">
+<img loading="lazy" src="img/059.png" alt="render of shape 59">
+<div class="body"><div class="head"><span>#59 text2shape / table</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>a square shaped table that is white and brown in color. | A table with rectangular shaped surface and box type support</div>
+<div class="k">new caption</div><div>A table with a flat square top and a support underneath.</div>
+<div class="k">vision check options</div><div class="opt own">A: A table with a flat square top and a support underneath. (own)</div><div class="opt">B: A chair with four legs and a back with an opening on each side. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/060.png" alt="render of shape 60">
+<div class="body"><div class="head"><span>#60 objaverse_cap3d / scraper</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a tall building in pink and grey with a red roof and red lights.</div>
+<div class="k">new caption</div><div>A tall upright building, rising high above its base.</div>
+<div class="k">vision check options</div><div class="opt">A: A container with one handle. (control)</div><div class="opt own">B: A tall upright building, rising high above its base. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/061.png" alt="render of shape 61">
+<div class="body"><div class="head"><span>#61 text2shape / chair</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>A chair with black seat and back with holes, silver frame | A black office chair with metal legs and arms attached to the back which has a dotted appearance.</div>
+<div class="k">new caption</div><div>A chair with a seat, a back, and legs.</div>
+<div class="k">vision check options</div><div class="opt">A: A round table with a flat top standing on a base with four legs. (control)</div><div class="opt own">B: A chair with a seat, a back, and legs. (own)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/062.png" alt="render of shape 62">
+<div class="body"><div class="head"><span>#62 objaverse_cap3d / wok</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>a bowl filled with cheese and fruit.</div>
+<div class="k">new caption</div><div>A round bowl with a wide open top.</div>
+<div class="k">vision check options</div><div class="opt own">A: A round bowl with a wide open top. (own)</div><div class="opt">B: A chair with armrests on both sides and a tall backrest, with a square seat. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/063.png" alt="render of shape 63">
+<div class="body"><div class="head"><span>#63 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A brown cardboard looking computer desk. It has two legs that are in the shape of squares beneath the desk top. | rectangular light brown side table with thick top and connected legs</div>
+<div class="k">new caption</div><div>A table with a thick flat top and two square legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A table with a thick flat top and two square legs. (own)</div><div class="opt">B: A lamp with a wide shade on a thin stem standing on a flat base. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/064.png" alt="render of shape 64">
+<div class="body"><div class="head"><span>#64 objaverse_cap3d / headset</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a pair of white headphones.</div>
+<div class="k">new caption</div><div>Two cups joined by a curved band that goes over the top.</div>
+<div class="k">vision check options</div><div class="opt">A: Long and tapering to a point, with a small leafy top at the wide end. (control)</div><div class="opt own">B: Two cups joined by a curved band that goes over the top. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/065.png" alt="render of shape 65">
+<div class="body"><div class="head"><span>#65 text2shape / chair</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>silver metal chair with 4 legs that flare out from base and a back that is curved like a scroll. The seat is red upholstered fabric. | This is a modern chair with a red seat cushion. The back of the chair curls up and under itself.</div>
+<div class="k">new caption</div><div>A chair with a seat and a curved back that curls over itself.</div>
+<div class="k">vision check options</div><div class="opt">A: A round bowl with a wide open top. (control)</div><div class="opt own">B: A chair with a seat and a curved back that curls over itself. (own)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/066.png" alt="render of shape 66">
+<div class="body"><div class="head"><span>#66 objaverse_cap3d / sail</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>a small sailboat.</div>
+<div class="k">new caption</div><div>A small boat with a tall mast and a sail.</div>
+<div class="k">vision check options</div><div class="opt own">A: A small boat with a tall mast and a sail. (own)</div><div class="opt">B: A round bowl with a wide open top. (control)</div></div></div><div class="card" data-v="drop" data-s="text2shape">
+<img loading="lazy" src="img/067.png" alt="render of shape 67">
+<div class="body"><div class="head"><span>#67 text2shape / chair</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>A sofa chair with gray back and seat support and brown and red arm rests and legs | white colored with red-yellow nice ez chair. everyone will choose it.</div>
+<div class="k">new caption</div><div>A chair with arm rests on both sides and a back that leans back.</div>
+<div class="k">vision check options</div><div class="opt own">A: A chair with arm rests on both sides and a back that leans back. (own)</div><div class="opt">B: A four-legged animal with a head and a body. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/068.png" alt="render of shape 68">
+<div class="body"><div class="head"><span>#68 objaverse_cap3d / liquor</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a blue gin bottle with a brown cap.</div>
+<div class="k">new caption</div><div>A tall bottle with a cap on top.</div>
+<div class="k">vision check options</div><div class="opt">A: A rectangular kitchen table with drawers along its sides and a sink in the top. (control)</div><div class="opt own">B: A tall bottle with a cap on top. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/069.png" alt="render of shape 69">
+<div class="body"><div class="head"><span>#69 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A CIRCLE GLASS TOP SUPPORTED BY ADJUSTED WOODEN STAND. | brown color,, wooden base with glass round top</div>
+<div class="k">new caption</div><div>A round table with a flat top standing on a base with four legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A round table with a flat top standing on a base with four legs. (own)</div><div class="opt">B: A lamp with a wide shade on a thin stem standing on a flat base. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/070.png" alt="render of shape 70">
+<div class="body"><div class="head"><span>#70 objaverse_cap3d / stop_sign</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>A red and white stop sign on a white pole with a ping pong ball</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/071.png" alt="render of shape 71">
+<div class="body"><div class="head"><span>#71 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A chair which has a close surrounding to the sitter. It has four legs. | a brown chair with short legs and a curved back with a white cushion</div>
+<div class="k">new caption</div><div>A chair with four legs, a curved back, armrests and a padded seat.</div>
+<div class="k">vision check options</div><div class="opt own">A: A chair with four legs, a curved back, armrests and a padded seat. (own)</div><div class="opt">B: A round flat top on one tall central leg. (control)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/072.png" alt="render of shape 72">
+<div class="body"><div class="head"><span>#72 objaverse_cap3d / carrot</span><span class="tag drop">DROP (picked B)</span></div>
+<div class="k">original caption</div><div>a carrot with green leaves</div>
+<div class="k">new caption</div><div>Long and tapering to a point, with a small leafy top at the wide end.</div>
+<div class="k">vision check options</div><div class="opt own">A: Long and tapering to a point, with a small leafy top at the wide end. (own)</div><div class="opt">B: A low seat with a rounded back, two raised arm rests at the sides, and four short legs. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/073.png" alt="render of shape 73">
+<div class="body"><div class="head"><span>#73 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>Wooden desk, brown, rectangular in shape, with three drawers on the right side. | Office desk mad of cheap ikea veneer with three drawers on the right  hand side.</div>
+<div class="k">new caption</div><div>A long rectangular desk-like table with drawers along one side.</div>
+<div class="k">vision check options</div><div class="opt own">A: A long rectangular desk-like table with drawers along one side. (own)</div><div class="opt">B: A chair with a seat and a tall backrest. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/074.png" alt="render of shape 74">
+<div class="body"><div class="head"><span>#74 objaverse_cap3d / watermelon</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a watermelon slice.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="drop" data-s="text2shape">
+<img loading="lazy" src="img/075.png" alt="render of shape 75">
+<div class="body"><div class="head"><span>#75 text2shape / chair</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>a chair with two joined cushion seats  , 3 arm rests, two back rest  and six short wooden legs for support | ash color rectangle shape wood material new model</div>
+<div class="k">new caption</div><div>A two-seat sofa with arms at both ends and in the middle, and six legs.</div>
+<div class="k">vision check options</div><div class="opt own">A: A two-seat sofa with arms at both ends and in the middle, and six legs. (own)</div><div class="opt">B: A round table with a flat top and four legs standing on the floor. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/076.png" alt="render of shape 76">
+<div class="body"><div class="head"><span>#76 objaverse_cap3d / bird</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a red and white bird with outstretched wings.</div>
+<div class="k">new caption</div><div>A bird with its wings spread wide out to each side and a small body in the middle.</div>
+<div class="k">vision check options</div><div class="opt">A: A table with a flat square top and a support underneath. (control)</div><div class="opt own">B: A bird with its wings spread wide out to each side and a small body in the middle. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/077.png" alt="render of shape 77">
+<div class="body"><div class="head"><span>#77 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>an armless chair with broad and raised seat and high back | This is a black wicker outdoor chair. The seat itself is solid black and the legs are all connected so that you cannot see between them.</div>
+<div class="k">new caption</div><div>An armless chair with a tall back.</div>
+<div class="k">vision check options</div><div class="opt own">A: An armless chair with a tall back. (own)</div><div class="opt">B: A rectangular table with four legs and a drawer under its top. (control)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/078.png" alt="render of shape 78">
+<div class="body"><div class="head"><span>#78 objaverse_cap3d / flip-flop_(sandal)</span><span class="tag drop">DROP (picked B)</span></div>
+<div class="k">original caption</div><div>A pair of flip-flop sandals with red straps, beige footbeds with embossed patterns, and black toe posts.</div>
+<div class="k">new caption</div><div>A pair of flat soles, each with a strap over the top of the foot and a post between the toes.</div>
+<div class="k">vision check options</div><div class="opt own">A: A pair of flat soles, each with a strap over the top of the foot and a post between the toes. (own)</div><div class="opt">B: A thin, flat sheet. (control)</div></div></div><div class="card" data-v="drop" data-s="text2shape">
+<img loading="lazy" src="img/079.png" alt="render of shape 79">
+<div class="body"><div class="head"><span>#79 text2shape / chair</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>it is blue in color, c-shaped chair  which is made up  of fabric and appearance looks like low seated armed sofa chair. | A PURPLE CHAIR MADE FROM SILK AND ROD MATERIAL AND SEMI CIRCLE SHAPE AND CURLY PHYSICAL APPEARANCE</div>
+<div class="k">new caption</div><div>A low, curved chair that wraps around the sitter with arms on both sides.</div>
+<div class="k">vision check options</div><div class="opt own">A: A low, curved chair that wraps around the sitter with arms on both sides. (own)</div><div class="opt">B: A head with big eyes on its front. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/080.png" alt="render of shape 80">
+<div class="body"><div class="head"><span>#80 objaverse_cap3d / fighter_jet</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>F-15 Eagle a fighter jet.</div>
+<div class="k">new caption</div><div>A jet with a pointed nose, a long body, wide swept-back wings and tail fins at the rear.</div>
+<div class="k">vision check options</div><div class="opt own">A: A jet with a pointed nose, a long body, wide swept-back wings and tail fins at the rear. (own)</div><div class="opt">B: A flat rectangular table standing on four long legs. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/081.png" alt="render of shape 81">
+<div class="body"><div class="head"><span>#81 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A dark red colored chair. The legs are grayish. There are two little curves in the place where one rests their back. | it is a cushioned chair. the color of cushion is maroon. its back rest is specially designed.</div>
+<div class="k">new caption</div><div>A chair with a seat and a tall backrest.</div>
+<div class="k">vision check options</div><div class="opt own">A: A chair with a seat and a tall backrest. (own)</div><div class="opt">B: A stand with three legs that spread out from a single top. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/082.png" alt="render of shape 82">
+<div class="body"><div class="head"><span>#82 objaverse_cap3d / soya_milk</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a Joco milk carton with a Vitamin X label and barcode.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/083.png" alt="render of shape 83">
+<div class="body"><div class="head"><span>#83 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>rectangular table,made of some concrete or cement.dark grey color upper surface and light grey lower surface.its kitchen table with sink attached and drawer also. | made of metal black topped with a calendar stand and having side boards,foot rests.rectangular shape closed back side fitted directly to ground</div>
+<div class="k">new caption</div><div>A rectangular kitchen table with drawers along its sides and a sink in the top.</div>
+<div class="k">vision check options</div><div class="opt own">A: A rectangular kitchen table with drawers along its sides and a sink in the top. (own)</div><div class="opt">B: Long and tapering to a point, with a small leafy top at the wide end. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/084.png" alt="render of shape 84">
+<div class="body"><div class="head"><span>#84 objaverse_cap3d / halter_top</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a woman&#x27;s red swimsuit.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/085.png" alt="render of shape 85">
+<div class="body"><div class="head"><span>#85 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>Brownish and grayish armchair, soft in appearance | A brown fabric chair with beige diamond shape designs. The fabric resembles corduroy. The diamonds are in a steady pattern.</div>
+<div class="k">new caption</div><div>A square armchair with a cushioned seat and a backrest.</div>
+<div class="k">vision check options</div><div class="opt own">A: A square armchair with a cushioned seat and a backrest. (own)</div><div class="opt">B: A solid square block with six equal flat sides. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/086.png" alt="render of shape 86">
+<div class="body"><div class="head"><span>#86 objaverse_cap3d / router_(computer_equipment)</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>White rectangular device with a sloped front edge, featuring a black display panel and two USB ports.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/087.png" alt="render of shape 87">
+<div class="body"><div class="head"><span>#87 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>White/gray chair with no arms and slotted back. | The chair is grey in color. It is made up of wood. It has four legs</div>
+<div class="k">new caption</div><div>A four-legged seat with no arms and a back that has openings in it.</div>
+<div class="k">vision check options</div><div class="opt own">A: A four-legged seat with no arms and a back that has openings in it. (own)</div><div class="opt">B: A round table with a flat top and four legs standing on the floor. (control)</div></div></div><div class="card" data-v="drop" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/088.png" alt="render of shape 88">
+<div class="body"><div class="head"><span>#88 objaverse_cap3d / tripod</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>a red and black camera-equipped robot with a red light and a red ball on stands, and a gun on a tripod.</div>
+<div class="k">new caption</div><div>A stand with three legs that spread out from a single top.</div>
+<div class="k">vision check options</div><div class="opt own">A: A stand with three legs that spread out from a single top. (own)</div><div class="opt">B: A head with big eyes on its front. (control)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/089.png" alt="render of shape 89">
+<div class="body"><div class="head"><span>#89 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>a small wooden chair with a red cushion and armrest | A regal chair with armrests and backrests. Red upholstery and pattern on back surface.</div>
+<div class="k">new caption</div><div>A chair with armrests on both sides and a tall backrest, with a square seat.</div>
+<div class="k">vision check options</div><div class="opt own">A: A chair with armrests on both sides and a tall backrest, with a square seat. (own)</div><div class="opt">B: A flag hanging from a long stick with a curved top. (control)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/090.png" alt="render of shape 90">
+<div class="body"><div class="head"><span>#90 objaverse_cap3d / fireplug</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>Red Fire Hydrant</div>
+<div class="k">new caption</div><div>A short, thick post that is wider at the bottom, with a rounded top and side outlets.</div>
+<div class="k">vision check options</div><div class="opt">A: A chair with a straight back, no arms and two legs. (control)</div><div class="opt own">B: A short, thick post that is wider at the bottom, with a rounded top and side outlets. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/091.png" alt="render of shape 91">
+<div class="body"><div class="head"><span>#91 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A dark brown padded comfy chair.  It has arms and the legs are short and close to floor. | A large brown cushion chair. Looks like it might recline.</div>
+<div class="k">new caption</div><div>A padded armchair with arms on both sides.</div>
+<div class="k">vision check options</div><div class="opt own">A: A padded armchair with arms on both sides. (own)</div><div class="opt">B: A low rectangular table with curved openings cut into each side. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/092.png" alt="render of shape 92">
+<div class="body"><div class="head"><span>#92 objaverse_cap3d / monkey</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>cartoon monkey character in a yellow shirt and blue shorts.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/093.png" alt="render of shape 93">
+<div class="body"><div class="head"><span>#93 text2shape / chair</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>an armless metallic chair with semicircular supports | An simple easy whair with a semicircular base to support up and down movement.</div>
+<div class="k">new caption</div><div>A chair with curved, half-circle legs and a straight, upright back.</div>
+<div class="k">vision check options</div><div class="opt own">A: A chair with curved, half-circle legs and a straight, upright back. (own)</div><div class="opt">B: A short table with legs under its top. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/094.png" alt="render of shape 94">
+<div class="body"><div class="head"><span>#94 objaverse_cap3d / tiger</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a tiger mascot in a costume</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="drop" data-s="text2shape">
+<img loading="lazy" src="img/095.png" alt="render of shape 95">
+<div class="body"><div class="head"><span>#95 text2shape / chair</span><span class="tag drop">DROP (picked neither)</span></div>
+<div class="k">original caption</div><div>A GREY COLOR RECTANGULAR SHAPED METAL FRAMED WITH FRONT EXTENSION CHAIR | A revolving chair with gray, thin cushions and high back has two leg rests and arm rests each.</div>
+<div class="k">new caption</div><div>A reclining chair with armrests, a high back and a leg rest that extends at the front.</div>
+<div class="k">vision check options</div><div class="opt">A: Long and tapering to a point, with a small leafy top at the wide end. (control)</div><div class="opt own">B: A reclining chair with armrests, a high back and a leg rest that extends at the front. (own)</div></div></div><div class="card" data-v="keep" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/096.png" alt="render of shape 96">
+<div class="body"><div class="head"><span>#96 objaverse_cap3d / lamp</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>a lamp with a black shade and wooden base.</div>
+<div class="k">new caption</div><div>A lamp with a wide shade on a thin stem standing on a flat base.</div>
+<div class="k">vision check options</div><div class="opt">A: Two short legs joined at the top. (control)</div><div class="opt own">B: A lamp with a wide shade on a thin stem standing on a flat base. (own)</div></div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/097.png" alt="render of shape 97">
+<div class="body"><div class="head"><span>#97 text2shape / table</span><span class="tag keep">KEEP (picked A)</span></div>
+<div class="k">original caption</div><div>A grey and brown short table with metal rod legs and a abstract shaped top | modern design coffee table with black metal legs, black and grey top with brown contour</div>
+<div class="k">new caption</div><div>A short table with legs under its top.</div>
+<div class="k">vision check options</div><div class="opt own">A: A short table with legs under its top. (own)</div><div class="opt">B: A long, flat, narrow board. (control)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/098.png" alt="render of shape 98">
+<div class="body"><div class="head"><span>#98 objaverse_cap3d / lamb_(animal)</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>Shaun the Sheep with arms outstretched.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div><div class="card" data-v="keep" data-s="text2shape">
+<img loading="lazy" src="img/099.png" alt="render of shape 99">
+<div class="body"><div class="head"><span>#99 text2shape / table</span><span class="tag keep">KEEP (picked B)</span></div>
+<div class="k">original caption</div><div>This is a circular table. It is made out of light brown wood. It looks very easy to clean. | a brown colour round table with  1 round stand made of wood</div>
+<div class="k">new caption</div><div>A round table top on one central post with a round base.</div>
+<div class="k">vision check options</div><div class="opt">A: A long, flat, narrow board. (control)</div><div class="opt own">B: A round table top on one central post with a round base. (own)</div></div></div><div class="card" data-v="unclear" data-s="objaverse_cap3d">
+<img loading="lazy" src="img/100.png" alt="render of shape 100">
+<div class="body"><div class="head"><span>#100 objaverse_cap3d / hog</span><span class="tag drop">UNCLEAR (text pass)</span></div>
+<div class="k">original caption</div><div>a pig, royalty-free.</div>
+<div class="k">new caption</div><div>UNCLEAR</div>
+</div></div>
+</main><script>
+const buttons = document.querySelectorAll('.filters button');
+buttons.forEach(b => b.addEventListener('click', () => {
+  buttons.forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.card').forEach(c => { c.hidden = !(b.dataset.f === 'all' || c.dataset.v === b.dataset.f || c.dataset.s === b.dataset.f); });
+}));
+</script></body></html>
