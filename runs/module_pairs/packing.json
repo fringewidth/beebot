@@ -1,0 +1,16 @@
+{
+ "fits": true,
+ "outside": [],
+ "overlaps": [],
+ "interior_cm3": 97.34,
+ "parts_cm3": 21.22,
+ "free_cm3": 76.12,
+ "free_4mm_face_layer_cm3": {
+  "+x": 4.67,
+  "-x": 6.83,
+  "+y": 7.9,
+  "-y": 6.51,
+  "+z": 7.28,
+  "-z": 7.23
+ }
+}
