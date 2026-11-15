@@ -1,0 +1,107 @@
+calibration (published / model):
+  K&J D22-N52 cylinder 1/8 x 1/8 in             model 5.574 N published 3.736 N ratio 0.67
+  supermagnete S-02-0.7-N disc 2 x 0.7 mm       model 1.141 N published 0.726 N ratio 0.64
+  supermagnete S-05-01-N disc 5 x 1 mm          model 4.587 N published 3.140 N ratio 0.69
+  supermagnete K-03-C sphere 3 mm               model 1.584 N published 1.270 N ratio 0.80
+  k_sphere 0.802  k_cylinder 0.664
+impulse efficiency {'mu=0.3': 0.873, 'mu=0.5': 0.947, 'mu=0.8': 0.993} housner window 16.0
+electrovoxel 1 g: [{'L_mm': 1, 'climb_margin_1g': 0.038, 'coil_power_W': 0.011}, {'L_mm': 2, 'climb_margin_1g': 0.076, 'coil_power_W': 0.09}, {'L_mm': 3, 'climb_margin_1g': 0.114, 'coil_power_W': 0.303}, {'L_mm': 5, 'climb_margin_1g': 0.191, 'coil_power_W': 1.405}, {'L_mm': 10, 'climb_margin_1g': 0.381, 'coil_power_W': 11.237}, {'L_mm': 20, 'climb_margin_1g': 0.763, 'coil_power_W': 89.899}, {'L_mm': 60, 'climb_margin_1g': 2.289, 'coil_power_W': 2427.268}]
+face motor across a bond:
+  L 3.0 mm m 0.156 g sigma steady 0.86 kPa 1s 0.50 kPa torque 1s 2.35 uNm P 0.037 W n_max 0.83
+      arm lift (11 modules, demo 11)                   need 32.7 uNm  margin steady 0.124  1 s 0.072
+      walker legs at touchdown (14 modules, demo 9)    need 62.2 uNm  margin steady 0.065  1 s 0.038
+      crank at dead centre (demo 7)                    need 62.2 uNm  margin steady 0.065  1 s 0.038
+      crawler bend (demo 10)                           need 35.8 uNm  margin steady 0.113  1 s 0.066
+      crane luff (demo 4)                              need 15.6 uNm  margin steady 0.260  1 s 0.151
+      cart skid steer (demo 2)                         need 10.1 uNm  margin steady 0.400  1 s 0.233
+      door push (demo 8)                               need 7 uNm  margin steady 0.577  1 s 0.336
+      conveyor roller (demo 3)                         need 3.89 uNm  margin steady 1.039  1 s 0.605
+  L 5.0 mm m 0.347 g sigma steady 1.17 kPa 1s 0.68 kPa torque 1s 14.81 uNm P 0.102 W n_max 1.08
+      arm lift (11 modules, demo 11)                   need 121 uNm  margin steady 0.210  1 s 0.122
+      walker legs at touchdown (14 modules, demo 9)    need 231 uNm  margin steady 0.110  1 s 0.064
+      crank at dead centre (demo 7)                    need 231 uNm  margin steady 0.110  1 s 0.064
+      crawler bend (demo 10)                           need 133 uNm  margin steady 0.191  1 s 0.111
+      crane luff (demo 4)                              need 57.8 uNm  margin steady 0.440  1 s 0.256
+      cart skid steer (demo 2)                         need 37.6 uNm  margin steady 0.677  1 s 0.394
+      door push (demo 8)                               need 26 uNm  margin steady 0.978  1 s 0.569
+      conveyor roller (demo 3)                         need 14.5 uNm  margin steady 1.760  1 s 1.025
+  L 6.75 mm m 0.808 g sigma steady 1.31 kPa 1s 0.76 kPa torque 1s 40.75 uNm P 0.185 W n_max 1.01
+      arm lift (11 modules, demo 11)                   need 382 uNm  margin steady 0.183  1 s 0.107
+      walker legs at touchdown (14 modules, demo 9)    need 727 uNm  margin steady 0.096  1 s 0.056
+      crank at dead centre (demo 7)                    need 727 uNm  margin steady 0.096  1 s 0.056
+      crawler bend (demo 10)                           need 418 uNm  margin steady 0.167  1 s 0.097
+      crane luff (demo 4)                              need 182 uNm  margin steady 0.385  1 s 0.224
+      cart skid steer (demo 2)                         need 118 uNm  margin steady 0.592  1 s 0.345
+      door push (demo 8)                               need 81.8 uNm  margin steady 0.856  1 s 0.498
+      conveyor roller (demo 3)                         need 45.4 uNm  margin steady 1.540  1 s 0.897
+  L 10.0 mm m 1.447 g sigma steady 1.44 kPa 1s 0.84 kPa torque 1s 146.11 uNm P 0.407 W n_max 1.17
+      arm lift (11 modules, demo 11)                   need 1.01e+03 uNm  margin steady 0.248  1 s 0.144
+      walker legs at touchdown (14 modules, demo 9)    need 1.93e+03 uNm  margin steady 0.130  1 s 0.076
+      crank at dead centre (demo 7)                    need 1.93e+03 uNm  margin steady 0.130  1 s 0.076
+      crawler bend (demo 10)                           need 1.11e+03 uNm  margin steady 0.226  1 s 0.132
+      crane luff (demo 4)                              need 482 uNm  margin steady 0.520  1 s 0.303
+      cart skid steer (demo 2)                         need 314 uNm  margin steady 0.800  1 s 0.466
+      door push (demo 8)                               need 217 uNm  margin steady 1.156  1 s 0.673
+      conveyor roller (demo 3)                         need 121 uNm  margin steady 2.081  1 s 1.212
+  L 20.0 mm m 6.351 g sigma steady 1.58 kPa 1s 0.92 kPa torque 1s 1284.22 uNm P 1.627 W n_max 1.17
+      arm lift (11 modules, demo 11)                   need 8.89e+03 uNm  margin steady 0.248  1 s 0.144
+      walker legs at touchdown (14 modules, demo 9)    need 1.69e+04 uNm  margin steady 0.130  1 s 0.076
+      crank at dead centre (demo 7)                    need 1.69e+04 uNm  margin steady 0.130  1 s 0.076
+      crawler bend (demo 10)                           need 9.74e+03 uNm  margin steady 0.226  1 s 0.132
+      crane luff (demo 4)                              need 4.23e+03 uNm  margin steady 0.521  1 s 0.303
+      cart skid steer (demo 2)                         need 2.75e+03 uNm  margin steady 0.801  1 s 0.467
+      door push (demo 8)                               need 1.91e+03 uNm  margin steady 1.158  1 s 0.674
+      conveyor roller (demo 3)                         need 1.06e+03 uNm  margin steady 2.084  1 s 1.213
+  L 50.0 mm m 61.393 g sigma steady 1.67 kPa 1s 0.97 kPa torque 1s 21144.40 uNm P 10.171 W n_max 0.97
+      arm lift (11 modules, demo 11)                   need 2.15e+05 uNm  margin steady 0.169  1 s 0.098
+      walker legs at touchdown (14 modules, demo 9)    need 4.09e+05 uNm  margin steady 0.089  1 s 0.052
+      crank at dead centre (demo 7)                    need 4.09e+05 uNm  margin steady 0.089  1 s 0.052
+      crawler bend (demo 10)                           need 2.35e+05 uNm  margin steady 0.154  1 s 0.090
+      crane luff (demo 4)                              need 1.02e+05 uNm  margin steady 0.355  1 s 0.207
+      cart skid steer (demo 2)                         need 6.65e+04 uNm  margin steady 0.546  1 s 0.318
+      door push (demo 8)                               need 4.6e+04 uNm  margin steady 0.789  1 s 0.459
+      conveyor roller (demo 3)                         need 2.56e+04 uNm  margin steady 1.420  1 s 0.827
+sensitivity RW-P:
+   {'omega_cap_rad_s': 6000.0, 'lone_minutes': 0.5, 'motor_eff': 0.15, 'min_L_mm': 11.0, 'binding_below': 'lone_energy 0.80'}
+   {'omega_cap_rad_s': 6000.0, 'lone_minutes': 0.5, 'motor_eff': 0.3, 'min_L_mm': 11.0, 'binding_below': 'lone_energy 1.41'}
+   {'omega_cap_rad_s': 6000.0, 'lone_minutes': 1.0, 'motor_eff': 0.15, 'min_L_mm': 11.0, 'binding_below': 'spin_time 1.28'}
+   {'omega_cap_rad_s': 6000.0, 'lone_minutes': 1.0, 'motor_eff': 0.3, 'min_L_mm': 11.0, 'binding_below': 'spin_time 1.28'}
+   {'omega_cap_rad_s': 6000.0, 'lone_minutes': 2.0, 'motor_eff': 0.15, 'min_L_mm': 11.0, 'binding_below': 'spin_time 1.28'}
+   {'omega_cap_rad_s': 6000.0, 'lone_minutes': 2.0, 'motor_eff': 0.3, 'min_L_mm': 11.0, 'binding_below': 'spin_time 1.28'}
+   {'omega_cap_rad_s': 10000.0, 'lone_minutes': 0.5, 'motor_eff': 0.15, 'min_L_mm': None, 'binding_below': None}
+   {'omega_cap_rad_s': 10000.0, 'lone_minutes': 0.5, 'motor_eff': 0.3, 'min_L_mm': 7.5, 'binding_below': 'climb 1.49'}
+   {'omega_cap_rad_s': 10000.0, 'lone_minutes': 1.0, 'motor_eff': 0.15, 'min_L_mm': 7.5, 'binding_below': 'climb 1.41'}
+   {'omega_cap_rad_s': 10000.0, 'lone_minutes': 1.0, 'motor_eff': 0.3, 'min_L_mm': 7.5, 'binding_below': 'climb 1.41'}
+   {'omega_cap_rad_s': 10000.0, 'lone_minutes': 2.0, 'motor_eff': 0.15, 'min_L_mm': 7.5, 'binding_below': 'climb 1.41'}
+   {'omega_cap_rad_s': 10000.0, 'lone_minutes': 2.0, 'motor_eff': 0.3, 'min_L_mm': 7.5, 'binding_below': 'climb 1.41'}
+   {'omega_cap_rad_s': 20000.0, 'lone_minutes': 0.5, 'motor_eff': 0.15, 'min_L_mm': 6.0, 'binding_below': 'packing_volume 1.46'}
+   {'omega_cap_rad_s': 20000.0, 'lone_minutes': 0.5, 'motor_eff': 0.3, 'min_L_mm': 5.75, 'binding_below': 'packing_volume 1.49'}
+   {'omega_cap_rad_s': 20000.0, 'lone_minutes': 1.0, 'motor_eff': 0.15, 'min_L_mm': 6.75, 'binding_below': 'packing_volume 1.40'}
+   {'omega_cap_rad_s': 20000.0, 'lone_minutes': 1.0, 'motor_eff': 0.3, 'min_L_mm': 6.75, 'binding_below': 'packing_volume 1.40'}
+   {'omega_cap_rad_s': 20000.0, 'lone_minutes': 2.0, 'motor_eff': 0.15, 'min_L_mm': 6.75, 'binding_below': 'packing_volume 1.40'}
+   {'omega_cap_rad_s': 20000.0, 'lone_minutes': 2.0, 'motor_eff': 0.3, 'min_L_mm': 6.75, 'binding_below': 'packing_volume 1.40'}
+
+arch            min L all  min L swarm  binding / note
+RW-P                 None         11.0  climb 1.54  | below: spin_time 1.28 | cost [14.8, 4.27, 0.92] | mass 3.119
+RW-P-20k             None         6.75  climb_hinge_holds 1.50  | below: packing_volume 1.40 | cost [24.8, 7.97, 1.82] | mass 0.808
+RW-B-0408-W          None         None  L=20: machine_twist 0.00  | below: None | cost None | mass None
+RW-P-W               None         None  L=5: machine_twist 0.00  | below: None | cost None | mass None
+RW-B-0408            None         None  L=20: machine_twist 0.00  | below: None | cost None | mass None
+RW-B-BMN02           None         None  L=10: machine_twist 0.00  | below: None | cost None | mass None
+RW-P-T0408           None         None  L=5: packing_volume 0.00  | below: None | cost None | mass None
+RW-P-TBMN04          None         None  L=5: packing_volume 0.00  | below: None | cost None | mass None
+RW-P-T0615           None         None  L=5: packing_volume 0.00  | below: None | cost None | mass None
+RW-P-T0820           None         None  L=5: packing_volume 0.00  | below: None | cost None | mass None
+RW-P-TN20            None         None  L=5: packing_volume 0.00  | below: None | cost None | mass None
+RW-B-0615-TN20       None         None  L=20: packing_volume 0.00  | below: None | cost None | mass None
+RW-B-0615-T0820       None         None  L=20: packing_volume 0.00  | below: None | cost None | mass None
+RW-P-TOrb1.5         None         None  L=5: machine_twist unknown (no spec)  | below: None | cost None | mass None
+G-0615               None         None  L=50: machine_twist 0.09  | below: None | cost None | mass None
+G-0408               None         None  L=50: machine_twist 0.03  | below: None | cost None | mass None
+G-BMN04              None         None  L=50: machine_twist 0.04  | below: None | cost None | mass None
+G-N20                40.0         40.0  packing_volume 1.57  | below: packing_volume 1.40 | cost [17.1, 8.8, 3.1] | mass 64.669
+EV                   None         None  L=5: lone_self_right 0.00  | below: None | cost None | mass None
+VIB                  None         None  L=5: lone_self_right 0.00  | below: None | cost None | mass None
+PZ                   None         None  L=5: lone_self_right 0.00  | below: None | cost None | mass None
+ES                   None         None  L=5: lone_self_right 0.00  | below: None | cost None | mass None
+SMA                  None         None  L=5: lone_turn 0.00  | below: None | cost None | mass None

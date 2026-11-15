@@ -1,0 +1,3380 @@
+{
+ "calibration": {
+  "rows": [
+   {
+    "magnet": "K&J D22-N52 cylinder 1/8 x 1/8 in",
+    "model_N": 5.574,
+    "published_N": 3.736,
+    "ratio": 0.67,
+    "source": "K&J case 1 0.84 lb via albmaterials/K&J search snippet 2026-11-15 (V, secondary)"
+   },
+   {
+    "magnet": "supermagnete S-02-0.7-N disc 2 x 0.7 mm",
+    "model_N": 1.141,
+    "published_N": 0.726,
+    "ratio": 0.636,
+    "source": "supermagnete product page via search 2026-11-15 (V, secondary)"
+   },
+   {
+    "magnet": "supermagnete S-05-01-N disc 5 x 1 mm",
+    "model_N": 4.587,
+    "published_N": 3.14,
+    "ratio": 0.685,
+    "source": "supermagnete product page via search 2026-11-15 (V, secondary)"
+   },
+   {
+    "magnet": "supermagnete K-03-C sphere 3 mm",
+    "model_N": 1.584,
+    "published_N": 1.27,
+    "ratio": 0.802,
+    "source": "supermagnete K-03-C page via search 2026-11-15 (V, secondary)"
+   }
+  ],
+  "k_sphere": 0.802,
+  "k_cylinder": 0.6636666666666667
+ },
+ "impulse_efficiency": {
+  "mu=0.3": 0.873,
+  "mu=0.5": 0.947,
+  "mu=0.8": 0.993
+ },
+ "housner_window_x_e_roll": 15.999999999999972,
+ "electrovoxel_1g": [
+  {
+   "L_mm": 1,
+   "climb_margin_1g": 0.038,
+   "coil_power_W": 0.011
+  },
+  {
+   "L_mm": 2,
+   "climb_margin_1g": 0.076,
+   "coil_power_W": 0.09
+  },
+  {
+   "L_mm": 3,
+   "climb_margin_1g": 0.114,
+   "coil_power_W": 0.303
+  },
+  {
+   "L_mm": 5,
+   "climb_margin_1g": 0.191,
+   "coil_power_W": 1.405
+  },
+  {
+   "L_mm": 10,
+   "climb_margin_1g": 0.381,
+   "coil_power_W": 11.237
+  },
+  {
+   "L_mm": 20,
+   "climb_margin_1g": 0.763,
+   "coil_power_W": 89.899
+  },
+  {
+   "L_mm": 60,
+   "climb_margin_1g": 2.289,
+   "coil_power_W": 2427.268
+  }
+ ],
+ "sensitivity_rw_p": [
+  {
+   "omega_cap_rad_s": 6000.0,
+   "lone_minutes": 0.5,
+   "motor_eff": 0.15,
+   "min_L_mm": 11.0,
+   "binding_below": "lone_energy 0.80"
+  },
+  {
+   "omega_cap_rad_s": 6000.0,
+   "lone_minutes": 0.5,
+   "motor_eff": 0.3,
+   "min_L_mm": 11.0,
+   "binding_below": "lone_energy 1.41"
+  },
+  {
+   "omega_cap_rad_s": 6000.0,
+   "lone_minutes": 1.0,
+   "motor_eff": 0.15,
+   "min_L_mm": 11.0,
+   "binding_below": "spin_time 1.28"
+  },
+  {
+   "omega_cap_rad_s": 6000.0,
+   "lone_minutes": 1.0,
+   "motor_eff": 0.3,
+   "min_L_mm": 11.0,
+   "binding_below": "spin_time 1.28"
+  },
+  {
+   "omega_cap_rad_s": 6000.0,
+   "lone_minutes": 2.0,
+   "motor_eff": 0.15,
+   "min_L_mm": 11.0,
+   "binding_below": "spin_time 1.28"
+  },
+  {
+   "omega_cap_rad_s": 6000.0,
+   "lone_minutes": 2.0,
+   "motor_eff": 0.3,
+   "min_L_mm": 11.0,
+   "binding_below": "spin_time 1.28"
+  },
+  {
+   "omega_cap_rad_s": 10000.0,
+   "lone_minutes": 0.5,
+   "motor_eff": 0.15,
+   "min_L_mm": null,
+   "binding_below": null
+  },
+  {
+   "omega_cap_rad_s": 10000.0,
+   "lone_minutes": 0.5,
+   "motor_eff": 0.3,
+   "min_L_mm": 7.5,
+   "binding_below": "climb 1.49"
+  },
+  {
+   "omega_cap_rad_s": 10000.0,
+   "lone_minutes": 1.0,
+   "motor_eff": 0.15,
+   "min_L_mm": 7.5,
+   "binding_below": "climb 1.41"
+  },
+  {
+   "omega_cap_rad_s": 10000.0,
+   "lone_minutes": 1.0,
+   "motor_eff": 0.3,
+   "min_L_mm": 7.5,
+   "binding_below": "climb 1.41"
+  },
+  {
+   "omega_cap_rad_s": 10000.0,
+   "lone_minutes": 2.0,
+   "motor_eff": 0.15,
+   "min_L_mm": 7.5,
+   "binding_below": "climb 1.41"
+  },
+  {
+   "omega_cap_rad_s": 10000.0,
+   "lone_minutes": 2.0,
+   "motor_eff": 0.3,
+   "min_L_mm": 7.5,
+   "binding_below": "climb 1.41"
+  },
+  {
+   "omega_cap_rad_s": 20000.0,
+   "lone_minutes": 0.5,
+   "motor_eff": 0.15,
+   "min_L_mm": 6.0,
+   "binding_below": "packing_volume 1.46"
+  },
+  {
+   "omega_cap_rad_s": 20000.0,
+   "lone_minutes": 0.5,
+   "motor_eff": 0.3,
+   "min_L_mm": 5.75,
+   "binding_below": "packing_volume 1.49"
+  },
+  {
+   "omega_cap_rad_s": 20000.0,
+   "lone_minutes": 1.0,
+   "motor_eff": 0.15,
+   "min_L_mm": 6.75,
+   "binding_below": "packing_volume 1.40"
+  },
+  {
+   "omega_cap_rad_s": 20000.0,
+   "lone_minutes": 1.0,
+   "motor_eff": 0.3,
+   "min_L_mm": 6.75,
+   "binding_below": "packing_volume 1.40"
+  },
+  {
+   "omega_cap_rad_s": 20000.0,
+   "lone_minutes": 2.0,
+   "motor_eff": 0.15,
+   "min_L_mm": 6.75,
+   "binding_below": "packing_volume 1.40"
+  },
+  {
+   "omega_cap_rad_s": 20000.0,
+   "lone_minutes": 2.0,
+   "motor_eff": 0.3,
+   "min_L_mm": 6.75,
+   "binding_below": "packing_volume 1.40"
+  }
+ ],
+ "face_motor_across_bond": [
+  {
+   "sigma_steady_kPa": 0.859523429028155,
+   "sigma_1s_kPa": 0.5004771485992466,
+   "torque_steady_uNm": 4.040282713496403,
+   "torque_1s_uNm": 2.3525468924934576,
+   "power_1s_W": 0.03661649937969638,
+   "machines": {
+    "arm lift (11 modules, demo 11)": {
+     "need_uNm": 32.66483242659253,
+     "margin_steady": 0.12368906904929344,
+     "margin_1s": 0.07202078558891496
+    },
+    "walker legs at touchdown (14 modules, demo 9)": {
+     "need_uNm": 62.21872843160482,
+     "margin_steady": 0.06493676125087906,
+     "margin_1s": 0.037810912434180353
+    },
+    "crank at dead centre (demo 7)": {
+     "need_uNm": 62.21872843160482,
+     "margin_steady": 0.06493676125087906,
+     "margin_1s": 0.037810912434180353
+    },
+    "crawler bend (demo 10)": {
+     "need_uNm": 35.775768848172774,
+     "margin_steady": 0.11293349782761576,
+     "margin_1s": 0.06575810858118322
+    },
+    "crane luff (demo 4)": {
+     "need_uNm": 15.554682107901206,
+     "margin_steady": 0.25974704500351625,
+     "margin_1s": 0.15124364973672141
+    },
+    "cart skid steer (demo 2)": {
+     "need_uNm": 10.110543370135781,
+     "margin_steady": 0.3996108384669481,
+     "margin_1s": 0.23268253805649453
+    },
+    "door push (demo 8)": {
+     "need_uNm": 6.999606948555541,
+     "margin_steady": 0.5772156555633695,
+     "margin_1s": 0.33609699941493654
+    },
+    "conveyor roller (demo 3)": {
+     "need_uNm": 3.8886705269753015,
+     "margin_steady": 1.038988180014065,
+     "margin_1s": 0.6049745989468857
+    }
+   },
+   "n_max_cantilever_1s": 0.8277759640853952,
+   "detent_pressure_kPa_vs_coil": null,
+   "L_mm": 3.0,
+   "mass_g": 0.15554682107901202
+  },
+  {
+   "sigma_steady_kPa": 1.1689944458767816,
+   "sigma_1s_kPa": 0.6806737166691053,
+   "torque_steady_uNm": 25.43974376628913,
+   "torque_1s_uNm": 14.812871867429678,
+   "power_1s_W": 0.10171249827693443,
+   "machines": {
+    "arm lift (11 modules, demo 11)": {
+     "need_uNm": 121.41732846760844,
+     "margin_steady": 0.2095231717528352,
+     "margin_1s": 0.12199965239213312
+    },
+    "walker legs at touchdown (14 modules, demo 9)": {
+     "need_uNm": 231.27110184306366,
+     "margin_steady": 0.10999966517023849,
+     "margin_1s": 0.06404981750586988
+    },
+    "crank at dead centre (demo 7)": {
+     "need_uNm": 231.27110184306366,
+     "margin_steady": 0.10999966517023849,
+     "margin_1s": 0.06404981750586988
+    },
+    "crawler bend (demo 10)": {
+     "need_uNm": 132.98088355976162,
+     "margin_steady": 0.19130376551345823,
+     "margin_1s": 0.11139098696673023
+    },
+    "crane luff (demo 4)": {
+     "need_uNm": 57.817775460765915,
+     "margin_steady": 0.43999866068095395,
+     "margin_1s": 0.25619927002347953
+    },
+    "cart skid steer (demo 2)": {
+     "need_uNm": 37.581554049497846,
+     "margin_steady": 0.6769210164322368,
+     "margin_1s": 0.39415272311304544
+    },
+    "door push (demo 8)": {
+     "need_uNm": 26.017998957344663,
+     "margin_steady": 0.977774801513231,
+     "margin_1s": 0.569331711163288
+    },
+    "conveyor roller (demo 3)": {
+     "need_uNm": 14.454443865191479,
+     "margin_steady": 1.7599946427238158,
+     "margin_1s": 1.0247970800939181
+    }
+   },
+   "n_max_cantilever_1s": 1.0773657903444218,
+   "detent_pressure_kPa_vs_coil": null,
+   "L_mm": 5.0,
+   "mass_g": 0.3469066527645955
+  },
+  {
+   "sigma_steady_kPa": 1.307143420613108,
+   "sigma_1s_kPa": 0.7611141126174991,
+   "torque_steady_uNm": 69.98820120936571,
+   "torque_1s_uNm": 40.75222872802729,
+   "power_1s_W": 0.18537102810971293,
+   "machines": {
+    "arm lift (11 modules, demo 11)": {
+     "need_uNm": 381.7777669305881,
+     "margin_steady": 0.18332183608295463,
+     "margin_1s": 0.1067433262436064
+    },
+    "walker legs at touchdown (14 modules, demo 9)": {
+     "need_uNm": 727.1957465344534,
+     "margin_steady": 0.09624396394355118,
+     "margin_1s": 0.05604024627789336
+    },
+    "crank at dead centre (demo 7)": {
+     "need_uNm": 727.1957465344534,
+     "margin_steady": 0.09624396394355118,
+     "margin_1s": 0.05604024627789336
+    },
+    "crawler bend (demo 10)": {
+     "need_uNm": 418.13755425731074,
+     "margin_steady": 0.16738080685834988,
+     "margin_1s": 0.09746129787459715
+    },
+    "crane luff (demo 4)": {
+     "need_uNm": 181.79893663361335,
+     "margin_steady": 0.38497585577420473,
+     "margin_1s": 0.22416098511157345
+    },
+    "cart skid steer (demo 2)": {
+     "need_uNm": 118.16930881184868,
+     "margin_steady": 0.5922705473449303,
+     "margin_1s": 0.3448630540178053
+    },
+    "door push (demo 8)": {
+     "need_uNm": 81.80952148512601,
+     "margin_steady": 0.8555019017204549,
+     "margin_1s": 0.4981355224701632
+    },
+    "conveyor roller (demo 3)": {
+     "need_uNm": 45.44973415840334,
+     "margin_steady": 1.539903423096819,
+     "margin_1s": 0.8966439404462938
+    }
+   },
+   "n_max_cantilever_1s": 1.0077533499890714,
+   "detent_pressure_kPa_vs_coil": null,
+   "L_mm": 6.75,
+   "mass_g": 0.8079952739271705
+  },
+  {
+   "sigma_steady_kPa": 1.4413478303966754,
+   "sigma_1s_kPa": 0.8392576955258417,
+   "torque_steady_uNm": 250.93374643631554,
+   "torque_1s_uNm": 146.11190534476958,
+   "power_1s_W": 0.40684999310773773,
+   "machines": {
+    "arm lift (11 modules, demo 11)": {
+     "need_uNm": 1012.8668965394612,
+     "margin_steady": 0.24774602397773118,
+     "margin_1s": 0.14425578113370308
+    },
+    "walker legs at touchdown (14 modules, demo 9)": {
+     "need_uNm": 1929.2702791227834,
+     "margin_steady": 0.13006666258830887,
+     "margin_1s": 0.07573428509519411
+    },
+    "crank at dead centre (demo 7)": {
+     "need_uNm": 1929.2702791227834,
+     "margin_steady": 0.13006666258830887,
+     "margin_1s": 0.07573428509519411
+    },
+    "crawler bend (demo 10)": {
+     "need_uNm": 1109.3304104956003,
+     "margin_steady": 0.2262028914579285,
+     "margin_1s": 0.13171180016555498
+    },
+    "crane luff (demo 4)": {
+     "need_uNm": 482.31756978069586,
+     "margin_steady": 0.5202666503532355,
+     "margin_1s": 0.30293714038077646
+    },
+    "cart skid steer (demo 2)": {
+     "need_uNm": 313.50642035745227,
+     "margin_steady": 0.8004102313126701,
+     "margin_1s": 0.4660571390473484
+    },
+    "door push (demo 8)": {
+     "need_uNm": 217.0429064013131,
+     "margin_steady": 1.156148111896079,
+     "margin_1s": 0.6731936452906144
+    },
+    "conveyor roller (demo 3)": {
+     "need_uNm": 120.57939244517397,
+     "margin_steady": 2.081066601412942,
+     "margin_1s": 1.2117485615231058
+    }
+   },
+   "n_max_cantilever_1s": 1.1715221332290282,
+   "detent_pressure_kPa_vs_coil": null,
+   "L_mm": 10.0,
+   "mass_g": 1.4469527093420875
+  },
+  {
+   "sigma_steady_kPa": 1.5835582728131625,
+   "sigma_1s_kPa": 0.9220629737974473,
+   "torque_steady_uNm": 2205.5367994711874,
+   "torque_1s_uNm": 1284.224177318954,
+   "power_1s_W": 1.627399972430951,
+   "machines": {
+    "arm lift (11 modules, demo 11)": {
+     "need_uNm": 8891.602703183768,
+     "margin_steady": 0.24804716012350198,
+     "margin_1s": 0.14443112453271428
+    },
+    "walker legs at touchdown (14 modules, demo 9)": {
+     "need_uNm": 16936.386101302414,
+     "margin_steady": 0.13022475906483855,
+     "margin_1s": 0.075826340379675
+    },
+    "crank at dead centre (demo 7)": {
+     "need_uNm": 16936.386101302414,
+     "margin_steady": 0.13022475906483855,
+     "margin_1s": 0.075826340379675
+    },
+    "crawler bend (demo 10)": {
+     "need_uNm": 9738.422008248888,
+     "margin_steady": 0.22647784185189315,
+     "margin_1s": 0.13187189631247828
+    },
+    "crane luff (demo 4)": {
+     "need_uNm": 4234.096525325604,
+     "margin_steady": 0.5208990362593542,
+     "margin_1s": 0.3033053615187
+    },
+    "cart skid steer (demo 2)": {
+     "need_uNm": 2752.1627414616423,
+     "margin_steady": 0.8013831327066988,
+     "margin_1s": 0.4666236331056923
+    },
+    "door push (demo 8)": {
+     "need_uNm": 1905.3434363965214,
+     "margin_steady": 1.1575534139096761,
+     "margin_1s": 0.6740119144860002
+    },
+    "conveyor roller (demo 3)": {
+     "need_uNm": 1058.524131331401,
+     "margin_steady": 2.0835961450374167,
+     "margin_1s": 1.2132214460748
+    }
+   },
+   "n_max_cantilever_1s": 1.1722339115971996,
+   "detent_pressure_kPa_vs_coil": null,
+   "L_mm": 20.0,
+   "mass_g": 6.351144787988406
+  },
+  {
+   "sigma_steady_kPa": 1.6686626786916536,
+   "sigma_1s_kPa": 0.9716169579575519,
+   "torque_steady_uNm": 36313.56087962099,
+   "torque_1s_uNm": 21144.400246386478,
+   "power_1s_W": 10.171249827693442,
+   "machines": {
+    "arm lift (11 modules, demo 11)": {
+     "need_uNm": 214876.11070681794,
+     "margin_steady": 0.16899766456201396,
+     "margin_1s": 0.0984027502025872
+    },
+    "walker legs at touchdown (14 modules, demo 9)": {
+     "need_uNm": 409287.82991774846,
+     "margin_steady": 0.08872377389505733,
+     "margin_1s": 0.05166144385635828
+    },
+    "crank at dead centre (demo 7)": {
+     "need_uNm": 409287.82991774846,
+     "margin_steady": 0.08872377389505733,
+     "margin_1s": 0.05166144385635828
+    },
+    "crawler bend (demo 10)": {
+     "need_uNm": 235340.50220270536,
+     "margin_steady": 0.15430221546966494,
+     "margin_1s": 0.0898459893154057
+    },
+    "crane luff (demo 4)": {
+     "need_uNm": 102321.95747943711,
+     "margin_steady": 0.3548950955802293,
+     "margin_1s": 0.2066457754254331
+    },
+    "cart skid steer (demo 2)": {
+     "need_uNm": 66509.27236163412,
+     "margin_steady": 0.5459924547388144,
+     "margin_1s": 0.3179165775775894
+    },
+    "door push (demo 8)": {
+     "need_uNm": 46044.880865746694,
+     "margin_steady": 0.7886557679560653,
+     "margin_1s": 0.4592128342787403
+    },
+    "conveyor roller (demo 3)": {
+     "need_uNm": 25580.48936985928,
+     "margin_steady": 1.4195803823209172,
+     "margin_1s": 0.8265831017017324
+    }
+   },
+   "n_max_cantilever_1s": 0.967581381288619,
+   "detent_pressure_kPa_vs_coil": null,
+   "L_mm": 50.0,
+   "mass_g": 61.393174487662264
+  }
+ ],
+ "summary": [
+  {
+   "arch": "RW-P",
+   "title": "Reaction-wheel cube, flex-PCB motors (frontier)",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": 11.0,
+   "mass_g": 3.119,
+   "binding_no_machine": "climb 1.54",
+   "fails_below_by": "spin_time 1.28",
+   "machine_note": "machine_twist 0.00",
+   "cost_usd_10_1k_1M": [
+    14.8,
+    4.27,
+    0.92
+   ]
+  },
+  {
+   "arch": "RW-P-20k",
+   "title": "RW-P with jewel bearings, flywheel to 20k rad/s",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": 6.75,
+   "mass_g": 0.808,
+   "binding_no_machine": "climb_hinge_holds 1.50",
+   "fails_below_by": "packing_volume 1.40",
+   "machine_note": "machine_twist 0.00",
+   "cost_usd_10_1k_1M": [
+    24.8,
+    7.97,
+    1.82
+   ]
+  },
+  {
+   "arch": "RW-B-0408-W",
+   "title": "RW with 0408 coreless motors, tungsten rims",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=20: machine_twist 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-P-W",
+   "title": "RW-P + coil-driven retractable wheel",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: machine_twist 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-B-0408",
+   "title": "Reaction-wheel cube, bought 0408 coreless motors",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=20: machine_twist 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-B-BMN02",
+   "title": "Reaction-wheel cube, Orbray BMN02 2.4 mm brushless",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=10: machine_twist 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-P-T0408",
+   "title": "RW-P + geared twist face (0408 planetary)",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: packing_volume 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-P-TBMN04",
+   "title": "RW-P + geared twist face (Orbray BMN04 337:1)",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: packing_volume 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-P-T0615",
+   "title": "RW-P + geared twist face (0615 planetary)",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: packing_volume 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-P-T0820",
+   "title": "RW-P + geared twist face (0820 planetary)",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: packing_volume 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-P-TN20",
+   "title": "RW-P + geared twist face (N20 1:298 + 3:1 stage)",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: packing_volume 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-B-0615-TN20",
+   "title": "RW with 0615 coreless flywheels (tungsten) + N20 twist face",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=20: packing_volume 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-B-0615-T0820",
+   "title": "RW with 0615 coreless flywheels (tungsten) + 0820 twist face",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=20: packing_volume 0.00",
+   "reason": null
+  },
+  {
+   "arch": "RW-P-TOrb1.5",
+   "title": "RW-P + geared twist face (Orbray 1.5 mm, no specs)",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: machine_twist unknown (no spec)",
+   "reason": null
+  },
+  {
+   "arch": "G-0615",
+   "title": "Geared layout C, 6 mm planetary x3 + kick leg (hobby)",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=50: machine_twist 0.09",
+   "reason": null
+  },
+  {
+   "arch": "G-0408",
+   "title": "Geared layout C, 4 mm planetary x3 + kick leg",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=50: machine_twist 0.03",
+   "reason": null
+  },
+  {
+   "arch": "G-BMN04",
+   "title": "Geared layout C, Orbray BMN04 x3",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=50: machine_twist 0.04",
+   "reason": null
+  },
+  {
+   "arch": "G-N20",
+   "title": "Geared layout C, N20 x3 (hobby baseline)",
+   "min_L_all_mm": 40.0,
+   "min_L_no_machine_mm": 40.0,
+   "mass_g": 64.669,
+   "binding_all": "packing_volume 1.57",
+   "binding_no_machine": "packing_volume 1.57",
+   "fails_below_by": "packing_volume 1.40",
+   "cost_usd_10_1k_1M": [
+    17.1,
+    8.8,
+    3.1
+   ]
+  },
+  {
+   "arch": "EV",
+   "title": "ElectroVoxel edge electromagnets",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: lone_self_right 0.00",
+   "reason": "fails every lone gate by construction"
+  },
+  {
+   "arch": "VIB",
+   "title": "Vibration / coil stick-slip only",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: lone_self_right 0.00",
+   "reason": "stick-slip / vibration translates and turns a cube on the face it rests on; it cannot tip it onto another face"
+  },
+  {
+   "arch": "PZ",
+   "title": "Piezo stick-slip",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: lone_self_right 0.00",
+   "reason": "piezo stick-slip strokes are micrometres; no tipping; needs a 30-150 V boost"
+  },
+  {
+   "arch": "ES",
+   "title": "Electrostatic zipping / adhesion",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: lone_self_right 0.00",
+   "reason": "electrostatic zipping gives about 1-6 kPa at 200 V; no tipping; humidity-sensitive"
+  },
+  {
+   "arch": "SMA",
+   "title": "SMA kick flaps + SMA latches",
+   "min_L_all_mm": null,
+   "min_L_no_machine_mm": null,
+   "binding_at_ref": "L=5: lone_turn 0.00",
+   "reason": "rolling about edges cannot change yaw; 12 SMA flaps with 24 crimped terminations per cube"
+  }
+ ],
+ "details": {
+  "RW-P-20k": [
+   {
+    "L_mm": 5.0,
+    "mass_mg": 346.9,
+    "margins": {
+     "lone_self_right": 3.953,
+     "lone_translate": 3.953,
+     "lone_turn": 9.237,
+     "split": 1.453,
+     "climb": 1.216,
+     "climb_hinge_holds": 1.727,
+     "spin_time": 3.148,
+     "lone_energy": 0.224,
+     "lone_speed": 12.8,
+     "bond_cantilever": 1.95,
+     "bond_hang": 4.321,
+     "dock_capture": 4.073,
+     "packing_volume": 1.409,
+     "fall": 2.338,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 2.673e-07,
+     "h_climb": 8.691e-07,
+     "h_cap": 1.057e-06,
+     "omega_climb_rpm": 157100.0,
+     "e_move_mJ": {
+      "roll": 2.254,
+      "split": 16.67,
+      "climb": 23.83,
+      "yaw": 0.4128
+     },
+     "lone_moves": 6.728,
+     "lone_speed_mm_s": 6.4,
+     "t_move_s": 0.7812,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 0.7388,
+     "bond_tension_N": 0.1471,
+     "bond_moment_mNm": 0.2986,
+     "peel_energy_uJ": 23.01,
+     "capture_frac_L": 0.4073,
+     "k_m": 1.71e-05,
+     "b_gap_T": 0.2743,
+     "spin_power_mW": 6.4,
+     "spin_torque_uNm": 1.368,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 4.2,
+     "rotor_r_mm": 1.35,
+     "rotor_t_mm": 0.6,
+     "rotor_mass_mg": 51.53,
+     "i_f": 5.283e-11,
+     "storage": {
+      "reservoir": null,
+      "n": 0,
+      "supercaps": 1,
+      "energy_j": 0.04207,
+      "p_cont_w": 0.008,
+      "p_peak_w": 0.008,
+      "vol_mm3": 7.2,
+      "mass_g": 0.02,
+      "cost": [
+       2.0,
+       1.2,
+       0.4
+      ]
+     },
+     "fall": {
+      "impact_mJ": 0.6806,
+      "v_mps": 1.981,
+      "peak_g": 8223.0,
+      "part_stress_MPa": 17.11,
+      "allowable_MPa": 40.0,
+      "margin": 2.338
+     },
+     "req": {
+      "weight_N": 0.003403,
+      "adhesion_N": 0.0003619,
+      "tip_torque": 1.032e-05,
+      "climb_torque": 1.203e-05,
+      "e_roll": 3.596e-06,
+      "e_climb": 2.054e-05,
+      "yaw_friction": 3.601e-06,
+      "cantilever_moment": 0.0001531,
+      "hang_tension": 0.03403,
+      "arm_torque": 0.0001214
+     }
+    }
+   },
+   {
+    "L_mm": 6.0,
+    "mass_mg": 618.8,
+    "margins": {
+     "lone_self_right": 5.48,
+     "lone_translate": 5.48,
+     "lone_turn": 12.953,
+     "split": 2.297,
+     "climb": 1.814,
+     "climb_hinge_holds": 1.52,
+     "spin_time": 3.466,
+     "lone_energy": 4.456,
+     "lone_speed": 4.743,
+     "bond_cantilever": 1.571,
+     "bond_hang": 3.418,
+     "dock_capture": 3.472,
+     "packing_volume": 1.282,
+     "fall": 2.218,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 6.239e-07,
+     "h_climb": 1.885e-06,
+     "h_cap": 3.419e-06,
+     "omega_climb_rpm": 105300.0,
+     "e_move_mJ": {
+      "roll": 3.795,
+      "split": 21.6,
+      "climb": 34.65,
+      "yaw": 0.6792
+     },
+     "lone_moves": 133.7,
+     "lone_speed_mm_s": 2.846,
+     "t_move_s": 2.108,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 0.835,
+     "bond_tension_N": 0.2075,
+     "bond_moment_mNm": 0.5151,
+     "peel_energy_uJ": 35.79,
+     "capture_frac_L": 0.3472,
+     "k_m": 2.852e-05,
+     "b_gap_T": 0.2785,
+     "spin_power_mW": 13.12,
+     "spin_torque_uNm": 3.267,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 5.2,
+     "rotor_r_mm": 1.73,
+     "rotor_t_mm": 0.72,
+     "rotor_mass_mg": 101.5,
+     "i_f": 1.71e-10,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 2,
+      "supercaps": 1,
+      "energy_j": 1.042,
+      "p_cont_w": 0.0028,
+      "p_peak_w": 0.0164,
+      "vol_mm3": 38.88,
+      "mass_g": 0.1,
+      "cost": [
+       10.0,
+       4.2,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 1.214,
+      "v_mps": 1.981,
+      "peak_g": 6766.0,
+      "part_stress_MPa": 18.04,
+      "allowable_MPa": 40.0,
+      "margin": 2.218
+     },
+     "req": {
+      "weight_N": 0.006071,
+      "adhesion_N": 0.0004343,
+      "tip_torque": 2.082e-05,
+      "climb_torque": 2.575e-05,
+      "e_roll": 7.63e-06,
+      "e_climb": 4.397e-05,
+      "yaw_friction": 7.466e-06,
+      "cantilever_moment": 0.0003278,
+      "hang_tension": 0.06071,
+      "arm_torque": 0.0002599
+     }
+    }
+   },
+   {
+    "L_mm": 7.0,
+    "mass_mg": 848.1,
+    "margins": {
+     "lone_self_right": 7.269,
+     "lone_translate": 7.269,
+     "lone_turn": 17.241,
+     "split": 3.185,
+     "climb": 2.461,
+     "climb_hinge_holds": 1.507,
+     "spin_time": 2.508,
+     "lone_energy": 5.597,
+     "lone_speed": 6.486,
+     "bond_cantilever": 1.532,
+     "bond_hang": 3.285,
+     "dock_capture": 3.183,
+     "packing_volume": 1.704,
+     "fall": 2.0,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 1.076e-06,
+     "h_climb": 3.177e-06,
+     "h_cap": 7.82e-06,
+     "omega_climb_rpm": 77600.0,
+     "e_move_mJ": {
+      "roll": 4.934,
+      "split": 25.69,
+      "climb": 43.03,
+      "yaw": 0.8769
+     },
+     "lone_moves": 167.9,
+     "lone_speed_mm_s": 4.54,
+     "t_move_s": 1.542,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 0.9232,
+     "bond_tension_N": 0.2733,
+     "bond_moment_mNm": 0.8032,
+     "peel_energy_uJ": 51.17,
+     "capture_frac_L": 0.3183,
+     "k_m": 3.968e-05,
+     "b_gap_T": 0.2605,
+     "spin_power_mW": 10.08,
+     "spin_torque_uNm": 3.984,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 6.2,
+     "rotor_r_mm": 2.11,
+     "rotor_t_mm": 0.7442,
+     "rotor_mass_mg": 156.1,
+     "i_f": 3.91e-10,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 1.664,
+      "v_mps": 1.981,
+      "peak_g": 6152.0,
+      "part_stress_MPa": 20.0,
+      "allowable_MPa": 40.0,
+      "margin": 2.0
+     },
+     "req": {
+      "weight_N": 0.00832,
+      "adhesion_N": 0.0005067,
+      "tip_torque": 3.267e-05,
+      "climb_torque": 4.118e-05,
+      "e_roll": 1.216e-05,
+      "e_climb": 7.03e-05,
+      "yaw_friction": 1.182e-05,
+      "cantilever_moment": 0.0005241,
+      "hang_tension": 0.0832,
+      "arm_torque": 0.0004156
+     }
+    }
+   },
+   {
+    "L_mm": 7.75,
+    "mass_mg": 977.4,
+    "margins": {
+     "lone_self_right": 8.135,
+     "lone_translate": 8.135,
+     "lone_turn": 19.307,
+     "split": 3.672,
+     "climb": 2.796,
+     "climb_hinge_holds": 1.518,
+     "spin_time": 2.13,
+     "lone_energy": 5.043,
+     "lone_speed": 5.41,
+     "bond_cantilever": 1.531,
+     "bond_hang": 3.244,
+     "dock_capture": 2.97,
+     "packing_volume": 2.224,
+     "fall": 1.827,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 1.444e-06,
+     "h_climb": 4.2e-06,
+     "h_cap": 1.174e-05,
+     "omega_climb_rpm": 68310.0,
+     "e_move_mJ": {
+      "roll": 5.915,
+      "split": 29.03,
+      "climb": 50.08,
+      "yaw": 1.05
+     },
+     "lone_moves": 151.3,
+     "lone_speed_mm_s": 4.193,
+     "t_move_s": 1.848,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 0.9685,
+     "bond_tension_N": 0.311,
+     "bond_moment_mNm": 1.024,
+     "peel_energy_uJ": 60.58,
+     "capture_frac_L": 0.297,
+     "k_m": 4.456e-05,
+     "b_gap_T": 0.2271,
+     "spin_power_mW": 10.08,
+     "spin_torque_uNm": 4.474,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 6.95,
+     "rotor_r_mm": 2.395,
+     "rotor_t_mm": 0.6733,
+     "rotor_mass_mg": 182.0,
+     "i_f": 5.872e-10,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 1.918,
+      "v_mps": 1.981,
+      "peak_g": 5932.0,
+      "part_stress_MPa": 21.89,
+      "allowable_MPa": 40.0,
+      "margin": 1.827
+     },
+     "req": {
+      "weight_N": 0.009588,
+      "adhesion_N": 0.000561,
+      "tip_torque": 4.15e-05,
+      "climb_torque": 5.254e-05,
+      "e_roll": 1.55e-05,
+      "e_climb": 8.97e-05,
+      "yaw_friction": 1.505e-05,
+      "cantilever_moment": 0.0006688,
+      "hang_tension": 0.09588,
+      "arm_torque": 0.0005302
+     }
+    }
+   },
+   {
+    "L_mm": 8.0,
+    "mass_mg": 1023.5,
+    "margins": {
+     "lone_self_right": 8.414,
+     "lone_translate": 8.414,
+     "lone_turn": 19.973,
+     "split": 3.831,
+     "climb": 2.904,
+     "climb_hinge_holds": 1.521,
+     "spin_time": 2.013,
+     "lone_energy": 4.864,
+     "lone_speed": 5.095,
+     "bond_cantilever": 1.53,
+     "bond_hang": 3.233,
+     "dock_capture": 2.92,
+     "packing_volume": 2.409,
+     "fall": 1.779,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 1.585e-06,
+     "h_climb": 4.593e-06,
+     "h_cap": 1.334e-05,
+     "omega_climb_rpm": 65770.0,
+     "e_move_mJ": {
+      "roll": 6.28,
+      "split": 30.3,
+      "climb": 52.72,
+      "yaw": 1.114
+     },
+     "lone_moves": 145.9,
+     "lone_speed_mm_s": 4.076,
+     "t_move_s": 1.963,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 0.9841,
+     "bond_tension_N": 0.3246,
+     "bond_moment_mNm": 1.106,
+     "peel_energy_uJ": 64.06,
+     "capture_frac_L": 0.292,
+     "k_m": 4.605e-05,
+     "b_gap_T": 0.2171,
+     "spin_power_mW": 10.08,
+     "spin_torque_uNm": 4.623,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 7.2,
+     "rotor_r_mm": 2.49,
+     "rotor_t_mm": 0.6545,
+     "rotor_mass_mg": 191.2,
+     "i_f": 6.669e-10,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 2.008,
+      "v_mps": 1.981,
+      "peak_g": 5860.0,
+      "part_stress_MPa": 22.49,
+      "allowable_MPa": 40.0,
+      "margin": 1.779
+     },
+     "req": {
+      "weight_N": 0.01004,
+      "adhesion_N": 0.0005791,
+      "tip_torque": 4.479e-05,
+      "climb_torque": 5.68e-05,
+      "e_roll": 1.675e-05,
+      "e_climb": 9.696e-05,
+      "yaw_friction": 1.625e-05,
+      "cantilever_moment": 0.0007229,
+      "hang_tension": 0.1004,
+      "arm_torque": 0.0005732
+     }
+    }
+   },
+   {
+    "L_mm": 10.0,
+    "mass_mg": 1447.0,
+    "margins": {
+     "lone_self_right": 10.48,
+     "lone_translate": 10.48,
+     "lone_turn": 24.932,
+     "split": 5.031,
+     "climb": 3.71,
+     "climb_hinge_holds": 1.542,
+     "spin_time": 1.282,
+     "lone_energy": 3.584,
+     "lone_speed": 3.216,
+     "bond_cantilever": 1.531,
+     "bond_hang": 3.173,
+     "dock_capture": 2.569,
+     "packing_volume": 4.057,
+     "fall": 1.497,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 3.129e-06,
+     "h_climb": 8.839e-06,
+     "h_cap": 3.279e-05,
+     "omega_climb_rpm": 51480.0,
+     "e_move_mJ": {
+      "roll": 9.952,
+      "split": 43.18,
+      "climb": 79.43,
+      "yaw": 1.758
+     },
+     "lone_moves": 107.5,
+     "lone_speed_mm_s": 3.216,
+     "t_move_s": 3.11,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 1.114,
+     "bond_tension_N": 0.4504,
+     "bond_moment_mNm": 1.956,
+     "peel_energy_uJ": 98.64,
+     "capture_frac_L": 0.2569,
+     "k_m": 5.644e-05,
+     "b_gap_T": 0.1562,
+     "spin_power_mW": 10.08,
+     "spin_torque_uNm": 5.667,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 9.2,
+     "rotor_r_mm": 3.25,
+     "rotor_t_mm": 0.5544,
+     "rotor_mass_mg": 275.9,
+     "i_f": 1.64e-09,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 2.839,
+      "v_mps": 1.981,
+      "peak_g": 5335.0,
+      "part_stress_MPa": 26.72,
+      "allowable_MPa": 40.0,
+      "margin": 1.497
+     },
+     "req": {
+      "weight_N": 0.01419,
+      "adhesion_N": 0.0007238,
+      "tip_torque": 7.821e-05,
+      "climb_torque": 0.0001004,
+      "e_roll": 2.954e-05,
+      "e_climb": 0.0001713,
+      "yaw_friction": 2.854e-05,
+      "cantilever_moment": 0.001278,
+      "hang_tension": 0.1419,
+      "arm_torque": 0.001013
+     }
+    }
+   }
+  ],
+  "RW-P-TN20": [
+   {
+    "L_mm": 30.0,
+    "mass_mg": 46390.9,
+    "margins": {
+     "lone_self_right": 6.314,
+     "lone_translate": 6.314,
+     "lone_turn": 15.325,
+     "split": 2.148,
+     "climb": 1.841,
+     "climb_hinge_holds": 1.563,
+     "spin_time": 0.339,
+     "lone_energy": 19.313,
+     "lone_speed": 1.846,
+     "bond_cantilever": 1.786,
+     "bond_hang": 4.163,
+     "dock_capture": 4.887,
+     "packing_volume": 1.805,
+     "fall": 1.496,
+     "machine_twist": 4.311
+    },
+    "info": {
+     "h_roll": 0.00052,
+     "h_climb": 0.001783,
+     "h_cap": 0.003283,
+     "omega_climb_rpm": 31120.0,
+     "e_move_mJ": {
+      "roll": 823.6,
+      "split": 7114.0,
+      "climb": 9685.0,
+      "yaw": 139.8
+     },
+     "lone_moves": 579.4,
+     "lone_speed_mm_s": 5.537,
+     "t_move_s": 5.418,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 6.24,
+     "bond_tension_N": 18.95,
+     "bond_moment_mNm": 219.4,
+     "peel_energy_uJ": 21600.0,
+     "capture_frac_L": 0.4887,
+     "k_m": 0.0005887,
+     "b_gap_T": 0.1576,
+     "spin_power_mW": 264.0,
+     "spin_torque_uNm": 302.5,
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 28.4,
+     "rotor_r_mm": 10.45,
+     "rotor_t_mm": 1.731,
+     "rotor_mass_mg": 8908.0,
+     "i_f": 5.472e-07,
+     "storage": {
+      "reservoir": "LiPo 401012 15 mAh",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 479.5,
+      "p_cont_w": 0.33,
+      "p_peak_w": 0.33,
+      "vol_mm3": 1440.0,
+      "mass_g": 1.5,
+      "cost": [
+       6.0,
+       2.4,
+       0.9
+      ]
+     },
+     "fall": {
+      "impact_mJ": 91.02,
+      "v_mps": 1.981,
+      "peak_g": 1660.0,
+      "part_stress_MPa": 26.74,
+      "allowable_MPa": 40.0,
+      "margin": 1.496
+     },
+     "req": {
+      "weight_N": 0.4551,
+      "adhesion_N": 0.002171,
+      "tip_torque": 0.006892,
+      "climb_torque": 0.009654,
+      "e_roll": 0.002828,
+      "e_climb": 0.01648,
+      "yaw_friction": 0.002624,
+      "cantilever_moment": 0.1229,
+      "hang_tension": 4.551,
+      "arm_torque": 0.09742
+     }
+    }
+   },
+   {
+    "L_mm": 34.0,
+    "mass_mg": 62872.5,
+    "margins": {
+     "lone_self_right": 6.394,
+     "lone_translate": 6.394,
+     "lone_turn": 15.527,
+     "split": 2.196,
+     "climb": 1.876,
+     "climb_hinge_holds": 1.56,
+     "spin_time": 0.596,
+     "lone_energy": 13.316,
+     "lone_speed": 3.104,
+     "bond_cantilever": 1.772,
+     "bond_hang": 4.119,
+     "dock_capture": 4.825,
+     "packing_volume": 1.997,
+     "fall": 1.488,
+     "machine_twist": 2.807
+    },
+    "info": {
+     "h_roll": 0.0008503,
+     "h_climb": 0.002899,
+     "h_cap": 0.005437,
+     "omega_climb_rpm": 30550.0,
+     "e_move_mJ": {
+      "roll": 1330.0,
+      "split": 11280.0,
+      "climb": 15460.0,
+      "yaw": 225.5
+     },
+     "lone_moves": 399.5,
+     "lone_speed_mm_s": 10.55,
+     "t_move_s": 3.221,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 7.076,
+     "bond_tension_N": 25.4,
+     "bond_moment_mNm": 334.4,
+     "peel_energy_uJ": 32500.0,
+     "capture_frac_L": 0.4825,
+     "k_m": 0.0007197,
+     "b_gap_T": 0.1571,
+     "spin_power_mW": 1440.0,
+     "spin_torque_uNm": 863.6,
+     "process": "FDM shell 1.2 mm (3 perimeters, 0.4 mm nozzle)",
+     "inner_mm": 31.6,
+     "rotor_r_mm": 11.57,
+     "rotor_t_mm": 1.908,
+     "rotor_mass_mg": 12030.0,
+     "i_f": 9.062e-07,
+     "storage": {
+      "reservoir": "LiPo 5-10C 50 mAh 601422",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 532.8,
+      "p_cont_w": 1.0,
+      "p_peak_w": 1.8,
+      "vol_mm3": 1848.0,
+      "mass_g": 2.0,
+      "cost": [
+       3.5,
+       1.5,
+       0.5
+      ]
+     },
+     "fall": {
+      "impact_mJ": 123.4,
+      "v_mps": 1.981,
+      "peak_g": 1508.0,
+      "part_stress_MPa": 26.88,
+      "allowable_MPa": 40.0,
+      "margin": 1.488
+     },
+     "req": {
+      "weight_N": 0.6168,
+      "adhesion_N": 0.002461,
+      "tip_torque": 0.01057,
+      "climb_torque": 0.01483,
+      "e_roll": 0.004344,
+      "e_climb": 0.02531,
+      "yaw_friction": 0.004028,
+      "cantilever_moment": 0.1887,
+      "hang_tension": 6.168,
+      "arm_torque": 0.1496
+     }
+    }
+   },
+   {
+    "L_mm": 40.0,
+    "mass_mg": 75584.4,
+    "margins": {
+     "lone_self_right": 7.288,
+     "lone_translate": 7.288,
+     "lone_turn": 17.698,
+     "split": 2.699,
+     "climb": 2.24,
+     "climb_hinge_holds": 1.571,
+     "spin_time": 0.427,
+     "lone_energy": 9.902,
+     "lone_speed": 2.176,
+     "bond_cantilever": 1.72,
+     "bond_hang": 3.879,
+     "dock_capture": 4.223,
+     "packing_volume": 2.994,
+     "fall": 1.295,
+     "machine_twist": 1.985
+    },
+    "info": {
+     "h_roll": 0.001304,
+     "h_climb": 0.004244,
+     "h_cap": 0.009507,
+     "omega_climb_rpm": 25580.0,
+     "e_move_mJ": {
+      "roll": 1790.0,
+      "split": 13060.0,
+      "climb": 18950.0,
+      "yaw": 303.5
+     },
+     "lone_moves": 297.0,
+     "lone_speed_mm_s": 8.705,
+     "t_move_s": 4.595,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 7.467,
+     "bond_tension_N": 28.76,
+     "bond_moment_mNm": 459.2,
+     "peel_energy_uJ": 38670.0,
+     "capture_frac_L": 0.4223,
+     "k_m": 0.0007553,
+     "b_gap_T": 0.1151,
+     "spin_power_mW": 1440.0,
+     "spin_torque_uNm": 906.3,
+     "process": "FDM shell 1.2 mm (3 perimeters, 0.4 mm nozzle)",
+     "inner_mm": 37.6,
+     "rotor_r_mm": 13.85,
+     "rotor_t_mm": 1.625,
+     "rotor_mass_mg": 14680.0,
+     "i_f": 1.584e-06,
+     "storage": {
+      "reservoir": "LiPo 5-10C 50 mAh 601422",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 532.8,
+      "p_cont_w": 1.0,
+      "p_peak_w": 1.8,
+      "vol_mm3": 1848.0,
+      "mass_g": 2.0,
+      "cost": [
+       3.5,
+       1.5,
+       0.5
+      ]
+     },
+     "fall": {
+      "impact_mJ": 148.3,
+      "v_mps": 1.981,
+      "peak_g": 1447.0,
+      "part_stress_MPa": 30.88,
+      "allowable_MPa": 40.0,
+      "margin": 1.295
+     },
+     "req": {
+      "weight_N": 0.7415,
+      "adhesion_N": 0.002895,
+      "tip_torque": 0.01495,
+      "climb_torque": 0.02097,
+      "e_roll": 0.006143,
+      "e_climb": 0.0358,
+      "yaw_friction": 0.005696,
+      "cantilever_moment": 0.2669,
+      "hang_tension": 7.415,
+      "arm_torque": 0.2116
+     }
+    }
+   }
+  ],
+  "RW-P": [
+   {
+    "L_mm": 5.0,
+    "mass_mg": 346.9,
+    "margins": {
+     "lone_self_right": 1.186,
+     "lone_translate": 1.186,
+     "lone_turn": 2.771,
+     "split": 0.436,
+     "climb": 0.365,
+     "climb_hinge_holds": 1.727,
+     "spin_time": 3.148,
+     "lone_energy": 0.224,
+     "lone_speed": 12.8,
+     "bond_cantilever": 1.95,
+     "bond_hang": 4.321,
+     "dock_capture": 4.073,
+     "packing_volume": 1.409,
+     "fall": 2.338,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 2.673e-07,
+     "h_climb": 8.691e-07,
+     "h_cap": 3.17e-07,
+     "omega_climb_rpm": 157100.0,
+     "e_move_mJ": {
+      "roll": 2.254,
+      "split": 16.67,
+      "climb": 23.83,
+      "yaw": 0.4128
+     },
+     "lone_moves": 6.728,
+     "lone_speed_mm_s": 6.4,
+     "t_move_s": 0.7812,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 0.7388,
+     "bond_tension_N": 0.1471,
+     "bond_moment_mNm": 0.2986,
+     "peel_energy_uJ": 23.01,
+     "capture_frac_L": 0.4073,
+     "k_m": 1.71e-05,
+     "b_gap_T": 0.2743,
+     "spin_power_mW": 6.4,
+     "spin_torque_uNm": 1.368,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 4.2,
+     "rotor_r_mm": 1.35,
+     "rotor_t_mm": 0.6,
+     "rotor_mass_mg": 51.53,
+     "i_f": 5.283e-11,
+     "storage": {
+      "reservoir": null,
+      "n": 0,
+      "supercaps": 1,
+      "energy_j": 0.04207,
+      "p_cont_w": 0.008,
+      "p_peak_w": 0.008,
+      "vol_mm3": 7.2,
+      "mass_g": 0.02,
+      "cost": [
+       2.0,
+       1.2,
+       0.4
+      ]
+     },
+     "fall": {
+      "impact_mJ": 0.6806,
+      "v_mps": 1.981,
+      "peak_g": 8223.0,
+      "part_stress_MPa": 17.11,
+      "allowable_MPa": 40.0,
+      "margin": 2.338
+     },
+     "req": {
+      "weight_N": 0.003403,
+      "adhesion_N": 0.0003619,
+      "tip_torque": 1.032e-05,
+      "climb_torque": 1.203e-05,
+      "e_roll": 3.596e-06,
+      "e_climb": 2.054e-05,
+      "yaw_friction": 3.601e-06,
+      "cantilever_moment": 0.0001531,
+      "hang_tension": 0.03403,
+      "arm_torque": 0.0001214
+     }
+    }
+   },
+   {
+    "L_mm": 6.0,
+    "mass_mg": 618.8,
+    "margins": {
+     "lone_self_right": 1.644,
+     "lone_translate": 1.644,
+     "lone_turn": 3.886,
+     "split": 0.689,
+     "climb": 0.544,
+     "climb_hinge_holds": 1.52,
+     "spin_time": 3.466,
+     "lone_energy": 4.456,
+     "lone_speed": 4.743,
+     "bond_cantilever": 1.571,
+     "bond_hang": 3.418,
+     "dock_capture": 3.472,
+     "packing_volume": 1.282,
+     "fall": 2.218,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 6.239e-07,
+     "h_climb": 1.885e-06,
+     "h_cap": 1.026e-06,
+     "omega_climb_rpm": 105300.0,
+     "e_move_mJ": {
+      "roll": 3.795,
+      "split": 21.6,
+      "climb": 34.65,
+      "yaw": 0.6792
+     },
+     "lone_moves": 133.7,
+     "lone_speed_mm_s": 2.846,
+     "t_move_s": 2.108,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 0.835,
+     "bond_tension_N": 0.2075,
+     "bond_moment_mNm": 0.5151,
+     "peel_energy_uJ": 35.79,
+     "capture_frac_L": 0.3472,
+     "k_m": 2.852e-05,
+     "b_gap_T": 0.2785,
+     "spin_power_mW": 13.12,
+     "spin_torque_uNm": 3.267,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 5.2,
+     "rotor_r_mm": 1.73,
+     "rotor_t_mm": 0.72,
+     "rotor_mass_mg": 101.5,
+     "i_f": 1.71e-10,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 2,
+      "supercaps": 1,
+      "energy_j": 1.042,
+      "p_cont_w": 0.0028,
+      "p_peak_w": 0.0164,
+      "vol_mm3": 38.88,
+      "mass_g": 0.1,
+      "cost": [
+       10.0,
+       4.2,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 1.214,
+      "v_mps": 1.981,
+      "peak_g": 6766.0,
+      "part_stress_MPa": 18.04,
+      "allowable_MPa": 40.0,
+      "margin": 2.218
+     },
+     "req": {
+      "weight_N": 0.006071,
+      "adhesion_N": 0.0004343,
+      "tip_torque": 2.082e-05,
+      "climb_torque": 2.575e-05,
+      "e_roll": 7.63e-06,
+      "e_climb": 4.397e-05,
+      "yaw_friction": 7.466e-06,
+      "cantilever_moment": 0.0003278,
+      "hang_tension": 0.06071,
+      "arm_torque": 0.0002599
+     }
+    }
+   },
+   {
+    "L_mm": 7.0,
+    "mass_mg": 894.4,
+    "margins": {
+     "lone_self_right": 2.334,
+     "lone_translate": 2.334,
+     "lone_turn": 5.544,
+     "split": 1.008,
+     "climb": 0.784,
+     "climb_hinge_holds": 1.515,
+     "spin_time": 2.537,
+     "lone_energy": 5.644,
+     "lone_speed": 6.585,
+     "bond_cantilever": 1.549,
+     "bond_hang": 3.334,
+     "dock_capture": 3.259,
+     "packing_volume": 1.64,
+     "fall": 2.043,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 1.134e-06,
+     "h_climb": 3.376e-06,
+     "h_cap": 2.648e-06,
+     "omega_climb_rpm": 73050.0,
+     "e_move_mJ": {
+      "roll": 4.86,
+      "split": 26.05,
+      "climb": 43.04,
+      "yaw": 0.8616
+     },
+     "lone_moves": 169.3,
+     "lone_speed_mm_s": 4.609,
+     "t_move_s": 1.519,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 0.9466,
+     "bond_tension_N": 0.2925,
+     "bond_moment_mNm": 0.856,
+     "peel_energy_uJ": 55.9,
+     "capture_frac_L": 0.3259,
+     "k_m": 4.265e-05,
+     "b_gap_T": 0.28,
+     "spin_power_mW": 10.08,
+     "spin_torque_uNm": 4.282,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 6.2,
+     "rotor_r_mm": 2.11,
+     "rotor_t_mm": 0.84,
+     "rotor_mass_mg": 176.2,
+     "i_f": 4.413e-10,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 1.755,
+      "v_mps": 1.981,
+      "peak_g": 6022.0,
+      "part_stress_MPa": 19.58,
+      "allowable_MPa": 40.0,
+      "margin": 2.043
+     },
+     "req": {
+      "weight_N": 0.008774,
+      "adhesion_N": 0.0005067,
+      "tip_torque": 3.426e-05,
+      "climb_torque": 4.343e-05,
+      "e_roll": 1.282e-05,
+      "e_climb": 7.414e-05,
+      "yaw_friction": 1.243e-05,
+      "cantilever_moment": 0.0005528,
+      "hang_tension": 0.08774,
+      "arm_torque": 0.0004383
+     }
+    }
+   },
+   {
+    "L_mm": 8.0,
+    "mass_mg": 1229.3,
+    "margins": {
+     "lone_self_right": 3.084,
+     "lone_translate": 3.084,
+     "lone_turn": 7.351,
+     "split": 1.343,
+     "climb": 1.04,
+     "climb_hinge_holds": 1.538,
+     "spin_time": 2.117,
+     "lone_energy": 4.917,
+     "lone_speed": 5.187,
+     "bond_cantilever": 1.572,
+     "bond_hang": 3.363,
+     "dock_capture": 3.171,
+     "packing_volume": 2.089,
+     "fall": 1.914,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 1.903e-06,
+     "h_climb": 5.642e-06,
+     "h_cap": 5.869e-06,
+     "omega_climb_rpm": 55080.0,
+     "e_move_mJ": {
+      "roll": 6.169,
+      "split": 32.53,
+      "climb": 54.24,
+      "yaw": 1.086
+     },
+     "lone_moves": 147.5,
+     "lone_speed_mm_s": 4.15,
+     "t_move_s": 1.928,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 1.07,
+     "bond_tension_N": 0.4056,
+     "bond_moment_mNm": 1.365,
+     "peel_energy_uJ": 85.87,
+     "capture_frac_L": 0.3171,
+     "k_m": 5.949e-05,
+     "b_gap_T": 0.2805,
+     "spin_power_mW": 10.08,
+     "spin_torque_uNm": 5.973,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 7.2,
+     "rotor_r_mm": 2.49,
+     "rotor_t_mm": 0.96,
+     "rotor_mass_mg": 280.5,
+     "i_f": 9.782e-10,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 2.412,
+      "v_mps": 1.981,
+      "peak_g": 5446.0,
+      "part_stress_MPa": 20.9,
+      "allowable_MPa": 40.0,
+      "margin": 1.914
+     },
+     "req": {
+      "weight_N": 0.01206,
+      "adhesion_N": 0.0005791,
+      "tip_torque": 5.287e-05,
+      "climb_torque": 6.822e-05,
+      "e_roll": 2.01e-05,
+      "e_climb": 0.0001165,
+      "yaw_friction": 1.934e-05,
+      "cantilever_moment": 0.0008683,
+      "hang_tension": 0.1206,
+      "arm_torque": 0.0006884
+     }
+    }
+   },
+   {
+    "L_mm": 10.0,
+    "mass_mg": 2190.7,
+    "margins": {
+     "lone_self_right": 4.499,
+     "lone_translate": 4.499,
+     "lone_turn": 10.782,
+     "split": 1.966,
+     "climb": 1.519,
+     "climb_hinge_holds": 1.565,
+     "spin_time": 1.45,
+     "lone_energy": 3.443,
+     "lone_speed": 3.041,
+     "bond_cantilever": 1.602,
+     "bond_hang": 3.413,
+     "dock_capture": 3.108,
+     "packing_volume": 2.813,
+     "fall": 1.767,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 4.733e-06,
+     "h_climb": 1.402e-05,
+     "h_cap": 2.129e-05,
+     "omega_climb_rpm": 37720.0,
+     "e_move_mJ": {
+      "roll": 10.52,
+      "split": 55.09,
+      "climb": 92.3,
+      "yaw": 1.831
+     },
+     "lone_moves": 103.3,
+     "lone_speed_mm_s": 3.041,
+     "t_move_s": 3.288,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 1.347,
+     "bond_tension_N": 0.7334,
+     "bond_moment_mNm": 3.099,
+     "peel_energy_uJ": 189.1,
+     "capture_frac_L": 0.3108,
+     "k_m": 0.0001012,
+     "b_gap_T": 0.2801,
+     "spin_power_mW": 10.08,
+     "spin_torque_uNm": 10.16,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 9.2,
+     "rotor_r_mm": 3.25,
+     "rotor_t_mm": 1.2,
+     "rotor_mass_mg": 597.3,
+     "i_f": 3.549e-09,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 4.298,
+      "v_mps": 1.981,
+      "peak_g": 4520.0,
+      "part_stress_MPa": 22.64,
+      "allowable_MPa": 40.0,
+      "margin": 1.767
+     },
+     "req": {
+      "weight_N": 0.02149,
+      "adhesion_N": 0.0007238,
+      "tip_torque": 0.0001147,
+      "climb_torque": 0.000152,
+      "e_roll": 4.465e-05,
+      "e_climb": 0.0002594,
+      "yaw_friction": 4.25e-05,
+      "cantilever_moment": 0.001934,
+      "hang_tension": 0.2149,
+      "arm_torque": 0.001533
+     }
+    }
+   }
+  ],
+  "RW-B-0408": [
+   {
+    "L_mm": 12.0,
+    "mass_mg": 3966.3,
+    "margins": {
+     "lone_self_right": 1.109,
+     "lone_translate": 1.109,
+     "lone_turn": 2.672,
+     "split": 0.461,
+     "climb": 0.365,
+     "climb_hinge_holds": 1.616,
+     "spin_time": 1.101,
+     "lone_energy": 76.42,
+     "lone_speed": 4.972,
+     "bond_cantilever": 1.694,
+     "bond_hang": 3.646,
+     "dock_capture": 3.359,
+     "packing_volume": 1.31,
+     "fall": 3.09,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 1.126e-05,
+     "h_climb": 3.426e-05,
+     "h_cap": 1.249e-05,
+     "omega_climb_rpm": 65810.0,
+     "e_move_mJ": {
+      "roll": 42.48,
+      "split": 245.9,
+      "climb": 393.5,
+      "yaw": 7.324
+     },
+     "lone_moves": 2293.0,
+     "lone_speed_mm_s": 5.967,
+     "t_move_s": 2.011,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 1.762,
+     "bond_tension_N": 1.419,
+     "bond_moment_mNm": 7.12,
+     "peel_energy_uJ": 463.9,
+     "capture_frac_L": 0.3359,
+     "motor": "0408 coreless 4x8 mm",
+     "stall_uNm": 117.8,
+     "spin_torque_uNm": 18.85,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 11.2,
+     "rotor_r_mm": 4.01,
+     "rotor_t_mm": 1.44,
+     "rotor_mass_mg": 618.3,
+     "i_f": 4.971e-09,
+     "storage": {
+      "reservoir": "LiPo 301010 10 mAh",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 106.6,
+      "p_cont_w": 0.074,
+      "p_peak_w": 0.074,
+      "vol_mm3": 300.0,
+      "mass_g": 0.35,
+      "cost": [
+       2.0,
+       0.8,
+       0.3
+      ]
+     },
+     "fall": {
+      "impact_mJ": 7.782,
+      "v_mps": 1.981,
+      "peak_g": 3697.0,
+      "part_stress_MPa": 12.94,
+      "allowable_MPa": 40.0,
+      "margin": 3.09
+     },
+     "req": {
+      "weight_N": 0.03891,
+      "adhesion_N": 0.0008686,
+      "tip_torque": 0.0002439,
+      "climb_torque": 0.0003302,
+      "e_roll": 9.687e-05,
+      "e_climb": 0.0005636,
+      "yaw_friction": 9.131e-05,
+      "cantilever_moment": 0.004202,
+      "hang_tension": 0.3891,
+      "arm_torque": 0.003332
+     }
+    }
+   },
+   {
+    "L_mm": 14.0,
+    "mass_mg": 5275.3,
+    "margins": {
+     "lone_self_right": 1.089,
+     "lone_translate": 1.089,
+     "lone_turn": 2.627,
+     "split": 0.351,
+     "climb": 0.307,
+     "climb_hinge_holds": 1.609,
+     "spin_time": 0.563,
+     "lone_energy": 46.438,
+     "lone_speed": 3.099,
+     "bond_cantilever": 1.916,
+     "bond_hang": 4.52,
+     "dock_capture": 5.0,
+     "packing_volume": 1.162,
+     "fall": 3.082,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 1.886e-05,
+     "h_climb": 6.697e-05,
+     "h_cap": 2.055e-05,
+     "omega_climb_rpm": 78170.0,
+     "e_move_mJ": {
+      "roll": 72.49,
+      "split": 696.8,
+      "climb": 913.7,
+      "yaw": 12.47
+     },
+     "lone_moves": 1393.0,
+     "lone_speed_mm_s": 4.338,
+     "t_move_s": 3.227,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 2.719,
+     "bond_tension_N": 2.339,
+     "bond_moment_mNm": 12.49,
+     "peel_energy_uJ": 1294.0,
+     "capture_frac_L": 0.5,
+     "motor": "0408 coreless 4x8 mm",
+     "stall_uNm": 117.8,
+     "spin_torque_uNm": 18.85,
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 12.4,
+     "rotor_r_mm": 4.37,
+     "rotor_t_mm": 1.68,
+     "rotor_mass_mg": 856.7,
+     "i_f": 8.18e-09,
+     "storage": {
+      "reservoir": "LiPo 301010 10 mAh",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 106.6,
+      "p_cont_w": 0.074,
+      "p_peak_w": 0.074,
+      "vol_mm3": 300.0,
+      "mass_g": 0.35,
+      "cost": [
+       2.0,
+       0.8,
+       0.3
+      ]
+     },
+     "fall": {
+      "impact_mJ": 10.35,
+      "v_mps": 1.981,
+      "peak_g": 3402.0,
+      "part_stress_MPa": 12.98,
+      "allowable_MPa": 40.0,
+      "margin": 3.082
+     },
+     "req": {
+      "weight_N": 0.05175,
+      "adhesion_N": 0.001013,
+      "tip_torque": 0.0003764,
+      "climb_torque": 0.0005123,
+      "e_roll": 0.0001503,
+      "e_climb": 0.0008746,
+      "yaw_friction": 0.0001413,
+      "cantilever_moment": 0.006521,
+      "hang_tension": 0.5175,
+      "arm_torque": 0.00517
+     }
+    }
+   }
+  ],
+  "RW-B-BMN02": [
+   {
+    "L_mm": 8.0,
+    "mass_mg": 1686.0,
+    "margins": {
+     "lone_self_right": 0.196,
+     "lone_translate": 0.196,
+     "lone_turn": 0.469,
+     "split": 0.078,
+     "climb": 0.063,
+     "climb_hinge_holds": 1.557,
+     "spin_time": 0.031,
+     "lone_energy": 3.295,
+     "lone_speed": 0.161,
+     "bond_cantilever": 1.643,
+     "bond_hang": 3.608,
+     "dock_capture": 3.685,
+     "packing_volume": 1.442,
+     "fall": 1.862,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 2.608e-06,
+     "h_climb": 8.089e-06,
+     "h_cap": 5.099e-07,
+     "omega_climb_rpm": 76150.0,
+     "e_move_mJ": {
+      "roll": 11.17,
+      "split": 69.43,
+      "climb": 107.5,
+      "yaw": 1.946
+     },
+     "lone_moves": 98.86,
+     "lone_speed_mm_s": 0.1284,
+     "t_move_s": 62.3,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 1.242,
+     "bond_tension_N": 0.5968,
+     "bond_moment_mNm": 1.957,
+     "peel_energy_uJ": 143.5,
+     "capture_frac_L": 0.3685,
+     "motor": "Orbray BMN02-0593 2.4 mm brushless",
+     "stall_uNm": 10.0,
+     "spin_torque_uNm": 0.126,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 7.2,
+     "rotor_r_mm": 2.49,
+     "rotor_t_mm": 0.96,
+     "rotor_mass_mg": 327.2,
+     "i_f": 1.014e-09,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 3.308,
+      "v_mps": 1.981,
+      "peak_g": 4800.0,
+      "part_stress_MPa": 21.49,
+      "allowable_MPa": 40.0,
+      "margin": 1.862
+     },
+     "req": {
+      "weight_N": 0.01654,
+      "adhesion_N": 0.0005791,
+      "tip_torque": 7.079e-05,
+      "climb_torque": 9.357e-05,
+      "e_roll": 2.752e-05,
+      "e_climb": 0.0001597,
+      "yaw_friction": 2.62e-05,
+      "cantilever_moment": 0.001191,
+      "hang_tension": 0.1654,
+      "arm_torque": 0.0009442
+     }
+    }
+   },
+   {
+    "L_mm": 10.0,
+    "mass_mg": 2774.1,
+    "margins": {
+     "lone_self_right": 0.309,
+     "lone_translate": 0.309,
+     "lone_turn": 0.742,
+     "split": 0.127,
+     "climb": 0.101,
+     "climb_hinge_holds": 1.573,
+     "spin_time": 0.014,
+     "lone_energy": 2.468,
+     "lone_speed": 0.07,
+     "bond_cantilever": 1.648,
+     "bond_hang": 3.578,
+     "dock_capture": 3.484,
+     "packing_volume": 2.162,
+     "fall": 1.665,
+     "machine_twist": 0.0
+    },
+    "info": {
+     "h_roll": 5.992e-06,
+     "h_climb": 1.834e-05,
+     "h_cap": 1.85e-06,
+     "omega_climb_rpm": 47580.0,
+     "e_move_mJ": {
+      "roll": 16.26,
+      "split": 96.1,
+      "climb": 152.3,
+      "yaw": 2.812
+     },
+     "lone_moves": 74.05,
+     "lone_speed_mm_s": 0.06999,
+     "t_move_s": 142.9,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 1.51,
+     "bond_tension_N": 0.9738,
+     "bond_moment_mNm": 4.037,
+     "peel_energy_uJ": 277.5,
+     "capture_frac_L": 0.3484,
+     "motor": "Orbray BMN02-0593 2.4 mm brushless",
+     "stall_uNm": 10.0,
+     "spin_torque_uNm": 0.126,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 9.2,
+     "rotor_r_mm": 3.25,
+     "rotor_t_mm": 1.2,
+     "rotor_mass_mg": 696.8,
+     "i_f": 3.68e-09,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 5.443,
+      "v_mps": 1.981,
+      "peak_g": 4112.0,
+      "part_stress_MPa": 24.03,
+      "allowable_MPa": 40.0,
+      "margin": 1.665
+     },
+     "req": {
+      "weight_N": 0.02721,
+      "adhesion_N": 0.0007238,
+      "tip_torque": 0.0001433,
+      "climb_torque": 0.0001924,
+      "e_roll": 5.651e-05,
+      "e_climb": 0.0003285,
+      "yaw_friction": 5.344e-05,
+      "cantilever_moment": 0.002449,
+      "hang_tension": 0.2721,
+      "arm_torque": 0.001942
+     }
+    }
+   }
+  ],
+  "RW-P-TBMN04": [
+   {
+    "L_mm": 20.0,
+    "mass_mg": 12381.3,
+    "margins": {
+     "lone_self_right": 5.611,
+     "lone_translate": 5.611,
+     "lone_turn": 13.573,
+     "split": 2.003,
+     "climb": 1.687,
+     "climb_hinge_holds": 1.59,
+     "spin_time": 0.55,
+     "lone_energy": 25.614,
+     "lone_speed": 2.843,
+     "bond_cantilever": 1.778,
+     "bond_hang": 4.051,
+     "dock_capture": 4.461,
+     "packing_volume": 0.0,
+     "fall": 1.503,
+     "machine_twist": 0.264
+    },
+    "info": {
+     "h_roll": 7.556e-05,
+     "h_climb": 0.0002513,
+     "h_cap": 0.0004239,
+     "omega_climb_rpm": 33970.0,
+     "e_move_mJ": {
+      "roll": 134.7,
+      "split": 1056.0,
+      "climb": 1490.0,
+      "yaw": 23.01
+     },
+     "lone_moves": 768.4,
+     "lone_speed_mm_s": 5.685,
+     "t_move_s": 3.518,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 3.601,
+     "bond_tension_N": 4.92,
+     "bond_moment_mNm": 38.86,
+     "peel_energy_uJ": 3445.0,
+     "capture_frac_L": 0.4461,
+     "k_m": 0.0002843,
+     "b_gap_T": 0.1879,
+     "spin_power_mW": 59.2,
+     "spin_torque_uNm": 69.16,
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 18.4,
+     "rotor_r_mm": 6.65,
+     "rotor_t_mm": 1.363,
+     "rotor_mass_mg": 2840.0,
+     "i_f": 7.066e-08,
+     "storage": {
+      "reservoir": "LiPo 301010 10 mAh",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 106.6,
+      "p_cont_w": 0.074,
+      "p_peak_w": 0.074,
+      "vol_mm3": 300.0,
+      "mass_g": 0.35,
+      "cost": [
+       2.0,
+       0.8,
+       0.3
+      ]
+     },
+     "fall": {
+      "impact_mJ": 24.29,
+      "v_mps": 1.981,
+      "peak_g": 2597.0,
+      "part_stress_MPa": 26.61,
+      "allowable_MPa": 40.0,
+      "margin": 1.503
+     },
+     "req": {
+      "weight_N": 0.1215,
+      "adhesion_N": 0.001448,
+      "tip_torque": 0.001244,
+      "climb_torque": 0.001718,
+      "e_roll": 0.0005034,
+      "e_climb": 0.002932,
+      "yaw_friction": 0.0004702,
+      "cantilever_moment": 0.02186,
+      "hang_tension": 1.215,
+      "arm_torque": 0.01733
+     }
+    }
+   },
+   {
+    "L_mm": 22.0,
+    "mass_mg": 12072.1,
+    "margins": {
+     "lone_self_right": 5.402,
+     "lone_translate": 5.402,
+     "lone_turn": 13.059,
+     "split": 2.086,
+     "climb": 1.702,
+     "climb_hinge_holds": 1.602,
+     "spin_time": 0.424,
+     "lone_energy": 22.014,
+     "lone_speed": 2.125,
+     "bond_cantilever": 1.728,
+     "bond_hang": 3.82,
+     "dock_capture": 3.872,
+     "packing_volume": 3.187,
+     "fall": 1.31,
+     "machine_twist": 0.246
+    },
+    "info": {
+     "h_roll": 8.5e-05,
+     "h_climb": 0.0002697,
+     "h_cap": 0.0004591,
+     "omega_climb_rpm": 33660.0,
+     "e_move_mJ": {
+      "roll": 157.3,
+      "split": 1055.0,
+      "climb": 1585.0,
+      "yaw": 26.93
+     },
+     "lone_moves": 660.4,
+     "lone_speed_mm_s": 4.675,
+     "t_move_s": 4.705,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 3.486,
+     "bond_tension_N": 4.524,
+     "bond_moment_mNm": 40.52,
+     "peel_energy_uJ": 3081.0,
+     "capture_frac_L": 0.3872,
+     "k_m": 0.0002349,
+     "b_gap_T": 0.1251,
+     "spin_power_mW": 59.2,
+     "spin_torque_uNm": 57.16,
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 20.4,
+     "rotor_r_mm": 7.41,
+     "rotor_t_mm": 0.9575,
+     "rotor_mass_mg": 2478.0,
+     "i_f": 7.652e-08,
+     "storage": {
+      "reservoir": "LiPo 301010 10 mAh",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 106.6,
+      "p_cont_w": 0.074,
+      "p_peak_w": 0.074,
+      "vol_mm3": 300.0,
+      "mass_g": 0.35,
+      "cost": [
+       2.0,
+       0.8,
+       0.3
+      ]
+     },
+     "fall": {
+      "impact_mJ": 23.69,
+      "v_mps": 1.981,
+      "peak_g": 2674.0,
+      "part_stress_MPa": 30.53,
+      "allowable_MPa": 40.0,
+      "margin": 1.31
+     },
+     "req": {
+      "weight_N": 0.1184,
+      "adhesion_N": 0.001592,
+      "tip_torque": 0.001338,
+      "climb_torque": 0.001842,
+      "e_roll": 0.0005399,
+      "e_climb": 0.003145,
+      "yaw_friction": 0.0005051,
+      "cantilever_moment": 0.02345,
+      "hang_tension": 1.184,
+      "arm_torque": 0.01859
+     }
+    }
+   },
+   {
+    "L_mm": 24.0,
+    "mass_mg": 13354.8,
+    "margins": {
+     "lone_self_right": 5.642,
+     "lone_translate": 5.642,
+     "lone_turn": 13.639,
+     "split": 2.264,
+     "climb": 1.817,
+     "climb_hinge_holds": 1.605,
+     "spin_time": 0.343,
+     "lone_energy": 18.318,
+     "lone_speed": 1.698,
+     "bond_cantilever": 1.704,
+     "bond_hang": 3.715,
+     "dock_capture": 3.597,
+     "packing_volume": 3.923,
+     "fall": 1.216,
+     "machine_twist": 0.204
+    },
+    "info": {
+     "h_roll": 0.0001071,
+     "h_climb": 0.0003326,
+     "h_cap": 0.0006044,
+     "omega_climb_rpm": 31530.0,
+     "e_move_mJ": {
+      "roll": 189.9,
+      "split": 1180.0,
+      "climb": 1830.0,
+      "yaw": 32.49
+     },
+     "lone_moves": 549.5,
+     "lone_speed_mm_s": 4.075,
+     "t_move_s": 5.89,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 3.586,
+     "bond_tension_N": 4.867,
+     "bond_moment_mNm": 48.22,
+     "peel_energy_uJ": 3396.0,
+     "capture_frac_L": 0.3597,
+     "k_m": 0.0002342,
+     "b_gap_T": 0.1025,
+     "spin_power_mW": 59.2,
+     "spin_torque_uNm": 56.97,
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 22.4,
+     "rotor_r_mm": 8.17,
+     "rotor_t_mm": 0.853,
+     "rotor_mass_mg": 2683.0,
+     "i_f": 1.007e-07,
+     "storage": {
+      "reservoir": "LiPo 301010 10 mAh",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 106.6,
+      "p_cont_w": 0.074,
+      "p_peak_w": 0.074,
+      "vol_mm3": 300.0,
+      "mass_g": 0.35,
+      "cost": [
+       2.0,
+       0.8,
+       0.3
+      ]
+     },
+     "fall": {
+      "impact_mJ": 26.2,
+      "v_mps": 1.981,
+      "peak_g": 2613.0,
+      "part_stress_MPa": 32.9,
+      "allowable_MPa": 40.0,
+      "margin": 1.216
+     },
+     "req": {
+      "weight_N": 0.131,
+      "adhesion_N": 0.001737,
+      "tip_torque": 0.001614,
+      "climb_torque": 0.002223,
+      "e_roll": 0.0006515,
+      "e_climb": 0.003795,
+      "yaw_friction": 0.0006095,
+      "cantilever_moment": 0.0283,
+      "hang_tension": 1.31,
+      "arm_torque": 0.02244
+     }
+    }
+   }
+  ],
+  "RW-P-T0408": [
+   {
+    "L_mm": 20.0,
+    "mass_mg": 11526.9,
+    "margins": {
+     "lone_self_right": 5.562,
+     "lone_translate": 5.562,
+     "lone_turn": 13.45,
+     "split": 2.023,
+     "climb": 1.691,
+     "climb_hinge_holds": 1.593,
+     "spin_time": 0.559,
+     "lone_energy": 27.222,
+     "lone_speed": 2.852,
+     "bond_cantilever": 1.766,
+     "bond_hang": 3.994,
+     "dock_capture": 4.323,
+     "packing_volume": 2.392,
+     "fall": 1.461,
+     "machine_twist": 0.26
+    },
+    "info": {
+     "h_roll": 7.035e-05,
+     "h_climb": 0.0002314,
+     "h_cap": 0.0003913,
+     "omega_climb_rpm": 33880.0,
+     "e_move_mJ": {
+      "roll": 126.5,
+      "split": 956.2,
+      "climb": 1368.0,
+      "yaw": 21.63
+     },
+     "lone_moves": 816.7,
+     "lone_speed_mm_s": 5.703,
+     "t_move_s": 3.507,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 3.484,
+     "bond_tension_N": 4.517,
+     "bond_moment_mNm": 35.94,
+     "peel_energy_uJ": 3074.0,
+     "capture_frac_L": 0.4323,
+     "k_m": 0.0002655,
+     "b_gap_T": 0.1755,
+     "spin_power_mW": 59.2,
+     "spin_torque_uNm": 64.61,
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 18.4,
+     "rotor_r_mm": 6.65,
+     "rotor_t_mm": 1.258,
+     "rotor_mass_mg": 2622.0,
+     "i_f": 6.521e-08,
+     "storage": {
+      "reservoir": "LiPo 301010 10 mAh",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 106.6,
+      "p_cont_w": 0.074,
+      "p_peak_w": 0.074,
+      "vol_mm3": 300.0,
+      "mass_g": 0.35,
+      "cost": [
+       2.0,
+       0.8,
+       0.3
+      ]
+     },
+     "fall": {
+      "impact_mJ": 22.62,
+      "v_mps": 1.981,
+      "peak_g": 2672.0,
+      "part_stress_MPa": 27.38,
+      "allowable_MPa": 40.0,
+      "margin": 1.461
+     },
+     "req": {
+      "weight_N": 0.1131,
+      "adhesion_N": 0.001448,
+      "tip_torque": 0.00116,
+      "climb_torque": 0.001599,
+      "e_roll": 0.0004687,
+      "e_climb": 0.00273,
+      "yaw_friction": 0.0004382,
+      "cantilever_moment": 0.02035,
+      "hang_tension": 1.131,
+      "arm_torque": 0.01614
+     }
+    }
+   },
+   {
+    "L_mm": 24.0,
+    "mass_mg": 12812.3,
+    "margins": {
+     "lone_self_right": 5.645,
+     "lone_translate": 5.645,
+     "lone_turn": 13.644,
+     "split": 2.286,
+     "climb": 1.828,
+     "climb_hinge_holds": 1.606,
+     "spin_time": 0.345,
+     "lone_energy": 19.089,
+     "lone_speed": 1.702,
+     "bond_cantilever": 1.699,
+     "bond_hang": 3.691,
+     "dock_capture": 3.534,
+     "packing_volume": 4.023,
+     "fall": 1.196,
+     "machine_twist": 0.195
+    },
+    "info": {
+     "h_roll": 0.0001028,
+     "h_climb": 0.0003174,
+     "h_cap": 0.0005802,
+     "omega_climb_rpm": 31350.0,
+     "e_move_mJ": {
+      "roll": 182.1,
+      "split": 1110.0,
+      "climb": 1737.0,
+      "yaw": 31.17
+     },
+     "lone_moves": 572.7,
+     "lone_speed_mm_s": 4.085,
+     "t_move_s": 5.875,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 3.52,
+     "bond_tension_N": 4.639,
+     "bond_moment_mNm": 46.11,
+     "peel_energy_uJ": 3186.0,
+     "capture_frac_L": 0.3534,
+     "k_m": 0.0002252,
+     "b_gap_T": 0.09863,
+     "spin_power_mW": 59.2,
+     "spin_torque_uNm": 54.81,
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 22.4,
+     "rotor_r_mm": 8.17,
+     "rotor_t_mm": 0.8188,
+     "rotor_mass_mg": 2576.0,
+     "i_f": 9.671e-08,
+     "storage": {
+      "reservoir": "LiPo 301010 10 mAh",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 106.6,
+      "p_cont_w": 0.074,
+      "p_peak_w": 0.074,
+      "vol_mm3": 300.0,
+      "mass_g": 0.35,
+      "cost": [
+       2.0,
+       0.8,
+       0.3
+      ]
+     },
+     "fall": {
+      "impact_mJ": 25.14,
+      "v_mps": 1.981,
+      "peak_g": 2657.0,
+      "part_stress_MPa": 33.45,
+      "allowable_MPa": 40.0,
+      "margin": 1.196
+     },
+     "req": {
+      "weight_N": 0.1257,
+      "adhesion_N": 0.001737,
+      "tip_torque": 0.00155,
+      "climb_torque": 0.002133,
+      "e_roll": 0.0006251,
+      "e_climb": 0.003641,
+      "yaw_friction": 0.000585,
+      "cantilever_moment": 0.02715,
+      "hang_tension": 1.257,
+      "arm_torque": 0.02152
+     }
+    }
+   }
+  ],
+  "RW-P-T0615": [
+   {
+    "L_mm": 24.0,
+    "mass_mg": 14897.2,
+    "margins": {
+     "lone_self_right": 5.57,
+     "lone_translate": 5.57,
+     "lone_turn": 13.476,
+     "split": 2.194,
+     "climb": 1.775,
+     "climb_hinge_holds": 1.591,
+     "spin_time": 0.406,
+     "lone_energy": 24.38,
+     "lone_speed": 2.016,
+     "bond_cantilever": 1.699,
+     "bond_hang": 3.735,
+     "dock_capture": 3.747,
+     "packing_volume": 2.842,
+     "fall": 1.27,
+     "machine_twist": 0.503
+    },
+    "info": {
+     "h_roll": 0.0001195,
+     "h_climb": 0.0003749,
+     "h_cap": 0.0006657,
+     "omega_climb_rpm": 32270.0,
+     "e_move_mJ": {
+      "roll": 214.5,
+      "split": 1383.0,
+      "climb": 2112.0,
+      "yaw": 36.66
+     },
+     "lone_moves": 731.4,
+     "lone_speed_mm_s": 4.839,
+     "t_move_s": 4.96,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 3.75,
+     "bond_tension_N": 5.458,
+     "bond_moment_mNm": 53.62,
+     "peel_energy_uJ": 3957.0,
+     "capture_frac_L": 0.3747,
+     "k_m": 0.0002565,
+     "b_gap_T": 0.1123,
+     "spin_power_mW": 88.0,
+     "spin_torque_uNm": 76.1,
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 22.4,
+     "rotor_r_mm": 8.17,
+     "rotor_t_mm": 0.9394,
+     "rotor_mass_mg": 2955.0,
+     "i_f": 1.109e-07,
+     "storage": {
+      "reservoir": "LiPo 401012 15 mAh",
+      "n": 1,
+      "supercaps": 0,
+      "energy_j": 159.8,
+      "p_cont_w": 0.11,
+      "p_peak_w": 0.11,
+      "vol_mm3": 480.0,
+      "mass_g": 0.5,
+      "cost": [
+       2.0,
+       0.8,
+       0.3
+      ]
+     },
+     "fall": {
+      "impact_mJ": 29.23,
+      "v_mps": 1.981,
+      "peak_g": 2501.0,
+      "part_stress_MPa": 31.49,
+      "allowable_MPa": 40.0,
+      "margin": 1.27
+     },
+     "req": {
+      "weight_N": 0.1461,
+      "adhesion_N": 0.001737,
+      "tip_torque": 0.001795,
+      "climb_torque": 0.00248,
+      "e_roll": 0.0007268,
+      "e_climb": 0.004234,
+      "yaw_friction": 0.0006789,
+      "cantilever_moment": 0.03157,
+      "hang_tension": 1.461,
+      "arm_torque": 0.02503
+     }
+    }
+   },
+   {
+    "L_mm": 30.0,
+    "mass_mg": 20893.5,
+    "margins": {
+     "lone_self_right": 6.499,
+     "lone_translate": 6.499,
+     "lone_turn": 15.73,
+     "split": 2.766,
+     "climb": 2.162,
+     "climb_hinge_holds": 1.587,
+     "spin_time": 0.279,
+     "lone_energy": 19.494,
+     "lone_speed": 1.351,
+     "bond_cantilever": 1.643,
+     "bond_hang": 3.52,
+     "dock_capture": 3.233,
+     "packing_volume": 4.521,
+     "fall": 1.087,
+     "machine_twist": 0.287
+    },
+    "info": {
+     "h_roll": 0.0002342,
+     "h_climb": 0.000704,
+     "h_cap": 0.001522,
+     "omega_climb_rpm": 26500.0,
+     "e_move_mJ": {
+      "roll": 360.4,
+      "split": 1989.0,
+      "climb": 3256.0,
+      "yaw": 61.52
+     },
+     "lone_moves": 584.8,
+     "lone_speed_mm_s": 4.052,
+     "t_move_s": 7.403,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 4.188,
+     "bond_tension_N": 7.214,
+     "bond_moment_mNm": 90.94,
+     "peel_energy_uJ": 5757.0,
+     "capture_frac_L": 0.3233,
+     "k_m": 0.0002859,
+     "b_gap_T": 0.07652,
+     "spin_power_mW": 118.4,
+     "spin_torque_uNm": 98.38,
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 28.4,
+     "rotor_r_mm": 10.45,
+     "rotor_t_mm": 0.8025,
+     "rotor_mass_mg": 4130.0,
+     "i_f": 2.537e-07,
+     "storage": {
+      "reservoir": "LiPo 301010 10 mAh",
+      "n": 2,
+      "supercaps": 0,
+      "energy_j": 213.1,
+      "p_cont_w": 0.148,
+      "p_peak_w": 0.148,
+      "vol_mm3": 600.0,
+      "mass_g": 0.7,
+      "cost": [
+       4.0,
+       1.6,
+       0.6
+      ]
+     },
+     "fall": {
+      "impact_mJ": 40.99,
+      "v_mps": 1.981,
+      "peak_g": 2284.0,
+      "part_stress_MPa": 36.79,
+      "allowable_MPa": 40.0,
+      "margin": 1.087
+     },
+     "req": {
+      "weight_N": 0.205,
+      "adhesion_N": 0.002171,
+      "tip_torque": 0.00314,
+      "climb_torque": 0.004348,
+      "e_roll": 0.001274,
+      "e_climb": 0.007422,
+      "yaw_friction": 0.001189,
+      "cantilever_moment": 0.05534,
+      "hang_tension": 2.05,
+      "arm_torque": 0.04388
+     }
+    }
+   }
+  ],
+  "G-0615": [
+   {
+    "L_mm": 24.0,
+    "mass_mg": 13095.1,
+    "margins": {
+     "lone_self_right": 3.79,
+     "lone_translate": 19.461,
+     "lone_turn": 19.461,
+     "split": 2.752,
+     "climb": 2.117,
+     "climb_hinge_holds": 2.0,
+     "spin_time": 2.0,
+     "lone_energy": 22.2,
+     "lone_speed": 3.0,
+     "bond_cantilever": 2.0,
+     "bond_hang": 2.0,
+     "dock_capture": 3.421,
+     "packing_volume": 1.216,
+     "fall": 4.645,
+     "machine_twist": 0.573,
+     "peak_current": 1.25
+    },
+    "info": {
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 22.4,
+     "motor": "6 mm planetary 0615 (AliExpress)",
+     "cell": "LiPo 5-10C 50 mAh 601422",
+     "req": {
+      "weight_N": 0.1285,
+      "adhesion_N": 0.001737,
+      "tip_torque": 0.001583,
+      "climb_torque": 0.00218,
+      "e_roll": 0.0006389,
+      "e_climb": 0.003722,
+      "yaw_friction": 0.0005978,
+      "cantilever_moment": 0.02775,
+      "hang_tension": 1.285,
+      "arm_torque": 0.022
+     },
+     "sphere_d_mm": 3.465,
+     "fall": {
+      "impact_mJ": 25.69,
+      "v_mps": 1.981,
+      "peak_g": 2634.0,
+      "part_stress_MPa": 1.076,
+      "allowable_MPa": 5.0,
+      "margin": 4.645
+     }
+    }
+   },
+   {
+    "L_mm": 30.0,
+    "mass_mg": 15813.8,
+    "margins": {
+     "lone_self_right": 2.508,
+     "lone_translate": 12.892,
+     "lone_turn": 12.892,
+     "split": 1.823,
+     "climb": 1.402,
+     "climb_hinge_holds": 2.0,
+     "spin_time": 2.0,
+     "lone_energy": 22.2,
+     "lone_speed": 3.0,
+     "bond_cantilever": 2.0,
+     "bond_hang": 2.0,
+     "dock_capture": 2.845,
+     "packing_volume": 1.949,
+     "fall": 4.79,
+     "machine_twist": 0.379,
+     "peak_current": 1.25
+    },
+    "info": {
+     "process": "resin shell 0.8 mm (JLC3DP minimum wall about 0.8 mm)",
+     "inner_mm": 28.4,
+     "motor": "6 mm planetary 0615 (AliExpress)",
+     "cell": "LiPo 5-10C 50 mAh 601422",
+     "req": {
+      "weight_N": 0.1551,
+      "adhesion_N": 0.002171,
+      "tip_torque": 0.002392,
+      "climb_torque": 0.003291,
+      "e_roll": 0.0009643,
+      "e_climb": 0.005618,
+      "yaw_friction": 0.0009028,
+      "cantilever_moment": 0.04189,
+      "hang_tension": 1.551,
+      "arm_torque": 0.03321
+     },
+     "sphere_d_mm": 3.683,
+     "fall": {
+      "impact_mJ": 31.03,
+      "v_mps": 1.981,
+      "peak_g": 2554.0,
+      "part_stress_MPa": 1.044,
+      "allowable_MPa": 5.0,
+      "margin": 4.79
+     }
+    }
+   },
+   {
+    "L_mm": 40.0,
+    "mass_mg": 28337.7,
+    "margins": {
+     "lone_self_right": 1.057,
+     "lone_translate": 5.396,
+     "lone_turn": 5.396,
+     "split": 0.763,
+     "climb": 0.587,
+     "climb_hinge_holds": 2.0,
+     "spin_time": 2.0,
+     "lone_energy": 22.2,
+     "lone_speed": 3.0,
+     "bond_cantilever": 2.0,
+     "bond_hang": 2.0,
+     "dock_capture": 2.594,
+     "packing_volume": 2.872,
+     "fall": 5.711,
+     "machine_twist": 0.159,
+     "peak_current": 1.25
+    },
+    "info": {
+     "process": "FDM shell 1.2 mm (3 perimeters, 0.4 mm nozzle)",
+     "inner_mm": 37.6,
+     "motor": "6 mm planetary 0615 (AliExpress)",
+     "cell": "LiPo 5-10C 50 mAh 601422",
+     "req": {
+      "weight_N": 0.278,
+      "adhesion_N": 0.002895,
+      "tip_torque": 0.005676,
+      "climb_torque": 0.007863,
+      "e_roll": 0.002304,
+      "e_climb": 0.01342,
+      "yaw_friction": 0.002149,
+      "cantilever_moment": 0.1001,
+      "hang_tension": 2.78,
+      "arm_torque": 0.07935
+     },
+     "sphere_d_mm": 4.621,
+     "fall": {
+      "impact_mJ": 55.6,
+      "v_mps": 1.981,
+      "peak_g": 2142.0,
+      "part_stress_MPa": 0.8755,
+      "allowable_MPa": 5.0,
+      "margin": 5.711
+     }
+    }
+   }
+  ],
+  "G-N20": [
+   {
+    "L_mm": 40.0,
+    "mass_mg": 64669.0,
+    "margins": {
+     "lone_self_right": 15.62,
+     "lone_translate": 78.814,
+     "lone_turn": 78.814,
+     "split": 11.146,
+     "climb": 8.574,
+     "climb_hinge_holds": 2.0,
+     "spin_time": 2.0,
+     "lone_energy": 37.734,
+     "lone_speed": 3.0,
+     "bond_cantilever": 2.0,
+     "bond_hang": 2.0,
+     "dock_capture": 3.697,
+     "packing_volume": 1.568,
+     "fall": 2.869,
+     "machine_twist": 2.32,
+     "peak_current": 3.754
+    },
+    "info": {
+     "process": "FDM shell 1.2 mm (3 perimeters, 0.4 mm nozzle)",
+     "inner_mm": 37.6,
+     "motor": "N20 1:298 (Robu.in)",
+     "cell": "LiPo 1S 150 mAh 20C whoop cell",
+     "req": {
+      "weight_N": 0.6344,
+      "adhesion_N": 0.002895,
+      "tip_torque": 0.0128,
+      "climb_torque": 0.01794,
+      "e_roll": 0.005256,
+      "e_climb": 0.03063,
+      "yaw_friction": 0.004877,
+      "cantilever_moment": 0.2284,
+      "hang_tension": 6.344,
+      "arm_torque": 0.1811
+     },
+     "sphere_d_mm": 6.695,
+     "fall": {
+      "impact_mJ": 126.9,
+      "v_mps": 1.981,
+      "peak_g": 1540.0,
+      "part_stress_MPa": 1.743,
+      "allowable_MPa": 5.0,
+      "margin": 2.869
+     }
+    }
+   },
+   {
+    "L_mm": 50.0,
+    "mass_mg": 76830.9,
+    "margins": {
+     "lone_self_right": 10.513,
+     "lone_translate": 53.071,
+     "lone_turn": 53.071,
+     "split": 7.505,
+     "climb": 5.773,
+     "climb_hinge_holds": 2.0,
+     "spin_time": 2.0,
+     "lone_energy": 37.734,
+     "lone_speed": 3.0,
+     "bond_cantilever": 2.0,
+     "bond_hang": 2.0,
+     "dock_capture": 3.095,
+     "packing_volume": 2.411,
+     "fall": 2.939,
+     "machine_twist": 1.562,
+     "peak_current": 3.754
+    },
+    "info": {
+     "process": "FDM shell 1.2 mm (3 perimeters, 0.4 mm nozzle)",
+     "inner_mm": 47.6,
+     "motor": "N20 1:298 (Robu.in)",
+     "cell": "LiPo 1S 150 mAh 20C whoop cell",
+     "req": {
+      "weight_N": 0.7537,
+      "adhesion_N": 0.003619,
+      "tip_torque": 0.01902,
+      "climb_torque": 0.02665,
+      "e_roll": 0.007806,
+      "e_climb": 0.04549,
+      "yaw_friction": 0.007244,
+      "cantilever_moment": 0.3392,
+      "hang_tension": 7.537,
+      "arm_torque": 0.2689
+     },
+     "sphere_d_mm": 7.108,
+     "fall": {
+      "impact_mJ": 150.7,
+      "v_mps": 1.981,
+      "peak_g": 1503.0,
+      "part_stress_MPa": 1.701,
+      "allowable_MPa": 5.0,
+      "margin": 2.939
+     }
+    }
+   }
+  ],
+  "RW-P-W": [
+   {
+    "L_mm": 6.0,
+    "mass_mg": 618.8,
+    "margins": {
+     "lone_self_right": 1.644,
+     "lone_translate": 1.644,
+     "lone_turn": 3.886,
+     "split": 0.689,
+     "climb": 0.544,
+     "climb_hinge_holds": 1.52,
+     "spin_time": 3.466,
+     "lone_energy": 4.456,
+     "lone_speed": 4.743,
+     "bond_cantilever": 1.571,
+     "bond_hang": 3.418,
+     "dock_capture": 3.472,
+     "packing_volume": 1.214,
+     "fall": 2.218,
+     "machine_twist": 0.0,
+     "wheel_torque": 0.417
+    },
+    "info": {
+     "h_roll": 6.239e-07,
+     "h_climb": 1.885e-06,
+     "h_cap": 1.026e-06,
+     "omega_climb_rpm": 105300.0,
+     "e_move_mJ": {
+      "roll": 3.795,
+      "split": 21.6,
+      "climb": 34.65,
+      "yaw": 0.6792
+     },
+     "lone_moves": 133.7,
+     "lone_speed_mm_s": 2.846,
+     "t_move_s": 2.108,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 0.835,
+     "bond_tension_N": 0.2075,
+     "bond_moment_mNm": 0.5151,
+     "peel_energy_uJ": 35.79,
+     "capture_frac_L": 0.3472,
+     "k_m": 2.852e-05,
+     "b_gap_T": 0.2785,
+     "spin_power_mW": 13.12,
+     "spin_torque_uNm": 3.267,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 5.2,
+     "rotor_r_mm": 1.73,
+     "rotor_t_mm": 0.72,
+     "rotor_mass_mg": 101.5,
+     "i_f": 1.71e-10,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 2,
+      "supercaps": 1,
+      "energy_j": 1.042,
+      "p_cont_w": 0.0028,
+      "p_peak_w": 0.0164,
+      "vol_mm3": 38.88,
+      "mass_g": 0.1,
+      "cost": [
+       10.0,
+       4.2,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 1.214,
+      "v_mps": 1.981,
+      "peak_g": 6766.0,
+      "part_stress_MPa": 18.04,
+      "allowable_MPa": 40.0,
+      "margin": 2.218
+     },
+     "req": {
+      "weight_N": 0.006071,
+      "adhesion_N": 0.0004343,
+      "tip_torque": 2.082e-05,
+      "climb_torque": 2.575e-05,
+      "e_roll": 7.63e-06,
+      "e_climb": 4.397e-05,
+      "yaw_friction": 7.466e-06,
+      "cantilever_moment": 0.0003278,
+      "hang_tension": 0.06071,
+      "arm_torque": 0.0002599
+     },
+     "wheel_speed_mm_s": 200.0
+    }
+   },
+   {
+    "L_mm": 8.0,
+    "mass_mg": 1229.3,
+    "margins": {
+     "lone_self_right": 3.084,
+     "lone_translate": 3.084,
+     "lone_turn": 7.351,
+     "split": 1.343,
+     "climb": 1.04,
+     "climb_hinge_holds": 1.538,
+     "spin_time": 2.117,
+     "lone_energy": 4.917,
+     "lone_speed": 5.187,
+     "bond_cantilever": 1.572,
+     "bond_hang": 3.363,
+     "dock_capture": 3.171,
+     "packing_volume": 1.949,
+     "fall": 1.914,
+     "machine_twist": 0.0,
+     "wheel_torque": 0.27
+    },
+    "info": {
+     "h_roll": 1.903e-06,
+     "h_climb": 5.642e-06,
+     "h_cap": 5.869e-06,
+     "omega_climb_rpm": 55080.0,
+     "e_move_mJ": {
+      "roll": 6.169,
+      "split": 32.53,
+      "climb": 54.24,
+      "yaw": 1.086
+     },
+     "lone_moves": 147.5,
+     "lone_speed_mm_s": 4.15,
+     "t_move_s": 1.928,
+     "slip_eta": 0.8733,
+     "housner_window": 16.0,
+     "sphere_d_mm": 1.07,
+     "bond_tension_N": 0.4056,
+     "bond_moment_mNm": 1.365,
+     "peel_energy_uJ": 85.87,
+     "capture_frac_L": 0.3171,
+     "k_m": 5.949e-05,
+     "b_gap_T": 0.2805,
+     "spin_power_mW": 10.08,
+     "spin_torque_uNm": 5.973,
+     "process": "flex PCB skin 0.11 mm on a resin frame 0.3 mm (hobby MSLA resin, XY about 0.03-0.05 mm)",
+     "inner_mm": 7.2,
+     "rotor_r_mm": 2.49,
+     "rotor_t_mm": 0.96,
+     "rotor_mass_mg": 280.5,
+     "i_f": 9.782e-10,
+     "storage": {
+      "reservoir": "TDK CeraCharge 1812 (100 uAh)",
+      "n": 3,
+      "supercaps": 0,
+      "energy_j": 1.5,
+      "p_cont_w": 0.0042,
+      "p_peak_w": 0.0126,
+      "vol_mm3": 47.52,
+      "mass_g": 0.12,
+      "cost": [
+       12.0,
+       4.5,
+       1.2
+      ]
+     },
+     "fall": {
+      "impact_mJ": 2.412,
+      "v_mps": 1.981,
+      "peak_g": 5446.0,
+      "part_stress_MPa": 20.9,
+      "allowable_MPa": 40.0,
+      "margin": 1.914
+     },
+     "req": {
+      "weight_N": 0.01206,
+      "adhesion_N": 0.0005791,
+      "tip_torque": 5.287e-05,
+      "climb_torque": 6.822e-05,
+      "e_roll": 2.01e-05,
+      "e_climb": 0.0001165,
+      "yaw_friction": 1.934e-05,
+      "cantilever_moment": 0.0008683,
+      "hang_tension": 0.1206,
+      "arm_torque": 0.0006884
+     },
+     "wheel_speed_mm_s": 200.0
+    }
+   }
+  ]
+ },
+ "margin_rule": 1.5
+}
