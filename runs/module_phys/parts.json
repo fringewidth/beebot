@@ -1,0 +1,1708 @@
+[
+ {
+  "category": "gearmotor",
+  "name": "4 mm planetary gearmotor (0408 coreless, various ratios)",
+  "vendor": "AliExpress (generic sellers)",
+  "url": "https://www.aliexpress.com (search: 4mm planetary gear motor)",
+  "dims_mm": [
+   4,
+   18
+  ],
+  "mass_g": 0.8,
+  "key_specs": {
+   "voltage_V": "3.0-3.7",
+   "gear_ratio": "approx 1:16 to 1:1000 depending on listing",
+   "output_rpm": "approx 30-700 (listing dependent)",
+   "stall_torque_mN_m": "approx 2-20, unverified"
+  },
+  "price_usd_unit_at_10": 3.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Smallest planetary gearmotor class. Specs on listings are inconsistent and often optimistic; order 2-3 ratios and measure. Torque rating is for gearbox, not stall of motor."
+ },
+ {
+  "category": "gearmotor",
+  "name": "6 mm planetary gearmotor (0615 coreless)",
+  "vendor": "AliExpress (generic sellers)",
+  "url": "https://www.aliexpress.com (search: 6mm planetary gear motor)",
+  "dims_mm": [
+   6,
+   20
+  ],
+  "mass_g": 1.5,
+  "key_specs": {
+   "voltage_V": "3.0-3.7",
+   "gear_ratio": "approx 1:16 to 1:700",
+   "output_rpm": "approx 20-1000",
+   "stall_torque_mN_m": "approx 5-50, unverified"
+  },
+  "price_usd_unit_at_10": 3.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Most practical tiny planetary option. Quality varies between sellers."
+ },
+ {
+  "category": "gearmotor",
+  "name": "8 mm planetary gearmotor (0820 coreless)",
+  "vendor": "AliExpress (generic sellers)",
+  "url": "https://www.aliexpress.com (search: 8mm planetary gear motor)",
+  "dims_mm": [
+   8,
+   24
+  ],
+  "mass_g": 2.5,
+  "key_specs": {
+   "voltage_V": "3.0-6.0",
+   "gear_ratio": "approx 1:16 to 1:1000",
+   "stall_torque_mN_m": "approx 10-100, unverified"
+  },
+  "price_usd_unit_at_10": 3.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Slightly larger, more torque; likely too long for a 15 mm cube if two are used."
+ },
+ {
+  "category": "gearmotor",
+  "name": "N20 gearmotor 3 V (e.g. 1:100, 1:150, 1:298)",
+  "vendor": "AliExpress / Robu.in / Robocraze",
+  "url": "https://robu.in (search: N20 gear motor)",
+  "dims_mm": [
+   10,
+   12,
+   26
+  ],
+  "mass_g": 9,
+  "key_specs": {
+   "voltage_V": "3-6",
+   "gear_ratio": "1:30 to 1:1000",
+   "no_load_rpm_output": "approx 30-600",
+   "stall_torque_mN_m": "approx 30-200 for 1:100-1:300 (unverified)",
+   "stall_current_mA": "approx 250-800"
+  },
+  "price_usd_unit_at_10": 2.2,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "4-10 (Robu.in), 12-25 (AE)",
+  "verified": false,
+  "notes": "Robust fallback; too big for a under-30 mm cube with two motors but works at 30 mm. Cheap and locally stocked in India."
+ },
+ {
+  "category": "gearmotor",
+  "name": "N10 gearmotor (10x12 body)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: N10 gear motor)",
+  "dims_mm": [
+   10,
+   12,
+   20
+  ],
+  "mass_g": 4,
+  "key_specs": {
+   "voltage_V": "3-6",
+   "gear_ratio": "1:50 to 1:300"
+  },
+  "price_usd_unit_at_10": 3.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Rarer than N20; check availability."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Pololu micro metal gearmotor HPCB 10:1-1000:1 (10x12x~24)",
+  "vendor": "Pololu",
+  "url": "https://www.pololu.com/category/60/micro-metal-gearmotors",
+  "dims_mm": [
+   10,
+   12,
+   26
+  ],
+  "mass_g": 9.5,
+  "key_specs": {
+   "voltage_V": "6 nominal (works 3 V weakly)",
+   "gear_ratios": "5:1 to 1000:1",
+   "stall_torque": "up to approx 1 kg-cm at 6V high ratios"
+  },
+  "price_usd_unit_at_10": 18,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "10-20 (courier)",
+  "verified": false,
+  "notes": "Reliable specs; expensive vs 10 USD target. Use for validation of torque numbers. Category page fetch returned no per-model data this session."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Micro worm gearmotor (N20-like, 6 mm worm)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: micro worm gear motor 6mm)",
+  "dims_mm": [
+   10,
+   12,
+   25
+  ],
+  "mass_g": 5,
+  "key_specs": {
+   "voltage_V": "3-6",
+   "output_rpm": "approx 10-100",
+   "note": "self-locking output"
+  },
+  "price_usd_unit_at_10": 4,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Self-locking helps hold a face position without power. Output shaft offset from motor axis."
+ },
+ {
+  "category": "gearmotor",
+  "name": "SG51R / 1.7 g micro servo",
+  "vendor": "AliExpress / Robu.in",
+  "url": "https://robu.in (search: micro servo 1.7g)",
+  "dims_mm": [
+   8,
+   12,
+   22
+  ],
+  "mass_g": 1.7,
+  "key_specs": {
+   "voltage_V": "3.7-6",
+   "stall_torque_kg_cm": "approx 0.1-0.2 (claimed)",
+   "travel_deg": 180
+  },
+  "price_usd_unit_at_10": 3.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "4-10 / 12-25",
+  "verified": false,
+  "notes": "Limited to approx 180 degree travel unless modified for continuous rotation. Too tall for under 15 mm."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Micro servo 2 g (e.g. GH-S37A / EMAX ES08A class)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 2g micro servo)",
+  "dims_mm": [
+   11,
+   12,
+   23
+  ],
+  "mass_g": 2.0,
+  "key_specs": {
+   "voltage_V": "3.7-6",
+   "torque_kg_cm": "approx 0.15-0.5"
+  },
+  "price_usd_unit_at_10": 4,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Fallback only."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Micro linear actuator (6 mm stroke, 4 mm lead-screw stepper type)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: micro linear actuator 4mm stepper)",
+  "dims_mm": [
+   4,
+   5,
+   15
+  ],
+  "mass_g": 0.6,
+  "key_specs": {
+   "stroke_mm": "5-15",
+   "force_N": "approx 1-3 claimed"
+  },
+  "price_usd_unit_at_10": 5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Slow; needs two-phase driver. Unverified specs."
+ },
+ {
+  "category": "gearmotor",
+  "name": "6 mm coreless motor 0615 (no gearbox)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 0615 coreless motor)",
+  "dims_mm": [
+   6,
+   15
+  ],
+  "mass_g": 1.3,
+  "key_specs": {
+   "voltage_V": 3.7,
+   "no_load_rpm": "approx 30000-40000",
+   "stall_current_mA": "approx 400-600"
+  },
+  "price_usd_unit_at_10": 1.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Pair with printed gearing for a custom reduction."
+ },
+ {
+  "category": "motor",
+  "name": "4x8 mm coreless motor (0408)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 4mm 8mm coreless motor)",
+  "dims_mm": [
+   4,
+   8
+  ],
+  "mass_g": 0.5,
+  "key_specs": {
+   "voltage_V": 3.7,
+   "no_load_rpm": "approx 30000+"
+  },
+  "price_usd_unit_at_10": 1.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Used in tiny drones; very light."
+ },
+ {
+  "category": "motor",
+  "name": "Coin vibration motor 10x2.7 mm",
+  "vendor": "AliExpress / Robu.in",
+  "url": "https://robu.in (search: vibration motor 10mm coin)",
+  "dims_mm": [
+   10,
+   10,
+   2.7
+  ],
+  "mass_g": 0.9,
+  "key_specs": {
+   "voltage_V": 3.0,
+   "current_mA": "approx 60-80",
+   "note": "eccentric mass, for stick-slip locomotion"
+  },
+  "price_usd_unit_at_10": 0.4,
+  "price_usd_unit_at_1000": 0.15,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "4-25",
+  "verified": false,
+  "notes": "Cheapest actuator for a vibrobot crawler."
+ },
+ {
+  "category": "motor",
+  "name": "Coin vibration motor 8x3.4 mm",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 8mm coin vibration motor)",
+  "dims_mm": [
+   8,
+   8,
+   3.4
+  ],
+  "mass_g": 0.7,
+  "key_specs": {
+   "voltage_V": "2.5-3.8",
+   "current_mA": "approx 70"
+  },
+  "price_usd_unit_at_10": 0.4,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "motor",
+  "name": "4 mm cylindrical vibration motor (0408 eccentric)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 4mm cylindrical vibration motor)",
+  "dims_mm": [
+   4,
+   8
+  ],
+  "mass_g": 0.5,
+  "key_specs": {
+   "voltage_V": "3.0",
+   "current_mA": "approx 60-100"
+  },
+  "price_usd_unit_at_10": 0.6,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "sma",
+  "name": "Flexinol 0.025 mm (0.001 in) LT",
+  "vendor": "Dynalloy / Robotshop / Mondo-tronics",
+  "url": "https://www.dynalloy.com",
+  "dims_mm": [
+   0.025
+  ],
+  "mass_g": 0.0,
+  "key_specs": {
+   "pull_force_g": "approx 45",
+   "recommended_current_mA": 45,
+   "contraction_time_s": "approx 1"
+  },
+  "price_usd_unit_at_10": 3.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "14-30",
+  "verified": false,
+  "notes": "Per-metre price approx 3-8 USD from retailers, from memory. Dynalloy site page fetch 404 this session. Needs heating drive and cooling time; small force."
+ },
+ {
+  "category": "sma",
+  "name": "Flexinol 0.05 mm (0.002 in) LT",
+  "vendor": "Dynalloy / Robotshop",
+  "url": "https://www.dynalloy.com",
+  "dims_mm": [
+   0.05
+  ],
+  "mass_g": 0.0,
+  "key_specs": {
+   "pull_force_g": "approx 150",
+   "recommended_current_mA": "approx 200",
+   "contraction_time_s": "approx 1"
+  },
+  "price_usd_unit_at_10": 3.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "14-30",
+  "verified": false,
+  "notes": "From memory of the standard datasheet."
+ },
+ {
+  "category": "sma",
+  "name": "Flexinol 0.1 mm (0.004 in) LT",
+  "vendor": "Dynalloy / Robotshop",
+  "url": "https://www.dynalloy.com",
+  "dims_mm": [
+   0.1
+  ],
+  "mass_g": 0.0,
+  "key_specs": {
+   "pull_force_g": "approx 600",
+   "recommended_current_mA": "approx 1000",
+   "contraction_time_s": "approx 1"
+  },
+  "price_usd_unit_at_10": 4.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "14-30",
+  "verified": false,
+  "notes": "1 A is a lot for a tiny cell."
+ },
+ {
+  "category": "sma",
+  "name": "Nitinol SMA wire 0.05-0.1 mm (AliExpress, 40-70 C)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: nitinol shape memory wire 0.1mm)",
+  "dims_mm": [
+   0.1
+  ],
+  "mass_g": 0.0,
+  "key_specs": {
+   "activation_temp_C": "40-70",
+   "note": "force similar to Flexinol per diameter, unverified"
+  },
+  "price_usd_unit_at_10": 2.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Cheaper per metre; quality inconsistent."
+ },
+ {
+  "category": "magnet",
+  "name": "N52 cube 2x2x2 mm",
+  "vendor": "AliExpress / Amazon India / Robu.in",
+  "url": "https://www.aliexpress.com (search: N52 neodymium cube 2mm)",
+  "dims_mm": [
+   2,
+   2,
+   2
+  ],
+  "mass_g": 0.06,
+  "key_specs": {
+   "grade": "N52",
+   "pull_force_N": "approx 0.5-1 (face to face, unverified)"
+  },
+  "price_usd_unit_at_10": 0.06,
+  "price_usd_unit_at_1000": 0.02,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": "Price per piece from approx 6 USD per 100 on AE; brittle; check coating."
+ },
+ {
+  "category": "magnet",
+  "name": "N52 cube 3x3x3 mm",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: N52 magnet cube 3mm)",
+  "dims_mm": [
+   3,
+   3,
+   3
+  ],
+  "mass_g": 0.2,
+  "key_specs": {
+   "grade": "N52",
+   "pull_force_N": "approx 2"
+  },
+  "price_usd_unit_at_10": 0.1,
+  "price_usd_unit_at_1000": 0.03,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "magnet",
+  "name": "N52 disc 3x1 mm",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: N52 magnet disc 3x1)",
+  "dims_mm": [
+   3,
+   3,
+   1
+  ],
+  "mass_g": 0.05,
+  "key_specs": {
+   "grade": "N52",
+   "pull_force_N": "approx 0.4"
+  },
+  "price_usd_unit_at_10": 0.04,
+  "price_usd_unit_at_1000": 0.01,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "magnet",
+  "name": "N52 disc 4x1 mm",
+  "vendor": "AliExpress / Robu.in",
+  "url": "https://robu.in (search: neodymium magnet 4x1)",
+  "dims_mm": [
+   4,
+   4,
+   1
+  ],
+  "mass_g": 0.09,
+  "key_specs": {
+   "grade": "N52",
+   "pull_force_N": "approx 0.8"
+  },
+  "price_usd_unit_at_10": 0.05,
+  "price_usd_unit_at_1000": 0.015,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "4-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "magnet",
+  "name": "N52 disc 5x2 mm",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: N52 magnet 5x2)",
+  "dims_mm": [
+   5,
+   5,
+   2
+  ],
+  "mass_g": 0.3,
+  "key_specs": {
+   "grade": "N52",
+   "pull_force_N": "approx 2.5"
+  },
+  "price_usd_unit_at_10": 0.08,
+  "price_usd_unit_at_1000": 0.03,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "magnet",
+  "name": "N52 disc 6x2 mm",
+  "vendor": "AliExpress / Robu.in",
+  "url": "https://robu.in (search: neodymium magnet 6x2)",
+  "dims_mm": [
+   6,
+   6,
+   2
+  ],
+  "mass_g": 0.43,
+  "key_specs": {
+   "grade": "N52",
+   "pull_force_N": "approx 3"
+  },
+  "price_usd_unit_at_10": 0.1,
+  "price_usd_unit_at_1000": 0.03,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "4-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "magnet",
+  "name": "N52 rod 2x6 mm",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: neodymium rod 2x6)",
+  "dims_mm": [
+   2,
+   2,
+   6
+  ],
+  "mass_g": 0.14,
+  "key_specs": {
+   "grade": "N52"
+  },
+  "price_usd_unit_at_10": 0.1,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "magnet",
+  "name": "Diametrically magnetised disc 4x2 mm",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: diametrically magnetized neodymium disc 4x2)",
+  "dims_mm": [
+   4,
+   4,
+   2
+  ],
+  "mass_g": 0.2,
+  "key_specs": {
+   "grade": "N35-N52",
+   "note": "poles on the round side, so a rotating disc switches attract/repel"
+  },
+  "price_usd_unit_at_10": 0.4,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "10-25",
+  "verified": false,
+  "notes": "Key part for rotatable switchable bonds. Confirm magnetisation axis with the seller."
+ },
+ {
+  "category": "magnet",
+  "name": "Diametrically magnetised disc 6x3 mm",
+  "vendor": "AliExpress / Supermagnete (EU)",
+  "url": "https://www.aliexpress.com (search: diametrically magnetized disc 6x3)",
+  "dims_mm": [
+   6,
+   6,
+   3
+  ],
+  "mass_g": 0.65,
+  "key_specs": {
+   "grade": "N42-N52"
+  },
+  "price_usd_unit_at_10": 0.6,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "10-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "energy",
+  "name": "LiPo 301010 (3.7 V, 10 mAh)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 301010 lipo battery)",
+  "dims_mm": [
+   3.0,
+   10,
+   10
+  ],
+  "mass_g": 0.35,
+  "key_specs": {
+   "capacity_mAh": 10,
+   "max_discharge": "approx 1C-2C, about 10-20 mA (unverified)"
+  },
+  "price_usd_unit_at_10": 2.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Cannot drive motors; fits only vibration at low duty or logic."
+ },
+ {
+  "category": "energy",
+  "name": "LiPo 401012 (3.7 V, 15 mAh)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 401012 lipo 15mAh)",
+  "dims_mm": [
+   4,
+   10,
+   12
+  ],
+  "mass_g": 0.5,
+  "key_specs": {
+   "capacity_mAh": 15,
+   "max_discharge": "approx 1C-2C"
+  },
+  "price_usd_unit_at_10": 2.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "energy",
+  "name": "LiPo 501015 / 401020 (20-30 mAh)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 401020 lipo battery)",
+  "dims_mm": [
+   4,
+   10,
+   20
+  ],
+  "mass_g": 0.8,
+  "key_specs": {
+   "capacity_mAh": "20-30",
+   "max_discharge": "approx 1C-3C nominal"
+  },
+  "price_usd_unit_at_10": 2.2,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Some sellers sell 5C-10C high-rate versions at a premium."
+ },
+ {
+  "category": "energy",
+  "name": "LiPo 501225 / 401230 (40-60 mAh)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 401230 lipo 3.7v)",
+  "dims_mm": [
+   4,
+   12,
+   30
+  ],
+  "mass_g": 1.3,
+  "key_specs": {
+   "capacity_mAh": "40-60",
+   "max_discharge": "approx 1C-2C"
+  },
+  "price_usd_unit_at_10": 2.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "energy",
+  "name": "LiPo 502030 (100 mAh)",
+  "vendor": "AliExpress / Robu.in",
+  "url": "https://robu.in (search: 3.7V 100mAh LiPo)",
+  "dims_mm": [
+   5,
+   20,
+   30
+  ],
+  "mass_g": 2.3,
+  "key_specs": {
+   "capacity_mAh": 100,
+   "max_discharge": "approx 1C-2C (some 5C)"
+  },
+  "price_usd_unit_at_10": 2.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "4-25",
+  "verified": false,
+  "notes": "More robust fallback."
+ },
+ {
+  "category": "energy",
+  "name": "LiPo 5C-10C micro cell 652030 / 601422 class (high rate, 50-100 mAh)",
+  "vendor": "AliExpress (drone cells)",
+  "url": "https://www.aliexpress.com (search: high discharge lipo 3.7v 50mAh 10C)",
+  "dims_mm": [
+   6,
+   14,
+   22
+  ],
+  "mass_g": 2.0,
+  "key_specs": {
+   "capacity_mAh": "50-100",
+   "max_discharge": "5C-10C claimed i.e. 250-1000 mA"
+  },
+  "price_usd_unit_at_10": 3.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Probably the only cell class that sustains a 300 mA motor. Tiny-drone cells with PH1.25 / JST plugs."
+ },
+ {
+  "category": "energy",
+  "name": "LIR1220 (3.6 V, 8-10 mAh)",
+  "vendor": "AliExpress / Eunicell",
+  "url": "https://www.aliexpress.com (search: LIR1220)",
+  "dims_mm": [
+   12.5,
+   2.0
+  ],
+  "mass_g": 0.7,
+  "key_specs": {
+   "capacity_mAh": "8-10",
+   "max_discharge_mA": "approx 10-20"
+  },
+  "price_usd_unit_at_10": 1.2,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Rechargeable coin; too weak for motors."
+ },
+ {
+  "category": "energy",
+  "name": "LIR1254 (3.6 V, 35-40 mAh)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: LIR1254)",
+  "dims_mm": [
+   12.5,
+   5.4
+  ],
+  "mass_g": 1.1,
+  "key_specs": {
+   "capacity_mAh": "35-40",
+   "max_discharge_mA": "approx 40-80"
+  },
+  "price_usd_unit_at_10": 2.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "energy",
+  "name": "LIR2032 (3.6 V, 40 mAh)",
+  "vendor": "AliExpress / Robu.in",
+  "url": "https://robu.in (search: LIR2032)",
+  "dims_mm": [
+   20,
+   3.2
+  ],
+  "mass_g": 2.9,
+  "key_specs": {
+   "capacity_mAh": "40-45",
+   "max_discharge_mA": "approx 40-80"
+  },
+  "price_usd_unit_at_10": 1.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "4-25",
+  "verified": false,
+  "notes": "Limited peak current."
+ },
+ {
+  "category": "energy",
+  "name": "SR416SW / SR920 silver-oxide coin",
+  "vendor": "Renata / Maxell via DigiKey",
+  "url": "https://www.aliexpress.com (search: SR416SW)",
+  "dims_mm": [
+   4.8,
+   1.6
+  ],
+  "mass_g": 0.1,
+  "key_specs": {
+   "capacity_mAh": "approx 8-9",
+   "max_discharge_mA": "approx 1-3"
+  },
+  "price_usd_unit_at_10": 1.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Primary cell, not rechargeable; no use for motors."
+ },
+ {
+  "category": "energy",
+  "name": "Supercap 0.1 F 5.5 V coin",
+  "vendor": "AliExpress / Robu.in",
+  "url": "https://robu.in (search: 5.5V 0.1F supercapacitor)",
+  "dims_mm": [
+   11.5,
+   11.5,
+   4.5
+  ],
+  "mass_g": 0.9,
+  "key_specs": {
+   "capacitance_F": 0.1,
+   "ESR_ohm": "approx 100-300"
+  },
+  "price_usd_unit_at_10": 0.4,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "4-25",
+  "verified": false,
+  "notes": "High ESR; limited burst current."
+ },
+ {
+  "category": "energy",
+  "name": "Supercap 1 F 5.5 V can",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 1F 5.5V supercapacitor)",
+  "dims_mm": [
+   21,
+   10,
+   12
+  ],
+  "mass_g": 4,
+  "key_specs": {
+   "capacitance_F": 1,
+   "ESR_ohm": "approx 10-30"
+  },
+  "price_usd_unit_at_10": 0.6,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Too large for cube; included for reference."
+ },
+ {
+  "category": "energy",
+  "name": "Seiko CPH3225A supercap",
+  "vendor": "DigiKey / Mouser / LCSC",
+  "url": "https://www.digikey.com (search: CPH3225A)",
+  "dims_mm": [
+   3.2,
+   2.5,
+   0.9
+  ],
+  "mass_g": 0.02,
+  "key_specs": {
+   "capacitance_mF": 11,
+   "voltage_V": 3.3,
+   "ESR_ohm": "approx 160"
+  },
+  "price_usd_unit_at_10": 2.0,
+  "price_usd_unit_at_1000": 1.2,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "From memory. Only enough for microcontroller bursts."
+ },
+ {
+  "category": "mcu",
+  "name": "CH32V003F4U6 (QFN-20 3x3)",
+  "vendor": "WCH via LCSC",
+  "url": "https://www.lcsc.com/product-detail/Microcontrollers-MCU-MPU-SOC_WCH-Jiangsu-Qin-Heng-CH32V003F4U6_C5299908.html",
+  "dims_mm": [
+   3,
+   3,
+   0.8
+  ],
+  "mass_g": 0.02,
+  "key_specs": {
+   "core": "QingKe RISC-V 48 MHz",
+   "flash_KB": 16,
+   "io": 18,
+   "supply_V": "3.3-5",
+   "LCSC": "C5299908"
+  },
+  "price_usd_unit_at_10": 0.15,
+  "price_usd_unit_at_1000": 0.1,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": true,
+  "notes": "Package, LCSC number and specs read this session. Price from memory (about 0.1-0.2 USD); LCSC page showed no price or stock to the fetcher. JLCPCB SMT basic/extended listing unverified."
+ },
+ {
+  "category": "mcu",
+  "name": "CH32V003J4M6 (SOP-8)",
+  "vendor": "WCH via LCSC",
+  "url": "https://www.lcsc.com",
+  "dims_mm": [
+   4.9,
+   3.9,
+   1.5
+  ],
+  "mass_g": 0.08,
+  "key_specs": {
+   "core": "RISC-V 48 MHz",
+   "flash_KB": 16,
+   "io": 6
+  },
+  "price_usd_unit_at_10": 0.12,
+  "price_usd_unit_at_1000": 0.08,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "From memory."
+ },
+ {
+  "category": "mcu",
+  "name": "ATtiny402 / ATtiny412 (SOIC-8, 8-pin)",
+  "vendor": "Microchip via DigiKey/LCSC",
+  "url": "https://www.digikey.com",
+  "dims_mm": [
+   4.9,
+   3.9,
+   1.5
+  ],
+  "mass_g": 0.08,
+  "key_specs": {
+   "flash_KB": 4,
+   "io": 6
+  },
+  "price_usd_unit_at_10": 0.6,
+  "price_usd_unit_at_1000": 0.4,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "From memory. Few people need it vs CH32V003."
+ },
+ {
+  "category": "mcu",
+  "name": "ESP32-C3FH4 (QFN-32 5x5)",
+  "vendor": "Espressif via LCSC",
+  "url": "https://www.lcsc.com",
+  "dims_mm": [
+   5,
+   5,
+   0.85
+  ],
+  "mass_g": 0.05,
+  "key_specs": {
+   "radio": "WiFi + BLE5",
+   "flash_MB": "4 (in package)",
+   "TX_peak_mA": "approx 350"
+  },
+  "price_usd_unit_at_10": 1.3,
+  "price_usd_unit_at_1000": 1.0,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "Price from memory; radio draw too high for a 15 mAh cell. Needs antenna and crystal."
+ },
+ {
+  "category": "mcu",
+  "name": "ESP32-C3 SuperMini board",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: ESP32-C3 SuperMini)",
+  "dims_mm": [
+   22.5,
+   18,
+   4
+  ],
+  "mass_g": 2.5,
+  "key_specs": {
+   "radio": "WiFi + BLE"
+  },
+  "price_usd_unit_at_10": 2.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Prototyping only; too big for cube."
+ },
+ {
+  "category": "mcu",
+  "name": "Seeed XIAO nRF52840 / ESP32-C3",
+  "vendor": "Seeed Studio / Robu.in",
+  "url": "https://www.seeedstudio.com",
+  "dims_mm": [
+   21,
+   17.5,
+   3.5
+  ],
+  "mass_g": 3,
+  "key_specs": {
+   "radio": "BLE / WiFi"
+  },
+  "price_usd_unit_at_10": 9,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-15",
+  "verified": false,
+  "notes": "From memory. Prototyping only."
+ },
+ {
+  "category": "mcu",
+  "name": "nRF52 WLCSP BLE module (e.g. E73-2G4M08S1C)",
+  "vendor": "Ebyte via LCSC / AliExpress",
+  "url": "https://www.aliexpress.com (search: nRF52832 module)",
+  "dims_mm": [
+   13,
+   18,
+   2
+  ],
+  "mass_g": 1.0,
+  "key_specs": {
+   "radio": "BLE5"
+  },
+  "price_usd_unit_at_10": 3.5,
+  "price_usd_unit_at_1000": 2.5,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "10-20",
+  "verified": false,
+  "notes": "Modules approx 13x18 mm; bare WLCSP is not assemblable by hobby fab."
+ },
+ {
+  "category": "mcu",
+  "name": "STM32C011F4P6 (TSSOP-20)",
+  "vendor": "ST via LCSC / DigiKey",
+  "url": "https://www.lcsc.com",
+  "dims_mm": [
+   6.5,
+   4.4,
+   1.1
+  ],
+  "mass_g": 0.07,
+  "key_specs": {
+   "core": "Cortex-M0+ 48 MHz",
+   "flash_KB": 16
+  },
+  "price_usd_unit_at_10": 0.5,
+  "price_usd_unit_at_1000": 0.35,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "From memory."
+ },
+ {
+  "category": "ic",
+  "name": "DRV8837 (WSON-8 2x2) H-bridge",
+  "vendor": "TI via DigiKey / LCSC",
+  "url": "https://www.digikey.com/en/products/detail/texas-instruments/DRV8837DSGR/3471184",
+  "dims_mm": [
+   2,
+   2,
+   0.8
+  ],
+  "mass_g": 0.01,
+  "key_specs": {
+   "supply_V": "1.8-7",
+   "drive_A": "1.8 peak",
+   "note": "search showed approx 0.6-0.8 USD single unit at DigiKey regional sites"
+  },
+  "price_usd_unit_at_10": 0.8,
+  "price_usd_unit_at_1000": 0.3,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "Package and price range seen only in search-result summary; not on vendor page directly, so unverified. DRV8210 not found in search."
+ },
+ {
+  "category": "ic",
+  "name": "DRV8210 (DSG 2x2 WSON / YBG DSBGA)",
+  "vendor": "TI via DigiKey",
+  "url": "https://www.ti.com/product/DRV8210",
+  "dims_mm": [
+   2,
+   2,
+   0.8
+  ],
+  "mass_g": 0.01,
+  "key_specs": {
+   "supply_V": "1.65-11",
+   "drive_A": "1.76 peak"
+  },
+  "price_usd_unit_at_10": 0.8,
+  "price_usd_unit_at_1000": 0.4,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "From memory, no price verified."
+ },
+ {
+  "category": "ic",
+  "name": "AO3400 + AO3401 discrete H-bridge / DMG1012 single-FET switch",
+  "vendor": "LCSC",
+  "url": "https://www.lcsc.com",
+  "dims_mm": [
+   2.9,
+   1.3,
+   1
+  ],
+  "mass_g": 0.01,
+  "key_specs": {
+   "note": "SOT-23 or SOT-723 FET"
+  },
+  "price_usd_unit_at_10": 0.03,
+  "price_usd_unit_at_1000": 0.02,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "Cheapest per-actuator switch for one-direction motors and SMA."
+ },
+ {
+  "category": "ic",
+  "name": "TP4054 / TP4056 Li-ion charger (SOT-23-5)",
+  "vendor": "TPOWER/NanJing via LCSC",
+  "url": "https://www.lcsc.com",
+  "dims_mm": [
+   2.9,
+   1.6,
+   1.1
+  ],
+  "mass_g": 0.01,
+  "key_specs": {
+   "charge_current_mA": "programmable to 500"
+  },
+  "price_usd_unit_at_10": 0.08,
+  "price_usd_unit_at_1000": 0.05,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "TP4054 is the SOT-23-5 variant. Cheap."
+ },
+ {
+  "category": "ic",
+  "name": "MCP73831T-2ACI/OT (SOT-23-5)",
+  "vendor": "Microchip via DigiKey",
+  "url": "https://www.digikey.com",
+  "dims_mm": [
+   2.9,
+   1.6,
+   1.1
+  ],
+  "mass_g": 0.01,
+  "key_specs": {
+   "charge_current_mA": "15-500"
+  },
+  "price_usd_unit_at_10": 0.7,
+  "price_usd_unit_at_1000": 0.4,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "Use 15 mA setting for tiny cells."
+ },
+ {
+  "category": "sensor",
+  "name": "Hall switch DRV5032 / AH1806 (SOT-23 or X2SON)",
+  "vendor": "TI / Diodes via DigiKey",
+  "url": "https://www.digikey.com",
+  "dims_mm": [
+   1.4,
+   1.0,
+   0.4
+  ],
+  "mass_g": 0.01,
+  "key_specs": {
+   "supply_uA": "approx 0.5-5 for DRV5032"
+  },
+  "price_usd_unit_at_10": 0.4,
+  "price_usd_unit_at_1000": 0.2,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "From memory; useful for sensing neighbour magnets."
+ },
+ {
+  "category": "sensor",
+  "name": "LIS2DW12 / LIS3DH accelerometer (LGA-12 2x2)",
+  "vendor": "ST via LCSC",
+  "url": "https://www.lcsc.com",
+  "dims_mm": [
+   2,
+   2,
+   0.7
+  ],
+  "mass_g": 0.01,
+  "key_specs": {
+   "interface": "I2C/SPI"
+  },
+  "price_usd_unit_at_10": 1.0,
+  "price_usd_unit_at_1000": 0.7,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "From memory."
+ },
+ {
+  "category": "sensor",
+  "name": "Tiny IMU LSM6DS3TR-C (LGA-14 2.5x3)",
+  "vendor": "ST via LCSC",
+  "url": "https://www.lcsc.com",
+  "dims_mm": [
+   3,
+   2.5,
+   0.83
+  ],
+  "mass_g": 0.01,
+  "key_specs": {
+   "axes": 6
+  },
+  "price_usd_unit_at_10": 2.0,
+  "price_usd_unit_at_1000": 1.5,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "From memory."
+ },
+ {
+  "category": "sensor",
+  "name": "IR LED 0603 940 nm + phototransistor 0603",
+  "vendor": "LCSC (Everlight, Lite-On)",
+  "url": "https://www.lcsc.com",
+  "dims_mm": [
+   1.6,
+   0.8,
+   0.6
+  ],
+  "mass_g": 0.005,
+  "key_specs": {
+   "wavelength_nm": 940
+  },
+  "price_usd_unit_at_10": 0.05,
+  "price_usd_unit_at_1000": 0.02,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "For face-to-face neighbour comms; good at mm range."
+ },
+ {
+  "category": "contact",
+  "name": "Pogo pin 1.5 mm pitch spring contact, 2 mm height",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: mini pogo pin 1.5mm)",
+  "dims_mm": [
+   1.5,
+   1.5,
+   2.0
+  ],
+  "mass_g": 0.05,
+  "key_specs": {
+   "current_A": "approx 1",
+   "stroke_mm": "approx 0.5"
+  },
+  "price_usd_unit_at_10": 0.1,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Pitch-to-height tradeoff; check plating."
+ },
+ {
+  "category": "contact",
+  "name": "Spring contact SMD battery-type clip (e.g. Keystone 5000 series)",
+  "vendor": "DigiKey",
+  "url": "https://www.digikey.com",
+  "dims_mm": [
+   3,
+   3,
+   1
+  ],
+  "mass_g": 0.02,
+  "key_specs": {
+   "type": "SMD"
+  },
+  "price_usd_unit_at_10": 0.3,
+  "price_usd_unit_at_1000": 0.1,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": "7-14",
+  "verified": false,
+  "notes": "From memory."
+ },
+ {
+  "category": "contact",
+  "name": "Magnetic pogo connector 2-pin (3 mm)",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: magnetic pogo pin connector 2pin)",
+  "dims_mm": [
+   6,
+   3,
+   2
+  ],
+  "mass_g": 0.5,
+  "key_specs": {
+   "current_A": "approx 1-2"
+  },
+  "price_usd_unit_at_10": 1.2,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "12-25",
+  "verified": false,
+  "notes": "Combines mechanical bond and power link; bulky."
+ },
+ {
+  "category": "fab",
+  "name": "JLCPCB rigid PCB, 0.6 mm, small board",
+  "vendor": "JLCPCB",
+  "url": "https://jlcpcb.com",
+  "dims_mm": [],
+  "mass_g": null,
+  "key_specs": {
+   "min_thickness_mm": 0.4,
+   "tiny_board_note": "5 pcs minimum, 2 USD base"
+  },
+  "price_usd_unit_at_10": 0.4,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-12 (DHL to India incl. customs)",
+  "verified": false,
+  "notes": "From memory; prototype price about 2 USD per 5 pcs plus shipping 15-25 USD. India import duty applies (approx 10-30 percent)."
+ },
+ {
+  "category": "fab",
+  "name": "JLCPCB PCBA (economic) minimum 5 boards",
+  "vendor": "JLCPCB",
+  "url": "https://jlcpcb.com/smt-assembly",
+  "dims_mm": [],
+  "mass_g": null,
+  "key_specs": {
+   "setup_fee_USD": "approx 8"
+  },
+  "price_usd_unit_at_10": 1.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "10-15",
+  "verified": false,
+  "notes": "From memory. Extended parts incur a per-part loading fee."
+ },
+ {
+  "category": "fab",
+  "name": "JLCPCB flex PCB",
+  "vendor": "JLCPCB",
+  "url": "https://jlcpcb.com/flexible-pcb",
+  "dims_mm": [],
+  "mass_g": null,
+  "key_specs": {
+   "min_qty": 5
+  },
+  "price_usd_unit_at_10": 1.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "10-15",
+  "verified": false,
+  "notes": "From memory."
+ },
+ {
+  "category": "fab",
+  "name": "JLC3DP resin SLA 8001 15 mm cube shell",
+  "vendor": "JLC3DP",
+  "url": "https://jlc3dp.com",
+  "dims_mm": [
+   15,
+   15,
+   15
+  ],
+  "mass_g": null,
+  "key_specs": {
+   "min_wall_mm": "approx 0.8",
+   "min_feature_mm": "approx 0.3"
+  },
+  "price_usd_unit_at_10": 1.5,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "8-14",
+  "verified": false,
+  "notes": "Pricing is estimate from memory; get an instant quote."
+ },
+ {
+  "category": "fab",
+  "name": "JLC3DP MJF nylon PA12 shell",
+  "vendor": "JLC3DP",
+  "url": "https://jlc3dp.com",
+  "dims_mm": [
+   15,
+   15,
+   15
+  ],
+  "mass_g": null,
+  "key_specs": {
+   "min_wall_mm": "approx 0.8",
+   "note": "powder holes needed for hollow parts"
+  },
+  "price_usd_unit_at_10": 2.0,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "8-14",
+  "verified": false,
+  "notes": "From memory."
+ },
+ {
+  "category": "fab",
+  "name": "Robu.in resin / FDM service and small parts",
+  "vendor": "Robu.in",
+  "url": "https://robu.in",
+  "dims_mm": [],
+  "mass_g": null,
+  "key_specs": {
+   "note": "stocks N20, magnets, LiPo, servos"
+  },
+  "price_usd_unit_at_10": null,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "3-7",
+  "verified": false,
+  "notes": "Local source; verify stock."
+ },
+ {
+  "category": "bearing",
+  "name": "MR52 bearing 2x5x2.5 mm",
+  "vendor": "AliExpress / Robu.in",
+  "url": "https://www.aliexpress.com (search: MR52ZZ bearing)",
+  "dims_mm": [
+   5,
+   5,
+   2.5
+  ],
+  "mass_g": 0.2,
+  "key_specs": {
+   "bore_mm": 2,
+   "OD_mm": 5
+  },
+  "price_usd_unit_at_10": 0.25,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "bearing",
+  "name": "682 bearing 2x5x2.3 mm",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: 682ZZ bearing)",
+  "dims_mm": [
+   5,
+   5,
+   2.3
+  ],
+  "mass_g": 0.2,
+  "key_specs": {
+   "bore_mm": 2,
+   "OD_mm": 5
+  },
+  "price_usd_unit_at_10": 0.2,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "bearing",
+  "name": "MR62 bearing 2x6x2.5 mm",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: MR62ZZ bearing)",
+  "dims_mm": [
+   6,
+   6,
+   2.5
+  ],
+  "mass_g": 0.25,
+  "key_specs": {
+   "bore_mm": 2,
+   "OD_mm": 6
+  },
+  "price_usd_unit_at_10": 0.25,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "bearing",
+  "name": "Steel dowel pin 1 mm / 2 mm",
+  "vendor": "AliExpress / McMaster",
+  "url": "https://www.aliexpress.com (search: steel dowel pin 1mm)",
+  "dims_mm": [
+   1,
+   10
+  ],
+  "mass_g": 0.06,
+  "key_specs": {
+   "material": "hardened steel"
+  },
+  "price_usd_unit_at_10": 0.05,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": ""
+ },
+ {
+  "category": "wheel",
+  "name": "Silicone O-ring 5x1 mm / 8x1 mm",
+  "vendor": "AliExpress",
+  "url": "https://www.aliexpress.com (search: silicone o ring 5mm)",
+  "dims_mm": [
+   8,
+   8,
+   1
+  ],
+  "mass_g": 0.05,
+  "key_specs": {
+   "material": "silicone"
+  },
+  "price_usd_unit_at_10": 0.03,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": true,
+  "est_delivery_days_to_india": "7-25",
+  "verified": false,
+  "notes": "Friction tyres on small drive wheels."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Orbray BMN04-0829P337 (4 mm brushless, 337:1 gearhead)",
+  "vendor": "Orbray (formerly Namiki)",
+  "url": "https://orbray.com/en/product/dccorelessmotor/supermicromotor.html",
+  "dims_mm": [
+   4,
+   18.4
+  ],
+  "mass_g": null,
+  "key_specs": {
+   "voltage_V": 3.0,
+   "no_load_rpm_output": 98,
+   "stall_torque_mN_m": 5.44,
+   "gear_ratio": 337,
+   "driver": "external brushless driver needed"
+  },
+  "price_usd_unit_at_10": null,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": null,
+  "verified": true,
+  "notes": "Specs read on the Orbray series page. Price: inquiry only. Mass, minimum order, lead time not published. Sales partners page lists China, Taiwan, Korea, US reps, Europe; no India partner; no Digi-Key/Mouser listing found. Contact motor-sales@orbray.com (from search snippet)."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Orbray BMN04-0829P79 (4 mm brushless, 79:1)",
+  "vendor": "Orbray (formerly Namiki)",
+  "url": "https://orbray.com/en/product/dccorelessmotor/supermicromotor.html",
+  "dims_mm": [
+   4,
+   17.2
+  ],
+  "mass_g": null,
+  "key_specs": {
+   "voltage_V": 3.0,
+   "no_load_rpm_output": 420,
+   "stall_torque_mN_m": 1.49,
+   "gear_ratio": 79
+  },
+  "price_usd_unit_at_10": null,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": null,
+  "verified": true,
+  "notes": "Inquiry only; see sales notes on P337 entry."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Orbray BMN04-0829P18 (4 mm brushless, 18:1)",
+  "vendor": "Orbray (formerly Namiki)",
+  "url": "https://orbray.com/en/product/dccorelessmotor/supermicromotor.html",
+  "dims_mm": [
+   4,
+   16.0
+  ],
+  "mass_g": null,
+  "key_specs": {
+   "voltage_V": 3.0,
+   "no_load_rpm_output": 1790,
+   "stall_torque_mN_m": 0.41,
+   "gear_ratio": 18
+  },
+  "price_usd_unit_at_10": null,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": null,
+  "verified": true,
+  "notes": "Inquiry only."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Orbray CMS07-1707P494 (7 mm brushed, 494:1) and P105/P22/P4.7",
+  "vendor": "Orbray (formerly Namiki)",
+  "url": "https://orbray.com/en/product/dccorelessmotor/supermicromotor.html",
+  "dims_mm": [
+   7,
+   "24.9-31.6"
+  ],
+  "mass_g": null,
+  "key_specs": {
+   "voltage_V": 3.7,
+   "gear_ratios": "4.7, 22, 105, 494",
+   "P4.7_no_load_rpm": 4040,
+   "P4.7_stall_torque_mN_m": 4,
+   "note": "torque for other ratios not read"
+  },
+  "price_usd_unit_at_10": null,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": null,
+  "verified": true,
+  "notes": "Inquiry only. Torque far higher than 4 mm brushless but bigger."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Orbray BMN02-0593 (2.4 mm hollow-shaft brushless, ungeared)",
+  "vendor": "Orbray (formerly Namiki)",
+  "url": "https://orbray.com/en/product/dccorelessmotor/supermicromotor.html",
+  "dims_mm": [
+   2.4,
+   5
+  ],
+  "mass_g": null,
+  "key_specs": {
+   "voltage_V": 4,
+   "stall_torque_mN_m": 0.01,
+   "speed_rpm": "100-6000",
+   "driver": "dedicated SOD12ST"
+  },
+  "price_usd_unit_at_10": null,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": null,
+  "verified": true,
+  "notes": "Inquiry only; negligible torque."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Orbray 1.5 mm geared motor (and 0.6 mm brushless)",
+  "vendor": "Orbray (formerly Namiki)",
+  "url": "https://orbray.com/en/product/dccorelessmotor/supermicromotor.html",
+  "dims_mm": [
+   1.5
+  ],
+  "mass_g": null,
+  "key_specs": {
+   "note": "mentioned only; no specs published on pages read"
+  },
+  "price_usd_unit_at_10": null,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": null,
+  "verified": true,
+  "notes": "Specs not found this session; inquiry only. Not a realistic part for a 10 USD cube."
+ },
+ {
+  "category": "gearmotor",
+  "name": "Orbray No Electricity Locking System (power-off lock)",
+  "vendor": "Orbray (formerly Namiki)",
+  "url": "https://orbray.com/en/product/dccorelessmotor/supermicromotor.html",
+  "dims_mm": [],
+  "mass_g": null,
+  "key_specs": {
+   "note": "series page not read; no specs"
+  },
+  "price_usd_unit_at_10": null,
+  "price_usd_unit_at_1000": null,
+  "ships_to_india": "unknown",
+  "est_delivery_days_to_india": null,
+  "verified": true,
+  "notes": "Not read; relevant for holding pose unpowered. Inquiry only."
+ }
+]

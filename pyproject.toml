@@ -43,3 +43,9 @@ build-backend = "uv_build"
 dev = [
     "pytest>=9.1.1",
 ]
+hardware = [
+    "cma>=4.5.0",
+    "magpylib>=6.3.0",
+    "ngsolve>=6.2.2608",
+    "pymoo>=0.6.2",
+]
