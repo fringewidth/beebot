@@ -3,8 +3,14 @@ instruction a short card and a side-by-side segment (execution in MuJoCo on the 
 and action field on the right), then an end card. 1920x1080, 30 fps, H.264, through ffmpeg.
 
 With the trained policy's recordings (field_demo_record.py --policy lm) an instruction is shown only
-if it succeeds in at least half its rollouts and the run shown succeeds (tasks.score, as
+if it succeeds in at least --min_share of its rollouts and the run shown succeeds (tasks.score, as
 steer.validate counts it). With the dummy policy's recordings the frames carry a mock-up note.
+
+Recordings made with MuJoCo physics (field_demo_record.py --physics mujoco) carry every robot's and
+cheese's continuous position at several frames per policy step ("path"); the execution view shows
+those instead of moving robots in straight lines between squares. A steering instruction (one
+whose commands are switched mid-motion) gets its own layout: the instruction typed in large at the
+top, the execution view larger and the action field beside it.
 
 The look is deliberately plain, like a lab's supplementary video: MuJoCo's default checker floor
 and gradient sky, matplotlib default figures, white Open Sans overlay text on black.
@@ -43,6 +49,9 @@ VIEW = (40, 140, 1140, 870)  # 3D panel: left, top, width, height
 POLICY = (1220, 140)  # policy-input figure: left, top (700 x 320)
 TOKENS_TOP = 466
 FIELD = (1220, 604)  # action-field figure: left, top (700 x 460)
+STEER_VIEW = (40, 170, 1160, 870)  # steering layout: 3D panel
+STEER_FIELD = (1220, 230)  # steering layout: action-field figure (700 x 480)
+TYPE_SECONDS = 0.5  # a new command is typed in over this long, ending as it takes over
 MOCK_NOTE = "MOCK-UP: driven by a hand-coded dummy policy, not the trained model"
 CHANNEL_TITLES = ("0 robots", "1 walls", "2 cheese", "3 cheese colour R", "4 cheese colour G", "5 cheese colour B", "6 box", "7 box colour R", "8 box colour G", "9 box colour B")
 PATCH = 4
@@ -134,12 +143,12 @@ def scene_xml(episode, size, side):
 class Arena:
     """The episode's MuJoCo scene; pose(t) places robots and cheeses at fractional step t."""
 
-    def __init__(self, episode, size, side, frames_per_step):
+    def __init__(self, episode, size, side, frames_per_step, view=VIEW):
         self.episode, self.size, self.side = episode, size, side
         self.seconds_per_step = frames_per_step / FPS
         self.model = mujoco.MjModel.from_xml_string(scene_xml(episode, size, side))
         self.data = mujoco.MjData(self.model)
-        self.renderer = mujoco.Renderer(self.model, VIEW[3], VIEW[2])
+        self.renderer = mujoco.Renderer(self.model, view[3], view[2])
         self.camera = mujoco.MjvCamera()
         self.camera.lookat = [size / 2, size / 2 + 0.5, 0]
         self.camera.distance = 42
@@ -153,22 +162,31 @@ class Arena:
             for k in step["eaten"]:
                 self.eaten_step[k] = step["t"]
 
-    def pose(self, t):
+    def positions(self, t):
+        """(robots (N, 2), cheeses (K, 2)) as continuous (row, col) at fractional step t: the
+        recorded physical path when there is one, else straight lines between squares."""
         steps = self.episode["steps"]
         i = min(int(t), len(steps) - 1)
-        j = min(i + 1, len(steps) - 1)
         f = t - i
-        a, b = robots_of(steps[i]), robots_of(steps[j])
-        rows = a[:, 0] * (1 - f) + b[:, 0] * f
-        cols = a[:, 1] * (1 - f) + b[:, 1] * f
+        n = self.episode["robot_count"]
+        if "path" in steps[i]:
+            path = np.frombuffer(base64.b64decode(steps[i]["path"]), np.float16).reshape(-1, n + len(self.cheese_ids), 2).astype(float)
+            frame = path[min(round(f * len(path)), len(path) - 1)] if i < len(steps) - 1 else path[0]
+            return frame[:n], frame[n:]
+        j = min(i + 1, len(steps) - 1)
+        a, b = robots_of(steps[i])[:, :2], robots_of(steps[j])[:, :2]
+        ca = np.array([c[:2] for c in steps[i]["cheeses"]], float).reshape(-1, 2)
+        cb = np.array([c[:2] for c in steps[j]["cheeses"]], float).reshape(-1, 2)
+        return a * (1 - f) + b * f, ca * (1 - f) + cb * f
+
+    def pose(self, t):
+        robots, cheeses = self.positions(t)
         for k, mocap in enumerate(self.robot_ids):
-            x, y = square_xy(rows[k], cols[k], self.size)
+            x, y = square_xy(robots[k, 0], robots[k, 1], self.size)
             self.data.mocap_pos[mocap] = [x, y, 0.0]
         half = self.side / 2
         for k, mocap in enumerate(self.cheese_ids):
-            ra, ca, _ = steps[i]["cheeses"][k]
-            rb, cb, _ = steps[j]["cheeses"][k]
-            row, col = ra * (1 - f) + rb * f, ca * (1 - f) + cb * f
+            row, col = cheeses[k]
             scale = 1.0
             if k in self.eaten_step:  # shrinks to nothing over SHRINK_SECONDS from the step it is eaten on
                 elapsed = (t - (self.eaten_step[k] - 1)) * self.seconds_per_step
@@ -218,12 +236,13 @@ class FieldFigure:
     """Expected move per square (arrows, length = how peaked the distribution is) and each robot's
     sampled move, over faint occupancy, walls, cheeses and boxes."""
 
-    def __init__(self, episode, size, code_vectors, guidance):
-        self.episode, self.size, self.guidance = episode, size, guidance
+    def __init__(self, episode, size, code_vectors, dummy, figsize=(7.0, 4.6)):
+        self.episode, self.size, self.dummy = episode, size, dummy
         self.code_vectors = np.array(code_vectors)
         self.text = None
-        self.fig = plt.figure(figsize=(7.0, 4.6), dpi=100)
-        self.ax = self.fig.add_axes((0.035, 0.06, 0.6, 0.9))
+        self.fig = plt.figure(figsize=figsize, dpi=100)
+        side = 0.6 * figsize[0] / figsize[1]  # a square plot
+        self.ax = self.fig.add_axes((0.035, 0.97 - side, 0.6, side))
         self.walls = grid(episode["walls"], np.uint8, (size, size))
         cols, rows = np.meshgrid(np.arange(size), np.arange(size))
         self.cols, self.rows = cols, rows
@@ -245,7 +264,7 @@ class FieldFigure:
                 ax.add_patch(Rectangle((c - 0.5, r - 0.5), 4, 4, facecolor=cheese["rgb"], alpha=0.6, edgecolor="none"))
         field = grid(step["field"], np.int8, (2, size, size)) / 127
         open_squares = self.walls == 0
-        ax.quiver(self.cols[open_squares], self.rows[open_squares], field[0][open_squares], field[1][open_squares], angles="xy", scale_units="xy", scale=1 / 0.9, width=0.003, color="C0", label="expected move E[v] per square\n(policy output after guidance)")
+        ax.quiver(self.cols[open_squares], self.rows[open_squares], field[0][open_squares], field[1][open_squares], angles="xy", scale_units="xy", scale=1 / 0.9, width=0.003, color="C0", label="the policy's expected\nmove per square")
         moving = robots[robots[:, 2] != 8]
         vectors = self.code_vectors[moving[:, 2]]
         ax.quiver(moving[:, 1], moving[:, 0], vectors[:, 0], vectors[:, 1], angles="xy", scale_units="xy", scale=1 / 0.6, width=0.006, color="C3", zorder=3, label="sampled move (each robot)")
@@ -258,8 +277,9 @@ class FieldFigure:
         mean_peak = grid(step["pmax"], np.uint8, (size, size))[robots[:, 0], robots[:, 1]].mean() / 255
         if self.text is not None:
             self.text.remove()
-        source = f"guidance scale {self.guidance}" if self.guidance else "dummy policy"
-        self.text = self.fig.text(0.665, 0.74, f"{source}\n\narrow length = |E[v]|\n(1 = always the same move)\n\nmean max p on robots:\n{mean_peak:.2f}", fontsize=8, va="top")
+        source = "dummy policy\n\n" if self.dummy else ""
+        top = 1 - 0.26 * 4.6 / self.fig.get_figheight()
+        self.text = self.fig.text(0.665, top, f"{source}arrow length 1:\nalways the same move\n\nmean max p on robots:\n{mean_peak:.2f}", fontsize=8, va="top")
         return figure_image(self.fig)
 
 
@@ -336,7 +356,7 @@ def fitted(draw, text, size, weight, width):
     return font(size, weight)
 
 
-def compose(episode, number, total, t, view, policy, field, note):
+def compose(episode, number, total, t, view, policy, field, note, physics="grid"):
     image = Image.new("RGB", (WIDTH, HEIGHT), "black")
     draw = ImageDraw.Draw(image)
     steps = len(episode["steps"]) - 1
@@ -351,7 +371,7 @@ def compose(episode, number, total, t, view, policy, field, note):
     draw.text((40, 26), header, fill="white", font=fitted(draw, header, 44, b"SemiBold", WIDTH - 140 - step_width))
 
     label = font(28, b"SemiBold")
-    draw.text((VIEW[0], 98), "Execution (physics simulation, MuJoCo render)", fill="white", font=label)
+    draw.text((VIEW[0], 98), "Execution (MuJoCo physics)" if physics == "mujoco" else "Execution (physics simulation, MuJoCo render)", fill="white", font=label)
     image.paste(Image.fromarray(view), (VIEW[0], VIEW[1]))
     draw.rectangle((VIEW[0] - 1, VIEW[1] - 1, VIEW[0] + VIEW[2], VIEW[1] + VIEW[3]), outline="white")
     caption = caption_for(episode, t)
@@ -377,6 +397,76 @@ def compose(episode, number, total, t, view, policy, field, note):
     return image
 
 
+def switches(episode):
+    """[(step, command index)]: the step each command takes over at, the first at 0."""
+    out = [(0, command_at(episode, 0))]
+    for i in range(1, len(episode["steps"])):
+        if command_at(episode, i) != command_at(episode, i - 1):
+            out.append((i, command_at(episode, i)))
+    return out
+
+
+def typed(episode, t, seconds_per_step):
+    """(text, typing): the instruction overlay at fractional step t. A new command is typed in
+    letter by letter over TYPE_SECONDS, ending at the step it takes over; the previous one is
+    cleared when the typing starts."""
+    commands = commands_of(episode)
+    lead = TYPE_SECONDS / seconds_per_step  # in steps
+    text = commands[command_at(episode, 0)]["text"]
+    for at, j in switches(episode)[1:]:
+        if t >= at:
+            text = commands[j]["text"]
+        elif t >= at - lead:
+            new = commands[j]["text"]
+            return new[: int(len(new) * (t - (at - lead)) / lead)], True
+    return text, False
+
+
+def compose_steering(episode, number, total, t, view, field, note, seconds_per_step):
+    """The steering layout: the live instruction large at the top, the execution view larger,
+    the action field beside it and the commands given so far below it."""
+    image = Image.new("RGB", (WIDTH, HEIGHT), "black")
+    draw = ImageDraw.Draw(image)
+    steps = len(episode["steps"]) - 1
+    step_text = f"Task {number}/{total}    Step {min(int(t), steps)} / {steps}"
+    face = font(36)
+    step_width = draw.textlength(step_text, font=face)
+    draw.text((WIDTH - 40 - step_width, 32), step_text, fill="white", font=face)
+    draw.text((40, 18), "Instruction (changed live):", fill=(200, 200, 200), font=font(28))
+    text, typing = typed(episode, t, seconds_per_step)
+    big = font(64, b"SemiBold")
+    shown = f"\u201c{text}" + ("" if typing else "\u201d")
+    draw.text((40, 58), shown, fill="white", font=big)
+    if typing:  # a text cursor after the letters typed so far
+        x = 40 + draw.textlength(shown, font=big) + 6
+        draw.rectangle((x, 72, x + 5, 138), fill="white")
+
+    image.paste(Image.fromarray(view), (STEER_VIEW[0], STEER_VIEW[1]))
+    draw.rectangle((STEER_VIEW[0] - 1, STEER_VIEW[1] - 1, STEER_VIEW[0] + STEER_VIEW[2], STEER_VIEW[1] + STEER_VIEW[3]), outline="white")
+    caption = caption_for(episode, t)
+    if caption and not caption.startswith("new instruction"):
+        face = font(30)
+        width = draw.textlength(caption, font=face)
+        x, y = STEER_VIEW[0] + (STEER_VIEW[2] - width) / 2, STEER_VIEW[1] + STEER_VIEW[3] - 60
+        draw.rectangle((x - 12, y - 4, x + width + 12, y + 44), fill="black")
+        draw.text((x, y), caption, fill="white", font=face)
+
+    label = font(28, b"SemiBold")
+    draw.text((STEER_FIELD[0], STEER_FIELD[1] - 42), "Action field (policy output per square)", fill="white", font=label)
+    image.paste(field, STEER_FIELD)
+    y = STEER_FIELD[1] + field.height + 30
+    draw.text((STEER_FIELD[0], y), "Instructions given (MuJoCo physics, no cuts):", fill="white", font=label)
+    commands = commands_of(episode)
+    given = [(at, j) for at, j in switches(episode) if at <= t]
+    for at, j in given:
+        y += 40
+        current = (at, j) == given[-1]
+        draw.text((STEER_FIELD[0], y), f"step {at}: \u201c{commands[j]['text']}\u201d", fill="white" if current else (140, 140, 140), font=font(26, b"SemiBold" if current else b"Regular"))
+    if note:
+        draw.text((STEER_VIEW[0], HEIGHT - 36), note, fill=(200, 200, 200), font=font(22))
+    return image
+
+
 def success_rates(path):
     """{instruction: (successes, rollouts)} from a field_demo_record log's success_rate lines."""
     rates = {}
@@ -388,10 +478,11 @@ def success_rates(path):
     return rates
 
 
-def shown_and_dropped(data, choices, rates):
+def shown_and_dropped(data, choices, rates, min_share=0.5):
     """(shown, dropped): per instruction (episode, its entry). The trained policy's instructions are
-    shown only if at least half their rollouts succeed and the chosen run succeeds. rates, when
-    given, replaces the recordings' own success counts (a larger earlier measurement)."""
+    shown only if at least min_share of their rollouts succeed (and at least one; for a steering
+    instruction, complete its last command) and the chosen run succeeds. rates, when given, replaces the recordings' own success counts (a larger earlier
+    measurement)."""
     if not data.get("instructions"):
         return [(episode, None) for episode in data["episodes"]], []
     shown, dropped = [], []
@@ -399,7 +490,8 @@ def shown_and_dropped(data, choices, rates):
         if entry["instruction"] in rates:
             entry = {**entry, "successes": rates[entry["instruction"]][0], "rollouts": rates[entry["instruction"]][1]}
         run = entry["runs"][choices.get(k, 0)]
-        if 2 * entry["successes"] >= entry["rollouts"] and run["success"]:
+        wins = entry["final_successes"] if entry.get("steering") else entry["successes"]  # steering: the last command completed
+        if wins >= max(min_share * entry["rollouts"], 1) and run["success"]:  # the run shown: every command met (steering: took effect)
             shown.append((run, entry))
         else:
             dropped.append((run, entry))
@@ -426,11 +518,20 @@ def still_steps(episode):
     return out
 
 
-def intro_card(episode, entry, number, total):
+def intro_card(episode, entry, number, total, physics="grid"):
     commands = commands_of(episode)
     walls = int(grid(episode["walls"], np.uint8, (32, 32)).sum())
     scene = f"{episode['robot_count']} robots, {len(episode['cheeses'])} cheeses, {len(episode['boxes'])} boxes, {'walls' if walls else 'no walls'}"
     lines = [(f"Task {number} of {total}", 36, b"Regular", 0)]
+    where = " under MuJoCo physics" if physics == "mujoco" else ""
+    if entry is not None and entry.get("steering"):
+        lines.append(("Real-time steering", 58, b"SemiBold", 24))
+        lines.append(("One swarm, no cuts; each instruction is replaced while the swarm is still moving,", 30, b"Regular", 24))
+        lines.append(("as soon as it takes effect (half the swarm in the box; the cheese eaten):", 30, b"Regular", 6))
+        lines += [(f"{k + 1}. \u201c{c['text']}\u201d", 44, b"SemiBold", 14) for k, c in enumerate(commands)]
+        lines.append((scene, 28, b"Regular", 36))
+        lines.append((f"The last instruction is completed in {entry['final_successes']}/{entry['rollouts']} rollouts on fresh scenes{where}; every instruction takes effect in {entry['successes']}/{entry['rollouts']}.", 28, b"Regular", 10))
+        return card(lines)
     if len(commands) > 1:
         lines.append((f"{len(commands)} instructions, given one after another to the same swarm:", 34, b"Regular", 24))
         lines += [(f"{k + 1}. “{c['text']}”", 48, b"SemiBold", 16) for k, c in enumerate(commands)]
@@ -438,7 +539,7 @@ def intro_card(episode, entry, number, total):
         lines.append((f"Instruction: “{commands[0]['text']}”", 58, b"SemiBold", 24))
     lines.append((scene, 28, b"Regular", 36))
     if entry is not None:
-        lines.append((f"Succeeds in {entry['successes']}/{entry['rollouts']} rollouts on fresh scenes; shown: one of the successful runs.", 28, b"Regular", 10))
+        lines.append((f"Succeeds in {entry['successes']}/{entry['rollouts']} rollouts on fresh scenes{where}; shown: one of the successful runs.", 28, b"Regular", 10))
     return card(lines)
 
 
@@ -476,7 +577,9 @@ def main():
     parser.add_argument("--recordings", default=str(RECORDINGS))
     parser.add_argument("--out", required=True, help="directory for field-demo.mp4")
     parser.add_argument("--stills", default="", help="directory for the stills (default: <out>/stills)")
-    parser.add_argument("--frames_per_step", type=int, default=3)
+    parser.add_argument("--frames_per_step", type=int, default=0, help="video frames per policy step (default 3; with MuJoCo recordings, the recorded frames per step)")
+    parser.add_argument("--name", default="field-demo.mp4", help="video file name in --out")
+    parser.add_argument("--min_share", type=float, default=0.5, help="show an instruction only if at least this share of its rollouts succeed (and at least one)")
     parser.add_argument("--success_log", default="", help="a field_demo_record log whose success_rate lines give the k/N shown (default: the recordings' own)")
     parser.add_argument("--trim", type=int, default=4, help="end each run this many steps after its last instruction is met (skips the holding steps); -1 keeps them")
     parser.add_argument("--extra", nargs="*", default=[], help="move-37 candidate directories (scripts/move37_search.py: episode.json, meta.json) to append as 'beyond the teacher' segments")
@@ -487,22 +590,26 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     stills_dir.mkdir(parents=True, exist_ok=True)
     data = json.loads(Path(args.recordings).read_text())
-    size, side, guidance = data["size"], data["cheese_side"], data.get("guidance")
+    size, side = data["size"], data["cheese_side"]
+    physics = data.get("physics", "grid")
+    frames_per_step = args.frames_per_step or data.get("frames_per_step") or 3
     choices = dict(tuple(int(v) for v in pair.split("=")) for pair in args.choices.split(",") if pair)
-    shown, dropped = shown_and_dropped(data, choices, success_rates(args.success_log) if args.success_log else {})
+    shown, dropped = shown_and_dropped(data, choices, success_rates(args.success_log) if args.success_log else {}, args.min_share)
     if args.trim >= 0:
         shown = [(trimmed(episode, args.trim), entry) for episode, entry in shown]
     total = len(shown) + len(args.extra)
     segments = []  # (episode, intro card, end-card line)
     for number, (episode, entry) in enumerate(shown, 1):
         line = f"{episode['instruction']}: {entry['successes']}/{entry['rollouts']}" if entry else episode["instruction"]
-        segments.append((episode, intro_card(episode, entry, number, total), line))
+        if entry and entry.get("steering"):
+            line = f"real-time steering, {episode['instruction']}: last instruction completed in {entry['final_successes']}/{entry['rollouts']}, every instruction took effect in {entry['successes']}/{entry['rollouts']}"
+        segments.append((episode, intro_card(episode, entry, number, total, physics), line))
     for number, directory in enumerate(args.extra, len(shown) + 1):
         episode, meta = beyond_the_teacher(Path(directory))
         segments.append((episode, beyond_card(episode, meta, number, total), beyond_line(meta)))
     dummy = data.get("policy", "dummy") == "dummy"
     note = MOCK_NOTE if dummy else ""
-    video = Video(out / "field-demo.mp4")
+    video = Video(out / args.name)
     stills = {}
 
     title_lines = [("Language-Steered Swarm Control with Per-Square Action Fields", 56, b"Bold", 0), ("Supplementary video", 36, b"Regular", 30)]
@@ -510,41 +617,53 @@ def main():
         title_lines.append(("Mock-up: all rollouts below use a hand-coded dummy policy.", 30, b"SemiBold", 50))
     else:
         title_lines += [(line, 30, b"Regular", 50 if k == 0 else 8) for k, line in enumerate(POLICY_LINES)]
-        title_lines.append((f"Moves are sampled with classifier-free guidance, scale {guidance}.", 30, b"Regular", 8))
+    if physics == "mujoco":
+        title_lines.append(("Execution: rigid-body physics in MuJoCo; the policy sees the scene snapped to the grid.", 30, b"Regular", 8))
     title = card(title_lines, note)
     video.add(title, int(TITLE_SECONDS * FPS))
     stills["00-title"] = title
 
     for number, (episode, intro, _) in enumerate(segments, 1):
         print("task", number, episode["instruction"], flush=True)
-        video.add(intro, int((EXTRA_CARD_SECONDS if number > len(shown) else CARD_SECONDS) * FPS))
-        arena = Arena(episode, size, side, args.frames_per_step)
+        steering = number <= len(shown) and bool(shown[number - 1][1]) and shown[number - 1][1].get("steering")
+        video.add(intro, int((EXTRA_CARD_SECONDS if number > len(shown) or steering else CARD_SECONDS) * FPS))
+        arena = Arena(episode, size, side, frames_per_step, STEER_VIEW if steering else VIEW)
         policy_figure = PolicyFigure(episode, size)
-        field_figure = FieldFigure(episode, size, data["code_vectors"], guidance)
+        field_figure = FieldFigure(episode, size, data["code_vectors"], dummy, (7.0, 4.8) if steering else (7.0, 4.6))
         steps = len(episode["steps"]) - 1
         wanted = still_steps(episode)
+        if steering:
+            wanted.update({f"typing{j}": at - 0.5 * TYPE_SECONDS * FPS / frames_per_step for at, j in switches(episode)[1:]})
         for i in range(steps + 1):
-            policy = policy_figure.draw(episode["steps"][i])
+            policy = None if steering else policy_figure.draw(episode["steps"][i])
             field = field_figure.draw(episode["steps"][i])
-            sub = args.frames_per_step if i < steps else int(HOLD_SECONDS * FPS)
+            sub = frames_per_step if i < steps else int(HOLD_SECONDS * FPS)
             for k in range(sub):
-                t = i + (k / args.frames_per_step if i < steps else 0.0)
-                frame = compose(episode, number, total, t, arena.pose(t), policy, field, note)
+                t = i + (k / frames_per_step if i < steps else 0.0)
+                if steering:
+                    frame = compose_steering(episode, number, total, t, arena.pose(t), field, note, frames_per_step / FPS)
+                else:
+                    frame = compose(episode, number, total, t, arena.pose(t), policy, field, note, physics)
                 video.add(frame)
                 for name, at in wanted.items():
-                    if k == 0 and i == at:
+                    if abs(t - at) <= 0.5 / frames_per_step + 1e-9 and (k == 0 or float(at) != int(at)):
                         stills[f"{number:02d}-{name}"] = frame
         plt.close("all")
 
     end_lines = []
     if dummy:
-        end_lines += [("Mock-up", 48, b"Bold", 0), ("Moves are sampled per square from a hand-coded dummy policy, stepped on the real grid physics.", 30, b"Regular", 30)]
+        stepped = "run in MuJoCo physics" if physics == "mujoco" else "stepped on the real grid physics"
+        end_lines += [("Mock-up", 48, b"Bold", 0), (f"Moves are sampled per square from a hand-coded dummy policy, {stepped}.", 30, b"Regular", 30)]
     else:
         rollouts = shown[0][1]["rollouts"] if shown else 0
-        end_lines.append((f"Shown: selected successful runs; success over {rollouts} rollouts per instruction (fresh scenes):", 30, b"SemiBold", 0))
+        where = " under MuJoCo physics" if physics == "mujoco" else ""
+        end_lines.append((f"Shown: selected successful runs; success over {rollouts} rollouts per instruction{where} (fresh scenes):", 30, b"SemiBold", 0))
         for k, (_, _, line) in enumerate(segments):
             end_lines.append((line, 26, b"Regular", 16 if k == 0 else 4))
         end_lines.append(("Success: the task's own check (score >= 0.99 at the end of the run, no cheese eaten that was not asked for).", 24, b"Regular", 30))
+        if physics == "mujoco":
+            end_lines.append(("Robots and cheeses are rigid bodies in MuJoCo; each policy step their positions are snapped to the 32 x 32 grid the policy reads.", 24, b"Regular", 6))
+            end_lines.append(("Eating is judged by the grid rule (enough of a cheese's ring covered by robots) on the snapped positions.", 24, b"Regular", 6))
     end = card(end_lines, note)
     video.add(end, int(END_SECONDS * FPS))
     stills["99-end"] = end
@@ -553,7 +672,7 @@ def main():
         print("not shown (below half or the chosen run fails):", entry["instruction"])
     for name, image in stills.items():
         image.save(stills_dir / f"{name}.png")
-    print("wrote", out / "field-demo.mp4", round(video.frames / FPS, 1), "s;", len(stills), "stills in", stills_dir)
+    print("wrote", out / args.name, round(video.frames / FPS, 1), "s;", len(stills), "stills in", stills_dir)
 
 
 if __name__ == "__main__":

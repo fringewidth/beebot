@@ -45,7 +45,8 @@ from beebot.vla.data import CODE_VECTORS, decode_field, encode_field
 from beebot.vla.lm_rl import tokens
 from beebot.vla.shapes import shape_mask, text_mask
 from beebot.vla.steer import scene_of
-from beebot.vla.world import COLOUR_NAMES, COLOUR_RGB, DIRS, STAY, cheese_masks, cheese_side, observe, ring_masks, step
+from beebot.vla.mujoco_world import FRAMES_PER_STEP, Batch
+from beebot.vla.world import COLOUR_NAMES, COLOUR_RGB, DIRS, STAY, cheese_masks, cheese_side, eat_cheeses, observe, ring_masks, step
 
 OUT = Path("site/field-demo/recordings.json")
 LM_OUT = Path("runs/field-demo/recordings.json")
@@ -199,11 +200,14 @@ class Recorder:
             self.blobs.append(key)
         return self.blob_index[key]
 
-    def add(self, mass, cheese_pos, cheese_alive, cheese_color, obs, probs, codes, eaten, pushed, command=0):
+    def add(self, mass, cheese_pos, cheese_alive, cheese_color, obs, probs, codes, eaten, pushed, command=0, robots=None, now=None):
         """The state at this step (numpy, one scene), the policy's probabilities (H, W, 9) and
         sampled codes (H, W) there, the cheese slots eaten / pushed on the way here, and the index
-        of the command in force."""
-        if self.steps:  # follow the robots from the previous step
+        of the command in force. MuJoCo physics: robots (N, 2) are the snapped squares by robot id
+        and now (N + K, 2) the continuous positions (see add_path)."""
+        if robots is not None:
+            self.positions = np.asarray(robots)
+        elif self.steps:  # follow the robots from the previous step
             intended = self.positions + np.array([DIRS[c] if c != STAY else (0, 0) for c in self.codes])
             self.positions = match_robots(self.positions, intended, np.argwhere(mass > 0.5))
         self.codes = codes[self.positions[:, 0], self.positions[:, 1]]
@@ -221,6 +225,13 @@ class Recorder:
                 "obs": [self.blob(obs[c]) for c in range(len(CHANNELS))],
             }
         )
+        if now is not None:
+            self.add_path(now[None])
+
+    def add_path(self, path):
+        """The continuous positions (frames, N + K, 2) as (row, col), robots by id then cheeses by
+        slot, over the step just recorded (frame 0 is its state); float16, base64."""
+        self.steps[-1]["path"] = b64(np.asarray(path, np.float16))
 
     def episode(self, **extra):
         scene = self.scene
@@ -400,6 +411,12 @@ INSTRUCTIONS = [
         "commands": [("go into the green box", go_box("go into the green box", "green")), ("eat everything", eat_all("eat everything")), ("move up", go_direction("move up", "up"))],
         "scenes": scenes_with((1, 3), (1, 2), (), ("green",)),
     },
+    {  # real-time steering: each command is replaced mid-motion, once it takes effect (Rollout.switch)
+        "keys": ["place.box", "logic.single", "place.move"],
+        "commands": [("go into the blue box", go_box("go into the blue box", "blue")), ("eat the red cheese", eat_single("eat the red cheese", "red")), ("move left", go_direction("move left", "left"))],
+        "scenes": scenes_with((1, 3), (1, 3), ("red",), ("blue",)),
+        "switch": (0.5, 40),
+    },
 ]
 
 
@@ -411,8 +428,11 @@ class Rollout:
     """One episode's progress through its commands: the command in force, its task (built from
     the scene as it stands when the command is given), when it was met and when it ends."""
 
-    def __init__(self, commands, scene, first, cap, hold, final_hold):
-        self.commands, self.cap, self.hold, self.final_hold = commands, cap, hold, final_hold
+    def __init__(self, commands, scene, first, cap, hold, final_hold, switch=None):
+        """switch: (score, steps) for steering: every command but the last is replaced by the next
+        once its score reaches score (it has visibly taken effect), or after steps; None: a
+        command runs until met plus hold steps."""
+        self.commands, self.cap, self.hold, self.final_hold, self.switch = commands, cap, hold, final_hold, switch
         self.segments = []
         self.finished_at = None
         self.begin(0, 0, scene, first)
@@ -433,12 +453,21 @@ class Rollout:
             self.eaten.append(COLOUR_NAMES[int(world.cheese_color[i, slot])])
         score, unasked = T.score(self.task, self.scene, [self.first, snapshot(world, i)], self.eaten)
         last = self.j == len(self.commands) - 1
-        if self.met_at is None and score >= 0.99 and not unasked:
-            self.met_at = t
-            self.end = min(t + (self.final_hold if last else self.hold), self.start + self.cap)
-        if t < self.end:
-            return False
-        success = self.met_at is not None and score >= 0.99 and not unasked  # met, and still met at the end
+        steering = self.switch is not None and not last
+        if steering:
+            took_effect = score >= self.switch[0] and not unasked
+            if took_effect and self.met_at is None:
+                self.met_at = t
+            if not took_effect and t - self.start < self.switch[1]:
+                return False
+            success = took_effect
+        else:
+            if self.met_at is None and score >= 0.99 and not unasked:
+                self.met_at = t
+                self.end = min(t + (self.final_hold if last else self.hold), self.start + self.cap)
+            if t < self.end:
+                return False
+            success = self.met_at is not None and score >= 0.99 and not unasked  # met, and still met at the end
         self.segments.append({"text": self.commands[self.j][0], "start": self.start, "met_at": self.met_at, "end": t, "success": bool(success), "final_score": round(float(score), 3), "unasked": bool(unasked), "eaten": list(self.eaten)})
         if last:
             self.finished_at = t
@@ -447,33 +476,109 @@ class Rollout:
         return self.finished_at is not None
 
 
+def lm_act(sample, tokenizer, device):
+    """act(world, rollouts) -> (obs, field, probs) from the trained policy."""
+
+    def act(world, rollouts):
+        obs = observe(world)
+        cond = tokens(tokenizer, [r.commands[r.j][0] for r in rollouts], device)
+        _, field, probs = sample(obs, cond)
+        return obs, field, probs
+
+    return act
+
+
+SIDE_BANDS = {"left": (0, 0, 32, 8), "right": (0, 24, 32, 8), "up": (0, 0, 8, 32), "down": (24, 0, 8, 32)}  # dummy: where "move <d>" heads
+
+
+def dummy_goal(task, world):
+    """The dummy policy's goal (dummy_policy's format) for a suite task on one scene (B = 1):
+    eat the nearest alive cheese the task asks for; a box; a region; a side band for a move."""
+    spec = task.spec
+    if task.family in ("logic", "runner"):
+        wanted = spec["eat"] | spec["any_of"]
+        slots = [k for k in range(world.cheese_alive.shape[1]) if int(world.cheese_color[0, k]) >= 0 and COLOUR_NAMES[int(world.cheese_color[0, k])] in wanted]
+        alive = [k for k in slots if bool(world.cheese_alive[0, k])]
+        if not alive:
+            return {"kind": "eat", "slot": slots[0] if slots else 0}
+        middle = centroid(world.mass[0].numpy())
+        return {"kind": "eat", "slot": min(alive, key=lambda k: np.hypot(*(world.cheese_pos[0, k].numpy() + 2 - middle)))}
+    if "box" in spec:
+        return {"kind": "box", "box": list(spec["box"])}
+    if "region" in spec:
+        return {"kind": "region", "region": spec["region"]}
+    return {"kind": "box", "box": list(SIDE_BANDS[spec["direction"]])}
+
+
+def dummy_act(seed):
+    """act(world, rollouts) -> (obs, field, probs) from the hand-coded dummy policy (CPU)."""
+    rng = np.random.default_rng(seed)
+
+    def act(world, rollouts):
+        probs = np.stack([dummy_policy(world.index(i), dummy_goal(r.task, world.index(i)), rng) if r.task is not None else np.eye(9)[np.full((T.SIZE, T.SIZE), STAY)] for i, r in enumerate(rollouts)])
+        codes = torch.distributions.Categorical(probs=torch.from_numpy(probs).float()).sample()
+        return observe(world), decode_field(codes), torch.from_numpy(probs).float()
+
+    return act
+
+
+def mujoco_step(batch, world, codes, active):
+    """One policy step in MuJoCo: run every active scene, snap it to the grid, eat by the grid's
+    rule. Returns (snapped world, eaten (B, K), pushed (B, K), paths per scene)."""
+    paths = batch.step(codes, active)
+    alive = world.cheese_alive.cpu()
+    before = world.cheese_pos.cpu()
+    snapped = batch.world(alive)
+    eaten = eat_cheeses(snapped)
+    batch.remove(eaten.numpy())
+    snapped = replace(snapped, cheese_alive=alive & ~eaten)
+    pushed = alive & (snapped.cheese_pos != before).any(-1)
+    return snapped, eaten, pushed, paths
+
+
 @torch.no_grad()
-def run_lm_batch(sample, tokenizer, instruction, scenes, seeds, args, log):
+def run_batch(act, tokenizer, instruction, scenes, seeds, args, log):
     """Roll out one instruction (its commands in turn) on each scene in one batch. A command runs
-    until met plus args.hold steps (args.final_hold for the last), or args.cap steps. Returns the
-    episodes, each with its segments and success (every command met and still met at its end)."""
+    until met plus args.hold steps (args.final_hold for the last), or args.cap steps; with the
+    instruction's "switch", every command but the last is replaced as soon as it takes effect
+    (Rollout). args.physics: the grid's step, or MuJoCo (mujoco_world) with the grid only what
+    the policy sees. Returns the episodes, each with its segments and success (every command met
+    and still met at its end)."""
     commands = instruction["commands"]
     device = torch.device(args.device)
     world, runners = T.stack(scenes)
+    batch = None
+    if args.physics == "mujoco":
+        assert not runners.any(), "MuJoCo physics has no fleeing cheeses"
+        batch = Batch(scenes, world)
     world = world.to(device)
-    rollouts = [Rollout(commands, scene, snapshot(world, i), args.cap, args.hold, args.final_hold) for i, scene in enumerate(scenes)]
+    rollouts = [Rollout(commands, scene, snapshot(world, i), args.cap, args.hold, args.final_hold, instruction.get("switch")) for i, scene in enumerate(scenes)]
     recorders = [Recorder(scene, [text for text, _ in commands], tokenizer) for scene in scenes]
     eaten = torch.zeros(world.cheese_alive.shape, dtype=torch.bool)
     pushed = torch.zeros(world.cheese_alive.shape, dtype=torch.bool)
     t = 0
     while True:
-        obs = observe(world)
-        cond = tokens(tokenizer, [commands[r.j][0] for r in rollouts], device)
-        _, field, probs = sample(obs, cond)
+        obs, field, probs = act(world, rollouts)
         codes = encode_field(field).cpu().numpy()
         obs_np, probs_np = obs.cpu().numpy(), probs.cpu().numpy()
         for i, (r, recorder) in enumerate(zip(rollouts, recorders)):
             if r.finished_at is None or t == r.finished_at:
-                recorder.add(world.mass[i].cpu().numpy(), world.cheese_pos[i].cpu(), world.cheese_alive[i].cpu(), world.cheese_color[i].cpu(), obs_np[i], probs_np[i], codes[i], eaten[i].nonzero().flatten().tolist(), pushed[i].nonzero().flatten().tolist(), r.j)
+                robots = now = None
+                if batch is not None:
+                    robots, now = batch.squares[i], batch.swarms[i].positions()
+                recorder.add(world.mass[i].cpu().numpy(), world.cheese_pos[i].cpu(), world.cheese_alive[i].cpu(), world.cheese_color[i].cpu(), obs_np[i], probs_np[i], codes[i], eaten[i].nonzero().flatten().tolist(), pushed[i].nonzero().flatten().tolist(), r.j, robots, now)
         if all(r.finished_at is not None for r in rollouts):
             break
-        world, info = step(world, field)
-        eaten, pushed = info.eaten.cpu(), info.pushed.cpu()
+        if batch is None:
+            world, info = step(world, field)
+            eaten, pushed = info.eaten.cpu(), info.pushed.cpu()
+        else:
+            active = [r.finished_at is None for r in rollouts]
+            world, eaten, pushed, paths = mujoco_step(batch, world, codes, active)
+            world = world.to(device)
+            for recorder, path in zip(recorders, paths):
+                if path is not None:
+                    recorder.add_path(path)
         t += 1
         if runners.any() and t % T.RUNNER_PERIOD == 0:  # runner cheeses flee, as in tasks.run
             world = replace(world, cheese_pos=T.flee(world, runners))
@@ -489,6 +594,7 @@ def outcome(instruction, seed, rollout, recorder):
         "intents": instruction["keys"],
         "seed": seed,
         "success": len(rollout.segments) == len(instruction["commands"]) and all(s["success"] for s in rollout.segments),
+        "final_success": len(rollout.segments) == len(instruction["commands"]) and rollout.segments[-1]["success"],  # the last command met
         "length": rollout.finished_at,  # steps
         "pushes": sum(len(s["pushed"]) for s in recorder.steps),
         "segments": rollout.segments,
@@ -542,15 +648,20 @@ def rank(episode):
     return (episode["success"], episode["pushes"] > 0, -episode["length"])
 
 
-def record_lm(args, log, save):
-    """Roll out every instruction (args.only: a subset); save(results) after each, so a stopped run
-    keeps what it finished."""
-    from beebot.vla.lm_policy import PATCH
-    from beebot.vla.lm_rl import RLConfig, lm_probs_sampler, load_policy
+def record_suite(args, log, save):
+    """Roll out every instruction (args.only: a subset) with the trained policy, or the dummy one
+    (args.policy); save(results) after each, so a stopped run keeps what it finished."""
+    if args.policy == "lm":
+        from beebot.vla.lm_policy import PATCH
+        from beebot.vla.lm_rl import RLConfig, lm_probs_sampler, load_policy
 
-    policy, tokenizer = load_policy(RLConfig(init_run=args.init_run, checkpoint=args.checkpoint), torch.device(args.device))
-    policy.eval()
-    sample = lm_probs_sampler(policy, args.guidance, T.SIZE // PATCH)
+        policy, tokenizer = load_policy(RLConfig(init_run=args.init_run, checkpoint=args.checkpoint), torch.device(args.device))
+        policy.eval()
+        act = lm_act(lm_probs_sampler(policy, args.guidance, T.SIZE // PATCH), tokenizer, torch.device(args.device))
+    else:
+        from transformers import AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
     results = []
     for k, instruction in enumerate(INSTRUCTIONS):
         if args.only and str(k) not in args.only.split(","):
@@ -564,18 +675,23 @@ def record_lm(args, log, save):
                 seeds.append(seed)
             seed += 1
         torch.manual_seed(k)
-        episodes = run_lm_batch(sample, tokenizer, instruction, scenes, seeds, args, log)
+        if args.policy != "lm":
+            act = dummy_act(k)
+        episodes = run_batch(act, tokenizer, instruction, scenes, seeds, args, log)
         episodes.sort(key=rank, reverse=True)
         wins = sum(e["success"] for e in episodes)
+        finals = sum(e["final_success"] for e in episodes)
         text = episodes[0]["instruction"]
-        log({"instruction": text, "intents": instruction["keys"], "success_rate": f"{wins}/{len(episodes)}"})
+        log({"instruction": text, "intents": instruction["keys"], "physics": args.physics, "success_rate": f"{wins}/{len(episodes)}", "final_command_rate": f"{finals}/{len(episodes)}"})
         results.append(
             {
                 "instruction": text,
                 "intents": instruction["keys"],
+                "steering": "switch" in instruction,
                 "successes": wins,
+                "final_successes": finals,
                 "rollouts": len(episodes),
-                "outcomes": [{key: e[key] for key in ("seed", "success", "length", "pushes", "segments")} for e in episodes],
+                "outcomes": [{key: e[key] for key in ("seed", "success", "final_success", "length", "pushes", "segments")} for e in episodes],
                 "runs": episodes[: args.keep],  # the best runs, best first
             }
         )
@@ -586,6 +702,8 @@ def record_lm(args, log, save):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", choices=("dummy", "lm"), default="dummy")
+    parser.add_argument("--physics", choices=("grid", "mujoco"), default="grid", help="grid: world.step; mujoco: MuJoCo is the world, snapped to the grid for the policy (beebot.vla.mujoco_world)")
+    parser.add_argument("--suite", action="store_true", help="dummy: roll out the instruction suite (as lm does) instead of the three mock-up episodes")
     parser.add_argument("--seeds", default="7,0,0", help="dummy: scene and policy seed of the eat, region and box episodes")
     parser.add_argument("--max_steps", type=int, default=120, help="dummy: episode length")
     parser.add_argument("--out", default=None, help=f"default {OUT} (dummy), {LM_OUT} (lm)")
@@ -602,7 +720,13 @@ def main():
     parser.add_argument("--log", default="logs/field-demo-record.out")
     args = parser.parse_args()
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
-    out_path = Path(args.out or (LM_OUT if args.policy == "lm" else OUT))
+    suite = args.policy == "lm" or args.suite
+    if args.physics == "mujoco" and not suite:
+        parser.error("--physics mujoco runs the instruction suite: use --policy lm, or --policy dummy --suite")
+    default_out = OUT
+    if suite:
+        default_out = LM_OUT if args.policy == "lm" and args.physics == "grid" else LM_OUT.with_name(f"recordings-{args.policy}-{args.physics}.json")
+    out_path = Path(args.out or default_out)
     Path(args.log).parent.mkdir(parents=True, exist_ok=True)
     log_file = open(args.log, "w")
 
@@ -612,7 +736,7 @@ def main():
         log_file.write(line + "\n")
         log_file.flush()
 
-    log({"pid": os.getpid(), "policy": args.policy, "started": time.strftime("%Y-%m-%d %H:%M:%S")})
+    log({"pid": os.getpid(), "policy": args.policy, "physics": args.physics, "started": time.strftime("%Y-%m-%d %H:%M:%S")})
     note = "mock-up: driven by a hand-coded dummy policy (scripts/field_demo_record.py), not the trained model"
     def write(episodes, instructions):
         out = {
@@ -621,6 +745,8 @@ def main():
             "init_run": args.init_run if args.policy == "lm" else None,
             "checkpoint": args.checkpoint if args.policy == "lm" else None,
             "guidance": args.guidance if args.policy == "lm" else None,
+            "physics": args.physics,
+            "frames_per_step": FRAMES_PER_STEP if args.physics == "mujoco" else None,  # rows of each step's "path"
             "size": T.SIZE,
             "cheese_side": 4,
             "codes": "0-7: world.DIRS (dy, dx) = " + json.dumps(DIRS) + "; 8: stay",
@@ -634,9 +760,13 @@ def main():
         log({"wrote": str(out_path), "mb": round(out_path.stat().st_size / 1e6, 2)})
 
     episodes, instructions = [], []
-    if args.policy == "lm":
-        note = f"trained policy {args.init_run}/{args.checkpoint}, guidance {args.guidance}; per instruction every rollout's outcome and the best runs"
-        instructions = record_lm(args, log, lambda results: write([], results))
+    if suite:
+        if args.policy == "lm":
+            note = f"trained policy {args.init_run}/{args.checkpoint}, guidance {args.guidance}; per instruction every rollout's outcome and the best runs"
+        else:
+            note = "hand-coded dummy policy on the instruction suite; per instruction every rollout's outcome and the best runs"
+        note += f"; physics: {args.physics}"
+        instructions = record_suite(args, log, lambda results: write([], results))
     else:
         from transformers import AutoTokenizer
 
