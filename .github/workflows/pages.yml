@@ -33,6 +33,8 @@ jobs:
           cp -r site/explain site/explain.html _site/
           # The VLA results page (complete HTML document, built by scripts/vla_site.py).
           cp site/vla.html _site/
+          # The 2D steering demo (complete HTML document): live backend if one answers, else recorded runs.
+          cp -r site/2d-demo _site/
           {
             echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
             echo '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'

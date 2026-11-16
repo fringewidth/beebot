@@ -1,0 +1,24 @@
+........................................................................ [ 12%]
+........................................................................ [ 25%]
+........................................................................ [ 38%]
+........................................................................ [ 51%]
+........................................................................ [ 64%]
+........................................................................ [ 76%]
+........................................................................ [ 89%]
+..........................................................               [100%]
+=============================== warnings summary ===============================
+tests/test_vla_voxel_compact.py::test_demo_store_converts_and_trains_the_same
+  /Users/hrishik/beebot/.claude/worktrees/agent-a31c50503803b318d/src/beebot/vla/voxel/play_store.py:182: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /Users/runner/work/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:219.)
+    store[k] = CompactGrids(out, k) if is_compact else torch.from_numpy(np.load(out / f"{k}.npy", mmap_mode="r"))
+
+tests/test_vla_voxel_think.py::test_packed_batch_equals_rows[Qwen/Qwen3-0.6B]
+  /Users/hrishik/beebot/.claude/worktrees/agent-a31c50503803b318d/tests/test_vla_voxel_think.py:242: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+  Consider using tensor.detach() first. (Triggered internally at /Users/runner/work/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:821.)
+    losses.append([float(out[k]) for k in ("loss", "text", "action")] + [out["text_tokens"], float(out["robots"])])
+
+tests/test_vla_voxel_think.py::test_trainer_fixed_shapes_path[Qwen/Qwen3.5-4B]
+  /Users/hrishik/beebot/.venv/lib/python3.12/site-packages/torch/utils/checkpoint.py:242: UserWarning: None of the inputs have requires_grad=True. Gradients will be None
+    check_backward_validity(args)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+562 passed, 15 deselected, 3 warnings in 398.20s (0:06:38)

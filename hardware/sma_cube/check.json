@@ -1,0 +1,2808 @@
+{
+ "design_file": "runs/module_phys/sma_cube/chosen.json",
+ "L_mm": 12.18,
+ "hook_fit": {
+  "fit": null,
+  "design_b": 1.3397999999999999,
+  "two_per_side_need_mm": 15.72,
+  "region_mm": 6.8,
+  "full_width_slot_room_mm": 0.34,
+  "groove_boss_r": 5.179
+ },
+ "layout": {
+  "joint": {
+   "r2_x": [
+    3.122,
+    4.522
+   ],
+   "r1_x": [
+    1.622,
+    3.022
+   ],
+   "g220_x": [
+    0.722,
+    1.522
+   ],
+   "worm_centre": [
+    1.122,
+    0.0,
+    -3.2
+   ],
+   "idler": [
+    -0.905,
+    0.0,
+    -1.126
+   ],
+   "rotor_axis": [
+    0.5,
+    0.0,
+    0.0
+   ],
+   "rotor_slab_y": [
+    3.584,
+    4.68
+   ],
+   "wolfrom": "printed split ring, sun 10, planets 8 x3, rings 26/29, module 0.25",
+   "wolfrom_outer_r": 4.394
+  },
+  "capstans": {
+   "XP": [
+    -3.65,
+    3.708,
+    3.708
+   ],
+   "XN": [
+    3.65,
+    -3.708,
+    -3.708
+   ],
+   "DP": [
+    3.65,
+    3.708,
+    3.708
+   ],
+   "DN": [
+    -3.65,
+    3.708,
+    -3.708
+   ]
+  },
+  "eyes": {
+   "XP0": [
+    -4.1,
+    1.572,
+    5.005
+   ],
+   "XP1": [
+    -4.1,
+    2.507,
+    1.517
+   ],
+   "XP2": [
+    -4.1,
+    5.356,
+    1.83
+   ],
+   "XN0": [
+    4.1,
+    -1.572,
+    -5.005
+   ],
+   "XN1": [
+    4.1,
+    -2.507,
+    -1.517
+   ],
+   "XN2": [
+    4.1,
+    -5.356,
+    -1.83
+   ],
+   "DP0": [
+    4.1,
+    1.572,
+    5.005
+   ],
+   "DP1": [
+    4.1,
+    2.507,
+    1.517
+   ],
+   "DP2": [
+    4.1,
+    5.356,
+    1.83
+   ],
+   "DN0": [
+    -4.1,
+    5.005,
+    -1.572
+   ],
+   "DN1": [
+    -4.1,
+    1.517,
+    -2.507
+   ],
+   "DN2": [
+    -4.1,
+    1.83,
+    -5.356
+   ],
+   "bolt_pp_drive": [
+    0.05,
+    4.289,
+    5.295
+   ],
+   "bolt_pp_lock": [
+    2.15,
+    5.295,
+    4.289
+   ],
+   "bolt_np_drive": [
+    0.05,
+    -5.295,
+    4.289
+   ],
+   "bolt_np_lock": [
+    2.15,
+    -4.289,
+    5.295
+   ],
+   "bolt_nn_drive": [
+    0.05,
+    -4.289,
+    -5.295
+   ],
+   "bolt_nn_lock": [
+    2.15,
+    -5.295,
+    -4.289
+   ],
+   "bolt_pn_drive": [
+    0.05,
+    5.295,
+    -4.289
+   ],
+   "bolt_pn_lock": [
+    2.15,
+    4.289,
+    -5.295
+   ]
+  }
+ },
+ "fit": {
+  "joint_x_depth_needed": 6.368,
+  "joint_x_depth_free_beside_battery": 4.54,
+  "wolfrom_outer_r": 4.394,
+  "wolfrom_vs_ring_sphere_boss_r": 4.048,
+  "rotor_diameter": 7.308,
+  "rotor_slab_vs_battery_y_overlap": 1.416,
+  "capstan_layer_vs_output_ring": "shared x layer; capstans reach r 3.48, the ring is r <= 4.39",
+  "bolt_travel": 3.18,
+  "sphere_retraction": 2.58,
+  "hook_tab_width_fitted": null,
+  "hook_tab_width_design": 1.34,
+  "hook_two_per_side_slot_length_need": 15.72,
+  "hook_region_length": 6.8,
+  "hook_full_width_slot_room": 0.34,
+  "leg_strip_half_width": 2.292,
+  "leg_vs_insert_margin": -0.367,
+  "leg_strip_covers_groove_deg_each_end": 59.7,
+  "bayonet_throw_window_deg": 30.3,
+  "knuckle_axis_offset_from_edge_line": 0.495,
+  "knuckle_protrusion_if_on_edge_line": 0.35,
+  "disc_tab_proud_of_face": 0.998,
+  "bolt_tab_proud_of_face": 0.998,
+  "tread_proud": 0.1,
+  "battery_mm": [
+   3.0,
+   10.0,
+   10.0
+  ]
+ },
+ "overlaps_static": [
+  [
+   "frame",
+   "didel_G220_arbor_px",
+   0.1147
+  ],
+  [
+   "frame",
+   "didel_G220_arbor_nx",
+   0.1147
+  ],
+  [
+   "frame",
+   "capstan_XP",
+   0.4563
+  ],
+  [
+   "frame",
+   "pawl_XP0",
+   0.1627
+  ],
+  [
+   "frame",
+   "pawl_XP2",
+   0.2108
+  ],
+  [
+   "frame",
+   "capstan_XN",
+   0.4563
+  ],
+  [
+   "frame",
+   "pawl_XN0",
+   0.1627
+  ],
+  [
+   "frame",
+   "pawl_XN2",
+   0.1727
+  ],
+  [
+   "frame",
+   "capstan_DP",
+   0.4563
+  ],
+  [
+   "frame",
+   "pawl_DP0",
+   0.1627
+  ],
+  [
+   "frame",
+   "pawl_DP2",
+   0.1727
+  ],
+  [
+   "frame",
+   "capstan_DN",
+   0.4563
+  ],
+  [
+   "frame",
+   "pawl_DN0",
+   0.1627
+  ],
+  [
+   "frame",
+   "pawl_DN2",
+   0.1496
+  ],
+  [
+   "frame",
+   "bolt_pp",
+   2.7273
+  ],
+  [
+   "frame",
+   "rack_pawl_pp0",
+   0.5739
+  ],
+  [
+   "frame",
+   "rack_pawl_pp1",
+   0.5669
+  ],
+  [
+   "frame",
+   "bolt_np",
+   1.9819
+  ],
+  [
+   "frame",
+   "rack_pawl_np0",
+   0.5712
+  ],
+  [
+   "frame",
+   "rack_pawl_np1",
+   0.6042
+  ],
+  [
+   "frame",
+   "bolt_nn",
+   2.7273
+  ],
+  [
+   "frame",
+   "rack_pawl_nn0",
+   0.5739
+  ],
+  [
+   "frame",
+   "rack_pawl_nn1",
+   0.5669
+  ],
+  [
+   "frame",
+   "bolt_pn",
+   1.9819
+  ],
+  [
+   "frame",
+   "rack_pawl_pn0",
+   0.5712
+  ],
+  [
+   "frame",
+   "rack_pawl_pn1",
+   0.6042
+  ],
+  [
+   "frame",
+   "battery",
+   7.4643
+  ],
+  [
+   "frame",
+   "wire_XP-open-all",
+   0.019
+  ],
+  [
+   "frame",
+   "wire_XP-close-all",
+   0.0448
+  ],
+  [
+   "frame",
+   "wire_XN-open-all",
+   0.019
+  ],
+  [
+   "frame",
+   "wire_XN-close-all",
+   0.0448
+  ],
+  [
+   "frame",
+   "wire_DP-open-all",
+   0.019
+  ],
+  [
+   "frame",
+   "wire_DP-close-all",
+   0.0448
+  ],
+  [
+   "frame",
+   "wire_DN-open-all",
+   0.019
+  ],
+  [
+   "frame",
+   "wire_DN-close-all",
+   0.0517
+  ],
+  [
+   "end_plate_px",
+   "disc_hub_px",
+   0.2481
+  ],
+  [
+   "end_plate_px",
+   "didel_GW205_px",
+   2.1801
+  ],
+  [
+   "end_plate_px",
+   "didel_G220_arbor_px",
+   1.7894
+  ],
+  [
+   "end_plate_px",
+   "didel_G209_idler_nx",
+   0.0237
+  ],
+  [
+   "end_plate_px",
+   "rotor_px",
+   3.9237
+  ],
+  [
+   "end_plate_px",
+   "rotor_nx",
+   3.6166
+  ],
+  [
+   "end_plate_px",
+   "capstan_XN",
+   0.1368
+  ],
+  [
+   "end_plate_px",
+   "capstan_DP",
+   0.1368
+  ],
+  [
+   "end_plate_nx",
+   "disc_hub_nx",
+   0.2481
+  ],
+  [
+   "end_plate_nx",
+   "didel_GW205_nx",
+   2.1801
+  ],
+  [
+   "end_plate_nx",
+   "didel_G220_arbor_nx",
+   1.7894
+  ],
+  [
+   "end_plate_nx",
+   "didel_G209_idler_px",
+   0.0237
+  ],
+  [
+   "end_plate_nx",
+   "rotor_px",
+   3.6166
+  ],
+  [
+   "end_plate_nx",
+   "rotor_nx",
+   3.9237
+  ],
+  [
+   "end_plate_nx",
+   "capstan_XP",
+   0.1368
+  ],
+  [
+   "end_plate_nx",
+   "capstan_DN",
+   0.1368
+  ],
+  [
+   "disc_hub_px",
+   "didel_G220_arbor_px",
+   0.1344
+  ],
+  [
+   "disc_hub_px",
+   "rotor_nx",
+   0.015
+  ],
+  [
+   "disc_hub_px",
+   "capstan_XN",
+   0.9849
+  ],
+  [
+   "disc_hub_px",
+   "pawl_XN0",
+   0.1765
+  ],
+  [
+   "disc_hub_px",
+   "pawl_XN1",
+   0.3828
+  ],
+  [
+   "disc_hub_px",
+   "pawl_XN2",
+   0.1392
+  ],
+  [
+   "disc_hub_px",
+   "pawl_DP1",
+   0.3608
+  ],
+  [
+   "disc_hub_nx",
+   "didel_G220_arbor_nx",
+   0.1344
+  ],
+  [
+   "disc_hub_nx",
+   "rotor_px",
+   0.015
+  ],
+  [
+   "disc_hub_nx",
+   "capstan_XP",
+   0.9849
+  ],
+  [
+   "disc_hub_nx",
+   "pawl_XP0",
+   0.1765
+  ],
+  [
+   "disc_hub_nx",
+   "pawl_XP1",
+   0.3828
+  ],
+  [
+   "disc_hub_nx",
+   "pawl_XP2",
+   0.1392
+  ],
+  [
+   "disc_hub_nx",
+   "capstan_DN",
+   0.9849
+  ],
+  [
+   "disc_hub_nx",
+   "pawl_DN0",
+   0.2624
+  ],
+  [
+   "disc_hub_nx",
+   "pawl_DN1",
+   0.3479
+  ],
+  [
+   "disc_hub_nx",
+   "pawl_DN2",
+   0.1809
+  ],
+  [
+   "sun_shaft_px",
+   "battery",
+   0.22
+  ],
+  [
+   "sun_shaft_nx",
+   "battery",
+   0.22
+  ],
+  [
+   "planet0_px",
+   "didel_G220_arbor_px",
+   0.0117
+  ],
+  [
+   "planet0_px",
+   "pawl_DP1",
+   0.0177
+  ],
+  [
+   "planet0_px",
+   "pawl_DP2",
+   0.2607
+  ],
+  [
+   "planet0_nx",
+   "didel_G220_arbor_nx",
+   0.0117
+  ],
+  [
+   "planet1_nx",
+   "pawl_XP0",
+   0.4767
+  ],
+  [
+   "planet1_nx",
+   "pawl_XP1",
+   0.1458
+  ],
+  [
+   "planet2_px",
+   "didel_GW205_px",
+   0.4754
+  ],
+  [
+   "planet2_px",
+   "pawl_XN0",
+   0.4767
+  ],
+  [
+   "planet2_px",
+   "pawl_XN1",
+   0.1458
+  ],
+  [
+   "planet2_nx",
+   "didel_GW205_nx",
+   0.4754
+  ],
+  [
+   "planet2_nx",
+   "pawl_DN0",
+   0.0271
+  ],
+  [
+   "planet2_nx",
+   "pawl_DN1",
+   0.3607
+  ],
+  [
+   "planet2_nx",
+   "pawl_DN2",
+   0.2514
+  ],
+  [
+   "didel_G220_sun_px",
+   "didel_G220_sun_nx",
+   0.593
+  ],
+  [
+   "didel_G220_sun_px",
+   "didel_G209_idler_nx",
+   0.087
+  ],
+  [
+   "didel_G220_sun_px",
+   "didel_G209_rotor_px",
+   0.1875
+  ],
+  [
+   "didel_G220_sun_px",
+   "battery",
+   14.8708
+  ],
+  [
+   "didel_G220_sun_nx",
+   "didel_G209_idler_px",
+   0.087
+  ],
+  [
+   "didel_G220_sun_nx",
+   "didel_G209_rotor_nx",
+   0.1875
+  ],
+  [
+   "didel_G220_sun_nx",
+   "battery",
+   14.8708
+  ],
+  [
+   "didel_GW205_px",
+   "didel_GW205_nx",
+   1.5855
+  ],
+  [
+   "didel_GW205_px",
+   "battery",
+   10.3104
+  ],
+  [
+   "didel_GW205_nx",
+   "battery",
+   10.3104
+  ],
+  [
+   "worm_arbor_px",
+   "rotor_px",
+   0.1177
+  ],
+  [
+   "worm_arbor_px",
+   "battery",
+   1.5834
+  ],
+  [
+   "worm_arbor_nx",
+   "rotor_nx",
+   0.1177
+  ],
+  [
+   "worm_arbor_nx",
+   "battery",
+   1.5834
+  ],
+  [
+   "didel_G220_arbor_px",
+   "didel_G209_rotor_px",
+   0.0103
+  ],
+  [
+   "didel_G220_arbor_px",
+   "battery",
+   7.0133
+  ],
+  [
+   "didel_G220_arbor_nx",
+   "didel_G209_rotor_nx",
+   0.0103
+  ],
+  [
+   "didel_G220_arbor_nx",
+   "battery",
+   7.0133
+  ],
+  [
+   "didel_G209_idler_px",
+   "battery",
+   2.5147
+  ],
+  [
+   "didel_G209_idler_nx",
+   "battery",
+   2.5147
+  ],
+  [
+   "didel_G209_rotor_px",
+   "battery",
+   2.9917
+  ],
+  [
+   "didel_G209_rotor_nx",
+   "battery",
+   2.9917
+  ],
+  [
+   "rotor_px",
+   "pawl_DP2",
+   0.0458
+  ],
+  [
+   "rotor_px",
+   "bolt_pp",
+   0.1754
+  ],
+  [
+   "rotor_px",
+   "bolt_pn",
+   0.1754
+  ],
+  [
+   "rotor_px",
+   "battery",
+   23.0915
+  ],
+  [
+   "rotor_nx",
+   "bolt_np",
+   0.1754
+  ],
+  [
+   "rotor_nx",
+   "bolt_nn",
+   0.1754
+  ],
+  [
+   "rotor_nx",
+   "battery",
+   23.0915
+  ],
+  [
+   "rotor_pin_px",
+   "battery",
+   0.1894
+  ],
+  [
+   "rotor_pin_nx",
+   "battery",
+   0.1894
+  ],
+  [
+   "insert_0-1-1",
+   "leg_XP",
+   0.0441
+  ],
+  [
+   "insert_0-11",
+   "leg_XP",
+   0.0441
+  ],
+  [
+   "insert_01-1",
+   "leg_XP",
+   0.0441
+  ],
+  [
+   "insert_011",
+   "leg_XP",
+   0.0441
+  ],
+  [
+   "insert_1-1-1",
+   "leg_DP",
+   0.0441
+  ],
+  [
+   "insert_1-11",
+   "leg_DP",
+   0.0441
+  ],
+  [
+   "insert_11-1",
+   "leg_DP",
+   0.0441
+  ],
+  [
+   "insert_111",
+   "leg_DP",
+   0.0441
+  ],
+  [
+   "insert_2-1-1",
+   "leg_XN",
+   0.0441
+  ],
+  [
+   "insert_2-11",
+   "leg_XN",
+   0.0441
+  ],
+  [
+   "insert_21-1",
+   "leg_XN",
+   0.0441
+  ],
+  [
+   "insert_211",
+   "leg_XN",
+   0.0441
+  ],
+  [
+   "insert_3-1-1",
+   "leg_DN",
+   0.0441
+  ],
+  [
+   "insert_3-11",
+   "leg_DN",
+   0.0441
+  ],
+  [
+   "insert_31-1",
+   "leg_DN",
+   0.0441
+  ],
+  [
+   "insert_311",
+   "leg_DN",
+   0.0441
+  ],
+  [
+   "leg_XP",
+   "bolt_pp",
+   0.1105
+  ],
+  [
+   "leg_XP",
+   "rack_pawl_pp1",
+   0.1761
+  ],
+  [
+   "leg_XN",
+   "bolt_nn",
+   0.1105
+  ],
+  [
+   "leg_XN",
+   "rack_pawl_nn1",
+   0.1761
+  ],
+  [
+   "leg_DN",
+   "pawl_DN2",
+   0.1117
+  ],
+  [
+   "pawl_XP0",
+   "pawl_XP1",
+   0.0831
+  ],
+  [
+   "pawl_XN0",
+   "pawl_XN1",
+   0.0831
+  ],
+  [
+   "pawl_DP0",
+   "pawl_DP1",
+   0.0831
+  ],
+  [
+   "pawl_DN0",
+   "pawl_DN1",
+   0.0831
+  ],
+  [
+   "bolt_pp",
+   "rack_pawl_pp0",
+   0.1786
+  ],
+  [
+   "bolt_pp",
+   "rack_pawl_pp1",
+   0.2193
+  ],
+  [
+   "bolt_pp",
+   "battery",
+   3.5282
+  ],
+  [
+   "rack_pawl_pp0",
+   "battery",
+   0.1206
+  ],
+  [
+   "rack_pawl_pp1",
+   "battery",
+   0.1271
+  ],
+  [
+   "bolt_np",
+   "rack_pawl_np0",
+   0.1786
+  ],
+  [
+   "bolt_np",
+   "rack_pawl_np1",
+   0.2193
+  ],
+  [
+   "bolt_np",
+   "battery",
+   3.5282
+  ],
+  [
+   "bolt_np",
+   "comp_4_IR",
+   0.0102
+  ],
+  [
+   "rack_pawl_np0",
+   "battery",
+   0.1206
+  ],
+  [
+   "rack_pawl_np0",
+   "comp_5_photodiode",
+   0.0146
+  ],
+  [
+   "rack_pawl_np1",
+   "battery",
+   0.1271
+  ],
+  [
+   "bolt_nn",
+   "rack_pawl_nn0",
+   0.1786
+  ],
+  [
+   "bolt_nn",
+   "rack_pawl_nn1",
+   0.2193
+  ],
+  [
+   "bolt_nn",
+   "battery",
+   3.5282
+  ],
+  [
+   "rack_pawl_nn0",
+   "battery",
+   0.1206
+  ],
+  [
+   "rack_pawl_nn1",
+   "battery",
+   0.1271
+  ],
+  [
+   "bolt_pn",
+   "rack_pawl_pn0",
+   0.1786
+  ],
+  [
+   "bolt_pn",
+   "rack_pawl_pn1",
+   0.2193
+  ],
+  [
+   "bolt_pn",
+   "battery",
+   3.5282
+  ],
+  [
+   "bolt_pn",
+   "comp_0_IR",
+   0.0102
+  ],
+  [
+   "rack_pawl_pn0",
+   "battery",
+   0.1206
+  ],
+  [
+   "rack_pawl_pn1",
+   "battery",
+   0.1271
+  ],
+  [
+   "wire_XP-open-all",
+   "wire_DP-open-all",
+   0.0594
+  ],
+  [
+   "wire_XP-close-all",
+   "wire_DP-close-all",
+   0.0594
+  ]
+ ],
+ "overlaps_swept": [
+  [
+   "carrier_nnp",
+   "end_plate_nx",
+   0.134
+  ],
+  [
+   "carrier_npn",
+   "end_plate_nx",
+   0.134
+  ],
+  [
+   "carrier_npn",
+   "capstan_DN",
+   0.2034
+  ],
+  [
+   "carrier_npp",
+   "end_plate_nx",
+   0.134
+  ],
+  [
+   "carrier_npp",
+   "capstan_XP",
+   0.2034
+  ],
+  [
+   "carrier_pnn",
+   "end_plate_px",
+   0.134
+  ],
+  [
+   "carrier_pnn",
+   "capstan_XN",
+   0.2034
+  ],
+  [
+   "carrier_pnp",
+   "end_plate_px",
+   0.134
+  ],
+  [
+   "carrier_ppp",
+   "end_plate_px",
+   0.134
+  ],
+  [
+   "carrier_ppp",
+   "capstan_DP",
+   0.2034
+  ],
+  [
+   "bolt_pp",
+   "end_plate_px",
+   0.3388
+  ],
+  [
+   "bolt_pp",
+   "rotor_px",
+   0.1859
+  ],
+  [
+   "bolt_pp",
+   "corner_sphere_ppp",
+   0.0138
+  ],
+  [
+   "bolt_pp",
+   "capstan_DP",
+   0.9059
+  ],
+  [
+   "bolt_np",
+   "end_plate_px",
+   0.3388
+  ],
+  [
+   "bolt_np",
+   "corner_sphere_pnp",
+   0.0138
+  ],
+  [
+   "bolt_nn",
+   "end_plate_px",
+   0.3388
+  ],
+  [
+   "bolt_nn",
+   "corner_sphere_pnn",
+   0.0138
+  ],
+  [
+   "bolt_nn",
+   "capstan_XN",
+   0.9059
+  ],
+  [
+   "bolt_pn",
+   "end_plate_px",
+   0.1876
+  ],
+  [
+   "bolt_pn",
+   "worm_arbor_px",
+   0.0973
+  ],
+  [
+   "bolt_pn",
+   "rotor_px",
+   0.1859
+  ],
+  [
+   "bolt_pn",
+   "corner_sphere_ppn",
+   0.0138
+  ]
+ ],
+ "intended_contacts": [
+  [
+   "sun_shaft_px",
+   "planet0_px",
+   0.176
+  ],
+  [
+   "sun_shaft_px",
+   "planet1_px",
+   0.2111
+  ],
+  [
+   "sun_shaft_px",
+   "planet2_px",
+   0.2111
+  ],
+  [
+   "sun_shaft_px",
+   "didel_G220_sun_px",
+   0.2262
+  ],
+  [
+   "sun_shaft_nx",
+   "planet0_nx",
+   0.176
+  ],
+  [
+   "sun_shaft_nx",
+   "planet1_nx",
+   0.2111
+  ],
+  [
+   "sun_shaft_nx",
+   "planet2_nx",
+   0.2111
+  ],
+  [
+   "sun_shaft_nx",
+   "didel_G220_sun_nx",
+   0.2262
+  ],
+  [
+   "didel_G220_sun_px",
+   "didel_GW205_px",
+   0.5121
+  ],
+  [
+   "didel_G220_sun_nx",
+   "didel_GW205_nx",
+   0.5121
+  ],
+  [
+   "didel_GW205_px",
+   "worm_arbor_px",
+   0.7069
+  ],
+  [
+   "didel_GW205_nx",
+   "worm_arbor_nx",
+   0.7069
+  ],
+  [
+   "worm_arbor_px",
+   "didel_G220_arbor_px",
+   0.2262
+  ],
+  [
+   "worm_arbor_nx",
+   "didel_G220_arbor_nx",
+   0.2262
+  ],
+  [
+   "didel_G220_arbor_px",
+   "didel_G209_idler_px",
+   0.3174
+  ],
+  [
+   "didel_G220_arbor_nx",
+   "didel_G209_idler_nx",
+   0.3174
+  ],
+  [
+   "didel_G209_idler_px",
+   "didel_G209_rotor_px",
+   0.2752
+  ],
+  [
+   "didel_G209_idler_nx",
+   "didel_G209_rotor_nx",
+   0.2752
+  ],
+  [
+   "didel_G209_rotor_px",
+   "rotor_pin_px",
+   0.0565
+  ],
+  [
+   "didel_G209_rotor_nx",
+   "rotor_pin_nx",
+   0.0565
+  ],
+  [
+   "rotor_px",
+   "rotor_pin_px",
+   0.0775
+  ],
+  [
+   "rotor_nx",
+   "rotor_pin_nx",
+   0.0775
+  ]
+ ],
+ "outside_envelope": [
+  [
+   "disc_hub_px",
+   3.6593
+  ],
+  [
+   "disc_hub_nx",
+   3.6593
+  ],
+  [
+   "disc_pin_pxp",
+   0.0315
+  ],
+  [
+   "disc_pin_pxn",
+   0.0315
+  ],
+  [
+   "disc_pin_nxp",
+   0.0315
+  ],
+  [
+   "disc_pin_nxn",
+   0.0315
+  ]
+ ],
+ "features": [
+  {
+   "feature": "packing (0.8 x inner volume / parts volume; hand assembly needs >= 1.5)",
+   "size_mm": 1.532,
+   "px_19um": null,
+   "limit_mm": 1.5,
+   "kind": "assembly",
+   "at_risk": true
+  },
+  {
+   "feature": "leg wire 76 um: 3 % stroke of a 9.1 mm run is 0.27 mm; a thick wire needs a longer run (or a lever) for 1.25 teeth plus pawl lift",
+   "size_mm": 0.273,
+   "px_19um": null,
+   "limit_mm": 0.25,
+   "kind": "actuator",
+   "at_risk": true
+  },
+  {
+   "feature": "frame skin wall",
+   "size_mm": 0.3,
+   "px_19um": 15.8,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  },
+  {
+   "feature": "leg recess floor",
+   "size_mm": 0.3,
+   "px_19um": 15.8,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  },
+  {
+   "feature": "corner sphere cover (resin over sphere, plain faces)",
+   "size_mm": 0.08,
+   "px_19um": 4.2,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": true
+  },
+  {
+   "feature": "ring sphere cover (disc face over sphere)",
+   "size_mm": 0.08,
+   "px_19um": 4.2,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": true
+  },
+  {
+   "feature": "bayonet groove boss wall",
+   "size_mm": 0.3,
+   "px_19um": 15.8,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  },
+  {
+   "feature": "bayonet slit width (radial)",
+   "size_mm": 0.51,
+   "px_19um": 26.8,
+   "limit_mm": 0.35,
+   "kind": "hole",
+   "at_risk": false
+  },
+  {
+   "feature": "bayonet tab lip thickness (axial)",
+   "size_mm": 0.548,
+   "px_19um": 28.8,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "bayonet tab lip overhang (radial, inward)",
+   "size_mm": 0.426,
+   "px_19um": 22.4,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "bayonet tab width (tangential)",
+   "size_mm": 1.34,
+   "px_19um": 70.5,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "bolt hook tab width (fitted)",
+   "size_mm": NaN,
+   "px_19um": NaN,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": true
+  },
+  {
+   "feature": "bolt hook tab shank (along x)",
+   "size_mm": 0.6,
+   "px_19um": 31.6,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "bolt hook slot width",
+   "size_mm": 0.05,
+   "px_19um": 2.6,
+   "limit_mm": 0.35,
+   "kind": "hole",
+   "at_risk": true
+  },
+  {
+   "feature": "bolt bar section",
+   "size_mm": 0.731,
+   "px_19um": 38.5,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "bolt bar left under a partner lip (relief)",
+   "size_mm": 0.143,
+   "px_19um": 7.5,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": true
+  },
+  {
+   "feature": "rack / capstan tooth pitch",
+   "size_mm": 0.2,
+   "px_19um": 10.5,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "rack / capstan tooth width (half pitch)",
+   "size_mm": 0.1,
+   "px_19um": 5.3,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": true
+  },
+  {
+   "feature": "rack / capstan tooth height (0.4 pitch)",
+   "size_mm": 0.08,
+   "px_19um": 4.2,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": true
+  },
+  {
+   "feature": "capstan web (ring to hub)",
+   "size_mm": 0.35,
+   "px_19um": 18.4,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  },
+  {
+   "feature": "capstan axle bore (0.25 pin)",
+   "size_mm": 0.29,
+   "px_19um": 15.3,
+   "limit_mm": 0.35,
+   "kind": "hole",
+   "at_risk": true
+  },
+  {
+   "feature": "tendon drum wall around axle bore",
+   "size_mm": 0.205,
+   "px_19um": 10.8,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": true
+  },
+  {
+   "feature": "leg plate thickness",
+   "size_mm": 0.5,
+   "px_19um": 26.3,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  },
+  {
+   "feature": "leg knuckle wall around pin bore",
+   "size_mm": 0.205,
+   "px_19um": 10.8,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": true
+  },
+  {
+   "feature": "leg knuckle wall at tendon groove",
+   "size_mm": 0.105,
+   "px_19um": 5.5,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": true
+  },
+  {
+   "feature": "hinge pin bore (0.25 pin)",
+   "size_mm": 0.29,
+   "px_19um": 15.3,
+   "limit_mm": 0.35,
+   "kind": "hole",
+   "at_risk": true
+  },
+  {
+   "feature": "tip shim pocket depth",
+   "size_mm": 0.12,
+   "px_19um": 6.3,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": true
+  },
+  {
+   "feature": "pawl flexure beam",
+   "size_mm": 0.3,
+   "px_19um": 15.8,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  },
+  {
+   "feature": "pawl tooth width",
+   "size_mm": 0.1,
+   "px_19um": 5.3,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": true
+  },
+  {
+   "feature": "pawl tooth height",
+   "size_mm": 0.08,
+   "px_19um": 4.2,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": true
+  },
+  {
+   "feature": "pawl crimp-pin eye bore",
+   "size_mm": 0.35,
+   "px_19um": 18.4,
+   "limit_mm": 0.35,
+   "kind": "hole",
+   "at_risk": false
+  },
+  {
+   "feature": "pawl eye wall",
+   "size_mm": 0.3,
+   "px_19um": 15.8,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  },
+  {
+   "feature": "split-ring tooth height (2.25 m, module 0.247)",
+   "size_mm": 0.556,
+   "px_19um": 29.3,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "split-ring tooth top land (0.25 pitch)",
+   "size_mm": 0.194,
+   "px_19um": 10.2,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "split-ring tooth root width (0.62 pitch)",
+   "size_mm": 0.482,
+   "px_19um": 25.3,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "split-ring ring wall (outside the tooth roots)",
+   "size_mm": 0.5,
+   "px_19um": 26.3,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  },
+  {
+   "feature": "planet axle bore (0.25 pin)",
+   "size_mm": 0.28,
+   "px_19um": 14.7,
+   "limit_mm": 0.35,
+   "kind": "hole",
+   "at_risk": true
+  },
+  {
+   "feature": "sun shaft diameter",
+   "size_mm": 0.6,
+   "px_19um": 31.6,
+   "limit_mm": 0.12,
+   "kind": "feature",
+   "at_risk": false
+  },
+  {
+   "feature": "disc pin bore",
+   "size_mm": 0.405,
+   "px_19um": 21.3,
+   "limit_mm": 0.35,
+   "kind": "hole",
+   "at_risk": false
+  },
+  {
+   "feature": "steel insert hole",
+   "size_mm": 0.86,
+   "px_19um": 45.3,
+   "limit_mm": 0.35,
+   "kind": "hole",
+   "at_risk": false
+  },
+  {
+   "feature": "disc-pin socket",
+   "size_mm": 0.5,
+   "px_19um": 26.3,
+   "limit_mm": 0.35,
+   "kind": "hole",
+   "at_risk": false
+  },
+  {
+   "feature": "end plate ring posts",
+   "size_mm": 0.5,
+   "px_19um": 26.3,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  },
+  {
+   "feature": "carrier guide rail",
+   "size_mm": 0.3,
+   "px_19um": 15.8,
+   "limit_mm": 0.3,
+   "kind": "wall",
+   "at_risk": false
+  }
+ ],
+ "wires": [
+  {
+   "id": "XP-open-all",
+   "actuator": "leg XP capstan, open pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     -4.1,
+     1.572,
+     5.005
+    ],
+    [
+     5.004,
+     1.572,
+     5.005
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "+z",
+     -4.1,
+     1.572,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "+z",
+     5.004,
+     1.572,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "XP-close-all",
+   "actuator": "leg XP capstan, close pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     -4.1,
+     5.356,
+     1.83
+    ],
+    [
+     5.004,
+     5.356,
+     1.83
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "+y",
+     -4.1,
+     1.83,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "+y",
+     5.004,
+     1.83,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "XN-open-all",
+   "actuator": "leg XN capstan, open pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     4.1,
+     -1.572,
+     -5.005
+    ],
+    [
+     -5.004,
+     -1.572,
+     -5.005
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "-z",
+     4.1,
+     -1.572,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "-z",
+     -5.004,
+     -1.572,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "XN-close-all",
+   "actuator": "leg XN capstan, close pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     4.1,
+     -5.356,
+     -1.83
+    ],
+    [
+     -5.004,
+     -5.356,
+     -1.83
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "-y",
+     4.1,
+     -1.83,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "-y",
+     -5.004,
+     -1.83,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "DP-open-all",
+   "actuator": "leg DP capstan, open pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     4.1,
+     1.572,
+     5.005
+    ],
+    [
+     -5.004,
+     1.572,
+     5.005
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "+z",
+     4.1,
+     1.572,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "+z",
+     -5.004,
+     1.572,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "DP-close-all",
+   "actuator": "leg DP capstan, close pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     4.1,
+     5.356,
+     1.83
+    ],
+    [
+     -5.004,
+     5.356,
+     1.83
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "+y",
+     4.1,
+     1.83,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "+y",
+     -5.004,
+     1.83,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "DN-open-all",
+   "actuator": "leg DN capstan, open pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     -4.1,
+     5.005,
+     -1.572
+    ],
+    [
+     5.004,
+     5.005,
+     -1.572
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "+y",
+     -4.1,
+     -1.572,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "+y",
+     5.004,
+     -1.572,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "DN-close-all",
+   "actuator": "leg DN capstan, close pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     -4.1,
+     1.83,
+     -5.356
+    ],
+    [
+     5.004,
+     1.83,
+     -5.356
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "-z",
+     -4.1,
+     1.83,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "-z",
+     5.004,
+     1.83,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "bolt-pp",
+   "actuator": "edge bolt pp, rack drive pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     0.05,
+     4.289,
+     5.295
+    ],
+    [
+     5.08,
+     4.289,
+     5.295
+    ],
+    [
+     1.0060000000000011,
+     4.289,
+     5.295
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "+z",
+     0.05,
+     4.289,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "+z",
+     1.0060000000000011,
+     4.289,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "bolt-np",
+   "actuator": "edge bolt np, rack drive pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     0.05,
+     -5.295,
+     4.289
+    ],
+    [
+     5.08,
+     -5.295,
+     4.289
+    ],
+    [
+     1.0060000000000011,
+     -5.295,
+     4.289
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "-y",
+     0.05,
+     4.289,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "-y",
+     1.0060000000000011,
+     4.289,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "bolt-nn",
+   "actuator": "edge bolt nn, rack drive pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     0.05,
+     -4.289,
+     -5.295
+    ],
+    [
+     5.08,
+     -4.289,
+     -5.295
+    ],
+    [
+     1.0060000000000011,
+     -4.289,
+     -5.295
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "-z",
+     0.05,
+     -4.289,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "-z",
+     1.0060000000000011,
+     -4.289,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "bolt-pn",
+   "actuator": "edge bolt pn, rack drive pawl",
+   "d_um": 76,
+   "strands": 1,
+   "path": [
+    [
+     0.05,
+     5.295,
+     -4.289
+    ],
+    [
+     5.08,
+     5.295,
+     -4.289
+    ],
+    [
+     1.0060000000000011,
+     5.295,
+     -4.289
+    ]
+   ],
+   "strand_mm": 9.1,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "+y",
+     0.05,
+     -4.289,
+     "pawl crimp pin, return lead pad"
+    ],
+    [
+     "+y",
+     1.0060000000000011,
+     -4.289,
+     "flex pad"
+    ]
+   ]
+  },
+  {
+   "id": "unlock",
+   "actuator": "shared unlock of the four bolt lock pawls",
+   "d_um": 25,
+   "strands": 1,
+   "path": [
+    [
+     2.15,
+     5.295,
+     4.289
+    ],
+    [
+     2.15,
+     -4.289,
+     5.295
+    ],
+    [
+     2.15,
+     -5.295,
+     -4.289
+    ],
+    [
+     2.15,
+     4.289,
+     -5.295
+    ],
+    [
+     2.15,
+     5.295,
+     4.289
+    ]
+   ],
+   "strand_mm": 38.55,
+   "beyond_cavity_mm": 0.0,
+   "crimps": [
+    [
+     "+y",
+     1.65,
+     4.289,
+     "flex pad"
+    ],
+    [
+     "+y",
+     2.65,
+     4.289,
+     "flex pad"
+    ]
+   ]
+  }
+ ],
+ "flex": {
+  "placed": {},
+  "placed_faces": {},
+  "unplaced": [
+   "MCU CH32V003F4U6 QFN-20 3x3",
+   "IMU LIS2DW12 2x2",
+   "charger TP4054 SOT-23-5",
+   "tantalum 1206",
+   "tantalum 1206",
+   "tantalum 1206",
+   "tantalum 1206",
+   "tantalum 1206",
+   "tantalum 1206",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523",
+   "FET DMG1012T SOT-523"
+  ],
+  "ir": [
+   [
+    "IR LED 0402",
+    "+y",
+    -2.29,
+    -5.39,
+    5.44
+   ],
+   [
+    "photodiode 0402",
+    "+y",
+    -3.59,
+    4.36,
+    5.55
+   ],
+   [
+    "IR LED 0402",
+    "+z",
+    -1.54,
+    -3.04,
+    2.98
+   ],
+   [
+    "photodiode 0402",
+    "+z",
+    0.56,
+    -3.04,
+    2.98
+   ],
+   [
+    "IR LED 0402",
+    "-y",
+    -2.19,
+    4.91,
+    5.43
+   ],
+   [
+    "photodiode 0402",
+    "-y",
+    -3.49,
+    4.41,
+    5.54
+   ],
+   [
+    "IR LED 0402",
+    "-z",
+    -1.54,
+    -3.04,
+    2.98
+   ],
+   [
+    "photodiode 0402",
+    "-z",
+    -1.54,
+    2.56,
+    3.0
+   ],
+   [
+    "IR LED 0402",
+    "-x",
+    2.41,
+    4.91,
+    5.92
+   ],
+   [
+    "photodiode 0402",
+    "-x",
+    2.46,
+    -5.39,
+    5.93
+   ],
+   [
+    "IR LED 0402",
+    "+x",
+    2.41,
+    4.91,
+    5.92
+   ],
+   [
+    "photodiode 0402",
+    "+x",
+    2.46,
+    -5.39,
+    5.93
+   ]
+  ],
+  "crimp_pads": [
+   {
+    "wire": "XP-open-all",
+    "face": "+z",
+    "u": -5.09,
+    "v": 2.06,
+    "target_u": -4.1,
+    "target_v": 1.57,
+    "offset_mm": 1.1,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "XP-open-all",
+    "face": "+z",
+    "u": 5.01,
+    "v": 2.96,
+    "target_u": 5.0,
+    "target_v": 1.57,
+    "offset_mm": 1.39,
+    "what": "flex pad"
+   },
+   {
+    "wire": "XP-close-all",
+    "face": "+y",
+    "u": -5.04,
+    "v": 2.16,
+    "target_u": -4.1,
+    "target_v": 1.83,
+    "offset_mm": 1.0,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "XP-close-all",
+    "face": "+y",
+    "u": 5.11,
+    "v": 1.96,
+    "target_u": 5.0,
+    "target_v": 1.83,
+    "offset_mm": 0.17,
+    "what": "flex pad"
+   },
+   {
+    "wire": "XN-open-all",
+    "face": "-z",
+    "u": 5.11,
+    "v": -1.99,
+    "target_u": 4.1,
+    "target_v": -1.57,
+    "offset_mm": 1.09,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "XN-open-all",
+    "face": "-z",
+    "u": -4.99,
+    "v": -2.94,
+    "target_u": -5.0,
+    "target_v": -1.57,
+    "offset_mm": 1.37,
+    "what": "flex pad"
+   },
+   {
+    "wire": "XN-close-all",
+    "face": "-y",
+    "u": 5.01,
+    "v": -2.24,
+    "target_u": 4.1,
+    "target_v": -1.83,
+    "offset_mm": 1.0,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "XN-close-all",
+    "face": "-y",
+    "u": -5.09,
+    "v": -2.04,
+    "target_u": -5.0,
+    "target_v": -1.83,
+    "offset_mm": 0.23,
+    "what": "flex pad"
+   },
+   {
+    "wire": "DP-open-all",
+    "face": "+z",
+    "u": 4.21,
+    "v": 3.66,
+    "target_u": 4.1,
+    "target_v": 1.57,
+    "offset_mm": 2.09,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "DP-open-all",
+    "face": "+z",
+    "u": -4.99,
+    "v": 3.06,
+    "target_u": -5.0,
+    "target_v": 1.57,
+    "offset_mm": 1.49,
+    "what": "flex pad"
+   },
+   {
+    "wire": "DP-close-all",
+    "face": "+y",
+    "u": 2.96,
+    "v": 1.26,
+    "target_u": 4.1,
+    "target_v": 1.83,
+    "offset_mm": 1.27,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "DP-close-all",
+    "face": "+y",
+    "u": -4.99,
+    "v": 3.16,
+    "target_u": -5.0,
+    "target_v": 1.83,
+    "offset_mm": 1.33,
+    "what": "flex pad"
+   },
+   {
+    "wire": "DN-open-all",
+    "face": "+y",
+    "u": -5.09,
+    "v": -2.04,
+    "target_u": -4.1,
+    "target_v": -1.57,
+    "offset_mm": 1.1,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "DN-open-all",
+    "face": "+y",
+    "u": 5.11,
+    "v": -1.99,
+    "target_u": 5.0,
+    "target_v": -1.57,
+    "offset_mm": 0.43,
+    "what": "flex pad"
+   },
+   {
+    "wire": "DN-close-all",
+    "face": "-z",
+    "u": -4.69,
+    "v": 2.96,
+    "target_u": -4.1,
+    "target_v": 1.83,
+    "offset_mm": 1.27,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "DN-close-all",
+    "face": "-z",
+    "u": 5.11,
+    "v": 1.96,
+    "target_u": 5.0,
+    "target_v": 1.83,
+    "offset_mm": 0.17,
+    "what": "flex pad"
+   },
+   {
+    "wire": "bolt-pp",
+    "face": "+z",
+    "u": 0.86,
+    "v": 3.06,
+    "target_u": 0.05,
+    "target_v": 4.29,
+    "offset_mm": 1.47,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "bolt-pp",
+    "face": "+z",
+    "u": 2.41,
+    "v": 5.01,
+    "target_u": 1.01,
+    "target_v": 4.29,
+    "offset_mm": 1.58,
+    "what": "flex pad"
+   },
+   {
+    "wire": "bolt-np",
+    "face": "-y",
+    "u": 2.41,
+    "v": 5.01,
+    "target_u": 0.05,
+    "target_v": 4.29,
+    "offset_mm": 2.47,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "bolt-np",
+    "face": "-y",
+    "u": 3.21,
+    "v": 4.56,
+    "target_u": 1.01,
+    "target_v": 4.29,
+    "offset_mm": 2.22,
+    "what": "flex pad"
+   },
+   {
+    "wire": "bolt-nn",
+    "face": "-z",
+    "u": 0.86,
+    "v": -3.04,
+    "target_u": 0.05,
+    "target_v": -4.29,
+    "offset_mm": 1.49,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "bolt-nn",
+    "face": "-z",
+    "u": 2.46,
+    "v": -4.99,
+    "target_u": 1.01,
+    "target_v": -4.29,
+    "offset_mm": 1.61,
+    "what": "flex pad"
+   },
+   {
+    "wire": "bolt-pn",
+    "face": "+y",
+    "u": 2.46,
+    "v": -4.99,
+    "target_u": 0.05,
+    "target_v": -4.29,
+    "offset_mm": 2.51,
+    "what": "pawl crimp pin, return lead pad"
+   },
+   {
+    "wire": "bolt-pn",
+    "face": "+y",
+    "u": 3.26,
+    "v": -4.54,
+    "target_u": 1.01,
+    "target_v": -4.29,
+    "offset_mm": 2.27,
+    "what": "flex pad"
+   },
+   {
+    "wire": "unlock",
+    "face": "+y",
+    "u": 2.86,
+    "v": 4.81,
+    "target_u": 1.65,
+    "target_v": 4.29,
+    "offset_mm": 1.32,
+    "what": "flex pad"
+   },
+   {
+    "wire": "unlock",
+    "face": "+y",
+    "u": 3.66,
+    "v": 4.31,
+    "target_u": 2.65,
+    "target_v": 4.29,
+    "offset_mm": 1.01,
+    "what": "flex pad"
+   }
+  ],
+  "crimp_needed": 26,
+  "schottky": 16,
+  "coils": [
+   "+x",
+   "-x"
+  ],
+  "free_area_left_mm2": {
+   "+y": 35.9,
+   "-y": 40.8,
+   "+z": 39.1,
+   "-z": 39.2,
+   "+x": 28.9,
+   "-x": 28.9
+  }
+ },
+ "volumes_mm3": {
+  "frame": 225.439,
+  "end_plate_px": 54.844,
+  "end_plate_nx": 54.844,
+  "disc_hub_px": 102.724,
+  "disc_hub_nx": 102.724,
+  "sun_shaft_px": 6.744,
+  "sun_shaft_nx": 6.744,
+  "planet0_px": 7.679,
+  "planet0_nx": 7.679,
+  "planet1_px": 7.679,
+  "planet1_nx": 7.679,
+  "planet2_px": 7.679,
+  "planet2_nx": 7.679,
+  "didel_G220_sun_px": 15.205,
+  "didel_G220_sun_nx": 15.205,
+  "didel_GW205_px": 15.394,
+  "didel_GW205_nx": 15.394,
+  "worm_arbor_px": 1.583,
+  "worm_arbor_nx": 1.583,
+  "didel_G220_arbor_px": 12.164,
+  "didel_G220_arbor_nx": 12.164,
+  "didel_G209_idler_px": 3.041,
+  "didel_G209_idler_nx": 3.041,
+  "didel_G209_rotor_px": 3.041,
+  "didel_G209_rotor_nx": 3.041,
+  "rotor_px": 45.981,
+  "rotor_nx": 45.981,
+  "rotor_pin_px": 0.189,
+  "rotor_pin_nx": 0.189,
+  "ring_sphere_px0": 0.946,
+  "ring_sphere_px1": 0.946,
+  "ring_sphere_px2": 0.946,
+  "ring_sphere_px3": 0.946,
+  "disc_pin_pxp": 0.084,
+  "disc_pin_pxn": 0.084,
+  "ring_sphere_nx0": 0.946,
+  "ring_sphere_nx1": 0.946,
+  "ring_sphere_nx2": 0.946,
+  "ring_sphere_nx3": 0.946,
+  "disc_pin_nxp": 0.084,
+  "disc_pin_nxn": 0.084,
+  "corner_sphere_nnn": 0.215,
+  "carrier_nnn": 0.478,
+  "corner_sphere_nnp": 0.215,
+  "carrier_nnp": 0.478,
+  "corner_sphere_npn": 0.215,
+  "carrier_npn": 0.478,
+  "corner_sphere_npp": 0.215,
+  "carrier_npp": 0.478,
+  "corner_sphere_pnn": 0.215,
+  "carrier_pnn": 0.478,
+  "corner_sphere_pnp": 0.215,
+  "carrier_pnp": 0.478,
+  "corner_sphere_ppn": 0.215,
+  "carrier_ppn": 0.478,
+  "corner_sphere_ppp": 0.215,
+  "carrier_ppp": 0.478,
+  "insert_0-1-1": 0.151,
+  "insert_0-11": 0.151,
+  "insert_01-1": 0.151,
+  "insert_011": 0.151,
+  "insert_1-1-1": 0.151,
+  "insert_1-11": 0.151,
+  "insert_11-1": 0.151,
+  "insert_111": 0.151,
+  "insert_2-1-1": 0.151,
+  "insert_2-11": 0.151,
+  "insert_21-1": 0.151,
+  "insert_211": 0.151,
+  "insert_3-1-1": 0.151,
+  "insert_3-11": 0.151,
+  "insert_31-1": 0.151,
+  "insert_311": 0.151,
+  "leg_XP": 21.347,
+  "hinge_pin_XP": 0.289,
+  "tip_shim_XP": 0.296,
+  "leg_XN": 21.347,
+  "hinge_pin_XN": 0.289,
+  "tip_shim_XN": 0.296,
+  "leg_DP": 21.347,
+  "hinge_pin_DP": 0.289,
+  "tip_shim_DP": 0.296,
+  "leg_DN": 21.347,
+  "hinge_pin_DN": 0.289,
+  "tip_shim_DN": 0.296,
+  "capstan_XP": 5.847,
+  "pawl_XP0": 1.571,
+  "pawl_XP1": 1.571,
+  "pawl_XP2": 1.571,
+  "capstan_XN": 5.847,
+  "pawl_XN0": 1.571,
+  "pawl_XN1": 1.571,
+  "pawl_XN2": 1.571,
+  "capstan_DP": 5.847,
+  "pawl_DP0": 1.571,
+  "pawl_DP1": 1.571,
+  "pawl_DP2": 1.571,
+  "capstan_DN": 5.847,
+  "pawl_DN0": 1.571,
+  "pawl_DN1": 1.571,
+  "pawl_DN2": 1.571,
+  "bolt_pp": 8.254,
+  "rack_pawl_pp0": 1.571,
+  "rack_pawl_pp1": 1.571,
+  "bolt_np": 8.254,
+  "rack_pawl_np0": 1.571,
+  "rack_pawl_np1": 1.571,
+  "bolt_nn": 8.254,
+  "rack_pawl_nn0": 1.571,
+  "rack_pawl_nn1": 1.571,
+  "bolt_pn": 8.254,
+  "rack_pawl_pn0": 1.571,
+  "rack_pawl_pn1": 1.571,
+  "battery": 300.0,
+  "wire_XP-open-all": 0.066,
+  "wire_XP-close-all": 0.066,
+  "wire_XN-open-all": 0.066,
+  "wire_XN-close-all": 0.066,
+  "wire_DP-open-all": 0.066,
+  "wire_DP-close-all": 0.066,
+  "wire_DN-open-all": 0.066,
+  "wire_DN-close-all": 0.066,
+  "wire_bolt-pp": 0.036,
+  "wire_bolt-np": 0.036,
+  "wire_bolt-nn": 0.036,
+  "wire_bolt-pn": 0.036,
+  "wire_unlock": 0.061,
+  "comp_0_IR": 0.175,
+  "comp_1_photodiode": 0.175,
+  "comp_2_IR": 0.175,
+  "comp_3_photodiode": 0.175,
+  "comp_4_IR": 0.175,
+  "comp_5_photodiode": 0.175,
+  "comp_6_IR": 0.175,
+  "comp_7_photodiode": 0.175,
+  "comp_8_IR": 0.175,
+  "comp_9_photodiode": 0.175,
+  "comp_10_IR": 0.175,
+  "comp_11_photodiode": 0.175
+ },
+ "kinds": {
+  "frame": "printed",
+  "end_plate_px": "printed",
+  "end_plate_nx": "printed",
+  "disc_hub_px": "printed",
+  "disc_hub_nx": "printed",
+  "sun_shaft_px": "printed",
+  "sun_shaft_nx": "printed",
+  "planet0_px": "printed",
+  "planet0_nx": "printed",
+  "planet1_px": "printed",
+  "planet1_nx": "printed",
+  "planet2_px": "printed",
+  "planet2_nx": "printed",
+  "didel_G220_sun_px": "bought",
+  "didel_G220_sun_nx": "bought",
+  "didel_GW205_px": "bought",
+  "didel_GW205_nx": "bought",
+  "worm_arbor_px": "bought",
+  "worm_arbor_nx": "bought",
+  "didel_G220_arbor_px": "bought",
+  "didel_G220_arbor_nx": "bought",
+  "didel_G209_idler_px": "bought",
+  "didel_G209_idler_nx": "bought",
+  "didel_G209_rotor_px": "bought",
+  "didel_G209_rotor_nx": "bought",
+  "rotor_px": "bought",
+  "rotor_nx": "bought",
+  "rotor_pin_px": "bought",
+  "rotor_pin_nx": "bought",
+  "ring_sphere_px0": "bought",
+  "ring_sphere_px1": "bought",
+  "ring_sphere_px2": "bought",
+  "ring_sphere_px3": "bought",
+  "disc_pin_pxp": "bought",
+  "disc_pin_pxn": "bought",
+  "ring_sphere_nx0": "bought",
+  "ring_sphere_nx1": "bought",
+  "ring_sphere_nx2": "bought",
+  "ring_sphere_nx3": "bought",
+  "disc_pin_nxp": "bought",
+  "disc_pin_nxn": "bought",
+  "corner_sphere_nnn": "bought",
+  "carrier_nnn": "printed",
+  "corner_sphere_nnp": "bought",
+  "carrier_nnp": "printed",
+  "corner_sphere_npn": "bought",
+  "carrier_npn": "printed",
+  "corner_sphere_npp": "bought",
+  "carrier_npp": "printed",
+  "corner_sphere_pnn": "bought",
+  "carrier_pnn": "printed",
+  "corner_sphere_pnp": "bought",
+  "carrier_pnp": "printed",
+  "corner_sphere_ppn": "bought",
+  "carrier_ppn": "printed",
+  "corner_sphere_ppp": "bought",
+  "carrier_ppp": "printed",
+  "insert_0-1-1": "bought",
+  "insert_0-11": "bought",
+  "insert_01-1": "bought",
+  "insert_011": "bought",
+  "insert_1-1-1": "bought",
+  "insert_1-11": "bought",
+  "insert_11-1": "bought",
+  "insert_111": "bought",
+  "insert_2-1-1": "bought",
+  "insert_2-11": "bought",
+  "insert_21-1": "bought",
+  "insert_211": "bought",
+  "insert_3-1-1": "bought",
+  "insert_3-11": "bought",
+  "insert_31-1": "bought",
+  "insert_311": "bought",
+  "leg_XP": "printed",
+  "hinge_pin_XP": "bought",
+  "tip_shim_XP": "bought",
+  "leg_XN": "printed",
+  "hinge_pin_XN": "bought",
+  "tip_shim_XN": "bought",
+  "leg_DP": "printed",
+  "hinge_pin_DP": "bought",
+  "tip_shim_DP": "bought",
+  "leg_DN": "printed",
+  "hinge_pin_DN": "bought",
+  "tip_shim_DN": "bought",
+  "capstan_XP": "printed",
+  "pawl_XP0": "printed",
+  "pawl_XP1": "printed",
+  "pawl_XP2": "printed",
+  "capstan_XN": "printed",
+  "pawl_XN0": "printed",
+  "pawl_XN1": "printed",
+  "pawl_XN2": "printed",
+  "capstan_DP": "printed",
+  "pawl_DP0": "printed",
+  "pawl_DP1": "printed",
+  "pawl_DP2": "printed",
+  "capstan_DN": "printed",
+  "pawl_DN0": "printed",
+  "pawl_DN1": "printed",
+  "pawl_DN2": "printed",
+  "bolt_pp": "printed",
+  "rack_pawl_pp0": "printed",
+  "rack_pawl_pp1": "printed",
+  "bolt_np": "printed",
+  "rack_pawl_np0": "printed",
+  "rack_pawl_np1": "printed",
+  "bolt_nn": "printed",
+  "rack_pawl_nn0": "printed",
+  "rack_pawl_nn1": "printed",
+  "bolt_pn": "printed",
+  "rack_pawl_pn0": "printed",
+  "rack_pawl_pn1": "printed",
+  "battery": "bought",
+  "wire_XP-open-all": "wire",
+  "wire_XP-close-all": "wire",
+  "wire_XN-open-all": "wire",
+  "wire_XN-close-all": "wire",
+  "wire_DP-open-all": "wire",
+  "wire_DP-close-all": "wire",
+  "wire_DN-open-all": "wire",
+  "wire_DN-close-all": "wire",
+  "wire_bolt-pp": "wire",
+  "wire_bolt-np": "wire",
+  "wire_bolt-nn": "wire",
+  "wire_bolt-pn": "wire",
+  "wire_unlock": "wire",
+  "comp_0_IR": "component",
+  "comp_1_photodiode": "component",
+  "comp_2_IR": "component",
+  "comp_3_photodiode": "component",
+  "comp_4_IR": "component",
+  "comp_5_photodiode": "component",
+  "comp_6_IR": "component",
+  "comp_7_photodiode": "component",
+  "comp_8_IR": "component",
+  "comp_9_photodiode": "component",
+  "comp_10_IR": "component",
+  "comp_11_photodiode": "component"
+ },
+ "written": [
+  "frame.step",
+  "frame.stl",
+  "end_plate.step",
+  "end_plate.stl",
+  "end_plate_nx.step",
+  "end_plate_nx.stl",
+  "disc_hub.step",
+  "disc_hub.stl",
+  "planet.step",
+  "planet.stl",
+  "sun_shaft.step",
+  "sun_shaft.stl",
+  "leg.step",
+  "leg.stl",
+  "leg_capstan.step",
+  "leg_capstan.stl",
+  "pawl.step",
+  "pawl.stl",
+  "edge_bolt.step",
+  "edge_bolt.stl",
+  "corner_carrier.step",
+  "corner_carrier.stl",
+  "assembly.step"
+ ]
+}
