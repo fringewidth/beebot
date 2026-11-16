@@ -714,6 +714,7 @@ def main():
     parser.add_argument("--trim", type=int, default=4, help="end each run this many steps after its last instruction is met (skips the holding steps); -1 keeps them")
     parser.add_argument("--extra", nargs="*", default=[], help="move-37 candidate directories (scripts/move37_search.py: episode.json, meta.json) to append as 'beyond the teacher' segments")
     parser.add_argument("--grid", default="", help="raw-grid recordings (field_demo_record.py --physics grid, same instructions): every task then shows the same scene run in MuJoCo and on the grid (a cellular automaton) side by side")
+    parser.add_argument("--end_card", action="store_true", help="end with the card of success rates and definitions")
     parser.add_argument("--steer_frames", type=int, default=5, help="video frames per policy step in the real-time steering task (slower, so each command and the change it causes can be seen)")
     parser.add_argument("--choices", default="", help="instruction=run pairs (indices into recordings' instructions and their runs), e.g. 3=1,5=2; default the first run")
     args = parser.parse_args()
@@ -812,9 +813,10 @@ def main():
             end_lines.append(("Eating is judged by the grid rule (enough of a cheese's ring covered by robots) on the snapped positions.", 24, b"Regular", 6))
         if args.grid:
             end_lines.append(("Raw grid: the world the policy was trained in; each step every robot moves one square or stays, and a cheese moves when enough robots push it.", 24, b"Regular", 6))
-    end = card(end_lines, note)
-    video.add(end, int(END_SECONDS * FPS))
-    stills["99-end"] = end
+    if args.end_card:
+        end = card(end_lines, note)
+        video.add(end, int(END_SECONDS * FPS))
+        stills["99-end"] = end
     video.close()
     for _, entry in dropped:
         print("not shown (below half or the chosen run fails):", entry["instruction"])
