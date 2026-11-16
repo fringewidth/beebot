@@ -199,6 +199,41 @@ class Arena:
         return self.renderer.render()
 
 
+
+class CellView:
+    """The raw grid world as the policy steps it, drawn flat: one cell per square, no physics and
+    no interpolation (each step every robot jumps one square or stays), like a cellular automaton."""
+
+    def __init__(self, episode, size, view=VIEW):
+        self.episode, self.size = episode, size
+        self.cell = min(view[2], view[3]) // size
+        self.width, self.height = view[2], view[3]
+        self.walls = grid(episode["walls"], np.uint8, (size, size))
+
+    def pose(self, t):
+        step = self.episode["steps"][min(int(t), len(self.episode["steps"]) - 1)]
+        size, cell = self.size, self.cell
+        colours = np.full((size, size, 3), 236, np.uint8)
+        colours[self.walls > 0] = 90
+        for (r, c, alive), cheese in zip(step["cheeses"], self.episode["cheeses"]):
+            if alive:
+                colours[r : r + 4, c : c + 4] = (np.array(cheese["rgb"]) * 255).astype(np.uint8)
+        robots = robots_of(step)
+        colours[robots[:, 0], robots[:, 1]] = 20
+        image = Image.fromarray(colours).resize((size * cell, size * cell), Image.NEAREST)
+        draw = ImageDraw.Draw(image)
+        for k in range(size + 1):  # cell borders
+            draw.line((k * cell, 0, k * cell, size * cell), fill=(200, 200, 200), width=1)
+            draw.line((0, k * cell, size * cell, k * cell), fill=(200, 200, 200), width=1)
+        for box in self.episode["boxes"]:
+            r, c, h, w = box["rect"]
+            draw.rectangle((c * cell - 2, r * cell - 2, (c + w) * cell + 2, (r + h) * cell + 2), outline=(40, 40, 40), width=8)  # dark rim: a white box shows on the light floor
+            draw.rectangle((c * cell, r * cell, (c + w) * cell, (r + h) * cell), outline=tuple(int(255 * v) for v in box["rgb"]), width=4)
+        frame = Image.new("RGB", (self.width, self.height), "black")
+        frame.paste(image, ((self.width - size * cell) // 2, (self.height - size * cell) // 2))
+        return np.asarray(frame)
+
+
 # ---------------------------------------------------------------------------------------------
 # Matplotlib figures
 
@@ -371,7 +406,8 @@ def compose(episode, number, total, t, view, policy, field, note, physics="grid"
     draw.text((40, 26), header, fill="white", font=fitted(draw, header, 44, b"SemiBold", WIDTH - 140 - step_width))
 
     label = font(28, b"SemiBold")
-    draw.text((VIEW[0], 98), "Execution (MuJoCo physics)" if physics == "mujoco" else "Execution (physics simulation, MuJoCo render)", fill="white", font=label)
+    titles = {"mujoco": "Execution (MuJoCo physics)", "automata": "Execution (raw grid: no physics, one square per step)"}
+    draw.text((VIEW[0], 98), titles.get(physics, "Execution (physics simulation, MuJoCo render)"), fill="white", font=label)
     image.paste(Image.fromarray(view), (VIEW[0], VIEW[1]))
     draw.rectangle((VIEW[0] - 1, VIEW[1] - 1, VIEW[0] + VIEW[2], VIEW[1] + VIEW[3]), outline="white")
     caption = caption_for(episode, t)
@@ -572,6 +608,18 @@ def beyond_card(episode, meta, number, total):
     return card(lines)
 
 
+def automata_card(episode, entry, number, total):
+    """The raw-grid segment's card: the same policy on the world it was trained in."""
+    commands = commands_of(episode)
+    lines = [(f"Task {number} of {total}", 36, b"Regular", 0), ("Cellular automata", 58, b"SemiBold", 24)]
+    lines.append(("The same policy on the world it was trained in, without physics: every step each robot moves", 30, b"Regular", 24))
+    lines.append(("one square or stays, and a cheese moves one square when enough robots push it.", 30, b"Regular", 6))
+    lines.append((f"Instruction: \u201c{commands[0]['text']}\u201d", 48, b"SemiBold", 30))
+    if entry is not None:
+        lines.append((f"Succeeds in {entry['successes']}/{entry['rollouts']} rollouts on fresh scenes on the grid; shown: one of the successful runs.", 28, b"Regular", 30))
+    return card(lines)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--recordings", default=str(RECORDINGS))
@@ -583,6 +631,8 @@ def main():
     parser.add_argument("--success_log", default="", help="a field_demo_record log whose success_rate lines give the k/N shown (default: the recordings' own)")
     parser.add_argument("--trim", type=int, default=4, help="end each run this many steps after its last instruction is met (skips the holding steps); -1 keeps them")
     parser.add_argument("--extra", nargs="*", default=[], help="move-37 candidate directories (scripts/move37_search.py: episode.json, meta.json) to append as 'beyond the teacher' segments")
+    parser.add_argument("--automata", default="", help="grid recordings (field_demo_record.py --physics grid) whose first shown run is appended as the 'Cellular automata' segment; PATH or PATH:instruction=run")
+    parser.add_argument("--automata_frames", type=int, default=4, help="video frames per step in the cellular-automata segment")
     parser.add_argument("--choices", default="", help="instruction=run pairs (indices into recordings' instructions and their runs), e.g. 3=1,5=2; default the first run")
     args = parser.parse_args()
     out = Path(args.out)
@@ -597,7 +647,18 @@ def main():
     shown, dropped = shown_and_dropped(data, choices, success_rates(args.success_log) if args.success_log else {}, args.min_share)
     if args.trim >= 0:
         shown = [(trimmed(episode, args.trim), entry) for episode, entry in shown]
-    total = len(shown) + len(args.extra)
+    automata = None
+    if args.automata:
+        path, _, pick = args.automata.partition(":")
+        grid_data = json.loads(Path(path).read_text())
+        grid_choices = dict([tuple(int(v) for v in pick.split("="))]) if pick else {}
+        grid_shown, _ = shown_and_dropped(grid_data, grid_choices, {}, args.min_share)
+        if grid_shown:
+            episode, entry = grid_shown[0]
+            automata = (trimmed(episode, args.trim) if args.trim >= 0 else episode, entry, grid_data)
+        else:
+            print("cellular automata: no successful grid run to show")
+    total = len(shown) + len(args.extra) + (automata is not None)
     segments = []  # (episode, intro card, end-card line)
     for number, (episode, entry) in enumerate(shown, 1):
         line = f"{episode['instruction']}: {entry['successes']}/{entry['rollouts']}" if entry else episode["instruction"]
@@ -607,6 +668,10 @@ def main():
     for number, directory in enumerate(args.extra, len(shown) + 1):
         episode, meta = beyond_the_teacher(Path(directory))
         segments.append((episode, beyond_card(episode, meta, number, total), beyond_line(meta)))
+    if automata is not None:
+        episode, entry, _ = automata
+        line = f"cellular automata (raw grid, no physics), {episode['instruction']}: {entry['successes']}/{entry['rollouts']}"
+        segments.append((episode, automata_card(episode, entry, total, total), line))
     dummy = data.get("policy", "dummy") == "dummy"
     note = MOCK_NOTE if dummy else ""
     video = Video(out / args.name)
@@ -626,8 +691,10 @@ def main():
     for number, (episode, intro, _) in enumerate(segments, 1):
         print("task", number, episode["instruction"], flush=True)
         steering = number <= len(shown) and bool(shown[number - 1][1]) and shown[number - 1][1].get("steering")
+        cells = automata is not None and number == total
         video.add(intro, int((EXTRA_CARD_SECONDS if number > len(shown) or steering else CARD_SECONDS) * FPS))
-        arena = Arena(episode, size, side, frames_per_step, STEER_VIEW if steering else VIEW)
+        arena = CellView(episode, size) if cells else Arena(episode, size, side, frames_per_step, STEER_VIEW if steering else VIEW)
+        per_step = args.automata_frames if cells else frames_per_step
         policy_figure = PolicyFigure(episode, size)
         field_figure = FieldFigure(episode, size, data["code_vectors"], dummy, (7.0, 4.8) if steering else (7.0, 4.6))
         steps = len(episode["steps"]) - 1
@@ -637,16 +704,16 @@ def main():
         for i in range(steps + 1):
             policy = None if steering else policy_figure.draw(episode["steps"][i])
             field = field_figure.draw(episode["steps"][i])
-            sub = frames_per_step if i < steps else int(HOLD_SECONDS * FPS)
+            sub = per_step if i < steps else int(HOLD_SECONDS * FPS)
             for k in range(sub):
-                t = i + (k / frames_per_step if i < steps else 0.0)
+                t = i + (k / per_step if i < steps else 0.0)
                 if steering:
                     frame = compose_steering(episode, number, total, t, arena.pose(t), field, note, frames_per_step / FPS)
                 else:
-                    frame = compose(episode, number, total, t, arena.pose(t), policy, field, note, physics)
+                    frame = compose(episode, number, total, t, arena.pose(t), policy, field, note, "automata" if cells else physics)
                 video.add(frame)
                 for name, at in wanted.items():
-                    if abs(t - at) <= 0.5 / frames_per_step + 1e-9 and (k == 0 or float(at) != int(at)):
+                    if abs(t - at) <= 0.5 / per_step + 1e-9 and (k == 0 or float(at) != int(at)):
                         stills[f"{number:02d}-{name}"] = frame
         plt.close("all")
 
