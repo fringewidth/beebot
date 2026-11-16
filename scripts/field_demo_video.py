@@ -52,10 +52,8 @@ FIELD = (1220, 604)  # action-field figure: left, top (700 x 460)
 STEER_VIEW = (40, 170, 1160, 870)  # steering layout: 3D panel
 STEER_FIELD = (1220, 230)  # steering layout: action-field figure (700 x 480)
 PAIR_COLUMNS = (40, 980)  # paired layout: left MuJoCo, right the raw grid
-PAIR_VIEW = (900, 480)  # each world view: width, height
-PAIR_TOP, PAIR_TOP_STEER = 140, 190  # top of the world views (steering leaves room for the live instruction)
-PAIR_FIELD_TOP = 668  # action-field figures (900 x 392) under each world
-PAIR_FIELD_SIZE = (9.0, 3.92)
+PAIR_VIEW = (900, 860)  # each world view: width, height (non-steering)
+PAIR_TOP, PAIR_TOP_STEER = 150, 190  # top of the world views (steering leaves room for the live instruction)
 TYPE_SECONDS = 0.5  # a new command is typed in over this long, ending as it takes over
 MOCK_NOTE = "MOCK-UP: driven by a hand-coded dummy policy, not the trained model"
 CHANNEL_TITLES = ("0 robots", "1 walls", "2 cheese", "3 cheese colour R", "4 cheese colour G", "5 cheese colour B", "6 box", "7 box colour R", "8 box colour G", "9 box colour B")
@@ -156,7 +154,7 @@ class Arena:
         self.renderer = mujoco.Renderer(self.model, view[3], view[2])
         self.camera = mujoco.MjvCamera()
         self.camera.lookat = [size / 2, size / 2 + 0.5, 0]
-        self.camera.distance = 42
+        self.camera.distance = 42 * max(1.0, (VIEW[2] / VIEW[3]) / (view[2] / view[3]))  # back off for narrower views so the arena still fits
         self.camera.azimuth = 90
         self.camera.elevation = -50
         self.robot_ids = [self.model.body(f"robot{k}").mocapid[0] for k in range(episode["robot_count"])]
@@ -509,8 +507,8 @@ def compose_steering(episode, number, total, t, view, field, note, seconds_per_s
 
 
 def compose_pair(worlds, number, total, t, note, steering, seconds_per_step):
-    """The paired layout: the same scene run in MuJoCo (left) and on the raw grid (right), each world
-    with its own action field below. worlds: [(episode, view array, field image, title)]."""
+    """The paired layout: the same scene run in MuJoCo (left) and on the raw grid (right).
+    worlds: [(episode, view array, title)]."""
     image = Image.new("RGB", (WIDTH, HEIGHT), "black")
     draw = ImageDraw.Draw(image)
     lead = worlds[0][0]
@@ -531,60 +529,40 @@ def compose_pair(worlds, number, total, t, note, steering, seconds_per_step):
         header = f"Instruction: \u201c{commands_of(lead)[0]['text']}\u201d"
         draw.text((40, 26), header, fill="white", font=fitted(draw, header, 44, b"SemiBold", WIDTH - 140 - task_width))
     top = PAIR_TOP_STEER if steering else PAIR_TOP
-    for left, (episode, view, field, title) in zip(PAIR_COLUMNS, worlds):
-        steps = len(episode["steps"]) - 1
-        i = min(int(t), steps)
-        label = font(28, b"SemiBold")
-        draw.text((left, top - 42), title, fill="white", font=label)
-        finished = i == steps and any(len(e["steps"]) - 1 > steps for e, _, _, _ in worlds)  # waiting for the other world
-        status = f"step {i}" + (" (finished)" if finished else "")
-        if steering:
-            status += f": \u201c{commands_of(episode)[command_at(episode, i)]['text']}\u201d"
-        room = PAIR_VIEW[0] - draw.textlength(title, font=label) - 24
-        status_face = fitted(draw, status, 26, b"Regular", room)
-        draw.text((left + PAIR_VIEW[0] - draw.textlength(status, font=status_face), top - 38), status, fill=(200, 200, 200), font=status_face)
+    for left, (episode, view, title) in zip(PAIR_COLUMNS, worlds):
+        label = font(30, b"SemiBold")
+        draw.text((left, top - 44), title, fill="white", font=label)
+        if steering:  # each world switches when its own swarm has acted on the command
+            i = min(int(t), len(episode["steps"]) - 1)
+            status = f"\u201c{commands_of(episode)[command_at(episode, i)]['text']}\u201d"
+            status_face = fitted(draw, status, 26, b"Regular", PAIR_VIEW[0] - draw.textlength(title, font=label) - 24)
+            draw.text((left + PAIR_VIEW[0] - draw.textlength(status, font=status_face), top - 40), status, fill=(200, 200, 200), font=status_face)
         image.paste(Image.fromarray(view), (left, top))
         draw.rectangle((left - 1, top - 1, left + PAIR_VIEW[0], top + view.shape[0]), outline="white")
-        caption = caption_for(episode, min(t, steps))
-        if caption and not (steering and caption.startswith("new instruction")):
-            face = fitted(draw, caption, 26, b"Regular", PAIR_VIEW[0] - 40)
-            width = draw.textlength(caption, font=face)
-            x, y = left + (PAIR_VIEW[0] - width) / 2, top + view.shape[0] - 48
-            draw.rectangle((x - 10, y - 4, x + width + 10, y + 38), fill="black")
-            draw.text((x, y), caption, fill="white", font=face)
-        draw.text((left, PAIR_FIELD_TOP - 38), "Action field (policy output per square)", fill="white", font=font(24, b"SemiBold"))
-        image.paste(field, (left, PAIR_FIELD_TOP))
     if note:
         draw.text((40, HEIGHT - 36), note, fill=(200, 200, 200), font=font(22))
     return image
 
 
-def render_pair(video, stills, episode, partner, number, total, data, frames_per_step, dummy, note, steering):
+def render_pair(video, stills, episode, partner, number, total, data, frames_per_step, note, steering):
     """One task in the paired layout; both worlds advance one policy step per frames_per_step frames,
     and the one that finishes first holds its last state."""
     size, side = data["size"], data["cheese_side"]
     top = PAIR_TOP_STEER if steering else PAIR_TOP
-    view = (0, 0, PAIR_VIEW[0], PAIR_VIEW[1] - (top - PAIR_TOP) - 10 * steering)
-    worlds = [(episode, Arena(episode, size, side, frames_per_step, view), "Physics simulation (MuJoCo)"), (partner, CellView(partner, size, view), "Cellular automaton (raw grid)")]
-    fields = [FieldFigure(e, size, data["code_vectors"], dummy, PAIR_FIELD_SIZE) for e, _, _ in worlds]
+    view = (0, 0, PAIR_VIEW[0], PAIR_VIEW[1] - (top - PAIR_TOP))
+    worlds = [(episode, Arena(episode, size, side, frames_per_step, view), "Physics simulation (MuJoCo)"), (partner, CellView(partner, size, view), "Cellular automaton")]
     steps = max(len(e["steps"]) for e, _, _ in worlds) - 1
     wanted = {"mid": float(steps // 2), "final": float(steps)}
-    drawn = [None, None]  # (step, field image), redrawn when a world's step changes
     for i in range(steps + 1):
-        for w, (e, _, _) in enumerate(worlds):
-            j = min(i, len(e["steps"]) - 1)
-            if drawn[w] is None or drawn[w][0] != j:
-                drawn[w] = (j, fields[w].draw(e["steps"][j]))
         sub = frames_per_step if i < steps else int(HOLD_SECONDS * FPS)
         for k in range(sub):
             t = i + (k / frames_per_step if i < steps else 0.0)
-            views = [arena.pose(min(t, len(e["steps"]) - 1)) for e, arena, _ in worlds]
-            frame = compose_pair([(e, v, f[1], title) for (e, _, title), v, f in zip(worlds, views, drawn)], number, total, t, note, steering, frames_per_step / FPS)
+            views = [(e, arena.pose(min(t, len(e["steps"]) - 1)), title) for e, arena, title in worlds]
+            frame = compose_pair(views, number, total, t, note, steering, frames_per_step / FPS)
             video.add(frame)
             for name, at in wanted.items():
                 if k == 0 and int(at) == i:
                     stills[f"{number:02d}-{name}"] = frame
-    plt.close("all")
 
 
 def paired(shown, grid_data):
@@ -788,7 +766,7 @@ def main():
         steering = number <= len(shown) and bool(shown[number - 1][1]) and shown[number - 1][1].get("steering")
         video.add(intro, int((EXTRA_CARD_SECONDS if number > len(shown) or steering or partner else CARD_SECONDS) * FPS))
         if partner is not None:
-            render_pair(video, stills, episode, partner, number, total, data, frames_per_step, dummy, note, steering)
+            render_pair(video, stills, episode, partner, number, total, data, frames_per_step, note, steering)
             continue
         arena = Arena(episode, size, side, frames_per_step, STEER_VIEW if steering else VIEW)
         per_step = frames_per_step
