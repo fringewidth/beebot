@@ -426,7 +426,7 @@ INSTRUCTIONS = [
         "keys": ["place.box", "logic.single", "place.move"],
         "commands": [("go into the blue box", go_box("go into the blue box", "blue")), ("eat the red cheese", eat_single("eat the red cheese", "red")), ("move left", go_direction("move left", "left"))],
         "scenes": scenes_with((1, 3), (1, 3), ("red",), ("blue",)),
-        "switch": (0.5, 80),  # switch once the command has visibly taken effect; 80 steps only as a safety net
+        "switch": (0.5, 80, 15),  # switch once the command has visibly taken effect and run 15 steps; 80 steps only as a safety net
     },
 ]
 
@@ -440,9 +440,9 @@ class Rollout:
     the scene as it stands when the command is given), when it was met and when it ends."""
 
     def __init__(self, commands, scene, first, cap, hold, final_hold, switch=None):
-        """switch: (score, steps) for steering: every command but the last is replaced by the next
-        once its score reaches score (it has visibly taken effect), or after steps; None: a
-        command runs until met plus hold steps."""
+        """switch: (score, steps, dwell) for steering: every command but the last is replaced by the
+        next once its score reaches score (it has visibly taken effect) and it has run at least dwell
+        steps, or after steps; None: a command runs until met plus hold steps."""
         self.commands, self.cap, self.hold, self.final_hold, self.switch = commands, cap, hold, final_hold, switch
         self.segments = []
         self.finished_at = None
@@ -470,6 +470,8 @@ class Rollout:
             if took_effect and self.met_at is None:
                 self.met_at = t
             if not took_effect and t - self.start < self.switch[1]:
+                return False
+            if took_effect and t - self.start < self.switch[2]:  # let the new behaviour play out before the next command
                 return False
             success = took_effect
         else:

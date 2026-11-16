@@ -54,7 +54,8 @@ STEER_FIELD = (1220, 230)  # steering layout: action-field figure (700 x 480)
 PAIR_COLUMNS = (40, 980)  # paired layout: left MuJoCo, right the raw grid
 PAIR_VIEW = (900, 860)  # each world view: width, height (non-steering)
 PAIR_TOP, PAIR_TOP_STEER = 150, 190  # top of the world views (steering leaves room for the live instruction)
-TYPE_SECONDS = 0.5  # a new command is typed in over this long, ending as it takes over
+TYPE_SECONDS = 0.5
+HIGHLIGHT_SECONDS = 1.5  # a panel's command label stays bright this long after it changes  # a new command is typed in over this long, ending as it takes over
 MOCK_NOTE = "MOCK-UP: driven by a hand-coded dummy policy, not the trained model"
 CHANNEL_TITLES = ("0 robots", "1 walls", "2 cheese", "3 cheese colour R", "4 cheese colour G", "5 cheese colour B", "6 box", "7 box colour R", "8 box colour G", "9 box colour B")
 PATCH = 4
@@ -535,8 +536,10 @@ def compose_pair(worlds, number, total, t, note, steering, seconds_per_step):
         if steering:  # each world switches when its own swarm has acted on the command
             i = min(int(t), len(episode["steps"]) - 1)
             status = f"\u201c{commands_of(episode)[command_at(episode, i)]['text']}\u201d"
-            status_face = fitted(draw, status, 26, b"Regular", PAIR_VIEW[0] - draw.textlength(title, font=label) - 24)
-            draw.text((left + PAIR_VIEW[0] - draw.textlength(status, font=status_face), top - 40), status, fill=(200, 200, 200), font=status_face)
+            since = max(at for at, _ in switches(episode) if at <= i)
+            fresh = since > 0 and (t - since) * seconds_per_step < HIGHLIGHT_SECONDS  # this world just took the new command
+            status_face = fitted(draw, status, 26, b"SemiBold" if fresh else b"Regular", PAIR_VIEW[0] - draw.textlength(title, font=label) - 24)
+            draw.text((left + PAIR_VIEW[0] - draw.textlength(status, font=status_face), top - 40), status, fill="white" if fresh else (200, 200, 200), font=status_face)
         image.paste(Image.fromarray(view), (left, top))
         draw.rectangle((left - 1, top - 1, left + PAIR_VIEW[0], top + view.shape[0]), outline="white")
     if note:
@@ -648,7 +651,7 @@ def intro_card(episode, entry, number, total, physics="grid", grid_entry=None):
     if entry is not None and entry.get("steering"):
         lines.append(("Real-time steering", 58, b"SemiBold", 24))
         lines.append(("One swarm, no cuts; each instruction is replaced while the swarm is still moving,", 30, b"Regular", 24))
-        lines.append(("as soon as it takes effect (half the swarm in the box; the cheese eaten):", 30, b"Regular", 6))
+        lines.append(("once it has taken effect (half the swarm in the box; the cheese eaten):", 30, b"Regular", 6))
         lines += [(f"{k + 1}. \u201c{c['text']}\u201d", 44, b"SemiBold", 14) for k, c in enumerate(commands)]
         lines.append((scene, 28, b"Regular", 36))
         if grid_entry is not None:
@@ -711,6 +714,7 @@ def main():
     parser.add_argument("--trim", type=int, default=4, help="end each run this many steps after its last instruction is met (skips the holding steps); -1 keeps them")
     parser.add_argument("--extra", nargs="*", default=[], help="move-37 candidate directories (scripts/move37_search.py: episode.json, meta.json) to append as 'beyond the teacher' segments")
     parser.add_argument("--grid", default="", help="raw-grid recordings (field_demo_record.py --physics grid, same instructions): every task then shows the same scene run in MuJoCo and on the grid (a cellular automaton) side by side")
+    parser.add_argument("--steer_frames", type=int, default=5, help="video frames per policy step in the real-time steering task (slower, so each command and the change it causes can be seen)")
     parser.add_argument("--choices", default="", help="instruction=run pairs (indices into recordings' instructions and their runs), e.g. 3=1,5=2; default the first run")
     args = parser.parse_args()
     out = Path(args.out)
@@ -766,7 +770,7 @@ def main():
         steering = number <= len(shown) and bool(shown[number - 1][1]) and shown[number - 1][1].get("steering")
         video.add(intro, int((EXTRA_CARD_SECONDS if number > len(shown) or steering or partner else CARD_SECONDS) * FPS))
         if partner is not None:
-            render_pair(video, stills, episode, partner, number, total, data, frames_per_step, note, steering)
+            render_pair(video, stills, episode, partner, number, total, data, args.steer_frames if steering else frames_per_step, note, steering)
             continue
         arena = Arena(episode, size, side, frames_per_step, STEER_VIEW if steering else VIEW)
         per_step = frames_per_step
