@@ -58,6 +58,8 @@ SHAPE_WORDS = {"ring": "ring", "disc": "solid circle", "square": "square", "plus
 FAMILIES = ("formation", "logic", "place", "parallel", "herd", "runner")
 RUNNER_RADIUS = 6  # squares a runner senses robots within
 RUNNER_PERIOD = 2  # a runner moves at most once every this many steps: half the swarm's speed
+MOVE_NEED = 6  # squares the swarm's centre travels for a move task to score 1 (score: travel / 6)
+MOVE_MARGIN = 1  # a move task needs MOVE_NEED + MOVE_MARGIN squares of room (move_room)
 
 
 WORDINGS = {
@@ -334,6 +336,29 @@ def logic(rng, held):
     return {"cheeses": (1, 6), "boxes": (0, 2)}, make
 
 
+def move_room(scene, direction):
+    """How far (squares) the swarm's centre can travel in direction at most: its robots packed
+    onto the open squares (no wall, no cheese) furthest that way."""
+    occupied = scene["mass"] >= 0.5
+    blocked = scene["walls"].copy()
+    side = cheese_side(SIZE)
+    for y, x in scene["cheeses"]:
+        blocked[y : y + side, x : x + side] = True
+    dy, dx = DIRECTIONS[direction]
+    rows, cols = np.nonzero(~blocked)
+    furthest = np.sort(rows * dy + cols * dx)[-int(occupied.sum()) :].mean()
+    r0, c0 = np.nonzero(occupied)
+    return float(furthest - (r0.mean() * dy + c0.mean() * dx))
+
+
+def box_room(scene, rect):
+    """Whether the box can hold the share of the swarm a place task asks for (facts.BOX_IN):
+    enough squares in it that are not wall."""
+    y, x, h, w = rect
+    open_squares = int((~scene["walls"][y : y + h, x : x + w]).sum())
+    return open_squares >= BOX_IN * int((scene["mass"] >= 0.5).sum())
+
+
 def place(rng, held):
     kind = str(rng.choice(["box", "region", "move"]))
 
@@ -342,6 +367,8 @@ def place(rng, held):
             if not scene["boxes"]:
                 return None
             k = int(rng.integers(len(scene["boxes"])))
+            if not box_room(scene, scene["boxes"][k]):  # too small for the swarm
+                return None
             name = COLOUR_NAMES[scene["box_colours"][k]]
             text = say(rng, "place.box", held, b=name)
             return Task("place", text, {"box": scene["boxes"][k], "forbid": set(names(scene, scene["cheese_colours"]))}, held)
@@ -350,6 +377,8 @@ def place(rng, held):
             text = say(rng, "place.region", held, r=r)
             return Task("place", text, {"region": r, "forbid": set(names(scene, scene["cheese_colours"]))}, held)
         d = str(rng.choice(list(DIRECTIONS)))
+        if move_room(scene, d) < MOVE_NEED + MOVE_MARGIN:  # the swarm has no room to go that way
+            return None
         text = say(rng, "place.move", held, d=d)
         return Task("place", text, {"direction": d, "forbid": set(names(scene, scene["cheese_colours"]))}, held)
 
@@ -556,7 +585,7 @@ def score(task, scene, frames, eaten, found=None):
             return 0.0, unasked
         dy, dx = DIRECTIONS[spec["direction"]]
         along = (r1.mean() - r0.mean()) * dy + (c1.mean() - c0.mean()) * dx
-        return float(np.clip(along / 6, 0, 1)), unasked
+        return float(np.clip(along / MOVE_NEED, 0, 1)), unasked
     if task.family == "parallel":
         found = groups(mass) if found is None else found
         local = [(k, x) for k, x in spec["jobs"] if k in ("region", "box")]

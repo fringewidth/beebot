@@ -96,3 +96,16 @@ def test_runner_moves_away_from_robots():
     alone["runners"] = [0]
     world, runners = T.stack([alone])
     assert torch.equal(T.flee(world, runners)[0, 0], torch.tensor([14, 14]))  # senses nobody: stays
+
+
+def test_move_room_and_box_room():
+    """A swarm against the left wall has no room to move left but plenty to move right; a box
+    smaller than half the swarm cannot hold it."""
+    size = T.SIZE
+    mass = np.zeros((size, size), np.float32)
+    mass[10:20, 0:6] = 1.0  # 60 robots against the left edge
+    scene = {"mass": mass, "walls": np.zeros((size, size), bool), "cheeses": []}
+    assert T.move_room(scene, "left") < T.MOVE_NEED
+    assert T.move_room(scene, "right") > T.MOVE_NEED + T.MOVE_MARGIN
+    assert T.box_room(scene, (0, 20, 6, 6)) is True  # 36 squares hold 30 robots
+    assert T.box_room(scene, (0, 20, 5, 5)) is False  # 25 do not

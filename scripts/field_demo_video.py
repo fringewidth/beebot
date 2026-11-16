@@ -530,7 +530,7 @@ def intro_card(episode, entry, number, total, physics="grid"):
         lines.append(("as soon as it takes effect (half the swarm in the box; the cheese eaten):", 30, b"Regular", 6))
         lines += [(f"{k + 1}. \u201c{c['text']}\u201d", 44, b"SemiBold", 14) for k, c in enumerate(commands)]
         lines.append((scene, 28, b"Regular", 36))
-        lines.append((f"The last instruction is completed in {entry['final_successes']}/{entry['rollouts']} rollouts on fresh scenes{where}; every instruction takes effect in {entry['successes']}/{entry['rollouts']}.", 28, b"Regular", 10))
+        lines.append((f"The last instruction is completed in {entry['final_successes']}/{entry['rollouts']} rollouts on fresh scenes{where}.", 28, b"Regular", 10))
         return card(lines)
     if len(commands) > 1:
         lines.append((f"{len(commands)} instructions, given one after another to the same swarm:", 34, b"Regular", 24))
@@ -602,7 +602,7 @@ def main():
     for number, (episode, entry) in enumerate(shown, 1):
         line = f"{episode['instruction']}: {entry['successes']}/{entry['rollouts']}" if entry else episode["instruction"]
         if entry and entry.get("steering"):
-            line = f"real-time steering, {episode['instruction']}: last instruction completed in {entry['final_successes']}/{entry['rollouts']}, every instruction took effect in {entry['successes']}/{entry['rollouts']}"
+            line = f"real-time steering, {episode['instruction']}: last instruction completed in {entry['final_successes']}/{entry['rollouts']}"
         segments.append((episode, intro_card(episode, entry, number, total, physics), line))
     for number, directory in enumerate(args.extra, len(shown) + 1):
         episode, meta = beyond_the_teacher(Path(directory))

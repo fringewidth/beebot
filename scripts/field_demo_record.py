@@ -357,9 +357,13 @@ def form(text, mask):
 
 
 def go_box(text, b):
+    """As tasks.place's box form: None without the box, or when it cannot hold the swarm (tasks.box_room)."""
+
     def make(scene):
         rect = box_rect(scene, b)
-        return None if rect is None else T.Task("place", text, {"box": rect, "forbid": present(scene)}, "")
+        if rect is None or not T.box_room(scene, rect):
+            return None
+        return T.Task("place", text, {"box": rect, "forbid": present(scene)}, "")
 
     return make
 
@@ -369,7 +373,14 @@ def go_region(text, r):
 
 
 def go_direction(text, d):
-    return lambda scene: T.Task("place", text, {"direction": d, "forbid": present(scene)}, "")
+    """As tasks.place's move form: None when the swarm has no room to go that way (tasks.move_room)."""
+
+    def make(scene):
+        if T.move_room(scene, d) < T.MOVE_NEED + T.MOVE_MARGIN:
+            return None
+        return T.Task("place", text, {"direction": d, "forbid": present(scene)}, "")
+
+    return make
 
 
 def scenes_with(cheeses, boxes, cheese_colours=(), box_colours=(), runner="", wall_share=0.5):
@@ -415,7 +426,7 @@ INSTRUCTIONS = [
         "keys": ["place.box", "logic.single", "place.move"],
         "commands": [("go into the blue box", go_box("go into the blue box", "blue")), ("eat the red cheese", eat_single("eat the red cheese", "red")), ("move left", go_direction("move left", "left"))],
         "scenes": scenes_with((1, 3), (1, 3), ("red",), ("blue",)),
-        "switch": (0.5, 40),
+        "switch": (0.5, 80),  # switch once the command has visibly taken effect; 80 steps only as a safety net
     },
 ]
 
