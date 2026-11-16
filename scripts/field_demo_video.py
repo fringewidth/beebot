@@ -51,6 +51,11 @@ TOKENS_TOP = 466
 FIELD = (1220, 604)  # action-field figure: left, top (700 x 460)
 STEER_VIEW = (40, 170, 1160, 870)  # steering layout: 3D panel
 STEER_FIELD = (1220, 230)  # steering layout: action-field figure (700 x 480)
+PAIR_COLUMNS = (40, 980)  # paired layout: left MuJoCo, right the raw grid
+PAIR_VIEW = (900, 480)  # each world view: width, height
+PAIR_TOP, PAIR_TOP_STEER = 140, 190  # top of the world views (steering leaves room for the live instruction)
+PAIR_FIELD_TOP = 668  # action-field figures (900 x 392) under each world
+PAIR_FIELD_SIZE = (9.0, 3.92)
 TYPE_SECONDS = 0.5  # a new command is typed in over this long, ending as it takes over
 MOCK_NOTE = "MOCK-UP: driven by a hand-coded dummy policy, not the trained model"
 CHANNEL_TITLES = ("0 robots", "1 walls", "2 cheese", "3 cheese colour R", "4 cheese colour G", "5 cheese colour B", "6 box", "7 box colour R", "8 box colour G", "9 box colour B")
@@ -276,8 +281,9 @@ class FieldFigure:
         self.code_vectors = np.array(code_vectors)
         self.text = None
         self.fig = plt.figure(figsize=figsize, dpi=100)
-        side = 0.6 * figsize[0] / figsize[1]  # a square plot
-        self.ax = self.fig.add_axes((0.035, 0.97 - side, 0.6, side))
+        side = min(0.9, 0.6 * figsize[0] / figsize[1])  # a square plot, as tall as fits with its tick labels
+        self.width = side * figsize[1] / figsize[0]
+        self.ax = self.fig.add_axes((0.035, 0.97 - side, self.width, side))
         self.walls = grid(episode["walls"], np.uint8, (size, size))
         cols, rows = np.meshgrid(np.arange(size), np.arange(size))
         self.cols, self.rows = cols, rows
@@ -314,7 +320,7 @@ class FieldFigure:
             self.text.remove()
         source = "dummy policy\n\n" if self.dummy else ""
         top = 1 - 0.26 * 4.6 / self.fig.get_figheight()
-        self.text = self.fig.text(0.665, top, f"{source}arrow length 1:\nalways the same move\n\nmean max p on robots:\n{mean_peak:.2f}", fontsize=8, va="top")
+        self.text = self.fig.text(0.065 + self.width, top, f"{source}arrow length 1:\nalways the same move\n\nmean max p on robots:\n{mean_peak:.2f}", fontsize=8, va="top")
         return figure_image(self.fig)
 
 
@@ -406,8 +412,7 @@ def compose(episode, number, total, t, view, policy, field, note, physics="grid"
     draw.text((40, 26), header, fill="white", font=fitted(draw, header, 44, b"SemiBold", WIDTH - 140 - step_width))
 
     label = font(28, b"SemiBold")
-    titles = {"mujoco": "Execution (MuJoCo physics)", "automata": "Execution (raw grid: no physics, one square per step)"}
-    draw.text((VIEW[0], 98), titles.get(physics, "Execution (physics simulation, MuJoCo render)"), fill="white", font=label)
+    draw.text((VIEW[0], 98), "Execution (MuJoCo physics)" if physics == "mujoco" else "Execution (physics simulation, MuJoCo render)", fill="white", font=label)
     image.paste(Image.fromarray(view), (VIEW[0], VIEW[1]))
     draw.rectangle((VIEW[0] - 1, VIEW[1] - 1, VIEW[0] + VIEW[2], VIEW[1] + VIEW[3]), outline="white")
     caption = caption_for(episode, t)
@@ -503,6 +508,108 @@ def compose_steering(episode, number, total, t, view, field, note, seconds_per_s
     return image
 
 
+def compose_pair(worlds, number, total, t, note, steering, seconds_per_step):
+    """The paired layout: the same scene run in MuJoCo (left) and on the raw grid (right), each world
+    with its own action field below. worlds: [(episode, view array, field image, title)]."""
+    image = Image.new("RGB", (WIDTH, HEIGHT), "black")
+    draw = ImageDraw.Draw(image)
+    lead = worlds[0][0]
+    task_text = f"Task {number}/{total}"
+    face = font(36)
+    task_width = draw.textlength(task_text, font=face)
+    draw.text((WIDTH - 40 - task_width, 32), task_text, fill="white", font=face)
+    if steering:
+        draw.text((40, 14), "Instruction (changed live):", fill=(200, 200, 200), font=font(28))
+        text, typing = typed(lead, min(t, len(lead["steps"]) - 1), seconds_per_step)
+        big = font(56, b"SemiBold")
+        shown = f"\u201c{text}" + ("" if typing else "\u201d")
+        draw.text((40, 50), shown, fill="white", font=big)
+        if typing:
+            x = 40 + draw.textlength(shown, font=big) + 6
+            draw.rectangle((x, 64, x + 5, 122), fill="white")
+    else:
+        header = f"Instruction: \u201c{commands_of(lead)[0]['text']}\u201d"
+        draw.text((40, 26), header, fill="white", font=fitted(draw, header, 44, b"SemiBold", WIDTH - 140 - task_width))
+    top = PAIR_TOP_STEER if steering else PAIR_TOP
+    for left, (episode, view, field, title) in zip(PAIR_COLUMNS, worlds):
+        steps = len(episode["steps"]) - 1
+        i = min(int(t), steps)
+        label = font(28, b"SemiBold")
+        draw.text((left, top - 42), title, fill="white", font=label)
+        finished = i == steps and any(len(e["steps"]) - 1 > steps for e, _, _, _ in worlds)  # waiting for the other world
+        status = f"step {i}" + (" (finished)" if finished else "")
+        if steering:
+            status += f": \u201c{commands_of(episode)[command_at(episode, i)]['text']}\u201d"
+        room = PAIR_VIEW[0] - draw.textlength(title, font=label) - 24
+        status_face = fitted(draw, status, 26, b"Regular", room)
+        draw.text((left + PAIR_VIEW[0] - draw.textlength(status, font=status_face), top - 38), status, fill=(200, 200, 200), font=status_face)
+        image.paste(Image.fromarray(view), (left, top))
+        draw.rectangle((left - 1, top - 1, left + PAIR_VIEW[0], top + view.shape[0]), outline="white")
+        caption = caption_for(episode, min(t, steps))
+        if caption and not (steering and caption.startswith("new instruction")):
+            face = fitted(draw, caption, 26, b"Regular", PAIR_VIEW[0] - 40)
+            width = draw.textlength(caption, font=face)
+            x, y = left + (PAIR_VIEW[0] - width) / 2, top + view.shape[0] - 48
+            draw.rectangle((x - 10, y - 4, x + width + 10, y + 38), fill="black")
+            draw.text((x, y), caption, fill="white", font=face)
+        draw.text((left, PAIR_FIELD_TOP - 38), "Action field (policy output per square)", fill="white", font=font(24, b"SemiBold"))
+        image.paste(field, (left, PAIR_FIELD_TOP))
+    if note:
+        draw.text((40, HEIGHT - 36), note, fill=(200, 200, 200), font=font(22))
+    return image
+
+
+def render_pair(video, stills, episode, partner, number, total, data, frames_per_step, dummy, note, steering):
+    """One task in the paired layout; both worlds advance one policy step per frames_per_step frames,
+    and the one that finishes first holds its last state."""
+    size, side = data["size"], data["cheese_side"]
+    top = PAIR_TOP_STEER if steering else PAIR_TOP
+    view = (0, 0, PAIR_VIEW[0], PAIR_VIEW[1] - (top - PAIR_TOP) - 10 * steering)
+    worlds = [(episode, Arena(episode, size, side, frames_per_step, view), "Physics simulation (MuJoCo)"), (partner, CellView(partner, size, view), "Cellular automaton (raw grid)")]
+    fields = [FieldFigure(e, size, data["code_vectors"], dummy, PAIR_FIELD_SIZE) for e, _, _ in worlds]
+    steps = max(len(e["steps"]) for e, _, _ in worlds) - 1
+    wanted = {"mid": float(steps // 2), "final": float(steps)}
+    drawn = [None, None]  # (step, field image), redrawn when a world's step changes
+    for i in range(steps + 1):
+        for w, (e, _, _) in enumerate(worlds):
+            j = min(i, len(e["steps"]) - 1)
+            if drawn[w] is None or drawn[w][0] != j:
+                drawn[w] = (j, fields[w].draw(e["steps"][j]))
+        sub = frames_per_step if i < steps else int(HOLD_SECONDS * FPS)
+        for k in range(sub):
+            t = i + (k / frames_per_step if i < steps else 0.0)
+            views = [arena.pose(min(t, len(e["steps"]) - 1)) for e, arena, _ in worlds]
+            frame = compose_pair([(e, v, f[1], title) for (e, _, title), v, f in zip(worlds, views, drawn)], number, total, t, note, steering, frames_per_step / FPS)
+            video.add(frame)
+            for name, at in wanted.items():
+                if k == 0 and int(at) == i:
+                    stills[f"{number:02d}-{name}"] = frame
+    plt.close("all")
+
+
+def paired(shown, grid_data):
+    """Per shown (episode, entry): (grid episode, grid entry) for the same scene (seed) run on the raw
+    grid, both runs successful (the chosen MuJoCo run first, then its other runs), or (None, grid
+    entry) when no seed succeeds in both. The MuJoCo episode may change to the paired seed's run."""
+    grids = {e["instruction"]: e for e in grid_data["instructions"]}
+    out = []
+    for episode, entry in shown:
+        grid_entry = grids.get(episode["instruction"])
+        found = None
+        if grid_entry is not None:
+            by_seed = {r["seed"]: r for r in grid_entry["runs"] if r["success"]}
+            for run in [episode] + [r for r in entry["runs"] if r is not episode]:
+                if run["success"] and run.get("seed") in by_seed:
+                    found = (run, by_seed[run["seed"]])
+                    break
+        if found is None:
+            print("no scene succeeds in both worlds:", episode["instruction"])
+            out.append((episode, entry, None, grid_entry))
+        else:
+            out.append((found[0], entry, found[1], grid_entry))
+    return out
+
+
 def success_rates(path):
     """{instruction: (successes, rollouts)} from a field_demo_record log's success_rate lines."""
     rates = {}
@@ -554,7 +661,7 @@ def still_steps(episode):
     return out
 
 
-def intro_card(episode, entry, number, total, physics="grid"):
+def intro_card(episode, entry, number, total, physics="grid", grid_entry=None):
     commands = commands_of(episode)
     walls = int(grid(episode["walls"], np.uint8, (32, 32)).sum())
     scene = f"{episode['robot_count']} robots, {len(episode['cheeses'])} cheeses, {len(episode['boxes'])} boxes, {'walls' if walls else 'no walls'}"
@@ -566,7 +673,10 @@ def intro_card(episode, entry, number, total, physics="grid"):
         lines.append(("as soon as it takes effect (half the swarm in the box; the cheese eaten):", 30, b"Regular", 6))
         lines += [(f"{k + 1}. \u201c{c['text']}\u201d", 44, b"SemiBold", 14) for k, c in enumerate(commands)]
         lines.append((scene, 28, b"Regular", 36))
-        lines.append((f"The last instruction is completed in {entry['final_successes']}/{entry['rollouts']} rollouts on fresh scenes{where}.", 28, b"Regular", 10))
+        if grid_entry is not None:
+            lines.append((f"The last instruction is completed in {entry['final_successes']}/{entry['rollouts']} rollouts under MuJoCo and {grid_entry['final_successes']}/{grid_entry['rollouts']} on the raw grid (fresh scenes).", 28, b"Regular", 10))
+        else:
+            lines.append((f"The last instruction is completed in {entry['final_successes']}/{entry['rollouts']} rollouts on fresh scenes{where}.", 28, b"Regular", 10))
         return card(lines)
     if len(commands) > 1:
         lines.append((f"{len(commands)} instructions, given one after another to the same swarm:", 34, b"Regular", 24))
@@ -574,7 +684,10 @@ def intro_card(episode, entry, number, total, physics="grid"):
     else:
         lines.append((f"Instruction: “{commands[0]['text']}”", 58, b"SemiBold", 24))
     lines.append((scene, 28, b"Regular", 36))
-    if entry is not None:
+    if entry is not None and grid_entry is not None:
+        lines.append((f"Succeeds in {entry['successes']}/{entry['rollouts']} rollouts under MuJoCo and {grid_entry['successes']}/{grid_entry['rollouts']} on the raw grid (fresh scenes).", 28, b"Regular", 10))
+        lines.append(("Shown: one scene, run in both worlds.", 28, b"Regular", 6))
+    elif entry is not None:
         lines.append((f"Succeeds in {entry['successes']}/{entry['rollouts']} rollouts on fresh scenes{where}; shown: one of the successful runs.", 28, b"Regular", 10))
     return card(lines)
 
@@ -608,18 +721,6 @@ def beyond_card(episode, meta, number, total):
     return card(lines)
 
 
-def automata_card(episode, entry, number, total):
-    """The raw-grid segment's card: the same policy on the world it was trained in."""
-    commands = commands_of(episode)
-    lines = [(f"Task {number} of {total}", 36, b"Regular", 0), ("Cellular automata", 58, b"SemiBold", 24)]
-    lines.append(("The same policy on the world it was trained in, without physics: every step each robot moves", 30, b"Regular", 24))
-    lines.append(("one square or stays, and a cheese moves one square when enough robots push it.", 30, b"Regular", 6))
-    lines.append((f"Instruction: \u201c{commands[0]['text']}\u201d", 48, b"SemiBold", 30))
-    if entry is not None:
-        lines.append((f"Succeeds in {entry['successes']}/{entry['rollouts']} rollouts on fresh scenes on the grid; shown: one of the successful runs.", 28, b"Regular", 30))
-    return card(lines)
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--recordings", default=str(RECORDINGS))
@@ -631,8 +732,7 @@ def main():
     parser.add_argument("--success_log", default="", help="a field_demo_record log whose success_rate lines give the k/N shown (default: the recordings' own)")
     parser.add_argument("--trim", type=int, default=4, help="end each run this many steps after its last instruction is met (skips the holding steps); -1 keeps them")
     parser.add_argument("--extra", nargs="*", default=[], help="move-37 candidate directories (scripts/move37_search.py: episode.json, meta.json) to append as 'beyond the teacher' segments")
-    parser.add_argument("--automata", default="", help="grid recordings (field_demo_record.py --physics grid) whose first shown run is appended as the 'Cellular automata' segment; PATH or PATH:instruction=run")
-    parser.add_argument("--automata_frames", type=int, default=4, help="video frames per step in the cellular-automata segment")
+    parser.add_argument("--grid", default="", help="raw-grid recordings (field_demo_record.py --physics grid, same instructions): every task then shows the same scene run in MuJoCo and on the grid (a cellular automaton) side by side")
     parser.add_argument("--choices", default="", help="instruction=run pairs (indices into recordings' instructions and their runs), e.g. 3=1,5=2; default the first run")
     args = parser.parse_args()
     out = Path(args.out)
@@ -645,33 +745,26 @@ def main():
     frames_per_step = args.frames_per_step or data.get("frames_per_step") or 3
     choices = dict(tuple(int(v) for v in pair.split("=")) for pair in args.choices.split(",") if pair)
     shown, dropped = shown_and_dropped(data, choices, success_rates(args.success_log) if args.success_log else {}, args.min_share)
+    if args.grid:
+        pairs = paired(shown, json.loads(Path(args.grid).read_text()))
+    else:
+        pairs = [(episode, entry, None, None) for episode, entry in shown]
     if args.trim >= 0:
-        shown = [(trimmed(episode, args.trim), entry) for episode, entry in shown]
-    automata = None
-    if args.automata:
-        path, _, pick = args.automata.partition(":")
-        grid_data = json.loads(Path(path).read_text())
-        grid_choices = dict([tuple(int(v) for v in pick.split("="))]) if pick else {}
-        grid_shown, _ = shown_and_dropped(grid_data, grid_choices, {}, args.min_share)
-        if grid_shown:
-            episode, entry = grid_shown[0]
-            automata = (trimmed(episode, args.trim) if args.trim >= 0 else episode, entry, grid_data)
-        else:
-            print("cellular automata: no successful grid run to show")
-    total = len(shown) + len(args.extra) + (automata is not None)
-    segments = []  # (episode, intro card, end-card line)
-    for number, (episode, entry) in enumerate(shown, 1):
+        pairs = [(trimmed(episode, args.trim), entry, partner and trimmed(partner, args.trim), grid_entry) for episode, entry, partner, grid_entry in pairs]
+    total = len(shown) + len(args.extra)
+    segments = []  # (episode, intro card, end-card line, raw-grid episode or None)
+    for number, (episode, entry, partner, grid_entry) in enumerate(pairs, 1):
         line = f"{episode['instruction']}: {entry['successes']}/{entry['rollouts']}" if entry else episode["instruction"]
+        if entry and grid_entry:
+            line = f"{episode['instruction']}: MuJoCo {entry['successes']}/{entry['rollouts']}, raw grid {grid_entry['successes']}/{grid_entry['rollouts']}"
         if entry and entry.get("steering"):
             line = f"real-time steering, {episode['instruction']}: last instruction completed in {entry['final_successes']}/{entry['rollouts']}"
-        segments.append((episode, intro_card(episode, entry, number, total, physics), line))
+            if grid_entry:
+                line = f"real-time steering, {episode['instruction']}: last instruction completed, MuJoCo {entry['final_successes']}/{entry['rollouts']}, raw grid {grid_entry['final_successes']}/{grid_entry['rollouts']}"
+        segments.append((episode, intro_card(episode, entry, number, total, physics, grid_entry if partner else None), line, partner))
     for number, directory in enumerate(args.extra, len(shown) + 1):
         episode, meta = beyond_the_teacher(Path(directory))
-        segments.append((episode, beyond_card(episode, meta, number, total), beyond_line(meta)))
-    if automata is not None:
-        episode, entry, _ = automata
-        line = f"cellular automata (raw grid, no physics), {episode['instruction']}: {entry['successes']}/{entry['rollouts']}"
-        segments.append((episode, automata_card(episode, entry, total, total), line))
+        segments.append((episode, beyond_card(episode, meta, number, total), beyond_line(meta), None))
     dummy = data.get("policy", "dummy") == "dummy"
     note = MOCK_NOTE if dummy else ""
     video = Video(out / args.name)
@@ -684,17 +777,21 @@ def main():
         title_lines += [(line, 30, b"Regular", 50 if k == 0 else 8) for k, line in enumerate(POLICY_LINES)]
     if physics == "mujoco":
         title_lines.append(("Execution: rigid-body physics in MuJoCo; the policy sees the scene snapped to the grid.", 30, b"Regular", 8))
+    if args.grid:
+        title_lines.append(("Beside it, the same scene on the raw grid the policy was trained in: a cellular automaton.", 30, b"Regular", 8))
     title = card(title_lines, note)
     video.add(title, int(TITLE_SECONDS * FPS))
     stills["00-title"] = title
 
-    for number, (episode, intro, _) in enumerate(segments, 1):
+    for number, (episode, intro, _, partner) in enumerate(segments, 1):
         print("task", number, episode["instruction"], flush=True)
         steering = number <= len(shown) and bool(shown[number - 1][1]) and shown[number - 1][1].get("steering")
-        cells = automata is not None and number == total
-        video.add(intro, int((EXTRA_CARD_SECONDS if number > len(shown) or steering else CARD_SECONDS) * FPS))
-        arena = CellView(episode, size) if cells else Arena(episode, size, side, frames_per_step, STEER_VIEW if steering else VIEW)
-        per_step = args.automata_frames if cells else frames_per_step
+        video.add(intro, int((EXTRA_CARD_SECONDS if number > len(shown) or steering or partner else CARD_SECONDS) * FPS))
+        if partner is not None:
+            render_pair(video, stills, episode, partner, number, total, data, frames_per_step, dummy, note, steering)
+            continue
+        arena = Arena(episode, size, side, frames_per_step, STEER_VIEW if steering else VIEW)
+        per_step = frames_per_step
         policy_figure = PolicyFigure(episode, size)
         field_figure = FieldFigure(episode, size, data["code_vectors"], dummy, (7.0, 4.8) if steering else (7.0, 4.6))
         steps = len(episode["steps"]) - 1
@@ -710,7 +807,7 @@ def main():
                 if steering:
                     frame = compose_steering(episode, number, total, t, arena.pose(t), field, note, frames_per_step / FPS)
                 else:
-                    frame = compose(episode, number, total, t, arena.pose(t), policy, field, note, "automata" if cells else physics)
+                    frame = compose(episode, number, total, t, arena.pose(t), policy, field, note, physics)
                 video.add(frame)
                 for name, at in wanted.items():
                     if abs(t - at) <= 0.5 / per_step + 1e-9 and (k == 0 or float(at) != int(at)):
@@ -723,14 +820,16 @@ def main():
         end_lines += [("Mock-up", 48, b"Bold", 0), (f"Moves are sampled per square from a hand-coded dummy policy, {stepped}.", 30, b"Regular", 30)]
     else:
         rollouts = shown[0][1]["rollouts"] if shown else 0
-        where = " under MuJoCo physics" if physics == "mujoco" else ""
+        where = " under MuJoCo physics" if physics == "mujoco" and not args.grid else ""
         end_lines.append((f"Shown: selected successful runs; success over {rollouts} rollouts per instruction{where} (fresh scenes):", 30, b"SemiBold", 0))
-        for k, (_, _, line) in enumerate(segments):
+        for k, (_, _, line, _) in enumerate(segments):
             end_lines.append((line, 26, b"Regular", 16 if k == 0 else 4))
         end_lines.append(("Success: the task's own check (score >= 0.99 at the end of the run, no cheese eaten that was not asked for).", 24, b"Regular", 30))
         if physics == "mujoco":
             end_lines.append(("Robots and cheeses are rigid bodies in MuJoCo; each policy step their positions are snapped to the 32 x 32 grid the policy reads.", 24, b"Regular", 6))
             end_lines.append(("Eating is judged by the grid rule (enough of a cheese's ring covered by robots) on the snapped positions.", 24, b"Regular", 6))
+        if args.grid:
+            end_lines.append(("Raw grid: the world the policy was trained in; each step every robot moves one square or stays, and a cheese moves when enough robots push it.", 24, b"Regular", 6))
     end = card(end_lines, note)
     video.add(end, int(END_SECONDS * FPS))
     stills["99-end"] = end
