@@ -714,6 +714,7 @@ def main():
     parser.add_argument("--trim", type=int, default=4, help="end each run this many steps after its last instruction is met (skips the holding steps); -1 keeps them")
     parser.add_argument("--extra", nargs="*", default=[], help="move-37 candidate directories (scripts/move37_search.py: episode.json, meta.json) to append as 'beyond the teacher' segments")
     parser.add_argument("--grid", default="", help="raw-grid recordings (field_demo_record.py --physics grid, same instructions): every task then shows the same scene run in MuJoCo and on the grid (a cellular automaton) side by side")
+    parser.add_argument("--title_card", action="store_true", help="open with the title card (title, policy, physics)")
     parser.add_argument("--end_card", action="store_true", help="end with the card of success rates and definitions")
     parser.add_argument("--steer_frames", type=int, default=5, help="video frames per policy step in the real-time steering task (slower, so each command and the change it causes can be seen)")
     parser.add_argument("--choices", default="", help="instruction=run pairs (indices into recordings' instructions and their runs), e.g. 3=1,5=2; default the first run")
@@ -762,9 +763,10 @@ def main():
         title_lines.append(("Execution: rigid-body physics in MuJoCo; the policy sees the scene snapped to the grid.", 30, b"Regular", 8))
     if args.grid:
         title_lines.append(("Beside it, the same scene on the raw grid the policy was trained in: a cellular automaton.", 30, b"Regular", 8))
-    title = card(title_lines, note)
-    video.add(title, int(TITLE_SECONDS * FPS))
-    stills["00-title"] = title
+    if args.title_card:
+        title = card(title_lines, note)
+        video.add(title, int(TITLE_SECONDS * FPS))
+        stills["00-title"] = title
 
     for number, (episode, intro, _, partner) in enumerate(segments, 1):
         print("task", number, episode["instruction"], flush=True)
