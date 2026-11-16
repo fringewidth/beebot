@@ -183,6 +183,18 @@ def collect(policy, tokenizer, store, windows, cfg, rng, device):
 
 def lm_sampler(policy, guidance, n):
     """tasks.run's sample(obs, cond): per-square moves and the field, from the LM policy."""
+    sample_with_probs = lm_probs_sampler(policy, guidance, n)
+
+    def sample(obs, cond):
+        moves, field, _ = sample_with_probs(obs, cond)
+        return moves, field
+
+    return sample
+
+
+def lm_probs_sampler(policy, guidance, n):
+    """As lm_sampler, but sample(obs, cond) also returns the probabilities the moves are drawn
+    from (after guidance) as (B, G, G, 9), squares in grid order (the same reordering as the moves)."""
 
     def sample(obs, cond):
         ids, mask = cond
@@ -193,7 +205,8 @@ def lm_sampler(policy, guidance, n):
         moves = torch.distributions.Categorical(logits=out.float()).sample()
         b, g = len(obs), obs.shape[-1]
         codes = moves.view(b, n, n, PATCH, PATCH).permute(0, 1, 3, 2, 4).reshape(b, g, g)
-        return moves, decode_field(codes, obs.device)
+        probs = torch.softmax(out.float(), dim=-1).view(b, n, n, PATCH, PATCH, -1).permute(0, 1, 3, 2, 4, 5).reshape(b, g, g, -1)
+        return moves, decode_field(codes, obs.device), probs
 
     return sample
 
