@@ -1,6 +1,6 @@
 """Follow a Kaggle session's log into a local file while it runs (network only, light work on the Mac).
 
-    python v1/scripts/kaggle_follow.py OWNER SLUG --out logs/RUN.out [--every 180] [--window 25]
+    python v1/scripts/kaggle_follow.py OWNER SLUG --out logs/RUN.out [--every 180] [--window 25]   # OWNER or OWNER=CONFIG_DIR
 
 Every --every seconds it reads the session's log so far (kaggle_rest.logs; a running session's is an
 open event stream read for --window seconds), appends the lines not yet written to --out, and stops
@@ -53,6 +53,7 @@ def main():
     parser.add_argument("--every", type=float, default=180)
     parser.add_argument("--window", type=float, default=25)
     args = parser.parse_args()
+    args.owner = kaggle_rest.account(args.owner)  # OWNER or OWNER=CONFIG_DIR (a teammate's token folder)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     state = Path(str(out) + ".follow")

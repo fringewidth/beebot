@@ -2,7 +2,8 @@
 play and its hindsight labels are generated here (minutes of CPU), so only the code is uploaded.
 Needs internet (the model from the Hugging Face Hub) and the code dataset (beebot-src); runs that
 start from a 2D checkpoint ('--init_lora @input/<path>') also need that checkpoint's dataset.
-The driver (v1/scripts/vla_kaggle.py voxel-run) fills in RUNS, EPISODES and DEMO_SCENES. Outputs:
+The driver (v1/scripts/vla_kaggle.py voxel-run) fills in RUNS, EPISODES, DEMO_SCENES, the control topic
+and the kill switch (v1/scripts/kernel_control.py: kill, kill NAME, stop). Outputs:
 /kaggle/working/runs/<name>/ and logs/<name>.out.
 """
 
@@ -19,7 +20,9 @@ EPISODES = __EPISODES__  # scripted play episodes to generate (runs may train on
 DEMO_SCENES = __DEMO_SCENES__  # scenes of expert demonstrations of the suite (voxel/demos.py); 0 for none
 
 CONTROL_URL = "__CONTROL_URL__"  # filled in at push time (v1/scripts/run_control.py): the run's private ntfy topic; never printed
-os.environ["BEEBOT_CONTROL_URL"] = CONTROL_URL  # think_train reads it (beebot.control); an unfilled placeholder means off
+
+# __KERNEL_CONTROL__
+CONTROL = KernelControl(CONTROL_URL).start()  # also exports BEEBOT_CONTROL_URL (think_train reads it through beebot.control)
 T_KERNEL = time.time()
 KERNEL_MINUTES = 705  # Kaggle stops a session at 12 h; leave a margin
 FINAL_MINUTES = 30  # the last scorecard and checkpoint after training stops
@@ -61,20 +64,8 @@ def launch(gpu, args):
     log = open(f"/kaggle/working/logs/{name}.out", "w")
     full = [*args, "--store", store, "--labels", f"{store}/labels.jsonl", *(["--demo_store", demos, "--demo_labels", f"{demos}/labels.jsonl"] if DEMO_SCENES else []), "--device", "cuda"]
     print(f"gpu {gpu}: {name} {' '.join(full)}", flush=True)
-    return name, subprocess.Popen([sys.executable, "-m", "beebot.vla.voxel.lm", *full], env={**env, "CUDA_VISIBLE_DEVICES": str(gpu)}, cwd="/kaggle/working", stdout=log, stderr=subprocess.STDOUT)
+    process = subprocess.Popen([sys.executable, "-m", "beebot.vla.voxel.lm", *full], env={**env, "CUDA_VISIBLE_DEVICES": str(gpu)}, cwd="/kaggle/working", stdout=log, stderr=subprocess.STDOUT)
+    return name, CONTROL.track(name, process, "beebot.vla.voxel.lm")
 
 
-started = [launch(gpu, args) for gpu, args in enumerate(RUNS)]
-seen = {name: 0 for name, _ in started}
-while True:
-    for name, _ in started:
-        lines = open(f"/kaggle/working/logs/{name}.out", errors="replace").read().split("\n")
-        for line in lines[seen[name] : len(lines) - 1]:
-            if line.strip() and not any(n in line for n in ("Warning", "Loading weights", "warn")):
-                print(f"[{name}] {line if '"card"' in line else line[:900]}", flush=True)  # scorecards whole
-        seen[name] = len(lines) - 1
-    if all(p.poll() is not None for _, p in started):
-        break
-    time.sleep(30)
-for name, p in started:
-    print("exit", name, p.returncode, flush=True)
+relay([launch(gpu, args) for gpu, args in enumerate(RUNS)], noise=("Warning", "Loading weights", "warn"), width=900, whole='"card"')  # scorecards whole

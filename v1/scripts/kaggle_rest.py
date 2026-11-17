@@ -10,6 +10,7 @@ The token comes from $KAGGLE_CONFIG_DIR/access_token (default ~/.kaggle) and is 
     python v1/scripts/kaggle_rest.py logs OWNER SLUG [LINES]                # the session's log so far
     python v1/scripts/kaggle_rest.py delete OWNER SLUG                      # also drops a queued session (no cancel by slug)
     BEEBOT_CONTROL_RUN=NAME python v1/scripts/kaggle_rest.py tpu-push ...   # also fills the kernel's __CONTROL_URL__ (see run_control.py)
+                                                                         # (pushes inline the kill switch at '# __KERNEL_CONTROL__')
     python v1/scripts/kaggle_rest.py get PATH                               # GET https://www.kaggle.com/api/v1/PATH
     python v1/scripts/kaggle_rest.py handoff SOURCE SLUG TARGET [RUN]       # the TPU run's second session (handoff below)
 
@@ -83,31 +84,50 @@ def dataset_version(owner, slug, files):
     return call(f"{API}/datasets/create/version/{owner}/{slug}", {"versionNotes": "update", "deleteOldVersions": True, "convertToCsv": False, "files": tokens, "categoryIds": []})
 
 
-def tpu_push(owner, slug, path, datasets):
-    text = Path(path).read_text()
-    if os.environ.get("BEEBOT_CONTROL_RUN"):  # a control topic for the run (v1/scripts/run_control.py), put in the pushed copy only
-        sys.path.insert(0, str(Path(__file__).parent))
-        import run_control
+def kernel_text(path):
+    """The kernel to push: the kill switch inlined (a '# __KERNEL_CONTROL__' line) and, with
+    BEEBOT_CONTROL_RUN set, the run's control topic put in the pushed copy only (v1/scripts/run_control.py)."""
+    sys.path.insert(0, str(Path(__file__).parent))
+    import run_control
 
-        text = run_control.inject(text, os.environ["BEEBOT_CONTROL_RUN"])
+    return run_control.prepare(Path(path).read_text(), os.environ.get("BEEBOT_CONTROL_RUN"))
+
+
+def tpu_push(owner, slug, path, datasets):
+    text = kernel_text(path)
     body = {"slug": f"{owner}/{slug}", "newTitle": slug, "text": text, "language": "python", "kernelType": "script", "isPrivate": True, "enableGpu": False, "enableTpu": True, "enableInternet": True, "machineShape": "TpuV5E8", "datasetDataSources": [d if "/" in d else f"{owner}/{d}" for d in datasets], "kernelDataSources": [], "competitionDataSources": [], "modelDataSources": [], "categoryIds": []}
     return call(f"{RPC}/SaveKernel", body)
 
 
 def cpu_push(owner, slug, path):
     """A private CPU-only script kernel, internet on (no GPU or TPU quota): for testing the kill switch."""
-    text = Path(path).read_text()
-    if os.environ.get("BEEBOT_CONTROL_RUN"):
-        sys.path.insert(0, str(Path(__file__).parent))
-        import run_control
-
-        text = run_control.inject(text, os.environ["BEEBOT_CONTROL_RUN"])
+    text = kernel_text(path)
     body = {"slug": f"{owner}/{slug}", "newTitle": slug, "text": text, "language": "python", "kernelType": "script", "isPrivate": True, "enableGpu": False, "enableTpu": False, "enableInternet": True, "datasetDataSources": [], "kernelDataSources": [], "competitionDataSources": [], "modelDataSources": [], "categoryIds": []}
     return call(f"{RPC}/SaveKernel", body)
 
 
 def logs(owner, slug, seconds=30):
-    """The session's log so far. A running session's log is an event stream that stays open
+    """The session's log so far, as text."""
+    return "".join(entry.get("data", "") for entry in log_entries(owner, slug, seconds))
+
+
+def parse_entries(text):
+    """The entries ({"stream_name", "time", "data"}, time in seconds since the session started) of a
+    log as the API sends it: an event stream ("data: {...}" lines) or a JSON list, one entry per line."""
+    entries = []
+    for line in text.splitlines():
+        line = line.strip().removeprefix("data:").strip().lstrip("[,").rstrip("]")
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(entry, dict) and "data" in entry:
+            entries.append(entry)
+    return entries
+
+
+def log_entries(owner, slug, seconds=30):
+    """The session's log entries so far. A running session's log is an event stream that stays open
     ("data: {...}" lines): read for `seconds`, then keep what arrived; a finished one's is a JSON
     list (one entry per line, '[' or ',' first)."""
     request = urllib.request.Request(f"{RPC}/GetKernelSessionLogsStream", data=json.dumps({"userName": owner, "kernelSlug": slug}).encode(), method="POST")
@@ -123,14 +143,7 @@ def logs(owner, slug, seconds=30):
                 raw += piece
     except Exception:  # the stream's timeout or a cut chunk: what arrived is kept
         pass
-    text = []
-    for line in raw.decode(errors="replace").splitlines():
-        line = line.strip().removeprefix("data:").strip().lstrip("[,").rstrip("]")
-        try:
-            text.append(json.loads(line).get("data", ""))
-        except (ValueError, AttributeError):
-            pass
-    return "".join(text)
+    return parse_entries(raw.decode(errors="replace"))
 
 
 def account(spec):
@@ -209,6 +222,8 @@ def main():
         run = args[3] if len(args) > 3 else "think-08b-tpu"
         print(json.dumps(handoff(source, slug, target, run, "v2/scripts/kaggle_tpu/think_kernel.py", f"runs/kaggle/handoff-{slug}")))
         return
+    if command != "get" and args:
+        args[0] = account(args[0])  # OWNER=CONFIG_DIR: act with that token, as that owner
     if command == "logs":
         lines = logs(args[0], args[1]).splitlines()
         print("\n".join(lines[-int(args[2]) if len(args) > 2 else -40 :]))

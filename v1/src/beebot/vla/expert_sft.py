@@ -130,16 +130,52 @@ def overfit(args):
         print("greedy (argmax moves):", dict(zip([t.family for _, t in pairs], greedy)), flush=True)
 
 
-def fresh_policy(model, lora_rank, device):
-    """A new LoRA policy on a pretrained LM (no earlier behaviour training): for size comparisons."""
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+def fresh_policy(model, lora_rank, device, weights_dtype="fp32", random_init=False):
+    """A new LoRA policy on a pretrained LM (no earlier behaviour training): for size comparisons.
+    weights_dtype: the frozen LM weights off CUDA (fp32, or bf16 to fit a large LM); CUDA is fp16.
+    random_init: the same architecture with freshly initialised weights instead of the pretrained ones
+    (the no-pretraining control)."""
+    from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
     from beebot.vla.lm_policy import LMPolicy
 
     tokenizer = AutoTokenizer.from_pretrained(model)
     tokenizer.padding_side = "right"
-    lm = AutoModelForCausalLM.from_pretrained(model, dtype=torch.float16 if device.type == "cuda" else torch.float32)
+    dtype = torch.float16 if device.type == "cuda" else {"fp32": torch.float32, "bf16": torch.bfloat16}[weights_dtype]
+    if random_init:
+        lm = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(model), dtype=dtype)
+    else:
+        lm = AutoModelForCausalLM.from_pretrained(model, dtype=dtype)
     return LMPolicy(lm, lora_rank=lora_rank, freeze_embeddings=True).to(device), tokenizer
+
+
+def schedule_fraction(step, elapsed, max_steps, minutes):
+    """How far through the cosine schedule step is: over max_steps when it is set (every run the
+    same length in steps, however fast it goes), else over the time budget."""
+    return (step - 1) / max_steps if max_steps else min(elapsed / (minutes * 60), 1.0)
+
+
+def eval_due(step, elapsed, next_eval, eval_every_steps, max_steps):
+    """Whether to evaluate after step: every eval_every_steps steps if set, else once next_eval
+    seconds have passed; never at max_steps itself, where the final evaluation follows the loop."""
+    due = step % eval_every_steps == 0 if eval_every_steps else elapsed >= next_eval
+    return due and not (max_steps and step >= max_steps)
+
+
+@torch.no_grad()
+def held_out_losses(policy, tokenizer, stores, train_labels, val_labels, batch, val_batches, device):
+    """(held-out, fixed training) demonstration loss: the mean over val_batches fixed batches of each."""
+    policy.eval()
+
+    def loss(labels, k):
+        obs, actions, weights, texts = demo_batch(stores, labels, batch, random.Random(k), torch.Generator().manual_seed(k), device)
+        ids, mask = tokens(tokenizer, texts, device)
+        return policy.policy_loss(obs, actions, weights, text_ids=ids, text_mask=mask).item()
+
+    out = float(np.mean([loss(val_labels, k) for k in range(val_batches)]))
+    train_part = float(np.mean([loss(train_labels, 1000 + k) for k in range(val_batches)]))
+    policy.train()
+    return out, train_part
 
 
 def split_labels(labels, val_share):
@@ -166,28 +202,37 @@ def train(args):
 
     t_start = time.time()  # wall clock, setup and evaluations included (for wall_minutes)
     device = torch.device(args.device)
+    torch.manual_seed(args.seed)  # new weights and the null-text draws: the same in every run with this seed
     amp = device.type == "cuda"
     cfg = RLConfig(init_run=args.init_run, checkpoint=args.checkpoint, eval_tasks=args.eval_tasks, eval_scenes=args.eval_scenes)
     if args.fresh_model:
-        policy, tokenizer = fresh_policy(args.fresh_model, args.lora_rank, device)
-        base = {"model": args.fresh_model, "lora_rank": args.lora_rank, "freeze_embeddings": True}
+        policy, tokenizer = fresh_policy(args.fresh_model, args.lora_rank, device, args.weights_dtype, args.random_init)
+        base = {"model": args.fresh_model, "lora_rank": args.lora_rank, "freeze_embeddings": True, "random_init": args.random_init}
     else:
         policy, tokenizer = load_policy(cfg, device)
         base = {k: v for k, v in json.loads((Path(args.init_run) / "config.json").read_text()).items() if k != "expert_sft"}
+    if args.checkpointing:
+        policy.lm.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        policy.train()
     run_dir = Path("runs") / args.name
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "config.json").write_text(json.dumps({**base, "expert_sft": vars(args)}, indent=1))
+    if args.random_init:  # the random frozen weights, so the checkpoints can be scored elsewhere
+        trainable = {n for n, p in policy.named_parameters() if p.requires_grad}
+        torch.save({k: v.half() for k, v in policy.state_dict().items() if k not in trainable}, run_dir / "base_weights.pt")
     stores = [load_play_cache(path) for path in args.store]
     labels = [{**json.loads(l), "store": k} for k, path in enumerate(args.store) for l in open(Path(path) / "labels.jsonl")]
     train_labels, val_labels = split_labels(labels, args.val_share)
-    play = load_play_cache(args.play_cache)
+    play = load_play_cache(args.play_cache) if args.caption_share or not args.loss_only else None  # captions and the slow evaluations
     captions = Captions(args.captions, play, tokenizer, 128, 128) if args.caption_share else None
-    _, _, _, _, _, test_windows = load_data(Config(grid=32, data="play", play_cache=args.play_cache, val_windows=128, test_windows=512), "cpu")
-    trials = grounding.make_trials(play, test_windows, args.eval_scenes)
-    text_cfg = SimpleNamespace(general=args.general, lm_length=args.lm_length, gsm8k_share=0.2, instruct_share=0.3, seed=args.seed, gsm8k_problems=50)
-    text_chunks, held_text, _ = general_text(text_cfg, tokenizer)  # held-out text: perplexity is the forgetting signal
-    probe = {"world_probe": probe_items()}
-    suite = make_suite(cfg)
+    if not args.loss_only:  # what the slow evaluations need
+        _, _, _, _, _, test_windows = load_data(Config(grid=32, data="play", play_cache=args.play_cache, val_windows=128, test_windows=512), "cpu")
+        trials = grounding.make_trials(play, test_windows, args.eval_scenes)
+        probe = {"world_probe": probe_items()}
+        suite = make_suite(cfg)
+    if args.distill_weight or not args.loss_only:
+        text_cfg = SimpleNamespace(general=args.general, lm_length=args.lm_length, gsm8k_share=0.2, instruct_share=0.3, seed=args.seed, gsm8k_problems=50)
+        text_chunks, held_text, _ = general_text(text_cfg, tokenizer)  # held-out text: perplexity is the forgetting signal
     optimizer = torch.optim.AdamW([{"params": policy.lm_parameters(), "lr": args.lr_lm}, {"params": policy.new_parameters(), "lr": args.lr_new}], weight_decay=args.weight_decay)
     params = [p for g in optimizer.param_groups for p in g["params"]]
     scaler = torch.amp.GradScaler("cuda", enabled=amp)
@@ -199,6 +244,7 @@ def train(args):
         return torch.autocast(device.type, dtype=torch.float16, enabled=amp)
 
     def log(row):
+        row = {**({"arm": args.arm} if args.arm else {}), **row}
         print(json.dumps(row), flush=True)
         history.write(json.dumps(row) + "\n")
         history.flush()
@@ -209,22 +255,21 @@ def train(args):
         with autocast():
             return policy.policy_loss(obs, actions, weights, text_ids=ids, text_mask=mask, null=null)
 
-    @torch.no_grad()
-    def held_out_loss():
-        policy.eval()
-        out = float(np.mean([demo_loss(demo_batch(stores, val_labels, args.batch, random.Random(k), torch.Generator().manual_seed(k), device)).item() for k in range(args.val_batches)]))
-        train_part = float(np.mean([demo_loss(demo_batch(stores, train_labels, args.batch, random.Random(1000 + k), torch.Generator().manual_seed(1000 + k), device)).item() for k in range(args.val_batches)]))
-        policy.train()
-        return out, train_part
-
     def evaluate(step, minutes):
-        val, train_fixed = held_out_loss()
-        with autocast():
-            card = generalist_card(policy, tokenizer, cfg, device, suite)
-            ground = scorecard(policy, tokenizer, play, trials, cfg, device)
-        lang = language(policy, tokenizer, held_text, probe, None, device, with_gsm=False)
-        scene_qa = {"describe": describe.evaluate(policy, tokenizer, stores, val_labels, device)} if args.describe_batch else {}
-        log({"step": step, "minutes": round(minutes, 1), "demo_val_loss": round(val, 4), "demo_train_loss_fixed": round(train_fixed, 4), "language": lang, "grounding": ground, "general": card, **scene_qa})
+        losses_row = {"step": step, "minutes": round(minutes, 1)}
+        if args.val_batches:  # 0: checkpoints only, scored elsewhere (v1/scripts/scale_curve_score.py)
+            with autocast():
+                val, train_fixed = held_out_losses(policy, tokenizer, stores, train_labels, val_labels, args.batch, args.val_batches, device)
+            losses_row.update({"demo_val_loss": round(val, 4), "demo_train_loss_fixed": round(train_fixed, 4)})
+        if args.loss_only:
+            log(losses_row)
+        else:
+            with autocast():
+                card = generalist_card(policy, tokenizer, cfg, device, suite)
+                ground = scorecard(policy, tokenizer, play, trials, cfg, device)
+            lang = language(policy, tokenizer, held_text, probe, None, device, with_gsm=False)
+            scene_qa = {"describe": describe.evaluate(policy, tokenizer, stores, val_labels, device)} if args.describe_batch else {}
+            log({**losses_row, "language": lang, "grounding": ground, "general": card, **scene_qa})
         trainable = {n for n, p in policy.named_parameters() if p.requires_grad}
         weights = {k: v.half() for k, v in policy.state_dict().items() if k in trainable}
         torch.save(weights, run_dir / "policy_latest.pt")
@@ -236,10 +281,10 @@ def train(args):
     step = 0
     while True:
         elapsed = time.time() - t0 - eval_seconds
-        if elapsed > args.minutes * 60 or (args.wall_minutes and time.time() - t_start > args.wall_minutes * 60):
+        if elapsed > args.minutes * 60 or (args.wall_minutes and time.time() - t_start > args.wall_minutes * 60) or (args.max_steps and step >= args.max_steps):
             break
         step += 1
-        fraction = min(elapsed / (args.minutes * 60), 1.0)
+        fraction = schedule_fraction(step, elapsed, args.max_steps, args.minutes)
         for g, base_lr in zip(optimizer.param_groups, (args.lr_lm, args.lr_new)):
             g["lr"] = base_lr * min(1.0, step / args.warmup_steps) * (0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * fraction)))
         optimizer.zero_grad(set_to_none=True)
@@ -269,8 +314,9 @@ def train(args):
         scaler.step(optimizer)
         scaler.update()
         if step % 50 == 0:
-            log({"step": step, "minutes": round(elapsed / 60, 1), "demo_loss": round(float(np.mean(losses[-50:])), 4), **({"distill_kl": round(float(np.mean(kls[-50:])), 5)} if kls else {}), **({"describe_loss": round(float(np.mean(d_losses[-50:])), 4)} if d_losses else {})})
-        if elapsed >= next_eval:
+            memory = {"mps_driver_gb": round(torch.mps.driver_allocated_memory() / 1e9, 2)} if device.type == "mps" else {"cuda_max_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2)} if device.type == "cuda" else {}
+            log({"step": step, "minutes": round(elapsed / 60, 1), "demo_loss": round(float(np.mean(losses[-50:])), 4), **memory, **({"distill_kl": round(float(np.mean(kls[-50:])), 5)} if kls else {}), **({"describe_loss": round(float(np.mean(d_losses[-50:])), 4)} if d_losses else {})})
+        if eval_due(step, elapsed, next_eval, args.eval_every_steps, args.max_steps):
             t_eval = time.time()
             evaluate(step, elapsed / 60)
             eval_seconds += time.time() - t_eval
@@ -287,6 +333,13 @@ def main():
     parser.add_argument("--checkpoint", default="policy_best.pt")
     parser.add_argument("--fresh_model", default="", help="train: start from this pretrained LM with a new LoRA instead of init_run (size comparisons)")
     parser.add_argument("--lora_rank", type=int, default=64)
+    parser.add_argument("--weights_dtype", default="fp32", choices=["fp32", "bf16"], help="train with --fresh_model, off CUDA: the frozen LM weights' dtype (bf16 to fit a large LM)")
+    parser.add_argument("--random_init", action="store_true", help="train with --fresh_model: the same architecture with random weights (no-pretraining control)")
+    parser.add_argument("--checkpointing", action="store_true", help="train: activation checkpointing in the LM (less memory, slower)")
+    parser.add_argument("--max_steps", type=int, default=0, help="train: stop after this many optimizer steps (0: off); the learning-rate schedule then runs over steps, not minutes")
+    parser.add_argument("--eval_every_steps", type=int, default=0, help="train: evaluate every this many steps instead of every --eval_every_minutes (0: off)")
+    parser.add_argument("--loss_only", action="store_true", help="train: evaluations log only the demonstration losses (no scorecard, grounding or language) and skip their setup")
+    parser.add_argument("--arm", default="", help="train: a label added to every logged row (comparisons sharing one log)")
     parser.add_argument("--play_cache", default="data/vla/play_cache_g32")
     parser.add_argument("--play_root", default="", help="accepted for the Kaggle kernel's arguments; the cache is what is read")
     parser.add_argument("--captions", default="data/vla/kaggle_play/captions_g32.jsonl")
@@ -300,7 +353,7 @@ def main():
     parser.add_argument("--describe_weight", type=float, default=1.0)
     parser.add_argument("--null_prob", type=float, default=0.1)
     parser.add_argument("--val_share", type=float, default=0.05, help="train: last share of each store's episodes held out")
-    parser.add_argument("--val_batches", type=int, default=8)
+    parser.add_argument("--val_batches", type=int, default=8, help="train: fixed batches per demonstration loss at each evaluation (0: none, checkpoints only)")
     parser.add_argument("--eval_scenes", type=int, default=32, help="train: grounding test scenes")
     parser.add_argument("--tasks", type=int, default=4)
     parser.add_argument("--families", default="", help="overfit: comma-separated families (default: the first --tasks of place, logic, formation, parallel, herd, runner)")

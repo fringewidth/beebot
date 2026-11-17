@@ -1,5 +1,6 @@
 """Kaggle TPU v5e-8 kernel: up to 8 independent train-vla runs, one per TPU chip, in parallel.
-The driver (v1/scripts/vla_kaggle.py tpu-run) fills in RUNS. The model trains on its chip through
+The driver (v1/scripts/vla_kaggle.py tpu-run) fills in RUNS, the control topic and the kill switch
+(v1/scripts/kernel_control.py: kill, kill NAME, stop). The model trains on its chip through
 torch_xla (--device xla); data, batch sampling and evaluation run on the host CPU
 (beebot.vla.tpu). Scripted stores come pre-generated from the beebot-scripted-g32 dataset.
 Outputs: /kaggle/working/runs/<name>/ and logs/<name>.out.
@@ -15,6 +16,10 @@ import time
 
 RUNS = __RUNS__  # [[arg, ...], ...], one list of train-vla arguments per chip
 PORT = 8476
+CONTROL_URL = "__CONTROL_URL__"  # filled in at push time (v1/scripts/run_control.py): the run's private ntfy topic; never printed
+
+# __KERNEL_CONTROL__
+CONTROL = KernelControl(CONTROL_URL).start()  # polls from the first minute: a kill during setup ends the session too
 
 archives = glob.glob("/kaggle/input/**/beebot-src.tar.gz", recursive=True)
 if archives:
@@ -44,7 +49,7 @@ print("cpus", os.cpu_count(), flush=True)
 
 os.makedirs("/kaggle/working/logs", exist_ok=True)
 threads = max(1, (os.cpu_count() or 8) // max(1, len(RUNS)))
-processes = []
+started = []
 for chip, args in enumerate(RUNS):
     name = args[args.index("--name") + 1]
     env = {
@@ -60,11 +65,10 @@ for chip, args in enumerate(RUNS):
     }
     log = open(f"/kaggle/working/logs/{name}.out", "w")
     print(f"chip {chip}: {name} {' '.join(args)}", flush=True)
-    processes.append(subprocess.Popen([sys.executable, "-m", "beebot.vla.train", *args, "--device", "xla"], env=env, cwd="/kaggle/working", stdout=log, stderr=subprocess.STDOUT))
+    process = subprocess.Popen([sys.executable, "-m", "beebot.vla.train", *args, "--device", "xla"], env=env, cwd="/kaggle/working", stdout=log, stderr=subprocess.STDOUT)
+    started.append((name, CONTROL.track(name, process, "beebot.vla.train")))
     time.sleep(5)
-for p in processes:
-    p.wait()
-    print("exit", p.returncode, flush=True)
+relay(started)  # the runs' lines live as "[name] ...", then "exit NAME CODE"
 for path in glob.glob("/kaggle/working/logs/*.out"):
     print(f"==== {path}", flush=True)
     print("".join(open(path).readlines()[-40:]), flush=True)

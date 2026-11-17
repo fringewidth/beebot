@@ -10,6 +10,10 @@
     uv run python v1/scripts/vla_kaggle.py pull SLUG                 # outputs to runs/kaggle/SLUG/
     uv run python v1/scripts/vla_kaggle.py quota                     # weekly GPU and TPU hours left
 
+Every pushed kernel carries a kill switch (v1/scripts/kernel_control.py) on a private ntfy topic named after
+the slug, made automatically (--no-control: none; --control NAME: another name). Then follow it from the Mac
+with v1/scripts/kaggle_watch.py and end it with `run_control.py kill SLUG` (v1/AGENTS.md, Running).
+
 On GPU each run generates its scripted data on its own GPU, so nothing but code is uploaded. On
 TPU the scripted g32 stores come from the private dataset SCRIPTED_SLUG (data generation on the
 TPU host's CPU is slow), and the model trains through torch_xla (beebot.vla.tpu). Kaggle kernels
@@ -28,7 +32,7 @@ WORK = Path("data/vla/kaggle_train")
 TEMPLATE = Path(__file__).with_name("kaggle_train") / "kernel_template.py"
 TPU_TEMPLATE = Path(__file__).with_name("kaggle_tpu") / "kernel_template.py"
 LM_TEMPLATE = Path(__file__).with_name("kaggle_lm") / "kernel_template.py"
-VOXEL_TEMPLATE = Path(__file__).with_name("kaggle_voxel") / "kernel_template.py"
+VOXEL_TEMPLATE = Path(__file__).parents[2] / "v2" / "scripts" / "kaggle_voxel" / "kernel_template.py"
 PLAY_SLUG = "beebot-play-g32"
 CODE_SLUG = "beebot-src"
 SCRIPTED_SLUG = "beebot-scripted-g32"
@@ -60,7 +64,7 @@ def code():
         kaggle("datasets", "create", "-p", str(dataset))
 
 
-def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None, data_owner=None, ddp=False, play=False, module="beebot.vla.lm_train", voxel_episodes=0, demo_scenes=0, control=None):
+def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None, data_owner=None, ddp=False, play=False, module="beebot.vla.lm_train", voxel_episodes=0, demo_scenes=0, control=None, fla=False):
     user = username()
     owner = data_owner or user  # whose datasets to mount (shared privately when a teammate runs the kernel)
     kernel = WORK / slug
@@ -70,12 +74,11 @@ def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None
     assert not ddp or lm, "ddp: lm-run only (each run on both GPUs, one after another)"
     template = VOXEL_TEMPLATE if voxel_episodes else TPU_TEMPLATE if tpu else LM_TEMPLATE if lm else TEMPLATE
     assert not play or template == TEMPLATE, "play: train-vla runs on GPU only"
-    text = template.read_text()
-    if control:  # the run's private control topic goes into the pushed (private) kernel only
-        import run_control
+    import run_control
 
-        text = run_control.inject(text, control)
-    (kernel / "kernel.py").write_text(text.replace("__RUNS__", json.dumps(runs)).replace("__DDP__", str(ddp)).replace("__PLAY__", str(play)).replace("__MODULE__", module).replace("__EPISODES__", str(voxel_episodes)).replace("__DEMO_SCENES__", str(demo_scenes)))
+    # The kill switch inlined; the run's private control topic goes into the pushed (private) kernel only.
+    text = run_control.prepare(template.read_text(), control)
+    (kernel / "kernel.py").write_text(text.replace("__RUNS__", json.dumps(runs)).replace("__DDP__", str(ddp)).replace("__PLAY__", str(play)).replace("__MODULE__", module).replace("__EPISODES__", str(voxel_episodes)).replace("__DEMO_SCENES__", str(demo_scenes)).replace("__FLA__", str(fla)))
     meta = {
         "id": f"{user}/{slug}",
         "title": slug,
@@ -106,6 +109,8 @@ def run(slug, run_args, tpu=False, lm=False, from_kernel=None, from_dataset=None
         meta["dataset_sources"] += [d if "/" in d else f"{owner}/{d}" for d in from_dataset.split(",")]
     (kernel / "kernel-metadata.json").write_text(json.dumps(meta))
     kaggle("kernels", "push", "-p", str(kernel))
+    if control:
+        print(f"kill switch: v1/scripts/run_control.py kill {control} (or 'kill {control} ARM', 'stop {control}'); watch: v1/scripts/kaggle_watch.py {user} {slug}", flush=True)
 
 
 def main():
@@ -119,16 +124,19 @@ def main():
     parser.add_argument("--module", default="beebot.vla.lm_train", help="lm-run: the trainer module (beebot.vla.lm_rl for RL)")
     parser.add_argument("--play", action="store_true", help="run: train on the play data and caption set (datasets beebot-play-g32, beebot-caption-set-g32)")
     parser.add_argument("--from-dataset", help="lm-run: mount these datasets too, comma-separated (e.g. checkpoints of a cancelled kernel, which Kaggle will not mount)")
+    parser.add_argument("--fla", action="store_true", help="lm-run: install flash-linear-attention (fused kernels for Qwen3.5's linear-attention layers)")
     parser.add_argument("--episodes", type=int, default=12000, help="voxel-run: scripted episodes the kernel generates")
     parser.add_argument("--demo-scenes", type=int, default=0, help="voxel-run: scenes of expert suite demonstrations the kernel generates")
-    parser.add_argument("--control", help="run name: a private ntfy control topic (v1/scripts/run_control.py) is put into the pushed kernel (voxel-run)")
+    parser.add_argument("--control", help="the control topic's run name (v1/scripts/run_control.py); default the slug")
+    parser.add_argument("--no-control", action="store_true", help="push without a control topic (the kernel's kill switch is off)")
     args = parser.parse_args()
+    control = None if args.no_control else args.control or args.slug
     if args.command == "code":
         code()
     elif args.command in ("run", "tpu-run", "lm-run"):
-        run(args.slug, args.runs, tpu=args.command == "tpu-run", lm=args.command == "lm-run", from_kernel=args.from_kernel, from_dataset=args.from_dataset, data_owner=args.data_owner, ddp=args.ddp, play=args.play, module=args.module)
+        run(args.slug, args.runs, tpu=args.command == "tpu-run", lm=args.command == "lm-run", from_kernel=args.from_kernel, from_dataset=args.from_dataset, data_owner=args.data_owner, ddp=args.ddp, play=args.play, module=args.module, fla=args.fla, control=control)
     elif args.command == "voxel-run":
-        run(args.slug, args.runs, from_dataset=args.from_dataset, data_owner=args.data_owner, voxel_episodes=args.episodes, demo_scenes=args.demo_scenes, control=args.control)
+        run(args.slug, args.runs, from_dataset=args.from_dataset, data_owner=args.data_owner, voxel_episodes=args.episodes, demo_scenes=args.demo_scenes, control=control)
     elif args.command == "status":
         kaggle("kernels", "status", f"{username()}/{args.slug}")
     elif args.command == "logs":

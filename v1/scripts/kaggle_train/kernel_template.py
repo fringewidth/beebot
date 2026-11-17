@@ -1,7 +1,8 @@
 """Kaggle kernel: run up to one train-vla experiment per GPU, in parallel, on scripted data that
 each run generates on its own GPU, or (PLAY) on the play data (beebot-play-g32) with the caption
 set (beebot-caption-set-g32), cached once on local disk and memory-mapped by every run. The driver
-(v1/scripts/vla_kaggle.py) fills in RUNS and PLAY. Outputs: /kaggle/working/runs/<name>/ (config,
+(v1/scripts/vla_kaggle.py) fills in RUNS, PLAY, the control topic and the kill switch
+(v1/scripts/kernel_control.py: kill, kill NAME, stop). Outputs: /kaggle/working/runs/<name>/ (config,
 val history, summary, checkpoints) and logs/<name>.out.
 """
 
@@ -15,6 +16,10 @@ import time
 
 RUNS = __RUNS__  # [[arg, ...], ...], one list of train-vla arguments per GPU
 PLAY = __PLAY__  # True: train on the play data and caption set (both appended to every run's arguments)
+CONTROL_URL = "__CONTROL_URL__"  # filled in at push time (v1/scripts/run_control.py): the run's private ntfy topic; never printed
+
+# __KERNEL_CONTROL__
+CONTROL = KernelControl(CONTROL_URL).start()  # polls from the first minute: a kill during setup ends the session too
 
 
 def find(name, max_depth=7):
@@ -52,16 +57,15 @@ if PLAY:
     episodes = cache_play(run_dirs(play_root, size=32), "/tmp/play_cache")
     print(f"play cache: {episodes} episodes in {(time.time() - t0) / 60:.1f} min", flush=True)
     RUNS = [[*args, "--data", "play", "--play_cache", "/tmp/play_cache", "--captions", caption_set] for args in RUNS]
-processes = []
+started = []
 for gpu, args in enumerate(RUNS):
     name = args[args.index("--name") + 1]
     env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu), "PYTHONPATH": "/kaggle/working/code/src"}
     log = open(f"/kaggle/working/logs/{name}.out", "w")
     print(f"gpu {gpu}: {name} {' '.join(args)}", flush=True)
-    processes.append(subprocess.Popen([sys.executable, "-m", "beebot.vla.train", *args, "--device", "cuda"], env=env, cwd="/kaggle/working", stdout=log, stderr=subprocess.STDOUT))
-for p in processes:
-    p.wait()
-    print("exit", p.returncode, flush=True)
+    process = subprocess.Popen([sys.executable, "-m", "beebot.vla.train", *args, "--device", "cuda"], env=env, cwd="/kaggle/working", stdout=log, stderr=subprocess.STDOUT)
+    started.append((name, CONTROL.track(name, process, "beebot.vla.train")))
+relay(started)  # the runs' lines live as "[name] ...", then "exit NAME CODE"
 for path in glob.glob("/kaggle/working/logs/*.out"):
     print(f"==== {path}", flush=True)
     print("".join(open(path).readlines()[-40:]), flush=True)

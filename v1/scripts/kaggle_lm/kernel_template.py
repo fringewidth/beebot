@@ -1,11 +1,13 @@
 """Kaggle kernel: fine-tune Qwen3 as the readout policy (beebot.vla.lm_train), one run per T4.
 Needs internet (the model, FineWeb-Edu and GSM8K come from the Hugging Face Hub) and two
 datasets: the code (beebot-src) and the play data with its captions (beebot-play-g32).
-The driver (v1/scripts/vla_kaggle.py lm-run) fills in RUNS. Outputs: /kaggle/working/runs/<name>/
-and logs/<name>.out.
+The driver (v1/scripts/vla_kaggle.py lm-run) fills in RUNS, the control topic and the kill switch
+(v1/scripts/kernel_control.py: kill, kill NAME, stop). Outputs: /kaggle/working/runs/<name>/ and
+logs/<name>.out.
 """
 
 import glob
+import hashlib
 import os
 import shutil
 import subprocess
@@ -16,8 +18,20 @@ import time
 RUNS = __RUNS__  # [[arg, ...], ...], one list of trainer arguments per GPU (DDP: per run, in order)
 DDP = __DDP__  # True: the runs one after another, each on every GPU through torchrun
 MODULE = "__MODULE__"  # the default trainer: beebot.vla.lm_train or beebot.vla.lm_rl; a run's own "--module X" overrides it
+FAST_LINEAR_ATTENTION = __FLA__  # True: try the fused kernels for Qwen3.5's linear-attention layers (else transformers' plain PyTorch path)
+CONTROL_URL = "__CONTROL_URL__"  # filled in at push time (v1/scripts/run_control.py): the run's private ntfy topic; never printed
+
+# __KERNEL_CONTROL__
+CONTROL = KernelControl(CONTROL_URL).start()  # polls from the first minute: a kill during setup ends the session too
 
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "transformers==5.22.1", "datasets"], check=False)
+if FAST_LINEAR_ATTENTION:
+    t_fla = time.time()
+    # --no-deps: never let it replace the image's torch. causal-conv1d is left out: it compiles from source
+    # on Kaggle's torch (over 10 minutes, 2026-11-17), and its plain PyTorch fallback is a cheap 4-tap conv.
+    # flash-linear-attention's Triton kernels compile on first use: about 10-15 minutes before the first steps.
+    fla = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--no-deps", "fla-core", "flash-linear-attention", "einops"], check=False).returncode
+    print(f"fast linear attention: flash-linear-attention exit {fla}, in {time.time() - t_fla:.0f} s", flush=True)
 t_setup = time.time()
 
 
@@ -36,15 +50,22 @@ if archives:
 else:
     package = find("beebot/vla/train.py", 8)[0]
     shutil.copytree(package.rsplit("/beebot/vla/train.py", 1)[0], "/kaggle/working/code/src")
+def needs_play(args):
+    """expert_sft with --loss_only and --caption_share 0 never reads the play data."""
+    return not ("--loss_only" in args and "--caption_share" in args and float(args[args.index("--caption_share") + 1]) == 0)
+
+
 play = find("beebot-play-g32.tar.gz")
-if play:
+if play and any(needs_play(a) for a in RUNS):
     tarfile.open(play[0]).extractall("/kaggle/working/data")
     play_root = "/kaggle/working/data/beebot-play-g32"
-else:
+elif not play:
     # Kaggle unpacks the uploaded tarball, sometimes several directories deeper: the root is the
     # directory holding the player directories (haiku-1, luna-2, ...).
     play_root = sorted(find("haiku-1", 7), key=len)[0].rsplit("/", 1)[0]
-captions = find("captions_g32.jsonl")[0]
+else:
+    play_root = ""  # no run reads it
+captions =find("captions_g32.jsonl")[0]
 # Files from a previous kernel or a checkpoint dataset, resolved now so a missing one fails before
 # the play cache is built.
 # Extra data packed as a beebot-extra*.tar archive (expert stores, a starting checkpoint): unpacked here
@@ -71,6 +92,7 @@ def local(path):
     target = "/tmp/stores/" + path.rstrip("/").rsplit("/", 1)[1]
     if not os.path.exists(target):
         shutil.copytree(path, target)
+        print(target, "labels md5", hashlib.md5(open(target + "/labels.jsonl", "rb").read()).hexdigest(), flush=True)
     return target
 
 
@@ -93,8 +115,9 @@ from beebot.vla.play_data import cache_play, run_dirs  # noqa: E402
 
 t0 = time.time()
 cache = "/tmp/play_cache"
-episodes = cache_play(run_dirs(play_root, size=32), cache)
-print(f"play cache: {episodes} episodes in {(time.time() - t0) / 60:.1f} min", flush=True)
+if any(needs_play(a) for a in RUNS):
+    episodes = cache_play(run_dirs(play_root, size=32), cache)
+    print(f"play cache: {episodes} episodes in {(time.time() - t0) / 60:.1f} min", flush=True)
 os.makedirs("/kaggle/working/logs", exist_ok=True)
 noise = ("Warning", "Loading weights", "it/s]", "split:", "warn", "s/it]")
 
@@ -114,32 +137,17 @@ def launch(gpu, args):
     full = [*args, "--play_root", play_root, "--play_cache", cache, *([] if "--captions" in args else ["--captions", captions]), "--device", "cuda"]
     launcher = [sys.executable, "-m", "torch.distributed.run", "--standalone", "--nproc_per_node", str(torch.cuda.device_count())] if DDP else [sys.executable]
     print(f"{'all gpus' if DDP else f'gpu {gpu}'}: {name} {' '.join(full)}", flush=True)
-    return name, subprocess.Popen([*launcher, "-m", module, *full], env=env, cwd="/kaggle/working", stdout=log, stderr=subprocess.STDOUT)
+    return name, CONTROL.track(name, subprocess.Popen([*launcher, "-m", module, *full], env=env, cwd="/kaggle/working", stdout=log, stderr=subprocess.STDOUT), module)
 
 
-def relay(started):
-    """Kaggle shows only this script's output while it runs: relay the runs' progress lines live
-    until every run has exited."""
-    seen = {name: 0 for name, _ in started}
-    while True:
-        for name, _ in started:
-            lines = open(f"/kaggle/working/logs/{name}.out", errors="replace").read().split("\n")
-            for line in lines[seen[name] : len(lines) - 1]:
-                if line.strip() and not any(n in line for n in noise):
-                    print(f"[{name}] {line[:600]}", flush=True)
-            seen[name] = len(lines) - 1
-        if all(p.poll() is not None for _, p in started):
-            break
-        time.sleep(30)
-    for name, p in started:
-        print("exit", name, p.returncode, flush=True)
-
-
+# Kaggle shows only this script's output while it runs: relay() prints the runs' lines live as "[name] ...".
 if DDP:  # one run at a time, each on every GPU
     for args in RUNS:
-        relay([launch(None, args)])
+        if CONTROL.stopping:  # "stop" was sent: no further runs
+            break
+        relay([launch(None, args)], noise=noise)
 else:  # one run per GPU, side by side
-    relay([launch(gpu, args) for gpu, args in enumerate(RUNS)])
+    relay([launch(gpu, args) for gpu, args in enumerate(RUNS)], noise=noise)
 for path in glob.glob("/kaggle/working/logs/*.out"):
     print(f"==== {path}", flush=True)
     print("".join(open(path).readlines()[-60:]), flush=True)

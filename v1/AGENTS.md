@@ -65,6 +65,26 @@ All commands run from the repo root.
 1. Kaggle: `uv run python v1/scripts/vla_kaggle.py code` uploads the source (all four parts merged into one
    `src/`, since `beebot` is split over them), then `run`, `status`, `logs`, `pull`, `quota`. No
    evaluations on Kaggle (root `AGENTS.md`).
+1. Every Kaggle launch is followed by a watcher, started in the background (`run_in_background`) right
+   after the push: `.venv/bin/python v1/scripts/kaggle_watch.py OWNER SLUG` (a teammate's account:
+   `OWNER=~/.kaggle-friends/NAME`). It follows the log into `logs/SLUG.out` (point `ops tail` or the node's
+   log link at it) and exits, with one line also sent to ntfy.sh/hrishik, on the first of: a Traceback,
+   argparse error, CUDA OOM or non-zero run exit (exit 10); no training step within 30 minutes (11); a NaN
+   loss or one back above its first value after warmup (12); with `--compare A B --separate 0.05 --after 300`,
+   one arm worse than the other at each of the last 4 steps both logged (13); the session ending (0, with a
+   summary). It alerts only; `--kill-on a,c` also sends kill for those checks (`d` kills only the losing arm).
+   Every threshold is a flag (`--help`). A check that fired is not fired again by a restarted watcher.
+   `--replay runs/kaggle/SLUG/SLUG.log` replays a downloaded log offline in simulated time: on
+   `beebot-scale-curve-a` the 2B arm is flagged at 26 minutes (of 152), on `beebot-scale-curve-b` the argparse
+   error at 15.
+1. Kill a run: `vla_kaggle.py` pushes every kernel (`run`, `lm-run`, `voxel-run`, `tpu-run`) with a kill switch
+   (`scripts/kernel_control.py`, inlined) on a private ntfy topic named after the slug (`--no-control` for
+   none). `.venv/bin/python v1/scripts/run_control.py kill SLUG` terminates every trainer and ends the session
+   within about two minutes (outputs already written stay); `kill SLUG ARM` ends one trainer only (the losing
+   arm of a comparison; e.g. `2b` for `scale-curve-2b`); `stop SLUG` lets trainers that use `beebot.control`
+   save and exit and terminates the others; `run_control.py list` shows the known runs. The topic URL is a
+   secret: it lives in `~/.config/beebot/runs/` and in the pushed copy under `data/` only, never in git or a
+   log. `scripts/kaggle_control_smoke.py` is a CPU-only kernel (no quota) for testing all of this.
 1. Tests: `uv run pytest -q v1/tests`.
 
 ## Shared code that lives here
@@ -73,7 +93,8 @@ All commands run from the repo root.
 
 1. `src/beebot/config.py`: `parse_config` (dataclass config as command-line flags) and `awake_seconds`.
 1. `src/beebot/control.py` and `scripts/run_control.py`: stop or checkpoint a long run through a private
-   ntfy topic.
+   ntfy topic; `scripts/kernel_control.py`: the Kaggle kernels' kill switch and log relay;
+   `scripts/kaggle_watch.py`: the Mac-side watcher.
 1. `src/beebot/vla/lm_policy.py`, `tasks.py`, `world.py`: the v2 voxel LM builds on them.
 1. `scripts/vla_kaggle.py` and its kernel templates (`kaggle_train/`, `kaggle_lm/`, `kaggle_tpu/`,
    `kaggle_embed/`), `scripts/kaggle_follow.py`, `scripts/kaggle_rest.py`.
