@@ -1,8 +1,8 @@
 # Beebot
 
 One model that steers a robot swarm from plain English, toward modular robots that build any shape on
-command (a five-person team project). This file summarises the project so far and holds the rules every
-session follows. Each part has its own notes: `v1/AGENTS.md` for the 2D policy.
+command (a five-person team project). This file summarises the project so far. Each part has its own
+notes: `v1/AGENTS.md` for the 2D policy.
 
 ## The project so far
 
@@ -28,9 +28,11 @@ session follows. Each part has its own notes: `v1/AGENTS.md` for the 2D policy.
    behaviour cloning on demonstrations from scripted attractor experts over a generated task suite, about
    40 T4 hours on Kaggle. On fresh scenes in MuJoCo it completes 7 or 8 of 8 rollouts for each of the
    video's five fixed tasks (eat a named cheese, either of two, clear the board, fill a box, move left);
-   with three commands given one after another mid-run, it completes the last in 6 of 8. What did not work: low-level RL on robot actions (flat over 200 Kaggle
-   updates: one reward for ~6,000 robot actions per rollout), and language-level plans (even perfect plans
-   are capped by the executor).
+   with three commands given one after another mid-run, it completes the last in 6 of 8. The checkpoint is
+   public (https://www.kaggle.com/datasets/fringewidth/beebot-2d-policy) and undertrained: training stopped
+   when compute ran out, with the validation loss still falling. What did not work: low-level RL on robot
+   actions (flat over 200 Kaggle updates: one reward for ~6,000 robot actions per rollout), and
+   language-level plans (even perfect plans are capped by the executor).
 1. **v2: 3D.** A 16^3 voxel world where robots are cubes that pivot over each other's edges. The policy
    (Qwen3.5-0.8B so far, a 4B run planned on rented GPU) writes what it sees and its next sub-goal in text,
    then acts, and thinks again when the sub-goal changes. Data comes from simulators, not hand quotas:
@@ -39,10 +41,12 @@ session follows. Each part has its own notes: `v1/AGENTS.md` for the 2D policy.
    physics shows, harmful failures included. Overview: `v2/src/beebot/vla/voxel/README.md`; plan:
    `v2/docs/MICROBOTS.md`.
 1. **hardware: the module.** Status first: nothing is built. In MuJoCo, an M-Blocks-style flywheel cube was
-   calibrated against published success rates, then replaced by a hinge cube with switchable magnets. A
-   reaction-wheel cube and a shape-memory-alloy cube about 12 mm on a side are being searched. CAD exists for the rotating cube
-   (`hardware/rotating_cube/`) and the SMA cube (`hardware/sma_cube/`). Log: `hardware/docs/HARDWARE.md`;
-   requirements: `hardware/docs/MODULE_SPEC.md`.
+   calibrated against published success rates, then replaced by a hinge cube with switchable magnets.
+   Smaller designs were searched (a reaction-wheel cube, and a shape-memory-alloy cube about 12 mm on a
+   side, `hardware/sma_cube/`). The current design is a 60 mm cube that pivots over an edge, turns a face
+   and bonds to its neighbours, from bought parts and a printed body, at about 110 to 220 USD of parts per
+   cube depending on the motors: `hardware/cube50/` (design, CAD, bill of materials, budget, firmware).
+   Log: `hardware/docs/HARDWARE.md`; requirements: `hardware/docs/MODULE_SPEC.md`.
 
 ## Layout and running
 
@@ -50,7 +54,7 @@ session follows. Each part has its own notes: `v1/AGENTS.md` for the 2D policy.
    names did not change in the split: `beebot.vla.*` is in v1, `beebot.vla.voxel.*` in v2,
    `beebot.hardware.*` in hardware, and the neural-CA modules (`beebot.train`, `beebot.ca`, ...) in v0.
    Code the later parts share lives in v1: `beebot.config` (`parse_config`, `awake_seconds`),
-   `beebot.control` (the ntfy kill switch), the Kaggle drivers and the `ops` hooks in `v1/scripts/`.
+   `beebot.control` (the ntfy kill switch) and the Kaggle drivers in `v1/scripts/`.
 1. One environment for everything: `uv sync` at the root (all dependency groups, CAD included). Tests:
    `uv run pytest -q` (all four parts) or `uv run pytest -q v2/tests`.
 1. Run everything from the repo root: `uv run python v1/scripts/field_demo_video.py`,
@@ -58,56 +62,3 @@ session follows. Each part has its own notes: `v1/AGENTS.md` for the 2D policy.
    its write-ups in `docs/`, handoff notes in `handoff/` and results worth keeping in `runs/`.
 1. `data/`, `runs/` and `logs/` at the root are the local working directories (datasets, checkpoints,
    logs); they are not in git. A result worth keeping goes into its part's `runs/`.
-
-### Where things moved (2026-11-17)
-
-Paused sessions: your files are still here, under a new path. Uncommitted work from paused sessions was
-committed first as `wip` (b624e38). The full old-to-new map is `v1/scripts/reorg_2026_11_17.json`; look a
-path up there before assuming a file is gone. In short:
-
-1. `src/beebot/vla/voxel/` to `v2/src/beebot/vla/voxel/`; `src/beebot/vla/` to `v1/src/beebot/vla/`;
-   `src/beebot/hardware/` to `hardware/src/beebot/hardware/`; the other `src/beebot/*.py` to
-   `v0/src/beebot/` except `control.py` (v1). `beebot.train.parse_config` and `awake_seconds` are now in
-   `beebot.config`.
-1. `scripts/` and `tests/` are split by what they import into `v0/`, `v1/`, `v2/` and `hardware/`; the
-   `ops` hooks and the Kaggle tools are in `v1/scripts/`.
-1. `runs/handoff/*` to `v1/handoff/`, `v2/handoff/` or `hardware/handoff/`. Tracked result directories moved
-   with everything in them: `runs/{closed_loop,cube,cube_outcomes,cube_redesign,cube_swarm,module_pairs,module_phys}`
-   to `hardware/runs/`, `runs/{build,coverage,free_cube,objects,randomize,views,think-08b-cam}` to `v2/runs/`.
-   Every other `runs/` and `logs/` directory is where it was.
-1. `HARDWARE.md` and `hardware/MODULE_SPEC.md` to `hardware/docs/`; `VLA*.md` and `docs/vla_explainer` to
-   `v1/docs/`; `MICROBOTS.md` to `v2/docs/`; `HILLCLIMB.md`, `JOURNAL.md`, `REPORT.md` to `v0/docs/`; the
-   Pages site to `v1/site/`.
-
-## Compute
-
-Kaggle GPU quota is the scarcest resource. Every Kaggle minute should be a gradient step.
-
-1. Keep the Mac training around the clock. It does about 0.6 of a T4 (expert SFT at batch 16: ~35 steps/min vs ~58 on one T4), so running nonstop it matches our whole weekly Kaggle quota. Wrap long runs in `caffeinate -i` so the machine does not sleep mid-run. When the Mac would otherwise be idle, queue the next experiment.
-1. No evaluations on Kaggle. Kaggle runs train and save step-named checkpoints only; the Mac scores those checkpoints (scorecard, grounding, language). In-kernel evals cost 115-140 minutes of a 12 h session in November 2026 (`beebot-sft-long`, `beebot-sft-30k`, `beebot-vox-gen1`).
-1. No full-length A/Bs on Kaggle. Settle a comparison on the Mac over 1-2 hours by validation loss; the scorecard mean moves about 0.03 between neighbouring evals and cannot rank close arms. If a Kaggle A/B is unavoidable, kill the losing arm once validation losses separate and give its GPU to the winner (DDP). In `beebot-sft-long` the weight-decay arms separated by 80-120 minutes and both still ran 500.
-1. Rented machines (Vultr; the key is `VULTR_API_KEY` in `~/.config/ops/env`): never create an instance, bare-metal machine or anything else that bills without the user's explicit approval in chat for that launch. A plan, a budget node, an earlier approval, another session or a subagent does not count; only the user lifts this. Say the machine type, hourly price and cap when asking. Destroy a machine as soon as its run has finished and its checkpoints are on the Mac, and report the balance (`vultr_remaining_usd`).
-
-## Plan, claims and numbers: `ops`
-
-Several Claude sessions run experiments in this repo at once. The plan (goals, tasks, dependencies), who runs what on the Mac GPU and Kaggle, the queues and messages between sessions live in the `ops` repo (`~/ops`, project `beebot`). Read `~/ops/README.md` once per session; it is short. `BOARD.md` is retired.
-
-`ops` is the task manager and the reporting tool for this repo: the user adds and reorders tasks there and reads the state of the work there. Keep reading it to pick up new work: run `ops board` and `ops show` at the start of a session, after finishing each task, and at every check-in on a long job, and take up new or changed nodes and messages addressed to you. `ops` is also the one progress tracker; everything goes through it. Nothing about the state of the work lives only in a chat, a scratch file or a markdown roadmap:
-
-1. Before starting a piece of work, find its node or add one (`ops add`), with its dependencies. Work without a node does not exist for the user or for other sessions.
-1. Record every outcome there as it happens: `ops done` with the result and where the output is, failures as failed nodes with the node that works around them (`--mitigates`), decisions the user owes as nodes of kind `decision`, pass criteria and risks in a node's `notes`.
-1. Every run's numbers go to `ops` (the `runs` collector follows the log links of a running node; `ops tail` or `ops push` otherwise), and spending goes there too (`vultr_remaining_usd`, `kaggle_gpu_hours_left`).
-1. Any task that has a number in it goes into `ops` live, from the moment it starts: training and evaluation, but also data generation, exports, API runs (items done, keep rates, failures), probes and agents' measurements. Before launching, give its node a `--metric` and either a `--link` to a log the `runs` collector can follow or a loop that runs `ops push` every few minutes until the job ends. The user monitors the work on the dashboard, so a number that only exists in a log file or a chat message is invisible to them.
-1. Subagents do not write to `ops`; the session that spawned them records their task as a running node when it starts them and closes it after checking their work.
-1. Do not keep a parallel plan file. `ROADMAP.md` and `BOARD.md` are retired; documents in the repo describe results and designs, not status.
-
-1. Identify yourself by your session name (the one ListAgents reports as "This session is ...", e.g. `beebot-b3`) plus a 1-3 word topic: `--as "beebot-b3 compute"` on every `ops` write. The name is also your address for SendMessage.
-1. Run `ops board` before starting anything on the Mac GPU or Kaggle, and `ops claim <id> --pid <pid> --needs mac-gpu --cmd .. --ends ..` before you launch (Kaggle: `--needs kaggle-<account> --kaggle <owner/slug>`). A queued node (`--status queued`) is a reservation.
-1. Every task has a title, a one-sentence summary and a why of at most two sentences, and reduces to one number (`--metric`, `--direction`). Push run numbers with `ops tail logs/<run>.out --label run=<run>` (it follows the JSON lines the trainers print) or `ops push`.
-1. Trust processes over claims. `ops board` marks dead PIDs; also check `pgrep -fl beebot`. Finish a dead claim with `ops done <id> --failed --result "died, found by <you>"` and message its owner.
-1. When you finish, `ops done <id> --result "<one line, with the log or run directory>"`, and hand the slot to the first queued node for that resource: message its session (ListAgents, SendMessage) if you can reach it.
-1. A failure stays a node (`--failed`); add the workaround with `--mitigates <id>` and point dependents at it. Never delete nodes; drop them.
-1. Queues are first come, first served. Only the user reorders or preempts. If two sessions need a decision (priority, killing a run), ask the user through ntfy.sh/hrishik rather than settling it between sessions.
-1. Mac (M4 Pro, 24 GB): one GPU job at a time (training or evaluation on `--device mps`). Two jobs share the GPU and both slow down, and 24 GB does not hold two LM runs safely. Never train or evaluate an LM on `--device cpu`. Light work needs no claim: scripts, demo servers, Kaggle polling, plotting.
-1. Kaggle: a session on an account uses both T4s. After launching or finishing, update hours left: `ops push 'kaggle_gpu_hours_left{account="<account>"} <hours>'`.
-1. Delete messages once acted on (`ops msg --rm <id>`).

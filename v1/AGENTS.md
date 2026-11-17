@@ -3,7 +3,7 @@
 One pretrained language model steers about 100 robots on a 32 x 32 grid from plain English. This is
 the system in the demo video (MuJoCo next to the raw grid). Work on it stopped on 2026-11-10, when the
 project went all in on 3D (`v2/`). The checkpoint, the demo and the live steering page stay as they
-are. The root `AGENTS.md` has the project summary and the compute and `ops` rules; read it first.
+are. The root `AGENTS.md` has the project summary; read it first.
 
 ## How it works
 
@@ -35,8 +35,10 @@ custom-model hill-climb), `VLA_ARCHITECTURE.md` (why a plain readout beat a flow
 
 ## Checkpoint and results
 
-1. The final checkpoint is `runs/kaggle/beebot-sft-final/runs/lm-expert-sft-final/policy_latest.pt` (local,
-   not in git; `scripts/vla_kaggle.py pull beebot-sft-final` fetches it again).
+1. The final checkpoint (`config.json` and `policy_latest.pt`, LoRA and readout weights only) is public at
+   https://www.kaggle.com/datasets/fringewidth/beebot-2d-policy. Put both files in one folder and pass it as
+   `--init_run`. It is undertrained: training stopped when compute ran out, with the validation loss still
+   falling (0.40 at the start, 0.31 at the last checkpoint, step 29177, the lowest of the run).
 1. Fresh scenes, 8 rollouts each, MuJoCo / raw grid: eat red 8/7, either yellow or purple 7/7, clear the
    board 7/6, fill the blue box 7/8, move left 7/7. Steering (three commands one after another, each held
    at least 15 steps once it takes effect): last command completed 6/8 / 7/8, every command met 2/8 in
@@ -47,7 +49,7 @@ custom-model hill-climb), `VLA_ARCHITECTURE.md` (why a plain readout beat a flow
    1. Language-level plans (`src/beebot/vla/plans.py`): even oracle plans reach only 0.10-0.33 on held-out
       logic tasks, because the executor eats forbidden cheeses on the way (~40% of episodes).
 1. Known weak spots: cheeses in corners and pockets are hard to push or surround; whether to keep them
-   out of sampling is an open decision (`ops` node `corner-cheese-decision`).
+   out of sampling is an open decision.
 
 ## Running
 
@@ -56,19 +58,19 @@ All commands run from the repo root.
 1. Demo video (two panels per task: MuJoCo, and the same scene on the raw grid):
    `uv run python v1/scripts/field_demo_record.py --physics mujoco` (and `--physics grid`), then
    `uv run python v1/scripts/field_demo_video.py --recordings runs/field-demo/recordings-mujoco-final.json --grid runs/field-demo/recordings-grid-final.json --out runs/field-demo`.
-   `v1/scripts/steer_dwell_chain.sh` re-records the steering task in both worlds. Recording uses the Mac
-   GPU: claim it in `ops` first.
-1. Live steering in a browser: `uv run python v1/scripts/swarm_steer.py --init_run runs/kaggle/beebot-sft-final/runs/lm-expert-sft-final`.
+   `v1/scripts/steer_dwell_chain.sh` re-records the steering task in both worlds.
+1. Live steering in a browser: `uv run python v1/scripts/swarm_steer.py --init_run <folder with the checkpoint>`.
    The static page with recorded runs is `v1/site/2d-demo/` (published by `.github/workflows/pages.yml`).
 1. Grounding (does it follow the words or the scene): `uv run python v1/scripts/vla_grounding_eval.py RUN`.
 1. Expert data: `uv run python -m beebot.vla.experts --out data/vla/experts_g32 --episodes 20000`.
 1. Kaggle: `uv run python v1/scripts/vla_kaggle.py code` uploads the source (all four parts merged into one
    `src/`, since `beebot` is split over them), then `run`, `status`, `logs`, `pull`, `quota`. No
-   evaluations on Kaggle (root `AGENTS.md`).
+   evaluations on Kaggle: in-kernel evals cost about two hours of a 12 h session, so checkpoints are scored
+   locally.
 1. Every Kaggle launch is followed by a watcher, started in the background (`run_in_background`) right
    after the push: `.venv/bin/python v1/scripts/kaggle_watch.py OWNER SLUG` (a teammate's account:
-   `OWNER=~/.kaggle-friends/NAME`). It follows the log into `logs/SLUG.out` (point `ops tail` or the node's
-   log link at it) and exits, with one line also sent to ntfy.sh/hrishik, on the first of: a Traceback,
+   `OWNER=CONFIG_DIR`, the folder holding their token). It follows the log into `logs/SLUG.out` and exits,
+   with one line also sent to the ntfy topic in `--ntfy` (default `$BEEBOT_NTFY`, none if unset), on the first of: a Traceback,
    argparse error, CUDA OOM or non-zero run exit (exit 10); no training step within 30 minutes (11); a NaN
    loss or one back above its first value after warmup (12); with `--compare A B --separate 0.05 --after 300`,
    one arm worse than the other at each of the last 4 steps both logged (13); the session ending (0, with a
@@ -98,6 +100,6 @@ All commands run from the repo root.
 1. `src/beebot/vla/lm_policy.py`, `tasks.py`, `world.py`: the v2 voxel LM builds on them.
 1. `scripts/vla_kaggle.py` and its kernel templates (`kaggle_train/`, `kaggle_lm/`, `kaggle_tpu/`,
    `kaggle_embed/`), `scripts/kaggle_follow.py`, `scripts/kaggle_rest.py`.
-1. `scripts/ops_session_brief.sh` and `scripts/ops_launch_guard.py`: the session-start and pre-launch
-   hooks in `.claude/settings.json`.
+1. `scripts/ops_session_brief.sh` and `scripts/ops_launch_guard.py`: session-start and pre-launch hooks for
+   the maintainers' local Claude Code setup, against their task tracker.
 1. `scripts/reorg_2026_11_17.py` and `.json`: the record of the 2026-11-17 split (old path to new path).

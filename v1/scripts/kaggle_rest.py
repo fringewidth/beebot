@@ -15,7 +15,7 @@ The token comes from $KAGGLE_CONFIG_DIR/access_token (default ~/.kaggle) and is 
     python v1/scripts/kaggle_rest.py handoff SOURCE SLUG TARGET [RUN]       # the TPU run's second session (handoff below)
 
 An account is OWNER (token in ~/.kaggle) or OWNER=CONFIG_DIR (a teammate's token folder), e.g.
-    python v1/scripts/kaggle_rest.py handoff rvitmpolicyboot=~/.kaggle-friends/rvitm beebot-think-tpu fringewidth
+    python v1/scripts/kaggle_rest.py handoff TEAMMATE=~/path/to/their/token/folder beebot-think-tpu fringewidth
 
 Kaggle allows one queued or running TPU session per account. A kernel appears to mount the dataset
 versions current when it was pushed (unconfirmed for a queued kernel), so a dataset that changes later

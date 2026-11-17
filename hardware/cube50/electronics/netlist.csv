@@ -1,0 +1,85 @@
+net,connections,notes
+CHANGED,2026-11-17 11:24 (+0530),"hinge deploy drive added: DRV8833 #3 (DEP_*), four sled switches (SLED_*), BOLT_B moved to GPB0; the MCP23017 is now 16 of 16"
+CHANGED,2026-11-17 (60 mm redesign),"disc AS5600s removed; disc motors Pololu #3079 + #4761 quadrature encoder (GPIO4,5,33,26, PCNT); disc sense 0.215 R (2 x 0.43 R, chop 0.93 A); two disc-lock SMA channels (GPIO45,46, Q7, Q8): 8 SMA channels; hinge AS5600 on the axle end 1:1; foot FFC pin 6 is LOCK_LOW (the GND shield track is dropped); connector list added (J_*)"
+VBAT_RAW,cell+ ; DW01A VCC (via 100R) ; FS8205A drain side,protected by DW01A + FS8205A in the cell's negative lead
+GND_CELL,cell- ; FS8205A source 1,
+GND,FS8205A source 2 ; all grounds,system ground after the protection FETs
+VBAT,cell+ after protection ; TP4056 BAT ; AP2112K VIN ; TPS61088 VIN (through 2.2 uH 6 A) ; SMA high side (FFC pin 1 x2 ; stow bolt wires x2) ; 100k to VBAT_SENSE ; 47 uF 6.3 V X5R 0805 at the SMA MOSFET bank,"1S 3.0-4.2 V; the 47 uF absorbs the SMA pulse current (guess, ELECTRONICS.md Power budget)"
+VBAT_SENSE,100k from VBAT ; 100k to GND ; 100 nF to GND ; ESP32 GPIO1,ADC: VBAT/2
+VBUS,USB-C VBUS ; TP4056 VCC ; 10 uF,5 V in for charging only
+TP4056_PROG,TP4056 PROG ; 6.2k to GND,about 195 mA charge current (0.9C on a 220 mAh cell)
+USB_DP,USB-C D+ (A6/B6) ; ESP32 GPIO20,
+USB_DN,USB-C D- (A7/B7) ; ESP32 GPIO19,
+USB_CC1,USB-C CC1 ; 5.1k to GND,
+USB_CC2,USB-C CC2 ; 5.1k to GND,
+3V3,"AP2112K VOUT ; ESP32 3V3 ; LSM6DS3TR-C VDD/VDDIO ; MCP23017 VDD ; AS5600 VDD x2 (hinge, via JST-SH) ; Pololu encoder Vcc x2 (6-pin JST-SH pin 4) ; I2C pull-ups ; 22 uF + 100 nF per chip",AP2112K EN to VBAT
+VM,TPS61088 VOUT (6.0 V; FB divider from the TPS61088 datasheet formula) ; DRV8833 #1 VM ; DRV8833 #2 VM ; DRV8833 #3 VM ; 2 x 22 uF,boost enable = DRV_NSLEEP
+DRV_NSLEEP,ESP32 GPIO21 ; DRV8833 #1 nSLEEP ; DRV8833 #2 nSLEEP ; DRV8833 #3 nSLEEP ; TPS61088 EN ; 100k to GND,low = all three bridges and the boost off
+DRV_NFAULT,DRV8833 #1 nFAULT ; DRV8833 #2 nFAULT ; DRV8833 #3 nFAULT ; 10k to 3V3 ; ESP32 GPIO47,open drain wired-OR
+HT_IN1,ESP32 GPIO11 ; DRV8833 #1 AIN1,top hinge
+HT_IN2,ESP32 GPIO12 ; DRV8833 #1 AIN2,
+HB_IN1,ESP32 GPIO13 ; DRV8833 #1 BIN1,bottom hinge
+HB_IN2,ESP32 GPIO14 ; DRV8833 #1 BIN2,
+DT_IN1,ESP32 GPIO15 ; DRV8833 #2 AIN1,top disc
+DT_IN2,ESP32 GPIO16 ; DRV8833 #2 AIN2,
+DB_IN1,ESP32 GPIO17 ; DRV8833 #2 BIN1,bottom disc
+DB_IN2,ESP32 GPIO18 ; DRV8833 #2 BIN2,
+DEP_T_IN1,MCP23017 GPA7 ; DRV8833 #3 AIN1,"top hinge deploy (sled) motor; on/off only, no PWM; GPA7 is output-only, which suits it"
+DEP_T_IN2,MCP23017 GPB5 ; DRV8833 #3 AIN2,
+DEP_B_IN1,MCP23017 GPB6 ; DRV8833 #3 BIN1,bottom hinge deploy motor
+DEP_B_IN2,MCP23017 GPB7 ; DRV8833 #3 BIN2,GPB7 is output-only. MCP outputs are high-Z after reset; the DRV8833's internal input pull-downs then hold both bridges in coast
+HT_ISEN,DRV8833 #1 AISEN ; 0.33R to GND ; 1k + 1 uF RC to ESP32 GPIO6,chop at 0.2 V = 0.6 A
+HB_ISEN,DRV8833 #1 BISEN ; 0.33R to GND ; 1k + 1 uF RC to ESP32 GPIO7,
+DT_ISEN,DRV8833 #2 AISEN ; two 0.43R in parallel (0.215R) to GND ; 1k + 1 uF RC to ESP32 GPIO8,chop at 0.2 V / 0.215 R = 0.93 A (DRV8833 trip voltage has a tolerance); each 0805 dissipates 0.09 W at the chop current (derived)
+DB_ISEN,DRV8833 #2 BISEN ; two 0.43R in parallel (0.215R) to GND ; 1k + 1 uF RC to ESP32 GPIO9,
+DEP_T_ISEN,DRV8833 #3 AISEN ; 0.43R to GND,"chop at 0.2 V / 0.43 R = 0.47 A, the deploy motor's stall current (420 mA +/-10 %, DFRobot FIT0577); not read by the ESP32 (no ADC pin free)"
+DEP_B_ISEN,DRV8833 #3 BISEN ; 0.43R to GND,
+HT_M+/M-,DRV8833 #1 AOUT1/AOUT2 ; top hinge motor (JST-SH 2),
+HB_M+/M-,DRV8833 #1 BOUT1/BOUT2 ; bottom hinge motor,
+DT_M+/M-,DRV8833 #2 AOUT1/AOUT2 ; top disc motor (Pololu #3079) via 6-pin JST-SH pins 6 (M1) and 5 (M2),"same cable as ENC_DT_A/B: Pololu #4765, 10 cm female-female"
+DB_M+/M-,DRV8833 #2 BOUT1/BOUT2 ; bottom disc motor (Pololu #3079) via 6-pin JST-SH,
+DEP_T_M+/M-,DRV8833 #3 AOUT1/AOUT2 ; top deploy motor (N20 with M3 lead screw; JST-SH 2),"AIN1 high = sled out (set by wiring polarity; firmware can swap, config DEPLOY_SIGN)"
+DEP_B_M+/M-,DRV8833 #3 BOUT1/BOUT2 ; bottom deploy motor,
+ENC_HT,AS5600 (top hinge board) OUT ; 100 nF ; ESP32 GPIO2,"AS5600 DIR to GND; PGO NC; JST-SH 3: 3V3 GND OUT; the chip faces a 4 x 1 mm diametric magnet on the axle end, so the angle is 1:1"
+ENC_HB,AS5600 (bottom hinge board) OUT ; ESP32 GPIO3,
+ENC_DT_A,"Pololu #4761 (top disc) channel A (JST-SH 6-pin pin 3, yellow) ; ESP32 GPIO4 (PCNT unit 0, channel 0 pulse, channel 1 control)","open-drain-like: driven low or pulled to Vcc through 10k on the encoder board (source: pololu.com/product/4761); Vcc = 3V3, GND = pin 1"
+ENC_DT_B,"Pololu #4761 (top disc) channel B (pin 2, white) ; ESP32 GPIO5 (PCNT unit 0, channel 1 pulse, channel 0 control)","12 counts per motor revolution in 4x; 51,087 counts per disc turn; no index: the quarter-turn lock is the index"
+ENC_DB_A,Pololu #4761 (bottom disc) channel A ; ESP32 GPIO33 (PCNT unit 1),"GPIO33 is free on the -N8 module (MINI-1 datasheet v1.7, table 3-1)"
+ENC_DB_B,Pololu #4761 (bottom disc) channel B ; ESP32 GPIO26 (PCNT unit 1),GPIO26 is free on the -N8 (not on the -N4R2: it is the PSRAM select there)
+NTC,10k NTC (on the cell) to GND ; 10k to 3V3 ; ESP32 GPIO10,
+SDA,ESP32 GPIO38 ; LSM6DS3TR-C SDA ; MCP23017 SDA ; 4.7k to 3V3,
+SCL,ESP32 GPIO39 ; LSM6DS3TR-C SCL ; MCP23017 SCL ; 4.7k to 3V3,
+IMU_INT1,LSM6DS3TR-C INT1 ; ESP32 GPIO48,LSM6DS3 SA0 to GND (0x6A); CS to 3V3 (I2C)
+MCP_ADDR,MCP23017 A0 A1 A2 to GND ; RESET to 3V3 via 10k,"0x20; 16 of 16 pins used: 12 inputs (GPA0-6, GPB0-4), 4 outputs (GPA7, GPB5-7); see ELECTRONICS.md"
+SMA_T_EXT_LOW,AO3400A Q1 drain ; FFC top pin 2 ; foot contact 2 ; disc track 2 ; extend SMA wire (top disc),gate: ESP32 GPIO40 via 100R ; 100k gate-source
+SMA_T_RET_LOW,AO3400A Q2 drain ; FFC top pin 3 ; foot contact 3 ; disc track 3 ; retract SMA wire (top disc),gate: GPIO41
+SMA_B_EXT_LOW,AO3400A Q3 drain ; FFC bottom pin 2 ; ... bottom disc,gate: GPIO42
+SMA_B_RET_LOW,AO3400A Q4 drain ; FFC bottom pin 3 ; ... bottom disc,gate: GPIO35
+SMA_BOLT_T_LOW,AO3400A Q5 drain ; top stow bolt SMA wire (other end VBAT),gate: GPIO36
+SMA_BOLT_B_LOW,AO3400A Q6 drain ; bottom stow bolt SMA wire,gate: GPIO37
+SMA_LOCK_T_LOW,"AO3400A Q7 drain ; FFC top pin 6 ; foot board pad ; top disc lock SMA wire (0.15 mm, 52 mm, 2.9 ohm; other end VBAT via FFC pin 1)","gate: ESP32 GPIO45 via 100R ; 100k gate-source (the pull-down matters: GPIO45 is a strapping pin read at reset, low = 3.3 V flash)"
+SMA_LOCK_B_LOW,AO3400A Q8 drain ; FFC bottom pin 6 ; bottom disc lock SMA wire,"gate: GPIO46 via 100R ; 100k gate-source (GPIO46 strapping pin, low at reset = normal boot and ROM log on)"
+SW_EXT_T,"disc ring ""extended"" switch (to VBAT on the disc) ; disc track 4 ; foot contact 4 ; FFC top pin 4 ; 47k / 100k divider ; MCP23017 GPA0",switch closes to VBAT; divider keeps the MCP pin <= 3.3 V (pull-up off on GPA0-3)
+SW_RET_T,"disc ring ""retracted"" switch ; disc track 5 ; foot contact 5 ; FFC top pin 5 ; divider ; MCP23017 GPA1",
+SW_EXT_B,(bottom) ; MCP23017 GPA2,
+SW_RET_B,(bottom) ; MCP23017 GPA3,
+STOW_T,tact switch in the core pressed by the seated top foot ; MCP23017 GPA4,to GND; MCP pull-up on
+STOW_B,tact switch (bottom) ; MCP23017 GPA5,
+BOLT_T,tact switch at the top bolt's upper stop ; MCP23017 GPA6,
+BOLT_B,tact switch (bottom bolt) ; MCP23017 GPB0,"moved from GPA7 (2026-11-17): GPA7 and GPB7 are output-only on current MCP23017 silicon (datasheet DS20001952D, 2022)"
+SLED_OUT_T,tact switch at the top sled's deployed end ; MCP23017 GPB1,to GND; MCP pull-up on; closed = sled fully out (axle on the edge line)
+SLED_IN_T,tact switch at the top sled's stowed end ; MCP23017 GPB2,closed = sled fully in (nothing proud)
+SLED_OUT_B,(bottom) ; MCP23017 GPB3,
+SLED_IN_B,(bottom) ; MCP23017 GPB4,
+FFC_TOP,1 VBAT ; 2 SMA_T_EXT_LOW ; 3 SMA_T_RET_LOW ; 4 SW_EXT_T ; 5 SW_RET_T ; 6 SMA_LOCK_T_LOW,"6-way 0.5 mm FFC looped round the top knuckle; pin 6 was a GND shield track on the ring PCB, dropped for the lock wire (alternative: an 8-way FFC, which changes the CAD loop width)"
+FFC_BOTTOM,same as FFC_TOP for the bottom foot,
+LED,ESP32 GPIO34 ; 1k ; green LED ; GND,
+J_CELL,"JST-PH 2-pin (cell lead, BOM E4) on the main board: VBAT_RAW, GND_CELL",1 per cube
+J_NTC,"JST-SH 2-pin: NTC, GND",1
+"J_HT, J_HB","JST-SH 2-pin: hinge motor M+, M-",2
+"J_DEP_T, J_DEP_B","JST-SH 2-pin: deploy motor M+, M-",2
+"J_DT, J_DB","JST-SH 6-pin side entry: 1 GND, 2 ENC_x_B, 3 ENC_x_A, 4 3V3, 5 M2, 6 M1 (Pololu #4761 pinout, straight through)","2; cable Pololu #4765 (10 cm, female-female)"
+"J_ENC_HT, J_ENC_HB","JST-SH 3-pin: 3V3, GND, OUT to the AS5600 board",2
+"J_BOLT_T, J_BOLT_B","JST-SH 2-pin: VBAT, SMA_BOLT_x_LOW to the stow-bolt wire",2
+"J_FFC_TOP, J_FFC_BOTTOM","6-way 0.5 mm FFC, same-side contacts, on the main board and on each foot board","2 on the main board, 2 on the foot boards (BOM E8)"
+J_USB,"USB-C receptacle (soldered, on the -x cover at y 17, z 11.5 mm)",1

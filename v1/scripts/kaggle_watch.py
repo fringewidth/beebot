@@ -18,7 +18,7 @@ parses the progress lines the kernel relays per run ("[name] {"step": ..., "loss
               the last --points steps both arms logged, all at or after step --after (to kill the losing arm)
   e  exit 0   the session ended: a one-line summary
 
-On a check it prints one line, posts it to ntfy.sh/hrishik (--ntfy TOPIC, '' for none; never in replay) and exits.
+On a check it prints one line, posts it to the ntfy.sh topic in --ntfy (default $BEEBOT_NTFY, none if unset; never in replay) and exits.
 Default is alert only; --kill-on a,c sends `kill` to the kernel's control topic (run_control.py) for those checks,
 and for d it sends `kill <losing arm>`, which ends only that trainer. A check that fired is remembered in
 logs/SLUG.out.watch, so a restarted watcher does not fire it again (--reset forgets).
@@ -426,7 +426,7 @@ def arguments(argv=None):
     parser.add_argument("--points", type=int, default=4, help="d: the last K steps both arms logged")
     parser.add_argument("--kill-on", default="", help="checks that also send kill, comma-separated (e.g. a,c; d kills only the losing arm)")
     parser.add_argument("--control", help="the control topic's run name (default the slug)")
-    parser.add_argument("--ntfy", default="hrishik", help="ntfy.sh topic for the alert line ('' for none; never in replay)")
+    parser.add_argument("--ntfy", default=os.environ.get("BEEBOT_NTFY", ""), help="ntfy.sh topic for the alert line (default $BEEBOT_NTFY; '' for none; never in replay)")
     parser.add_argument("--reset", action="store_true", help="forget the checks a previous watcher fired")
     cfg = parser.parse_args(argv)
     cfg.kill_on = {c.strip() for c in cfg.kill_on.split(",") if c.strip()}

@@ -1,0 +1,200 @@
+S 60 mm, H 30, chamfer 9 (channel radius 6.36); foot 11.80 thick, core z +-17.60, x +-25.92, y +-25.92
+sled: retract 4.20 in x and z (5.94 diagonal); stowed axle (25.8, 25.8); motor box x 9.42..21.42, z 3.10..13.10, y -6.60..19.90
+hinge train m0.5: motor 12T at (15.42, 8.10), compound 25T/14T at (13.76, 17.20), idler 16T at (20.50, 20.50), axle 14T; ratio 2.083
+deploy: FIT0577 body x -10.30..14.70 at y -14.4, z 9.2; carrier x 17.70..21.70 (+4.20); screw used 11.20 of 13 mm
+disc drive: motor (-17.00, 19.00) z -16.90..13.70; C1 (-5.67, 12.62), C2 (-12.61, 2.22); 12:40 m0.5 z 14.0..16.0, 14:36 m0.5 z 9.7..13.7, 12:20 m0.8 z 4.9..9.4; ratio 14.286
+face magnets: r 6.3, at +-22.5 + 90k deg, 4.0 x 1.0 under 1.1; wall between pockets 0.72; to the lip ring 0.65
+stowed: 270 pairs with touching boxes intersected, 0 overlap > 0.05 mm3
+sled travel 0.5 of the stroke (both sleds), feet stowed: 92 pairs with touching boxes intersected, 0 overlap > 0.05 mm3
+sled travel 1 of the stroke (both sleds), feet stowed: 92 pairs with touching boxes intersected, 0 overlap > 0.05 mm3
+sled travel 0 (stowed): 92 pairs with touching boxes intersected, 0 overlap > 0.05 mm3
+top foot open 15 deg: 77 pairs with touching boxes intersected, 0 overlap > 0.05 mm3
+top foot open 45 deg: 65 pairs with touching boxes intersected, 0 overlap > 0.05 mm3
+top foot open 90 deg: 41 pairs with touching boxes intersected, 0 overlap > 0.05 mm3
+top foot open 135 deg: 61 pairs with touching boxes intersected, 0 overlap > 0.05 mm3
+top foot open 180 deg: 41 pairs with touching boxes intersected, 0 overlap > 0.05 mm3
+stowed, nothing proud of a disc plane: z -30.000..30.000; outside-cell parts end at |y| 0.00 (limit 25.0) and reach 0.000 mm3 into side neighbours: PASS
+partner turning on the top disc, 0..360 deg every 15 deg: worst overlap 0.000 mm3: PASS
+standing cube yawing on V-groove tiles, 0..90 deg every 7.5 deg (period 90): worst overlap 0.000 mm3: PASS
+perpendicular hinge edges at a shared vertex, both deployed: 112 placements, worst overlap 0.000 mm3: PASS
+deployed hinge in the pivot channel: worst overlap 0.000 mm3: PASS
+  climb, foot at 90 deg: overlap 0.000 mm3
+  climb, foot at 135 deg: overlap 0.000 mm3
+  climb, foot at 180 deg: overlap 0.000 mm3
+  floor roll (mirrored: tiles on the top foot), foot at 0 deg: overlap 0.000 mm3
+  floor roll (mirrored: tiles on the top foot), foot at 45 deg: overlap 0.000 mm3
+  floor roll (mirrored: tiles on the top foot), foot at 90 deg: overlap 0.000 mm3
+body skin >= 0.8 mm outside the intended openings: 0.00 mm3 of breach: PASS
+hand assembly, 44 steps, every screw's driver path (3 mm shaft, 40 mm, plus head clearance): PASS
+   1        cell, through the -x opening: clear along (45, 0, 0)
+   2 top    OUT switch into its pocket in the +x wall: clear along (0, 0, -45) then (2.1, 0, 0)
+   3 top    -y sled plate (plate B): clear along (0, 0, -45) then (0, -1.4, 0)
+   4 top    +y sled subassembly: plate A, hinge motor (2 x M1.6 on the bench), gears, E-clips: clear along (0, 0, -45) then (0, 5.1, 0)
+   5 top    deploy module: FIT0577, IN board and switch, carrier with its nut: clear along (0, 0, -45) then (2, 0, 0)
+   6 top    deploy straps (hooked under the -y ledges): clear along (0, 0, -30) then (0, -2, 0)
+   7 top    carrier pin, through the access hole in the -y face: clear along (0, 15, 0)
+   8 bottom OUT switch into its pocket in the +x wall: clear along (0, 0, 45) then (2.1, 0, 0)
+   9 bottom -y sled plate (plate B): clear along (0, 0, 45) then (0, 1.4, 0)
+  10 bottom +y sled subassembly: plate A, hinge motor (2 x M1.6 on the bench), gears, E-clips: clear along (0, 0, 45) then (0, -5.1, 0)
+  11 bottom deploy module: FIT0577, IN board and switch, carrier with its nut: clear along (0, 0, 45) then (2, 0, 0)
+  12 bottom deploy straps (hooked under the -y ledges): clear along (0, 0, 30) then (0, 2, 0)
+  13 bottom carrier pin, through the access hole in the -y face: clear along (0, -15, 0)
+  14 top    disc motor with its encoder and pressed pinion (bench), straight down through the strip opening: clear along (0, 0, -45)
+  15 top    centre shaft with its gear (bench): clear along (0, 0, -45)
+  16 top    shaft E-clip under the bridge, through the -x opening: clear along (45, 0, 0)
+  17 top    C2 pin, pressed into the bridge: clear along (0, 0, -30)
+  18 top    C2 cluster onto its pin: clear along (0, 0, -30)
+  19 top    C1 pin, pressed into the bridge: clear along (0, 0, -30)
+  20 top    C1 cluster onto its pin: clear along (0, 0, -30)
+  21 top    drive plate over the pins and the straps: clear along (0, 0, -20)
+     driver for strap and drive plate M2 x 8 at x -7.3: clear
+     driver for strap and drive plate M2 x 8 at x 6.7: clear
+     driver for drive plate M2 x 6 into the bridge post: clear
+  22 top    stow bolt down through its hole in the drive plate: clear along (0, 0, -30)
+  23 top    cross pin, pressed through the shaft from -y: clear along (0, 0, -25) then (0, 10, 0)
+  24 top    +y wall strip over the drive: clear along (0, 0, -30)
+     driver for strip M2 x 8 countersunk at x -19: clear
+     driver for strip M2 x 8 countersunk at x 2.5: clear
+  25 top    foot stack (bench: bearing, hub screwed to the disc, cam ring, pins, lock) with the knuckle: clear along (0, 0, -45)
+  26 top    hinge encoder board on its spacers, through the chamfer: clear along (-10, 0, -10)
+  27 top    hinge axle, along -y through the +y chamfer: clear along (0, -45, 0)
+  28 top    hinge encoder magnet onto the axle end, through the chamfer: clear along (-10, 0, -10)
+  29 bottom disc motor with its encoder and pressed pinion (bench), straight down through the strip opening: clear along (0, 0, 45)
+  30 bottom centre shaft with its gear (bench): clear along (0, 0, 45)
+  31 bottom shaft E-clip under the bridge, through the -x opening: clear along (45, 0, 0)
+  32 bottom C2 pin, pressed into the bridge: clear along (0, 0, 30)
+  33 bottom C2 cluster onto its pin: clear along (0, 0, 30)
+  34 bottom C1 pin, pressed into the bridge: clear along (0, 0, 30)
+  35 bottom C1 cluster onto its pin: clear along (0, 0, 30)
+  36 bottom drive plate over the pins and the straps: clear along (0, 0, 20)
+     driver for strap and drive plate M2 x 8 at x -7.3: clear
+     driver for strap and drive plate M2 x 8 at x 6.7: clear
+     driver for drive plate M2 x 6 into the bridge post: clear
+  37 bottom stow bolt down through its hole in the drive plate: clear along (0, 0, 30)
+  38 bottom cross pin, pressed through the shaft from -y: clear along (0, 0, 25) then (0, -10, 0)
+  39 bottom +y wall strip over the drive: clear along (0, 0, 30)
+     driver for strip M2 x 8 countersunk at x -19: clear
+     driver for strip M2 x 8 countersunk at x 2.5: clear
+  40 bottom foot stack (bench: bearing, hub screwed to the disc, cam ring, pins, lock) with the knuckle: clear along (0, 0, 45)
+  41 bottom hinge encoder board on its spacers, through the chamfer: clear along (-10, 0, 10)
+  42 bottom hinge axle, along -y through the +y chamfer: clear along (0, 45, 0)
+  43 bottom hinge encoder magnet onto the axle end, through the chamfer: clear along (-10, 0, 10)
+  44        -x cover with the main board (bench), lip ring and magnets: clear along (8, 0, 0)
+     driver for cover M2 x 6 countersunk at y -16.5, z 10: clear
+     driver for cover M2 x 6 countersunk at y -16.5, z -10: clear
+     driver for cover M2 x 6 countersunk at y 16.5, z -10: clear
+mass (g):
+  axle_bottom: 0.9
+  axle_top: 0.9
+  bearing_bottom: 8.0
+  bearing_top: 8.0
+  body: 36.0
+  bolt_bottom: 0.3
+  bolt_top: 0.3
+  c1_bottom: 6.8
+  c1_pin_bottom: 0.8
+  c1_pin_top: 0.8
+  c1_top: 6.8
+  c2_bottom: 11.7
+  c2_pin_bottom: 1.1
+  c2_pin_top: 1.1
+  c2_top: 11.7
+  cam_ring_bottom: 0.4
+  cam_ring_top: 0.4
+  carrier_bottom: 0.2
+  carrier_top: 0.2
+  cell: 7.0
+  centre_gear_bottom: 7.9
+  centre_gear_top: 7.9
+  centre_shaft_bottom: 2.6
+  centre_shaft_top: 2.6
+  cross_pin_bottom: 0.3
+  cross_pin_top: 0.3
+  deploy_in_board_bottom: 0.5
+  deploy_in_board_top: 0.5
+  deploy_motor_bottom: 10.0
+  deploy_motor_top: 10.0
+  deploy_strap_bottom: 0.1
+  deploy_strap_top: 0.1
+  disc_bottom: 2.8
+  disc_motor_bottom: 9.5
+  disc_motor_top: 9.5
+  disc_top: 2.8
+  drive_plate_bottom: 5.8
+  drive_plate_top: 5.8
+  eclips_bottom: 0.1
+  eclips_top: 0.1
+  enc_board_hinge_bottom: 0.5
+  enc_board_hinge_top: 0.5
+  enc_magnet_hinge_bottom: 0.1
+  enc_magnet_hinge_top: 0.1
+  enc_spacers_bottom: 0.0
+  enc_spacers_top: 0.0
+  foot_bottom: 14.7
+  foot_top: 14.7
+  g_axle_bottom: 1.0
+  g_axle_top: 1.0
+  g_compound_bottom: 4.3
+  g_compound_top: 4.3
+  g_idler_bottom: 1.4
+  g_idler_top: 1.4
+  g_motor_bottom: 0.7
+  g_motor_top: 0.7
+  hinge_motor_bottom: 10.5
+  hinge_motor_top: 10.5
+  hub_bottom: 4.0
+  hub_top: 4.0
+  knuckle_bottom: 1.1
+  knuckle_top: 1.1
+  lip_disc_bottom: 1.6
+  lip_disc_top: 1.6
+  lip_nx: 2.2
+  lip_ny: 2.2
+  lip_px: 2.2
+  lip_py: 2.2
+  lock_lever_bottom: 0.0
+  lock_lever_top: 0.0
+  lock_pin_bottom: 0.2
+  lock_pin_top: 0.2
+  lock_ring_bottom: 1.2
+  lock_ring_top: 1.2
+  lock_sma_bottom: 0.1
+  lock_sma_top: 0.1
+  mag_disc_bottom: 0.8
+  mag_disc_top: 0.8
+  mag_nx: 0.8
+  mag_ny: 0.8
+  mag_px: 0.8
+  mag_py: 0.8
+  main_board: 7.0
+  nut_bottom: 0.4
+  nut_top: 0.4
+  pin_bottom: 0.1
+  pin_top: 0.1
+  pinion_bottom: 0.5
+  pinion_top: 0.5
+  pins_bottom: 2.1
+  pins_top: 2.1
+  plate_ny_bottom: 1.6
+  plate_ny_top: 1.6
+  plate_py_bottom: 2.1
+  plate_py_top: 2.1
+  shaft_eclip_bottom: 0.2
+  shaft_eclip_top: 0.2
+  side_cover: 4.7
+  strip_bottom: 2.1
+  strip_top: 2.1
+  switch_in_bottom: 0.5
+  switch_in_top: 0.5
+  switch_out_bottom: 0.5
+  switch_out_top: 0.5
+  wiring, FFCs, connectors: 4.0
+  SMA wires, crimps, springs (6 wires): 1.5
+  screws and heat-set inserts: 4.0
+  disc ring PCBs, sprung contacts, foot flex: 2.0
+  disc lock pins and levers: 0.6
+  TOTAL 322.7 g
+centre of mass (mm, parts only) (-0.1, 0.0, 0.0); inertia about the centre (kg m2) 1.40e-04, 1.54e-04, 1.28e-04
+pivot: gravity 0.1343 N m (m g S / sqrt 2, CAD mass 323 g) + magnet peel 0.080 = 0.2143; hinge 0.245 x 2.083 x 0.95^3 = 0.4376 N m; margin 2.04 (gravity only 3.26); foot free speed 14.9 rpm (89 deg/s)
+disc drive: free 0.81 rad/s; cap 2.40 N m at the gearbox rating (0.196 N m, chop 0.94 A) at 0.33 rad/s; 2.2 N m at 0.37 rad/s, 0.88 A; theoretical stall 4.08 N m
+disc teeth (Lewis, hardened steel) at the cap: stage 1 267 MPa, stage 2 320, stage 3 358

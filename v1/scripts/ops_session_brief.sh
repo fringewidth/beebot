@@ -53,8 +53,9 @@ else
   print "  cd ~ && SSL_CERT_FILE=/etc/ssl/cert.pem nohup python3 ~/ops/ops.py agent > ~/Library/Logs/ops-agent.log 2>&1 &"
 fi
 
-# Claude usage, from the claude_usage collector's series on the Worker.
-curl -s --max-time 4 "https://ops.fringewidth.workers.dev/series?q=claude_limit_percent" 2>/dev/null | python3 -c '
+# Claude usage, from the claude_usage collector's series on the Worker (OPS_WORKER in ~/.config/ops/env).
+worker=$(sed -n 's/^OPS_WORKER=//p' ~/.config/ops/env 2>/dev/null)
+[[ -n $worker ]] && curl -s --max-time 4 "$worker/series?q=claude_limit_percent" 2>/dev/null | python3 -c '
 import json, sys, time
 try:
     rows = [r for r in json.load(sys.stdin) if r["labels"].get("kind") in ("weekly_all", "session") and "source" not in r["labels"] and "account" not in r["labels"]]

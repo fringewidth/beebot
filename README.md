@@ -6,7 +6,9 @@ A pretrained language model (Qwen3-0.6B with LoRA) reads an instruction as text 
 of patch tokens, and gives every robot its next moves. One policy steers about 100 robots: eat a named
 cheese, clear the board, fill a box, move as a group, and take a new command mid-run. It was trained by
 behaviour cloning on scripted expert demonstrations, about 40 T4 hours in all, and runs the same in a
-MuJoCo physics world and on the raw grid. The next steps are a 3D version with modular cubes (in
+MuJoCo physics world and on the raw grid. The checkpoint is public on Kaggle
+([fringewidth/beebot-2d-policy](https://www.kaggle.com/datasets/fringewidth/beebot-2d-policy)); it is
+undertrained, since training stopped when compute ran out with the validation loss still falling. The next steps are a 3D version with modular cubes (in
 progress) and real hardware.
 
 | dir | what |
@@ -23,7 +25,7 @@ progress) and real hardware.
 ```
 uv sync
 uv run pytest -q
-uv run python v1/scripts/swarm_steer.py --init_run <run dir>     # steer a swarm in the browser
+uv run python v1/scripts/swarm_steer.py --init_run <checkpoint folder>   # steer a swarm in the browser
 ```
 
 `beebot` is one Python package split over `v0/src`, `v1/src`, `v2/src` and `hardware/src`; run commands
