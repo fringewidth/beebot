@@ -1,7 +1,7 @@
 # Beebot
 
 One model that steers a robot swarm from plain English, toward modular robots that build any shape on
-command (a five-person team project). This file summarises the project so far. Each part has its own
+command. This file summarises the project so far. Each part has its own
 notes: `v1/AGENTS.md` for the 2D policy.
 
 ## The project so far
