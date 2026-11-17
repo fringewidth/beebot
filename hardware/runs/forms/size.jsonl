@@ -1,0 +1,12 @@
+{"form": "quadruped", "side": 0.03, "mass": 0.03931199999999998, "strength": 26.0, "cubes": 15, "scores": [2.0, 1.79], "twist": 0.3008075615999999}
+{"form": "quadruped", "side": 0.04, "mass": 0.09318399999999999, "strength": 26.0, "cubes": 15, "scores": [2.0, 1.79], "twist": 0.9507004416}
+{"form": "quadruped", "side": 0.05, "mass": 0.182, "strength": 8.0, "cubes": 13, "scores": [1.0, 1.0], "twist": 0.714168}
+{"form": "quadruped", "side": 0.056, "mass": 0.25569689599999995, "strength": 8.0, "cubes": 13, "scores": [1.0, 1.0], "twist": 1.12375717429248}
+{"form": "quadruped", "side": 0.06, "mass": 0.31449599999999983, "strength": 8.0, "cubes": 13, "scores": [1.0, 1.0], "twist": 1.4808987647999994}
+{"form": "quadruped", "side": 0.072, "mass": 0.5434490879999997, "strength": 8.0, "cubes": 13, "scores": [1.0, 1.0], "twist": 3.0707916786892784}
+{"form": "arm", "side": 0.03, "mass": 0.03931199999999998, "strength": 20.0, "cubes": 13, "scores": [7.0, 1, 5.24], "twist": 0.2313904319999999}
+{"form": "arm", "side": 0.04, "mass": 0.09318399999999999, "strength": 8.0, "cubes": 10, "scores": [5.01, 1, 2.41], "twist": 0.2925232128}
+{"form": "arm", "side": 0.05, "mass": 0.182, "strength": 6.0, "cubes": 9, "scores": [4.0, 1, 2.0], "twist": 0.535626}
+{"form": "arm", "side": 0.056, "mass": 0.25569689599999995, "strength": 6.0, "cubes": 9, "scores": [4.0, 1, 2.0], "twist": 0.84281788071936}
+{"form": "arm", "side": 0.06, "mass": 0.31449599999999983, "strength": 4.5, "cubes": 11, "scores": [3.41, 1, 3.06], "twist": 0.8330055551999994}
+{"form": "arm", "side": 0.072, "mass": 0.5434490879999997, "strength": 4.5, "cubes": 6, "scores": [3.0, 1, 2.41], "twist": 1.7273203192627191}
