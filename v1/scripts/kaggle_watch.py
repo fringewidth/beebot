@@ -29,6 +29,7 @@ times, so check b is off and minutes are not reported.
 """
 
 import argparse
+import http.client
 import json
 import math
 import os
@@ -372,8 +373,13 @@ def live(cfg):
     watch = Watch(cfg, fired)
     start = None  # wall time of the session start (an upper bound: the earliest consistent with what was seen)
     while True:
-        now_status = session_status(owner, cfg.slug)
-        entries = kaggle_rest.log_entries(owner, cfg.slug, cfg.window) if now_status != "QUEUED" else []
+        try:
+            now_status = session_status(owner, cfg.slug)
+            entries = kaggle_rest.log_entries(owner, cfg.slug, cfg.window) if now_status != "QUEUED" else []
+        except (OSError, http.client.HTTPException) as e:  # a dropped connection or timeout: try again next poll
+            print(f"{time.strftime('%H:%M:%S')} network error, retrying: {e!r}", flush=True)
+            time.sleep(cfg.every)
+            continue
         wall = time.time()
         text = "".join(e.get("data", "") for e in entries)
         ended = (now_status not in kaggle_follow.LIVE and now_status != "UNKNOWN") or END_MARK in text
