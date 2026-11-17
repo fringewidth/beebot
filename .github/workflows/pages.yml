@@ -3,7 +3,7 @@ name: Publish hill-climb page
 on:
   push:
     branches: [main]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    paths: ["v1/site/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -23,23 +23,23 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      # site/index.html is written without a document skeleton (the claude.ai
+      # v1/site/index.html is written without a document skeleton (the claude.ai
       # artifact host adds one), so add it here for GitHub Pages.
       - name: Build
         run: |
           mkdir _site
-          cp -r site/data.json site/media site/*.md _site/
+          cp -r v1/site/data.json v1/site/media v1/site/*.md _site/
           # The architecture explainer is a complete HTML document; copy it as is.
-          cp -r site/explain site/explain.html _site/
-          # The VLA results page (complete HTML document, built by scripts/vla_site.py).
-          cp site/vla.html _site/
+          cp -r v1/site/explain v1/site/explain.html _site/
+          # The VLA results page (complete HTML document, built by v1/scripts/vla_site.py).
+          cp v1/site/vla.html _site/
           # The 2D steering demo (complete HTML document): live backend if one answers, else recorded runs.
-          cp -r site/2d-demo _site/
+          cp -r v1/site/2d-demo _site/
           {
             echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
             echo '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
             echo '<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>'
-            cat site/index.html
+            cat v1/site/index.html
             echo '</html>'
           } > _site/index.html
       - uses: actions/configure-pages@v5

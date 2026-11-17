@@ -1,67 +1,30 @@
 # beebot
 
-Neural cellular automata that learn to surround a block of cheese.
+One model that steers a robot swarm from plain English.
 
-Every square of a grid runs the same small neural network. Each square sees
-only its 3x3 neighborhood, and the only thing it can do is split its mass
-among itself and its 8 neighbors. Mass is never created or destroyed. The
-cheese gives off a smell that fades with distance. The network has to learn
-a rule that, run on every square at once, moves a blob of mass to the cheese
-and wraps it completely, as fast as possible.
+A pretrained language model (Qwen3-0.6B with LoRA) reads an instruction as text and the world as a grid
+of patch tokens, and gives every robot its next moves. One policy steers about 100 robots: eat a named
+cheese, clear the board, fill a box, move as a group, and take a new command mid-run. It was trained by
+behaviour cloning on scripted expert demonstrations, about 40 T4 hours in all, and runs the same in a
+MuJoCo physics world and on the raw grid. The next steps are a 3D version with modular cubes (in
+progress) and real hardware.
 
-There is no central controller, no coordinates, and no global information.
-Whatever coordination shows up comes out of the shared local rule.
-
-## Layout
-
-| File | What it holds |
+| dir | what |
 | --- | --- |
-| `src/beebot/layout.py` | Random layouts: grid size, cheese shape, starting blob, smell |
-| `src/beebot/ca.py` | One CA step, rollouts, and the loss |
-| `src/beebot/model.py` | The learned rule (`NCA`) and a hand-written baseline (`GreedyBaseline`) |
-| `src/beebot/train.py` | Training with a curriculum; every `Config` field is a flag |
-| `src/beebot/evaluate.py` | Frozen val and test sets and the hard metric |
-| `src/beebot/final_test.py` | Scores a finished run, and the baseline, on val and test |
-| `src/beebot/render.py` | GIFs of rollouts |
-| `src/beebot/bench.py` | Iteration timing per device |
+| [`v1/`](v1/) | The 2D language-steered policy: world, tasks, experts, the LM policy, training, the demo |
+| [`v2/`](v2/) | The 3D voxel world of pivoting cubes and a policy that thinks in text before acting (in progress) |
+| [`hardware/`](hardware/) | The cube module: MuJoCo models, design searches, CAD (nothing built yet) |
+| [`v0/`](v0/) | Where it started: neural cellular automata with one local rule per square |
 
-## The model
-
-Inputs per square, over its 3x3 neighborhood: mass, smell, and 8 note
-channels the network writes to and reads from, 90 numbers in total. Outputs:
-9 scores, softmaxed into the fractions of mass that stay or go to each
-neighbor, plus 8 note updates. Moves into the cheese are masked out. Each
-step, every square acts with probability 0.75 and sits out otherwise, so the
-rule can't rely on perfect synchrony.
-
-## The loss
-
-Averaged over every step of the rollout, so finishing earlier scores better:
-
-- surround: fraction of ring squares (the squares touching the cheese) holding at least 0.5 mass, soft
-- distance: mass-weighted average distance to the cheese, divided by its starting value
-- crowding: penalty on squares holding more than 1 unit of mass
-
-## Evaluation and anti-hacking rules
-
-- Runs are compared on the hard metric only: the step at which every ring
-  square first holds more than 0.5 mass, as a fraction of the rollout. A
-  failure counts as 1. Lower is better. The loss is never used to compare runs.
-- Training sizes are 16, 20, 24, 28, 32 and 40, with cheese of 1 to 9 squares.
-  The val set uses grid sizes 22, 30 and 36 (interp), 48 and 64 with cheese of 10 to 16 squares
-  (extrap), and interp layouts with 25% of the mass wiped mid-rollout (damage).
-- Rollout length, firing probability and the occupancy threshold are fixed in
-  `evaluate.py`, so a training config can't make the eval easier.
-- `evaluate.py` and `layout.py` are frozen during the hill-climb.
-- The test set uses other grid sizes (18, 26, 34; 56, 72) and seeds. It is
-  run once per finalist at the end, never to choose between runs.
+`AGENTS.md` summarises the project so far; each part has its own notes and write-ups in `docs/`.
 
 ## Running
 
 ```
-uv run bench
-uv run train --name my-run --minutes 30
-uv run final-test runs/my-run
+uv sync
+uv run pytest -q
+uv run python v1/scripts/swarm_steer.py --init_run <run dir>     # steer a swarm in the browser
 ```
 
-The hill-climb log is in `HILLCLIMB.md`, and the story behind the decisions is in `JOURNAL.md`.
+`beebot` is one Python package split over `v0/src`, `v1/src`, `v2/src` and `hardware/src`; run commands
+from the repository root.

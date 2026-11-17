@@ -1,10 +1,10 @@
 """Assembled and exploded views of the complete turning-face cube (offscreen VTK), from cube_full.py.
 
 Usage: .venv/bin/python hardware/rotating_cube/render_exploded.py
-Writes runs/handoff/media/rotating-cube-exploded.png (every part pulled out of the body and
-labelled) and, through assembled(), runs/handoff/media/rotating-cube-cad.png (left: the outside;
+Writes hardware/handoff/media/rotating-cube-exploded.png (every part pulled out of the body and
+labelled) and, through assembled(), hardware/handoff/media/rotating-cube-cad.png (left: the outside;
 right: the front half of the body removed). pieces(), scene() and shot() are also what
-scripts/rotating_cube_video.py animates.
+hardware/scripts/rotating_cube_video.py animates.
 """
 import math
 import sys
@@ -19,7 +19,7 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 import cube_full as full  # noqa: E402
 
-MEDIA = HERE.parents[1] / "runs" / "handoff" / "media"
+MEDIA = HERE.parents[1] / "hardware" / "handoff" / "media"
 CENTRE = np.array([0.0, 0.0, 25.0])
 
 

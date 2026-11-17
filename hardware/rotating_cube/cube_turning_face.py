@@ -3,7 +3,7 @@
 Axis of the turning face is +Z; the cube spans z = 0..50, x,y = -25..25.
 Run:  .venv/bin/python hardware/rotating_cube/cube_turning_face.py
 Writes STEP and STL for body and disc, prints volumes, masses, interference,
-and renders runs/handoff/media/rotating-cube-cad.png.
+and renders hardware/handoff/media/rotating-cube-cad.png.
 
 GUESS marks values that are placeholders, not measured or sourced.
 """
@@ -200,7 +200,7 @@ def render(parts, path):
 
 def main():
     here = Path(__file__).parent
-    media = here.parents[1] / "runs" / "handoff" / "media"
+    media = here.parents[1] / "hardware" / "handoff" / "media"
     media.mkdir(parents=True, exist_ok=True)
     body, disc, bearing, motor, balls = build_body(), build_disc(), build_bearing(), build_motor(), build_balls()
     for name, shape in (("body", body), ("disc", disc)):

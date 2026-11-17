@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/ops_session_brief.sh 2>/dev/null || true",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/v1/scripts/ops_session_brief.sh 2>/dev/null || true",
             "timeout": 20
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/scripts/ops_launch_guard.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/v1/scripts/ops_launch_guard.py",
             "timeout": 10
           }
         ]

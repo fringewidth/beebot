@@ -8,3 +8,8 @@ queue/
 BOARD.md
 ROADMAP.md
 .claude/worktrees/
+v0/runs_cancelled/
+v0/runs_finetuned/
+v0/runs_invalid/
+v0/runs_*/*/videos/
+v0/runs_*/*/demo/

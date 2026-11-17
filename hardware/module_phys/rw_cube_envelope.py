@@ -1,5 +1,5 @@
 """Envelope model (not a CAD design) of the 7 mm reaction-wheel cube RW-P from
-scripts/module_phys/scaling.py: boxes and cylinders at the sizes the scaling model picked, placed
+hardware/scripts/module_phys/scaling.py: boxes and cylinders at the sizes the scaling model picked, placed
 to check they fit together. Run: .venv/bin/python hardware/module_phys/rw_cube_envelope.py
 Writes hardware/module_phys/rw_cube_7mm_envelope.step and prints overlaps (should be none)."""
 

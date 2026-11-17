@@ -1,7 +1,7 @@
 [project]
 name = "beebot"
 version = "0.1.0"
-description = "Neural cellular automata that learn to surround cheese with conserved mass"
+description = "Language-steered robot swarms: v0 neural cellular automata, v1 a 2D LM swarm policy, v2 the 3D voxel world, hardware the cube modules"
 readme = "README.md"
 authors = [
     { name = "Hrishik Sai Bojnal", email = "116365046+fringewidth@users.noreply.github.com" }
@@ -36,10 +36,27 @@ play-coverage = "beebot.vla.play_coverage:main"
 vla-preflight = "beebot.vla.preflight:main"
 
 [build-system]
-requires = ["uv_build>=0.13.1,<0.14.0"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# beebot is a namespace package split over four source dirs (no beebot/__init__.py, no beebot/vla/__init__.py).
+# Import names did not change in the 2026-11-17 split: beebot.vla.* lives in v1, beebot.vla.voxel.* in v2,
+# beebot.hardware.* in hardware, and the neural-CA modules (beebot.train, beebot.ca, ...) in v0.
+[tool.hatch.build]
+dev-mode-dirs = ["v0/src", "v1/src", "v2/src", "hardware/src"]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["v0/src/beebot", "v1/src/beebot", "v2/src/beebot", "hardware/src/beebot"]
+sources = ["v0/src", "v1/src", "v2/src", "hardware/src"]
+
+[tool.pytest.ini_options]
+testpaths = ["v0/tests", "v1/tests", "v2/tests", "hardware/tests"]
 
 [dependency-groups]
+cad = [
+    "cadquery>=2.8.0",
+    "trimesh>=5.2.1",
+]
 dev = [
     "pytest>=9.1.1",
 ]
@@ -50,3 +67,6 @@ hardware = [
     "numba>=0.68.1",
     "pymoo>=0.6.2",
 ]
+
+[tool.uv]
+default-groups = "all"  # a plain `uv sync` keeps the hardware and CAD packages

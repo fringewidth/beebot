@@ -1,5 +1,5 @@
 {
- "design_file": "runs/module_phys/sma_cube/chosen.json",
+ "design_file": "hardware/runs/module_phys/sma_cube/chosen.json",
  "L_mm": 12.18,
  "hook_fit": {
   "fit": null,

@@ -5,13 +5,13 @@ and the detent balls are kept). The cube spans x, y = -25..25, z = 0..50; the tu
 
 Run:  .venv/bin/python hardware/rotating_cube/cube_full.py
 Writes cube_full_<part>.step and .stl for every part, cube_full_assembly.step, prints the
-interference table, the mass and inertia (copied into src/beebot/hardware/cube_turning.py) and the
+interference table, the mass and inertia (copied into hardware/src/beebot/hardware/cube_turning.py) and the
 cost table. render_exploded.py renders the assembled and exploded views from the same parts.
 
 Sizes marked BOUGHT are the usual catalogue sizes of off-the-shelf parts, written from memory and
 not checked against a datasheet. Everything marked GUESS is a choice of this file.
 
-Decisions (argued in runs/handoff/rotating-cube-poc.md):
+Decisions (argued in hardware/handoff/rotating-cube-poc.md):
 
 1. The turning-face gearmotor sits in the body, on the disc's axis, and drives the disc's hub by
    its D shaft. The motor's wires never cross the bearing and its reaction goes into the body.
@@ -27,7 +27,7 @@ Decisions (argued in runs/handoff/rotating-cube-poc.md):
    ring of the body around it.
 1. Edge hinge: an N20 gearmotor and, on each of the 12 edges, a 3 mm axle with two latch hooks.
    The train from the motor to an axle and the way a hook takes hold of the neighbour's axle are
-   NOT designed: HARDWARE.md says so of the hinge cube too, and nothing found here fits. The parts
+   NOT designed: hardware/docs/HARDWARE.md says so of the hinge cube too, and nothing found here fits. The parts
    are stand-ins that reserve the volume and the mass.
 """
 

@@ -3,7 +3,7 @@
 Recreated on 2026-11-14 from the exported STEP/STL files and the constants left in the bytecode of
 the first version, whose source was lost; the parts and their sizes are the same.
 
-HARDWARE.md ("The hinge cube in MuJoCo") says the edge latch and the torque source are not
+hardware/docs/HARDWARE.md ("The hinge cube in MuJoCo") says the edge latch and the torque source are not
 designed. This file picks one layout to show the parts of one pivot between two cubes, marked
 GUESS where it is a choice. It is an illustration of the motion, not a mechanism: the motor is not
 connected to the axle and the latches are plain discs. cube_full.py has the complete cube.
