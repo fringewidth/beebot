@@ -8,7 +8,7 @@
 #     nohup caffeinate -i bash v1/scripts/scale_q3_chain.sh > logs/scale-q3-chain.out 2>&1 &
 cd "$(dirname "$0")/../.." || exit 1
 export PATH="$HOME/.local/bin:$PATH"
-RVITM="$HOME/.kaggle-friends/rvitm/access_token"
+TEAMMATE_TOKEN="${KAGGLE_TEAMMATE_TOKEN:-}"  # path to the teammate account's access_token file
 run_of() {
   case $1 in
     q3-0.6b) echo runs/kaggle/beebot-q3-b/runs/q3-0.6b-x1 ;;
@@ -17,14 +17,14 @@ run_of() {
     q3-4b-half) echo runs/kaggle/beebot-q3-b/runs/q3-4b-x0.5 ;;
   esac
 }
-pull_when_done() {  # slug, then "rvitm" for the teammate account
+pull_when_done() {  # slug, then "teammate" for the teammate account
   local slug=$1
-  [ "$2" = rvitm ] && export KAGGLE_API_TOKEN="$(cat "$RVITM")"  # runs in a subshell (&): no leak
+  [ "$2" = teammate ] && export KAGGLE_API_TOKEN="$(cat "$TEAMMATE_TOKEN")"  # runs in a subshell (&): no leak
   until uv run python v1/scripts/vla_kaggle.py status "$slug" 2>&1 | grep -qE "COMPLETE|ERROR|CANCEL"; do sleep 60; done
   echo "$(date '+%H:%M:%S') pulling $slug"
   uv run python v1/scripts/vla_kaggle.py pull "$slug" 2>&1 | tail -2
 }
-pull_when_done beebot-q3-b rvitm &
+pull_when_done beebot-q3-b teammate &
 pull_when_done beebot-q3-a &
 JOBS=("q3-0.6b 1500 --null" "q3-1.7b 1500 --null" "q3-4b 1500 --null" "q3-0.6b 1000" "q3-1.7b 1000" "q3-4b 1000"
       "q3-4b-half 1500 --null" "q3-4b-half 1000" "q3-0.6b 0" "q3-1.7b 0" "q3-4b 0" "q3-0.6b 500" "q3-1.7b 500" "q3-4b 500")

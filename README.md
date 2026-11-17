@@ -23,10 +23,18 @@ progress) and real hardware.
 ## Running
 
 ```
-uv sync
+uv sync                                   # everything; --no-group cad --no-group hardware skips the CAD and hardware packages
 uv run pytest -q
-uv run python v1/scripts/swarm_steer.py --init_run <checkpoint folder>   # steer a swarm in the browser
 ```
+
+To steer the 2D policy in a browser, download `config.json` and `policy_latest.pt` from the Kaggle dataset
+into one folder (the Qwen3-0.6B base model comes from Hugging Face on first run), then:
+
+```
+uv run python v1/scripts/swarm_steer.py --init_run <that folder> --device cuda   # or cpu; the default is mps (Mac)
+```
+
+and open http://127.0.0.1:8790.
 
 `beebot` is one Python package split over `v0/src`, `v1/src`, `v2/src` and `hardware/src`; run commands
 from the repository root.

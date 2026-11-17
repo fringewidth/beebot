@@ -11,7 +11,7 @@
 #     nohup caffeinate -i bash v1/scripts/scale_q3_sweep_chain.sh > logs/scale-q3-sweep.out 2>&1 &
 cd "$(dirname "$0")/../.." || exit 1
 export PATH="$HOME/.local/bin:$PATH"
-RVITM="$HOME/.kaggle-friends/rvitm/access_token"
+TEAMMATE_TOKEN="${KAGGLE_TEAMMATE_TOKEN:-}"  # path to the teammate account's access_token file
 STORES="data/vla/experts_heldout_g32_s1 data/vla/experts_heldout_g32_s2 data/vla/experts_newshapes_g32_s3 data/vla/experts_newshapes_g32_s4"
 ARMS="q3-0.6b-x0.25 q3-0.6b-x0.5 q3-0.6b-x1 q3-0.6b-x2 q3-1.7b-x0.25 q3-1.7b-x0.5 q3-1.7b-x1 q3-1.7b-x2 q3-4b-x0.25 q3-4b-x0.5 q3-4b-x1 q3-4b-x2"
 run_of() {
@@ -27,17 +27,17 @@ run_of() {
 label_of() {  # the unseen-shape log's label (the first chain's labels for the runs it scored)
   case $1 in q3-4b-x0.5) echo q3-4b-half ;; *-x1) echo "${1%-x1}" ;; *) echo "$1" ;; esac
 }
-pull_when_done() {  # slug, then "rvitm" for the teammate account
+pull_when_done() {  # slug, then "teammate" for the teammate account
   local slug=$1
-  [ "$2" = rvitm ] && export KAGGLE_API_TOKEN="$(cat "$RVITM")"  # runs in a subshell (&): no leak
+  [ "$2" = teammate ] && export KAGGLE_API_TOKEN="$(cat "$TEAMMATE_TOKEN")"  # runs in a subshell (&): no leak
   until uv run python v1/scripts/vla_kaggle.py status "$slug" 2>&1 | grep -qE "COMPLETE|ERROR|CANCEL"; do sleep 60; done
   echo "$(date '+%H:%M:%S') pulling $slug"
   uv run python v1/scripts/vla_kaggle.py pull "$slug" 2>&1 | tail -1
 }
 pull_when_done beebot-q3-c &
 pull_when_done beebot-q3-d &
-pull_when_done beebot-q3-e rvitm &
-pull_when_done beebot-q3-f rvitm &
+pull_when_done beebot-q3-e teammate &
+pull_when_done beebot-q3-f teammate &
 until grep -q "end q3-4b step 1500" logs/scale-q3-chain.out; do sleep 30; done
 pkill -f "scale_q3_chain.sh"; sleep 2; pkill -f "scale_curve_score.py.*--log logs/scale-q3.out"
 echo "$(date '+%H:%M:%S') stopped scale_q3_chain.sh after the x1 4B"
