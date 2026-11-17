@@ -13,3 +13,5 @@ v0/runs_finetuned/
 v0/runs_invalid/
 v0/runs_*/*/videos/
 v0/runs_*/*/demo/
+/runs/
+/logs/

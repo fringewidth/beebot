@@ -49,7 +49,7 @@ the scene's swarm can do (suite.fits) also when --robots is not given; --empty m
 an empty flat floor and gives up the drawn tasks it does not allow; --scaled fits task sizes to
 the swarm (draws).
 
-The grant demo's case (--demo, PRESETS): about ten cubes on MuJoCo's empty floor, 8 to 12 robots,
+The cube demo's case (--demo, PRESETS): about ten cubes on MuJoCo's empty floor, 8 to 12 robots,
 --empty --scaled --keep --fit, rule switch_cube, world.py's measured outcome model of the demo's
 cube (--outcomes mujoco_hinge_v1, the hinge cube, DEMO_MOVES), and one try a scene from every sampler (README "Demo: ten cubes
 on an empty floor").
@@ -116,7 +116,7 @@ EXPERTS = ("attractor", "planner")  # suite.Expert; free_cube.FreeCubeExpert (ne
 # mujoco_release_v3 and before) stay loadable by name.
 DEMO_MOVES = {"outcomes": "mujoco_hinge_v1"}
 PRESETS = {  # CLI presets: option defaults that given options override; small.pt records the name under config["preset"]
-    "demo": {  # the grant demo: about ten pivoting cubes on MuJoCo's empty flat floor (README "Demo: ten cubes on an empty floor")
+    "demo": {  # the cube demo: about ten pivoting cubes on MuJoCo's empty flat floor (README "Demo: ten cubes on an empty floor")
         "robots": (8, 12),
         "empty": True,
         "scaled": True,
@@ -461,7 +461,7 @@ def main():
     parser.add_argument("--thin_towers", action="store_true", help="a tower the swarm cannot fill as a 2 x 2 column is a single column and fits (suite.THIN_TOWERS); off by default: it changes the draw, so stores whose Haiku labels join by draw index must not use it")
     parser.add_argument("--plain", action="store_true", help="store the instruction text in plain words (suite.plain_words: a cheese is a food block, a stripe a line on the floor); the draw is unchanged")
     parser.add_argument("--scaled", action="store_true", help="task sizes fitted to the swarm: a tower a single column, a letter or the wall at half size, when the swarm cannot do the full one (draws scaled)")
-    parser.add_argument("--demo", action="store_true", help="the grant demo's case, about ten cubes on MuJoCo's empty floor: " + " ".join(f"--{k} {' '.join(map(str, v)) if isinstance(v, tuple) else '' if v is True else v}".rstrip() for k, v in PRESETS["demo"].items()) + ", each unless given")
+    parser.add_argument("--demo", action="store_true", help="the cube demo's case, about ten cubes on MuJoCo's empty floor: " + " ".join(f"--{k} {' '.join(map(str, v)) if isinstance(v, tuple) else '' if v is True else v}".rstrip() for k, v in PRESETS["demo"].items()) + ", each unless given")
     preset = "demo" if parser.parse_known_args()[0].demo else None
     if preset is not None:
         parser.set_defaults(**PRESETS[preset])

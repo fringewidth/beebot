@@ -1,4 +1,4 @@
-"""The grant demo's case (README "Demo: ten cubes on an empty floor"): task sizes fitted to the
+"""The cube demo's case (README "Demo: ten cubes on an empty floor"): task sizes fitted to the
 swarm (scaled), scenes that are an empty flat floor (empty), and the demos --demo preset."""
 
 import json

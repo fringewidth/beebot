@@ -1309,7 +1309,7 @@ Tests: `v2/tests/test_vla_voxel_build.py`.
 
 ## Demo: ten cubes on an empty floor
 
-The grant demo runs the think-then-act policy on about ten simulated cubes in MuJoCo, which hosts
+The cube demo runs the think-then-act policy on about ten simulated cubes in MuJoCo, which hosts
 only an empty flat floor: no cheese, terrain, objects or zones. The training stores barely cover
 that (2.2% of their episodes are an empty floor with 6 to 14 robots), and their fit checks left
 out towers of 4 and more and every single letter below 14 robots. `demos --demo` draws

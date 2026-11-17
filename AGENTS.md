@@ -90,7 +90,7 @@ Kaggle GPU quota is the scarcest resource. Every Kaggle minute should be a gradi
 
 ## Plan, claims and numbers: `ops`
 
-Several Claude sessions run experiments in this repo at once. The plan (goals, tasks, dependencies), who runs what on the Mac GPU and Kaggle, the queues and messages between sessions live in the `ops` repo (`~/ops`, project `beebot`), shown at https://hrishik.me/ops. Read `~/ops/README.md` once per session; it is short. `BOARD.md` is retired.
+Several Claude sessions run experiments in this repo at once. The plan (goals, tasks, dependencies), who runs what on the Mac GPU and Kaggle, the queues and messages between sessions live in the `ops` repo (`~/ops`, project `beebot`). Read `~/ops/README.md` once per session; it is short. `BOARD.md` is retired.
 
 `ops` is the task manager and the reporting tool for this repo: the user adds and reorders tasks there and reads the state of the work there. Keep reading it to pick up new work: run `ops board` and `ops show` at the start of a session, after finishing each task, and at every check-in on a long job, and take up new or changed nodes and messages addressed to you. `ops` is also the one progress tracker; everything goes through it. Nothing about the state of the work lives only in a chat, a scratch file or a markdown roadmap:
 
