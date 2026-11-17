@@ -7,7 +7,7 @@ import numpy as np
 from beebot.hardware import forms
 
 UNIT = forms.Unit(side=0.05, mass=0.2, twist=1.2, bend=5.0, pull=300.0)
-TWIST, BEND, _ = UNIT.caps
+TWIST, BEND, _, _ = UNIT.caps
 BEND *= math.cos(math.pi / 16)  # bending is checked along 16 directions, inside the circle
 
 
@@ -81,3 +81,10 @@ def test_a_loaded_foot_drags_so_a_leg_needs_far_more_than_its_own_weight():
     assert not walks(3 * hold_leg_out, 0.6)  # holding the leg out is not the limit
     assert walks(9 * hold_leg_out, 0.6)  # half the robot on the foot's edge, dragged: 6 x (0.35 + 0.6 x 1.5) = 7.5
     assert not walks(9 * hold_leg_out, 1.2)  # a stickier floor asks for more
+
+
+def test_every_kind_of_leg_is_tested():
+    # a plus: side legs swing fore and aft on y hips, but the fore and aft "legs" roll about the spine, so their feet go sideways
+    plus = forms.settle({(x, 0, 1, 0) for x in (0, 1, 3, 5, 6)} | {(2, 0, 1, 2), (4, 0, 1, 2), (2, 0, 0, 0), (4, 0, 0, 0)} | {(3, s, 1, 1) for s in (1, -1)} | {(3, s, 0, 2) for s in (1, -1)}, ((0, 6), (1, 0)))
+    strong = forms.replace(UNIT, twist=10 * UNIT.twist)
+    assert all(stride == 0 for _, stride in forms.walker(plus, strong))
