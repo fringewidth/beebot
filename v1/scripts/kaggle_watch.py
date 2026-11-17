@@ -417,7 +417,7 @@ def arguments(argv=None):
     parser.add_argument("--window", type=float, default=25, help="seconds to read a running session's log stream")
     parser.add_argument("--first-step-minutes", type=float, default=30, help="b: minutes after the session start by which a training step must appear (0: off)")
     parser.add_argument("--warmup", type=int, default=100, help="c: the first loss at or after this step is the reference")
-    parser.add_argument("--rise", type=float, default=0.0, help="c: fraction above the reference that counts as risen")
+    parser.add_argument("--rise", type=float, default=0.05, help="c: fraction above the reference that counts as risen (batch-16 losses wander ~2-3%% on a plateau)")
     parser.add_argument("--rise-points", type=int, default=3, help="c: logged points in a row above the reference")
     parser.add_argument("--loss-key", help="the progress lines' loss key (default: loss, demo_loss, train_loss, else any *loss)")
     parser.add_argument("--compare", nargs=2, metavar=("A", "B"), help="d: two arms (run names, their ends, or the lines' 'arm')")
