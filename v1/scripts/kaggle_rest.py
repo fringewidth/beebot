@@ -34,6 +34,8 @@ from pathlib import Path
 
 API = "https://www.kaggle.com/api/v1"
 RPC = "https://api.kaggle.com/v1/kernels.KernelsApiService"
+# Kaggle answers 404 to Python's default "Python-urllib" User-Agent (seen 2026-11-21); any other value works.
+USER_AGENT = "beebot-kaggle-rest"
 
 
 def token():
@@ -45,6 +47,7 @@ def call(url, body=None, raw=False):
     data = None if body is None else json.dumps(body).encode()
     request = urllib.request.Request(url, data=data, method="POST" if data is not None else "GET")
     request.add_header("Authorization", f"Bearer {token()}")
+    request.add_header("User-Agent", USER_AGENT)
     if data is not None:
         request.add_header("Content-Type", "application/json")
     try:
@@ -130,7 +133,8 @@ def log_entries(owner, slug, seconds=30):
     """The session's log entries so far. A running session's log is an event stream that stays open
     ("data: {...}" lines): read for `seconds`, then keep what arrived; a finished one's is a JSON
     list (one entry per line, '[' or ',' first)."""
-    request = urllib.request.Request(f"{RPC}/GetKernelSessionLogsStream", data=json.dumps({"userName": owner, "kernelSlug": slug}).encode(), method="POST")
+    request = urllib.request.Request(f"{RPC}/GetKernelSessionLogsStream", data=json.dumps({"userName": owner, "kernelSlug": slug}).encode(), method="POST",
+                                     headers={"User-Agent": USER_AGENT})
     request.add_header("Authorization", f"Bearer {token()}")
     request.add_header("Content-Type", "application/json")
     raw, end = b"", time.time() + seconds
